@@ -1,0 +1,27 @@
+{
+  "name": "jev-content-filter",
+  "version": "0.1.0",
+  "description": "AI feed filter for X using TypeSafe Jev + NSFWJS",
+  "type": "module",
+  "scripts": {
+    "dev": "wxt",
+    "build": "wxt build",
+    "zip": "wxt zip",
+    "compile": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@base-ui-components/react": "^1.0.0-rc.0",
+    "ai": "^7.0.105",
+    "nsfwjs": "^4.4.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "@tensorflow/tfjs": "^4.22.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@wxt-dev/module-react": "^1.1.3",
+    "typescript": "^5.9.0",
+    "wxt": "^0.21.4"
+  }
+}

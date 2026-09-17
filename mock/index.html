@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Mock X feed</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #000; color: #e7e9ea; margin: 0 auto; max-width: 600px; }
+    article { border-bottom: 1px solid #2f3336; padding: 12px 16px; }
+    .header { display: flex; gap: 8px; margin-bottom: 4px; }
+    .name { font-weight: 700; }
+    .handle, .time { color: #71767b; }
+    img { max-width: 100%; border-radius: 12px; margin-top: 8px; }
+    a { color: #1d9bf0; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <main>
+    <article data-testid="tweet">
+      <div data-testid="User-Name"><span class="name">Gardener</span> <span class="handle">@gardener</span></div>
+      <a href="/gardener/status/1001"><time datetime="2026-09-17T10:00:00Z">10:00</time></a>
+      <div data-testid="tweetText">Repotted the monstera today, soil mix recipe inside. 🌿</div>
+      <img src="/pbs.twimg.com/media/landscape.png" width="400" height="400">
+    </article>
+
+    <article data-testid="tweet">
+      <div data-testid="User-Name"><span class="name">ThirstTrap</span> <span class="handle">@thirst</span></div>
+      <a href="/thirst/status/1002"><time datetime="2026-09-17T10:05:00Z">10:05</time></a>
+      <div data-testid="tweetText">u up? i lost a bet and now i owe you something special... come see what's under these clothes 🥵</div>
+      <img src="/pbs.twimg.com/media/red-circle.png" width="400" height="400">
+    </article>
+
+    <article data-testid="tweet">
+      <div data-testid="User-Name"><span class="name">BotSlop</span> <span class="handle">@botslop</span></div>
+      <a href="/botslop/status/1003"><time datetime="2026-09-17T10:10:00Z">10:10</time></a>
+      <div data-testid="tweetText">As an AI language model, I cannot stress this enough: consistency is key. Here are 5 actionable steps to level up your morning routine: 1. Wake up early. 2. Hydrate. 3. Exercise. 4. Reflect. 5. Execute. Thread below 🧵</div>
+    </article>
+
+    <article data-testid="tweet">
+      <div data-testid="User-Name"><span class="name">Human</span> <span class="handle">@human</span></div>
+      <a href="/human/status/1004"><time datetime="2026-09-17T10:15:00Z">10:15</time></a>
+      <div data-testid="tweetText">bruh my cat just sat on my keyboard and ordered 12kg of cat food</div>
+    </article>
+  </main>
+</body>
+</html>

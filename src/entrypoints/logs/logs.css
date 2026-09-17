@@ -1,0 +1,53 @@
+:root {
+  color-scheme: light dark;
+  font-family: system-ui, sans-serif;
+  font-size: 13px;
+}
+
+.logs {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.logs-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.logs-header h1 {
+  font-size: 18px;
+  margin: 0;
+}
+
+.logs-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.logs-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.logs-table th,
+.logs-table td {
+  text-align: left;
+  padding: 6px 10px;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 15%, transparent);
+  vertical-align: top;
+}
+
+.logs-table th {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.logs-snippet {
+  max-width: 420px;
+  overflow-wrap: anywhere;
+  opacity: 0.85;
+}

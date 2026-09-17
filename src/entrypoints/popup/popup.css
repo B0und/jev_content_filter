@@ -1,0 +1,66 @@
+:root {
+  color-scheme: light dark;
+  font-family: system-ui, sans-serif;
+  font-size: 13px;
+}
+
+.popup {
+  width: 320px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.popup-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.popup-header h1 {
+  font-size: 15px;
+  margin: 0;
+}
+
+.status {
+  margin: 0;
+  font-size: 12px;
+}
+
+.status-ok {
+  color: #1a7f37;
+}
+
+.status-failing {
+  color: #c62828;
+}
+
+.slider-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.slider-label {
+  font-size: 12px;
+}
+
+.slider-value {
+  width: 3ch;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+}
+
+.key-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.logs-link {
+  font-size: 12px;
+  color: inherit;
+}
