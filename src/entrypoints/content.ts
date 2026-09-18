@@ -216,6 +216,61 @@ function timeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> 
 }
 function message(error: unknown): string { return error instanceof Error ? error.message : String(error); }
 
+// Persistent classification cache: scores keyed by content hash so page
+// reloads reuse the Jev API result for unchanged text and skip local image
+// inference for images already classified. One storage key per score keeps
+// concurrent tabs from clobbering each other's read-modify-write.
+const CACHE_PREFIX = `${STORAGE_KEYS.scores}:`;
+const CACHE_LIMIT = 4000;
+let cacheWrites = 0;
+
+/** 64-bit-ish FNV-1a + djb2 pair, base36: collisions become vanishingly unlikely. */
+function hash64(input: string): string {
+  let h1 = 0x811c9dc5;
+  let h2 = 5381;
+  for (let i = 0; i < input.length; i++) {
+    const code = input.charCodeAt(i);
+    h1 = Math.imul(h1 ^ code, 0x01000193);
+    h2 = (Math.imul(h2, 33) ^ code) >>> 0;
+  }
+  return `${(h1 >>> 0).toString(36)}${h2.toString(36)}`;
+}
+
+/** Media URLs vary only by size/format params; key on the stable media id. */
+function normImageUrl(url: string): string {
+  return (url.split('?')[0] ?? url).toLowerCase().replace(/:[a-z0-9]+$/, '').replace(/\.(jpe?g|png|webp|gif)$/, '');
+}
+
+interface CachedScores { scores: Partial<Record<CategoryKey, number>>; ts: number }
+
+async function readCache(key: string): Promise<CachedScores | null> {
+  try {
+    const stored = await browser.storage.local.get(key);
+    const value = stored[key] as CachedScores | undefined;
+    return value?.scores ? value : null;
+  } catch { return null; }
+}
+
+function writeCache(key: string, scores: Partial<Record<CategoryKey, number>>): void {
+  cacheWrites += 1;
+  void browser.storage.local.set({ [key]: { scores, ts: Date.now() } }).catch(() => {});
+  if (cacheWrites % 250 === 0) void evictCache();
+}
+
+async function evictCache(): Promise<void> {
+  try {
+    const all = await browser.storage.local.get(null);
+    const entries = Object.entries(all).filter(([key]) => key.startsWith(CACHE_PREFIX));
+    if (entries.length <= CACHE_LIMIT) return;
+    // Keep the newest entries; drop the rest.
+    const dropKeys = entries
+      .sort((a, b) => ((b[1] as CachedScores)?.ts ?? 0) - ((a[1] as CachedScores)?.ts ?? 0))
+      .slice(CACHE_LIMIT)
+      .map(([key]) => key);
+    await browser.storage.local.remove(dropKeys);
+  } catch { /* cache is best-effort */ }
+}
+
 function isAttached(post: Post): boolean {
   for (const [article, binding] of bindings) if (binding.post === post && article.isConnected) return true;
   return false;
@@ -235,11 +290,16 @@ function canRetry(error: string): boolean {
 }
 
 async function textScores(post: Post, text: string): Promise<Partial<Record<CategoryKey, number>>> {
+  const key = `${CACHE_PREFIX}t:${hash64(`${post.author}\n${text}`)}`;
+  const cached = await readCache(key);
+  if (cached) return cached.scores;
   if (!settings.gatewayKey) throw new Error('Add an AI Gateway key in the extension popup to check text.');
   const reply = await browser.runtime.sendMessage({ type: 'jev', tweetId: post.id, author: post.author, text }) as JevReply;
   if (!reply.ok) throw new Error(reply.error);
   if (![reply.sexual, reply.ai].every(score => Number.isFinite(score) && score >= 0 && score <= 1)) throw new Error('Invalid text scores');
-  return { sexualText: reply.sexual, aiGenerated: reply.ai };
+  const scores = { sexualText: reply.sexual, aiGenerated: reply.ai };
+  writeCache(key, scores);
+  return scores;
 }
 
 function imageScores(urls: string[]) {
@@ -323,19 +383,37 @@ async function scan(post: Post): Promise<void> {
 async function classifyImages(urls: string[]): Promise<{ scores: Partial<Record<CategoryKey, number>>; errors: string[] }> {
   const scores: Partial<Record<CategoryKey, number>> = {};
   const errors: string[] = [];
-  const model = await loadModel();
+  const misses: Array<{ url: string; index: number }> = [];
   for (let index = 0; index < urls.length; index++) {
+    const cached = await readCache(`${CACHE_PREFIX}i:${hash64(normImageUrl(urls[index] ?? ''))}`);
+    if (cached) {
+      for (const [key, value] of Object.entries(cached.scores)) {
+        const category = key as CategoryKey;
+        scores[category] = Math.max(scores[category] ?? 0, value);
+      }
+    } else {
+      misses.push({ url: urls[index] ?? '', index });
+    }
+  }
+  if (!misses.length) return { scores, errors };
+  const model = await loadModel();
+  for (const miss of misses) {
     let bitmap: ImageBitmap | undefined;
     let pixels: tf.Tensor3D | undefined;
     try {
-      bitmap = await fetchBitmap(urls[index] ?? '');
+      bitmap = await fetchBitmap(miss.url);
       pixels = tf.browser.fromPixels(bitmap, 3);
       const predictions = await model.classify(pixels);
+      const imageScores: Partial<Record<CategoryKey, number>> = {};
       for (const prediction of predictions) {
         const key = prediction.className.toLowerCase() as CategoryKey;
-        if (IMAGE_KEYS.includes(key)) scores[key] = Math.max(scores[key] ?? 0, prediction.probability);
+        if (IMAGE_KEYS.includes(key)) {
+          imageScores[key] = Math.max(imageScores[key] ?? 0, prediction.probability);
+          scores[key] = Math.max(scores[key] ?? 0, prediction.probability);
+        }
       }
-    } catch (error) { errors.push(`Image ${index + 1}: ${message(error)}`); }
+      writeCache(`${CACHE_PREFIX}i:${hash64(normImageUrl(miss.url))}`, imageScores);
+    } catch (error) { errors.push(`Image ${miss.index + 1}: ${message(error)}`); }
     finally { pixels?.dispose(); bitmap?.close(); }
   }
   return { scores, errors };
@@ -411,9 +489,7 @@ const ICON_CSS = `
 }
 .btn:hover { opacity: 1; background: var(--jev-hover); color: var(--jev-accent, #1d9bf0); }
 .btn:focus-visible { outline: 2px solid var(--jev-accent, #1d9bf0); outline-offset: 2px; opacity: 1; }
-.btn.pending { opacity: 0.5; animation: jev-pulse 1.5s ease-in-out infinite; }
-@keyframes jev-pulse { 0%,100% { opacity: 0.45; } 50% { opacity: 0.85; } }
-@media (prefers-reduced-motion: reduce) { .btn.pending { animation: none; opacity: 0.55; } }
+.btn.pending { opacity: 0.5; }
 .btn.warn::after { content: ''; position: absolute; top: 3px; right: 3px; width: 7px; height: 7px; border-radius: 50%; background: #d18808; }
 `;
 
@@ -547,6 +623,22 @@ a:hover { text-decoration: underline; }
 .hint { color: var(--p-muted); font-size: 13px; margin: 6px 0 0; }
 `;
 
+let panelPos: { left: number; top: number } | null = null;
+let panelSize = { width: 0, height: 0 };
+
+function placePanel(anchor: HTMLElement): void {
+  if (!panelRoot || !panelPos) return;
+  const panel = panelRoot.querySelector('.panel') as HTMLElement | null;
+  if (!panel) return;
+  const rect = anchor.getBoundingClientRect();
+  let left = Math.min(Math.max(8, rect.right - panelSize.width + 30), window.innerWidth - panelSize.width - 8);
+  let top = rect.bottom + 6;
+  if (top + panelSize.height > window.innerHeight - 8) top = Math.max(8, rect.top - panelSize.height - 6);
+  panelPos = { left, top };
+  panel.style.left = `${left}px`;
+  panel.style.top = `${top}px`;
+}
+
 function openPanel(post: Post, anchor: HTMLButtonElement): void {
   closePanel();
   openPostId = post.id;
@@ -560,31 +652,35 @@ function openPanel(post: Post, anchor: HTMLButtonElement): void {
     closePanel();
   };
   const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') closePanel(); };
-  const onScroll = () => closePanel();
+  // Follow the post instead of closing: X's feed shifts constantly (new
+  // posts, lazy media), so a plain scroll listener would kill the panel
+  // seconds after opening. Only Escape, outside clicks, or the post
+  // leaving the DOM dismiss it.
+  let frame = 0;
+  const onScroll = () => {
+    if (frame) return;
+    frame = requestAnimationFrame(() => {
+      frame = 0;
+      if (!panelHost) return;
+      if (!anchor.isConnected) { closePanel(); return; }
+      placePanel(anchor);
+    });
+  };
   document.addEventListener('pointerdown', outside, true);
   document.addEventListener('keydown', onKey, true);
   window.addEventListener('scroll', onScroll, true);
+  window.addEventListener('resize', onScroll);
   (panelHost as HTMLElement & { _jevClose?: () => void })._jevClose = () => {
+    if (frame) cancelAnimationFrame(frame);
     document.removeEventListener('pointerdown', outside, true);
     document.removeEventListener('keydown', onKey, true);
     window.removeEventListener('scroll', onScroll, true);
+    window.removeEventListener('resize', onScroll);
   };
   renderPanel(post);
-  const rect = anchor.getBoundingClientRect();
   const panel = panelRoot.querySelector('.panel') as HTMLElement;
-  const width = panel.offsetWidth;
-  let left = Math.min(Math.max(8, rect.right - width + 30), window.innerWidth - width - 8);
-  let top = rect.bottom + 6;
-  if (top + panel.offsetHeight > window.innerHeight - 8) top = Math.max(8, rect.top - panel.offsetHeight - 6);
-  panel.style.left = `${left}px`;
-  panel.style.top = `${top}px`;
-  // Live countdown for retry timers.
-  if (post.retryAt && !panelCountdownTimer) {
-    panelCountdownTimer = setInterval(() => {
-      if (!panelHost || openPostId !== post.id) { panelCountdownTimer = undefined; return; }
-      renderPanel(post);
-    }, 1000);
-  }
+  panelSize = { width: panel.offsetWidth, height: panel.offsetHeight };
+  placePanel(anchor);
 }
 function closePanel(): void {
   if (!panelHost) { openPostId = null; return; }
@@ -595,6 +691,7 @@ function closePanel(): void {
   const previous = openPostId;
   panelHost = null;
   panelRoot = null;
+  panelPos = null;
   openPostId = null;
   if (previous) {
     const post = posts.get(previous);
@@ -683,7 +780,20 @@ function renderPanel(post: Post): void {
   hint.className = 'hint';
   panel.append(hint);
   panelRoot.append(panel);
-  const focusTarget = wasFocus ? panelRoot.querySelector<HTMLButtonElement>(`[aria-label="${wasFocus}"]`) : null;
+  if (panelPos) {
+    panel.style.left = `${panelPos.left}px`;
+    panel.style.top = `${panelPos.top}px`;
+  }
+  // Live countdown for retry timers; stops once no retry is pending.
+  if (post.retryAt && !panelCountdownTimer) {
+    panelCountdownTimer = setInterval(() => {
+      if (!panelHost || openPostId !== post.id) { panelCountdownTimer = undefined; return; }
+      if (!posts.get(post.id)?.retryAt) { clearInterval(panelCountdownTimer); panelCountdownTimer = undefined; return; }
+      const current = posts.get(post.id);
+      if (current) renderPanel(current);
+    }, 1000);
+  }
+  const focusTarget = wasFocus ? panelRoot.querySelector<HTMLButtonElement>(`[aria-label="${CSS.escape(wasFocus)}"]`) : null;
   focusTarget?.focus();
 }
 
