@@ -333,42 +333,19 @@ function render(article: HTMLElement, binding: Binding): void {
 }
 
 /**
- * Visibility policy: never yank a post the user is looking at. Blocked posts
- * below the fold (or explicitly hidden by the user) disappear immediately;
- * onscreen ones defer their hide until they scroll out of the viewport, so
- * the timeline never jumps.
+ * Visibility policy: a blocked post disappears as soon as its verdict lands,
+ * even if it is onscreen — the user prefers instant removal over layout
+ * stability. Review mode keeps everything inspectable.
  */
 function applyVisibility(article: HTMLElement, binding: Binding): void {
   const { post, observer } = binding;
+  observer?.disconnect();
+  binding.observer = null;
   if (!blocked(post) || reviewing) {
-    observer?.disconnect();
-    binding.observer = null;
     article.removeAttribute('data-jev-hidden');
     return;
   }
-  if (overrides.get(post.id) === 'hide' || !onScreen(article)) {
-    observer?.disconnect();
-    binding.observer = null;
-    article.setAttribute('data-jev-hidden', '');
-    return;
-  }
-  // Onscreen: stay visible for now; hide when it leaves the viewport.
-  if (!binding.observer) {
-    binding.observer = new IntersectionObserver(entries => {
-      for (const entry of entries) {
-        if (!entry.isIntersecting) {
-          binding.observer?.disconnect();
-          binding.observer = null;
-          if (blocked(post) && !reviewing) article.setAttribute('data-jev-hidden', '');
-        }
-      }
-    });
-    binding.observer.observe(article);
-  }
-}
-function onScreen(article: HTMLElement): boolean {
-  const rect = article.getBoundingClientRect();
-  return rect.bottom > 0 && rect.top < window.innerHeight;
+  article.setAttribute('data-jev-hidden', '');
 }
 function stateOf(post: Post): string {
   if (!settings.masterEnabled) return 'Paused';
