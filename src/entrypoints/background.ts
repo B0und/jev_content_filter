@@ -263,12 +263,19 @@ async function handleRequest(request: BgRequest): Promise<unknown> {
       logQueue = run;
       return run;
     }
+    case 'open-logs': {
+      // Page contexts cannot navigate to chrome-extension:// URLs; open the
+      // log from the privileged worker instead.
+      const url = browser.runtime.getURL('/logs.html') + (request.errors ? '#errors' : '');
+      void browser.tabs.create({ url });
+      return { ok: true };
+    }
   }
 }
 
 browser.runtime.onMessage.addListener((request: BgRequest) => {
   if (!request || typeof request !== 'object' || !('type' in request)) return;
-  if (!['jev', 'fetch-image', 'get-status', 'log-blocked'].includes(request.type)) return;
+  if (!['jev', 'fetch-image', 'get-status', 'log-blocked', 'open-logs'].includes(request.type)) return;
   // Return a promise: keeps the message channel open for the async reply.
   // Startup requests wait for settings instead of racing loadSettings().
   return settingsSync.then(() => handleRequest(request));

@@ -98,8 +98,8 @@ export function App() {
         <button onClick={() => void command('rescan')}>Retry scans</button>
       </div>}
       <div className="log-links">
-        <a href="/logs.html#errors" target="_blank" rel="noreferrer">Error log</a>
-        <a href="/logs.html" target="_blank" rel="noreferrer">Blocked log</a>
+        <button onClick={() => void browser.tabs.create({ url: browser.runtime.getURL('/logs.html#errors') })}>Error log</button>
+        <button onClick={() => void browser.tabs.create({ url: browser.runtime.getURL('/logs.html') })}>Blocked log</button>
       </div>
       {error && <p role="alert" className="warning">{error}</p>}
     </div>

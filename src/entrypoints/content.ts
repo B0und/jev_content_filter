@@ -129,12 +129,37 @@ function discover(): void {
       button.addEventListener('pointerdown', event => event.stopPropagation());
       root.append(button);
       host.addEventListener('click', event => event.stopPropagation());
-      article.append(host);
       binding = { post, host, root, button, observer: null };
       bindings.set(article, binding);
     }
+    if (!binding.host.isConnected) insertHost(article, binding.host);
+    else if (binding.host.dataset.jevSpot === 'below' && headerCarets(article).length > 0) {
+      // X may add the ⋯ cluster after first paint; move up beside it.
+      binding.host.remove();
+      insertHost(article, binding.host);
+    }
     render(article, binding);
     void scan(post);
+  }
+}
+
+function headerCarets(article: HTMLElement): HTMLElement[] {
+  return Array.from(article.querySelectorAll<HTMLElement>('[data-testid="caret"]'))
+    .filter(caret => !(caret.closest('article[data-testid="tweet"]')?.parentElement?.closest('article[data-testid="tweet"]')));
+}
+
+/**
+ * Put the icon next to the ⋯/Grok cluster in the post header; posts without
+ * a caret there fall back to a right-aligned row under the content.
+ */
+function insertHost(article: HTMLElement, host: HTMLElement): void {
+  const caret = headerCarets(article)[0];
+  if (caret?.parentElement) {
+    host.dataset.jevSpot = 'header';
+    caret.parentElement.insertBefore(host, caret);
+  } else {
+    host.dataset.jevSpot = 'below';
+    article.append(host);
   }
 }
 function sameUrls(a: string[], b: string[]): boolean {
@@ -274,7 +299,8 @@ const WARN_SVG = '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentC
 const SPIN_SVG = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke-dasharray="42 15"/></svg>';
 
 const ICON_CSS = `
-:host { display: flex; justify-content: flex-end; align-items: center; padding: 2px 16px 10px; }
+:host { display: inline-flex; align-items: center; margin: 0 2px; }
+:host([data-jev-spot="below"]) { display: flex; justify-content: flex-end; padding: 2px 16px 10px; }
 .btn {
   display: inline-flex; align-items: center; justify-content: center;
   width: 30px; height: 30px; padding: 0; margin: 0;
@@ -515,12 +541,10 @@ function renderPanel(post: Post): void {
   const retry = action('Retry scan', async () => { post.textDone = false; post.imagesDone = false; await scan(post); }) as HTMLButtonElement;
   retry.disabled = post.pending;
   panel.append(actions);
-  action('Open error log', async () => {}, foot, false);
-  const logsLink = element('a', 'Blocked log');
-  logsLink.href = browser.runtime.getURL('/logs.html');
-  logsLink.target = '_blank';
-  logsLink.rel = 'noreferrer';
-  foot.append(logsLink);
+  action('Open error log', () => browser.runtime.sendMessage({ type: 'open-logs', errors: true }), foot);
+  const logsButton = element('button', 'Blocked log'); logsButton.type = 'button';
+  logsButton.addEventListener('click', () => { void browser.runtime.sendMessage({ type: 'open-logs', errors: false }); });
+  foot.append(logsButton);
   panel.append(foot, element('p', 'Post overrides are saved locally. They do not train the model.'));
   panelRoot.append(panel);
   const focusTarget = wasFocus ? panelRoot.querySelector<HTMLButtonElement>(`[aria-label="${wasFocus}"]`) : null;

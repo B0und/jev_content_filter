@@ -33,7 +33,8 @@ export type BgRequest =
   | { type: 'jev'; tweetId: string; author: string; text: string }
   | { type: 'fetch-image'; url: string }
   | { type: 'get-status' }
-  | { type: 'log-blocked'; entry: BlockedEntry };
+  | { type: 'log-blocked'; entry: BlockedEntry }
+  | { type: 'open-logs'; errors: boolean };
 export type JevReply = { ok: true; sexual: number; ai: number } | { ok: false; error: string };
 export type ImageReply = { ok: true; dataUrl: string } | { ok: false; error: string };
 export const STORAGE_KEYS = {
