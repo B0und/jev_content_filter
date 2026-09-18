@@ -64,9 +64,9 @@ export function App() {
   const health = !settings.masterEnabled ? 'Paused. Posts are not being filtered.'
     : missingScript ? 'No filter connected to this tab. Open X, or reload your X tab after updating the extension.'
     : !report ? 'Checking this tab…'
-    : report.failed ? `${report.failed} posts were not fully checked. See scan details below.`
+    : report.failed ? `${report.failed} posts were not fully checked. See the error log.`
     : report.pending ? `Scanning ${report.pending} posts…`
-    : report.analyzed ? 'Filtering this tab. Inspect any post to see its scores.'
+    : report.analyzed ? 'Filtering this tab. Use the icon under any post to inspect it.'
     : 'Waiting for posts. No completed analysis yet.';
 
   return <main className="popup">
@@ -86,8 +86,7 @@ export function App() {
         <summary>Scan details &amp; API key</summary>
         {report && <p>{report.pending} pending · {report.failed} incomplete<br />
           Last scan: {report.lastScannedAt ? new Date(report.lastScannedAt).toLocaleTimeString() : 'Not yet'}</p>}
-        {status?.state === 'failing' && <p className="warning">Last text API error: {status.reason}. Local image filtering runs separately.</p>}
-        {report?.errors.map(text => <p className="warning" key={text}>{text}</p>)}
+        {status?.state === 'failing' && <p>Text checks are failing. Details in the error log. Local image filtering runs separately.</p>}
         <label className="key-field">AI Gateway API key
           <input type="password" value={settings.gatewayKey} autoComplete="off" placeholder="vck_…"
             onChange={event => update(value => ({ ...value, gatewayKey: event.target.value }))} />
@@ -98,7 +97,10 @@ export function App() {
         <button onClick={() => void command('review-posts', !report.reviewing)}>{report.reviewing ? 'Finish review' : 'Review hidden posts'}</button>
         <button onClick={() => void command('rescan')}>Retry scans</button>
       </div>}
-      <a href="/logs.html" target="_blank" rel="noreferrer">Open blocked log</a>
+      <div className="log-links">
+        <a href="/logs.html#errors" target="_blank" rel="noreferrer">Error log</a>
+        <a href="/logs.html" target="_blank" rel="noreferrer">Blocked log</a>
+      </div>
       {error && <p role="alert" className="warning">{error}</p>}
     </div>
     <footer className="counters" aria-live="polite">

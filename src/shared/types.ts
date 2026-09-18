@@ -37,7 +37,7 @@ export type BgRequest =
 export type JevReply = { ok: true; sexual: number; ai: number } | { ok: false; error: string };
 export type ImageReply = { ok: true; dataUrl: string } | { ok: false; error: string };
 export const STORAGE_KEYS = {
-  settings: 'settings', log: 'blockedLog', status: 'filterStatus', overrides: 'postOverrides',
+  settings: 'settings', log: 'blockedLog', status: 'filterStatus', overrides: 'postOverrides', scanErrors: 'scanErrors',
 } as const;
 export const LOG_LIMIT = 1000;
 export const CATEGORY_LABELS: Record<CategoryKey, string> = {

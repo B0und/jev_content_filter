@@ -1,7 +1,7 @@
 :root {
   color-scheme: light dark;
   font-family: system-ui, sans-serif;
-  font-size: 13px;
+  font-size: 16px;
 }
 
 .logs {
@@ -17,8 +17,9 @@
   margin-bottom: 12px;
 }
 
-.logs-header h1 {
-  font-size: 18px;
+.logs-header h1,
+.logs-header h2 {
+  font-size: 20px;
   margin: 0;
 }
 
@@ -36,13 +37,13 @@
 .logs-table th,
 .logs-table td {
   text-align: left;
-  padding: 6px 10px;
+  padding: 8px 10px;
   border-bottom: 1px solid color-mix(in srgb, currentColor 15%, transparent);
   vertical-align: top;
 }
 
 .logs-table th {
-  font-size: 12px;
+  font-size: 14px;
   opacity: 0.7;
 }
 
@@ -50,4 +51,19 @@
   max-width: 420px;
   overflow-wrap: anywhere;
   opacity: 0.85;
+}
+
+.errors-section {
+  margin-top: 28px;
+  scroll-margin-top: 16px;
+}
+
+.logs-empty {
+  opacity: 0.7;
+}
+
+.logs-time,
+.logs-source {
+  white-space: nowrap;
+  opacity: 0.75;
 }

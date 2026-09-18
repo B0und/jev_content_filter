@@ -75,6 +75,7 @@ body { margin: 0; }
 .popup button:hover { background: color-mix(in srgb, canvastext 12%, canvas); }
 .popup button:focus-visible, .popup summary:focus-visible, .popup a:focus-visible { outline: 2px solid Highlight; outline-offset: 2px; }
 .popup .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.popup .log-links { display: flex; gap: 14px; }
 .popup .diagnostics { font-size: 14px; }
 .popup .diagnostics summary { cursor: pointer; font-size: 16px; font-weight: 550; }
 .popup .diagnostics p { margin: 8px 0 0; }

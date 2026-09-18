@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button } from '@base-ui-components/react/button';
 import { Select } from '@base-ui-components/react/select';
-import { clearLog, loadLog } from '../../shared/log';
+import { clearLog, clearScanErrors, loadLog, loadScanErrors } from '../../shared/log';
+import { loadStatus } from '../../shared/settings';
 import {
   CATEGORY_LABELS,
   type BlockedEntry,
   type CategoryKey,
+  type FilterStatus,
 } from '../../shared/types';
 import './logs.css';
 
@@ -20,14 +22,27 @@ const REASON_OPTIONS: Array<{ value: ReasonFilter; label: string }> = [
 
 export function App() {
   const [log, setLog] = useState<BlockedEntry[]>([]);
+  const [errors, setErrors] = useState<Array<{ ts: number; message: string; source: string }>>([]);
   const [filter, setFilter] = useState<ReasonFilter>('all');
 
-  useEffect(() => {
+  const refresh = useCallback(() => {
     void loadLog().then(setLog);
-    const listener = () => void loadLog().then(setLog);
+    void (async () => {
+      const [entries, status] = await Promise.all([loadScanErrors(), loadStatus()]);
+      const rows = entries.map(entry => ({ ...entry, source: 'Scan' }));
+      if (status.state === 'failing' && status.reason) {
+        rows.unshift({ ts: status.updatedAt, message: status.reason, source: 'Text API' });
+      }
+      setErrors(rows);
+    })();
+  }, []);
+
+  useEffect(() => {
+    refresh();
+    const listener = () => refresh();
     browser.storage.onChanged.addListener(listener);
     return () => browser.storage.onChanged.removeListener(listener);
-  }, []);
+  }, [refresh]);
 
   const filtered = useMemo(
     () =>
@@ -41,6 +56,11 @@ export function App() {
     await clearLog();
     setLog([]);
   }, []);
+
+  const onClearErrors = useCallback(async () => {
+    await clearScanErrors();
+    refresh();
+  }, [refresh]);
 
   return (
     <main className="logs">
@@ -94,6 +114,25 @@ export function App() {
           ))}
         </tbody>
       </table>
+
+      <section id="errors" className="errors-section">
+        <header className="logs-header">
+          <h2>Scan errors ({errors.length})</h2>
+          <Button onClick={() => void onClearErrors()}>Clear errors</Button>
+        </header>
+        {errors.length === 0 && <p className="logs-empty">No scan errors. If a post was missed, use Retry scans in the popup.</p>}
+        <table className="logs-table">
+          <tbody>
+            {errors.map((entry, index) => (
+              <tr key={`${entry.ts}-${index}`}>
+                <td className="logs-time">{new Date(entry.ts).toLocaleString()}</td>
+                <td className="logs-source">{entry.source}</td>
+                <td className="logs-snippet">{entry.message}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
     </main>
   );
 }
