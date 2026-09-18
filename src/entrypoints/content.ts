@@ -216,6 +216,25 @@ function timeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> 
 }
 function message(error: unknown): string { return error instanceof Error ? error.message : String(error); }
 
+// Activation runs on a document-level capture click so X's own interception
+// handlers on timeline containers (which stop propagation during capture)
+// can never swallow the click before it reaches our button's bubble-phase
+// onclick. composedPath() crosses our shadow root and names the button.
+const buttonPosts = new WeakMap<HTMLButtonElement, Post>();
+
+document.addEventListener('click', (event) => {
+  if (!(event instanceof MouseEvent)) return;
+  for (const node of event.composedPath()) {
+    if (!(node instanceof HTMLButtonElement)) continue;
+    const post = buttonPosts.get(node);
+    if (!post) continue;
+    event.stopPropagation();
+    if (openPostId === post.id) closePanel();
+    else if (node.isConnected) openPanel(post, node);
+    return;
+  }
+}, true);
+
 // Persistent classification cache: scores keyed by content hash so page
 // reloads reuse the Jev API result for unchanged text and skip local image
 // inference for images already classified. One storage key per score keeps
@@ -540,14 +559,10 @@ function render(article: HTMLElement, binding: Binding): void {
   button.classList.toggle('warn', post.errors.length > 0 && !post.pending);
   const stateLabel = stateOf(post);
   const retryLabel = post.retryAt ? ` — retrying in ${Math.max(0, Math.ceil((post.retryAt - Date.now()) / 1000))}s` : '';
+  buttonPosts.set(button, post);
   button.setAttribute('aria-label', `${stateLabel}${retryLabel}`);
   button.setAttribute('title', `${stateLabel}${retryLabel}`);
   button.setAttribute('aria-expanded', String(openPostId === post.id));
-  button.onclick = (event) => {
-    event.stopPropagation();
-    if (openPostId === post.id) closePanel();
-    else openPanel(post, button);
-  };
 }
 
 function applyVisibility(article: HTMLElement, binding: Binding): void {
