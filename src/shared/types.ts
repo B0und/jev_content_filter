@@ -1,26 +1,17 @@
-// Shared types for content script <-> background <-> UI messaging and storage.
-
-export type CategoryKey =
-  | 'porn'
-  | 'hentai'
-  | 'sexy'
-  | 'drawings'
-  | 'sexualText'
-  | 'aiGenerated';
+export type CategoryKey = 'porn' | 'hentai' | 'sexy' | 'drawings' | 'sexualText' | 'aiGenerated';
 
 export interface Settings {
   masterEnabled: boolean;
   gatewayKey: string;
-  /** 0..100 sensitivity per category; higher = hides more (lower threshold). */
-  sliders: Record<CategoryKey, number>;
+  enabled: Record<CategoryKey, boolean>;
+  /** Probability cutoff, 0..1. Lower blocks more. */
+  thresholds: Record<CategoryKey, number>;
 }
-
 export interface FilterStatus {
   state: 'ok' | 'failing';
   reason?: string;
   updatedAt: number;
 }
-
 export interface BlockedEntry {
   tweetId: string;
   author: string;
@@ -29,56 +20,36 @@ export interface BlockedEntry {
   ts: number;
   reasons: Array<{ key: CategoryKey; score: number }>;
 }
-
-/** Requests from content script to background. */
+export interface TabReport {
+  analyzed: number;
+  blocked: number;
+  pending: number;
+  failed: number;
+  lastScannedAt: number;
+  errors: string[];
+  reviewing: boolean;
+}
 export type BgRequest =
   | { type: 'jev'; tweetId: string; author: string; text: string }
   | { type: 'fetch-image'; url: string }
-  | { type: 'get-status' };
-
-export type JevReply =
-  | { ok: true; sexual: number; ai: number }
-  | { ok: false; error: string };
-
-export type ImageReply =
-  | { ok: true; dataUrl: string }
-  | { ok: false; error: string };
-
+  | { type: 'get-status' }
+  | { type: 'log-blocked'; entry: BlockedEntry };
+export type JevReply = { ok: true; sexual: number; ai: number } | { ok: false; error: string };
+export type ImageReply = { ok: true; dataUrl: string } | { ok: false; error: string };
 export const STORAGE_KEYS = {
-  settings: 'settings',
-  log: 'blockedLog',
-  status: 'filterStatus',
+  settings: 'settings', log: 'blockedLog', status: 'filterStatus', overrides: 'postOverrides',
 } as const;
-
 export const LOG_LIMIT = 1000;
-
 export const CATEGORY_LABELS: Record<CategoryKey, string> = {
-  porn: 'Porn (images)',
-  hentai: 'Hentai (images)',
-  sexy: 'Sexy (images)',
-  drawings: 'Drawings (images)',
-  sexualText: 'Sexual text',
-  aiGenerated: 'AI-generated',
+  porn: 'Porn', hentai: 'Hentai', sexy: 'Suggestive images', drawings: 'Drawings / anime',
+  sexualText: 'Sexual text', aiGenerated: 'AI-written text',
 };
-
-/** Maps a 0..100 sensitivity slider to a hide threshold (0.95 relaxed .. 0.45 ruthless). */
-export function sliderToThreshold(v: number): number {
-  return 0.95 - (Math.min(100, Math.max(0, v)) / 100) * 0.5;
-}
-
-export const DEFAULT_SLIDERS: Record<CategoryKey, number> = {
-  porn: 70,
-  hentai: 70,
-  sexy: 60,
-  drawings: 50,
-  sexualText: 60,
-  aiGenerated: 60,
-};
-
+export const CATEGORY_KEYS = Object.keys(CATEGORY_LABELS) as CategoryKey[];
+export const IMAGE_KEYS: CategoryKey[] = ['porn', 'hentai', 'sexy', 'drawings'];
 export function defaultSettings(): Settings {
   return {
-    masterEnabled: true,
-    gatewayKey: '',
-    sliders: { ...DEFAULT_SLIDERS },
+    masterEnabled: true, gatewayKey: '',
+    enabled: { porn: true, hentai: true, sexy: true, drawings: true, sexualText: true, aiGenerated: true },
+    thresholds: { porn: 0.6, hentai: 0.6, sexy: 0.65, drawings: 0.7, sexualText: 0.65, aiGenerated: 0.65 },
   };
 }

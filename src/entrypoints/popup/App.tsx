@@ -1,101 +1,132 @@
-import { useEffect, useState } from 'react';
-import { Field } from '@base-ui-components/react/field';
-import { Input } from '@base-ui-components/react/input';
-import { Slider } from '@base-ui-components/react/slider';
+import { useEffect, useRef, useState } from 'react';
 import { Switch } from '@base-ui-components/react/switch';
 import { loadSettings, loadStatus, saveSettings } from '../../shared/settings';
-import {
-  CATEGORY_LABELS,
-  type CategoryKey,
-  type FilterStatus,
-  type Settings,
-} from '../../shared/types';
+import { CATEGORY_KEYS, CATEGORY_LABELS, type CategoryKey, type Settings, type FilterStatus, type TabReport } from '../../shared/types';
 import './popup.css';
-
-const CATEGORY_ORDER: CategoryKey[] = [
-  'porn',
-  'hentai',
-  'sexy',
-  'drawings',
-  'sexualText',
-  'aiGenerated',
-];
 
 export function App() {
   const [settings, setSettings] = useState<Settings | null>(null);
+  const current = useRef<Settings | null>(null);
+  const writes = useRef(Promise.resolve());
   const [status, setStatus] = useState<FilterStatus | null>(null);
+  const [report, setReport] = useState<TabReport | null>(null);
+  const [tabId, setTabId] = useState<number>();
+  const [missingScript, setMissingScript] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    void (async () => {
-      setSettings(await loadSettings());
-      setStatus(await loadStatus());
-    })();
+    let alive = true;
+    let activeId: number | undefined;
+    const refresh = async () => {
+      if (activeId === undefined) return;
+      try {
+        const value = await browser.tabs.sendMessage(activeId, { type: 'get-report' }) as TabReport;
+        if (alive) { setReport(value); setMissingScript(!value); }
+      } catch { if (alive) { setReport(null); setMissingScript(true); } }
+    };
+    const load = async () => {
+      const value = await loadSettings();
+      if (alive) { current.current = value; setSettings(value); }
+    };
+    void load().catch(e => setError(String(e)));
+    void loadStatus().then(value => { if (alive) setStatus(value); });
+    void browser.tabs.query({ active: true, currentWindow: true }).then(tabs => {
+      activeId = tabs[0]?.id;
+      if (alive) setTabId(activeId);
+      void refresh();
+    });
+    const listener = (changes: Record<string, { newValue?: unknown }>, area: string) => {
+      if (area !== 'local') return;
+      if (changes.settings) void writes.current.then(load);
+      if (changes.filterStatus) setStatus(changes.filterStatus.newValue as FilterStatus);
+      void refresh();
+    };
+    browser.storage.onChanged.addListener(listener);
+    const interval = setInterval(refresh, 1500);
+    return () => { alive = false; clearInterval(interval); browser.storage.onChanged.removeListener(listener); };
   }, []);
 
-  async function update(patch: Partial<Settings>): Promise<void> {
-    if (!settings) return;
-    const next = { ...settings, ...patch };
+  function update(change: (value: Settings) => Settings) {
+    if (!current.current) return;
+    const next = change(current.current);
+    current.current = next;
     setSettings(next);
-    await saveSettings(next);
+    setError('');
+    // Start each write immediately; closing a popup must not discard a debounce.
+    writes.current = writes.current.then(() => saveSettings(next)).catch(e => setError(`Could not save: ${String(e)}`));
   }
-
-  if (!settings) {
-    return <div className="popup">Loading…</div>;
+  async function command(type: 'rescan' | 'review-posts', enabled?: boolean) {
+    if (tabId === undefined) return;
+    try { setReport(await browser.tabs.sendMessage(tabId, { type, enabled }) as TabReport); }
+    catch { setMissingScript(true); }
   }
+  if (!settings) return <main className="popup">Loading settings…</main>;
+  const health = !settings.masterEnabled ? 'Paused. Posts are not being filtered.'
+    : missingScript ? 'No filter connected to this tab. Open X, or reload your X tab after updating the extension.'
+    : !report ? 'Checking this tab…'
+    : report.failed ? `${report.failed} posts were not fully checked. See scan details below.`
+    : report.pending ? `Scanning ${report.pending} posts…`
+    : report.analyzed ? 'Filtering this tab. Inspect any post to see its scores.'
+    : 'Waiting for posts. No completed analysis yet.';
 
-  return (
-    <div className="popup">
-      <header className="popup-header">
-        <h1>Jev Feed Filter</h1>
-        <Switch.Root
-          checked={settings.masterEnabled}
-          onCheckedChange={(checked) => update({ masterEnabled: checked })}
-        >
-          <Switch.Thumb />
-        </Switch.Root>
-      </header>
-
-      <p className={`status ${status?.state === 'failing' ? 'status-failing' : 'status-ok'}`}>
-        {status?.state === 'failing'
-          ? `Filter offline: ${status.reason ?? 'unknown error'} — showing everything`
-          : 'Connected — filtering active'}
-      </p>
-
-      <div className="sliders">
-        {CATEGORY_ORDER.map((key) => (
-          <label className="slider-row" key={key}>
-            <span className="slider-label">{CATEGORY_LABELS[key]}</span>
-            <Slider.Root
-              value={settings.sliders[key]}
-              onValueChange={(value) =>
-                update({ sliders: { ...settings.sliders, [key]: value as number } })
-              }
-            >
-              <Slider.Control>
-                <Slider.Track>
-                  <Slider.Indicator />
-                  <Slider.Thumb />
-                </Slider.Track>
-              </Slider.Control>
-            </Slider.Root>
-            <span className="slider-value">{settings.sliders[key]}</span>
-          </label>
-        ))}
-      </div>
-
-      <Field.Root className="key-field">
-        <Field.Label>AI Gateway API key</Field.Label>
-        <Input
-          type="password"
-          value={settings.gatewayKey}
-          onChange={(event) => update({ gatewayKey: (event.target as HTMLInputElement).value })}
-          placeholder="vck_…"
-        />
-      </Field.Root>
-
-      <a href="/logs.html" target="_blank" rel="noreferrer" className="logs-link">
-        Open blocked log
-      </a>
+  return <main className="popup">
+    <header className="popup-header">
+      <h1>Jev Feed Filter</h1>
+      <Switch.Root className="switch" aria-label="Enable filtering" checked={settings.masterEnabled}
+        onCheckedChange={checked => update(value => ({ ...value, masterEnabled: checked }))}><Switch.Thumb className="thumb" /></Switch.Root>
+    </header>
+    <div className="popup-body">
+      <p className={`status ${missingScript || report?.failed ? 'warning' : ''}`} role="status">{health}</p>
+      <p className="hint">Block at this score or higher. Lower % blocks more.</p>
+      <section aria-label="Filter categories" className="categories">
+        {CATEGORY_KEYS.map(key => <Category key={key} category={key} settings={settings} update={update} />)}
+      </section>
+      <p className="hint">Drawings includes ordinary anime and illustrations, not just sexual content.</p>
+      <details className="diagnostics">
+        <summary>Scan details &amp; API key</summary>
+        {report && <p>{report.pending} pending · {report.failed} incomplete<br />
+          Last scan: {report.lastScannedAt ? new Date(report.lastScannedAt).toLocaleTimeString() : 'Not yet'}</p>}
+        {status?.state === 'failing' && <p className="warning">Last text API error: {status.reason}. Local image filtering runs separately.</p>}
+        {report?.errors.map(text => <p className="warning" key={text}>{text}</p>)}
+        <label className="key-field">AI Gateway API key
+          <input type="password" value={settings.gatewayKey} autoComplete="off" placeholder="vck_…"
+            onChange={event => update(value => ({ ...value, gatewayKey: event.target.value }))} />
+        </label>
+        <p>Text goes to the AI Gateway. Images are classified locally. No key means text is not checked.</p>
+      </details>
+      {report && <div className="actions">
+        <button onClick={() => void command('review-posts', !report.reviewing)}>{report.reviewing ? 'Finish review' : 'Review hidden posts'}</button>
+        <button onClick={() => void command('rescan')}>Retry scans</button>
+      </div>}
+      <a href="/logs.html" target="_blank" rel="noreferrer">Open blocked log</a>
+      {error && <p role="alert" className="warning">{error}</p>}
     </div>
-  );
+    <footer className="counters" aria-live="polite">
+      <div><strong>{report?.analyzed ?? '—'}</strong> analyzed <span>/</span> <strong>{report?.blocked ?? '—'}</strong> blocked</div>
+      <div>This tab, since page load</div>
+    </footer>
+  </main>;
+}
+function Category({ category: key, settings, update }: {
+  category: CategoryKey; settings: Settings; update: (change: (value: Settings) => Settings) => void;
+}) {
+  const percent = Number((settings.thresholds[key] * 100).toFixed(1));
+  const [draft, setDraft] = useState(String(percent));
+  useEffect(() => setDraft(String(percent)), [percent]);
+  const setPercent = (value: number) => update(settings => ({ ...settings, thresholds: { ...settings.thresholds, [key]: value / 100 } }));
+  return <div className={`category ${settings.enabled[key] ? '' : 'disabled'}`}>
+    <div className="category-label">
+      <Switch.Root className="switch" aria-label={`Enable ${CATEGORY_LABELS[key]}`} checked={settings.enabled[key]}
+        onCheckedChange={checked => update(settings => ({ ...settings, enabled: { ...settings.enabled, [key]: checked } }))}><Switch.Thumb className="thumb" /></Switch.Root>
+      <span>{CATEGORY_LABELS[key]}</span>
+    </div>
+    <div className="threshold">
+      <input type="range" min="0" max="100" step="0.1" value={percent} disabled={!settings.enabled[key]}
+        aria-label={`${CATEGORY_LABELS[key]} threshold`} onChange={event => setPercent(event.target.valueAsNumber)} />
+      <input type="number" min="0" max="100" step="0.1" value={draft} disabled={!settings.enabled[key]}
+        aria-label={`${CATEGORY_LABELS[key]} threshold percent`}
+        onChange={event => { setDraft(event.target.value); if (event.target.validity.valid && event.target.value !== '') setPercent(event.target.valueAsNumber); }}
+        onBlur={() => setDraft(String(percent))} /><span>%</span>
+    </div>
+  </div>;
 }
