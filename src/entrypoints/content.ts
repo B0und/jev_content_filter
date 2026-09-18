@@ -1,40 +1,49 @@
 import { load as loadNsfwCore, type NSFWJS } from 'nsfwjs/core';
 import { MobileNetV2Model } from 'nsfwjs/models/mobilenet_v2';
 import * as tf from '@tensorflow/tfjs';
-import { appendScanError } from '../shared/log';
 import { loadSettings, saveSettings } from '../shared/settings';
-import { CATEGORY_KEYS, CATEGORY_LABELS, IMAGE_KEYS, STORAGE_KEYS,
+import { CATEGORY_KEYS, CATEGORY_LABELS, IMAGE_KEYS, TEXT_KEYS, STORAGE_KEYS,
   type CategoryKey, type Settings, type JevReply, type ImageReply, type TabReport } from '../shared/types';
 
 interface Post {
   id: string;
+  handle: string;
   author: string;
   text: string;
   urls: string[];
+  previewUrl: string;
+  previewText: string;
+  version: number;
+  partErrors: Record<'text' | 'images' | 'preview', string[]>;
   scores: Partial<Record<CategoryKey, number>>;
+  previewScores: Partial<Record<CategoryKey, number>>;
   errors: string[];
   pending: boolean;
   textDone: boolean;
   imagesDone: boolean;
+  previewDone: boolean;
   scannedAt: number;
   logged: boolean;
   recorded: Set<string>;
-  textRetries: number;
-  retryTimer: ReturnType<typeof setTimeout> | null;
+  retryCount: number;
+  retryAt: number | null;
+  retryTimer: ReturnType<typeof setTimeout> | undefined;
 }
-interface Binding { post: Post; host: HTMLElement; root: ShadowRoot; button: HTMLButtonElement; observer: IntersectionObserver | null }
+interface Binding { post: Post; host: HTMLElement; root: ShadowRoot; button: HTMLButtonElement }
 const posts = new Map<string, Post>();
 const bindings = new Map<HTMLElement, Binding>();
-const overrides = new Map<string, 'hide' | 'allow'>();
+const overrides = new Map<string, 'allow'>();
 let settings: Settings;
-let reviewing = false;
 let modelPromise: Promise<NSFWJS> | null = null;
 let imageQueue: Promise<unknown> = Promise.resolve();
 // Portal panel for the currently open inspector.
 let openPostId: string | null = null;
 let panelHost: HTMLElement | null = null;
 let panelRoot: ShadowRoot | null = null;
+let panelCountdownTimer: ReturnType<typeof setInterval> | undefined;
 const overridePrefix = `${STORAGE_KEYS.overrides}:`;
+/** Tracks what blocked count we last told the background for this tab. */
+let lastBadgeBlocked = -1;
 
 export default defineContentScript({
   matches: ['https://x.com/*', 'https://twitter.com/*', ...(import.meta.env.DEV ? ['http://127.0.0.1:8811/*'] : [])],
@@ -46,38 +55,45 @@ async function main(): Promise<void> {
   settings = await loadSettings();
   const stored = await browser.storage.local.get(null);
   for (const [key, value] of Object.entries(stored)) {
-    if (key.startsWith(overridePrefix) && (value === 'hide' || value === 'allow')) overrides.set(key.slice(overridePrefix.length), value);
+    if (key.startsWith(overridePrefix) && value === 'allow') overrides.set(key.slice(overridePrefix.length), 'allow');
   }
   const style = document.createElement('style');
-  style.textContent = `article[data-jev-hidden]:not([data-jev-review]) { display:none!important; }`;
+  style.textContent = `article[data-jev-hidden], [data-jev-card-hidden] { display:none!important; } [data-jev-card-link] { display:block; margin:8px 0; color:#1d9bf0; overflow-wrap:anywhere; }`;
   document.head.append(style);
   browser.runtime.onMessage.addListener((request) => {
     if (request?.type === 'get-report') return Promise.resolve(report());
-    if (request?.type === 'review-posts') {
-      reviewing = request.enabled === true;
-      renderAll();
-      return Promise.resolve(report());
-    }
-    if (request?.type === 'rescan') {
-      for (const post of posts.values()) if (!post.pending) { post.textDone = false; post.imagesDone = false; void scan(post); }
-      return Promise.resolve(report());
-    }
   });
   browser.storage.onChanged.addListener(async (changes, area) => {
     if (area !== 'local') return;
     let changed = false;
-    if (changes[STORAGE_KEYS.settings]) { settings = await loadSettings(); changed = true; }
+    if (changes[STORAGE_KEYS.settings]) {
+      const previous = settings;
+      settings = await loadSettings();
+      for (const post of posts.values()) {
+        if (!settings.masterEnabled || previous.gatewayKey !== settings.gatewayKey) cancelRetry(post);
+        if (previous.gatewayKey !== settings.gatewayKey) {
+          post.version++;
+          post.textDone = false;
+          post.previewDone = false;
+          post.partErrors.text = [];
+          post.partErrors.preview = [];
+          post.retryCount = 0;
+        }
+      }
+      changed = true;
+    }
     for (const [key, change] of Object.entries(changes)) {
       if (!key.startsWith(overridePrefix)) continue;
       const id = key.slice(overridePrefix.length);
-      if (change.newValue === 'hide' || change.newValue === 'allow') overrides.set(id, change.newValue);
+      if (change.newValue === 'allow') overrides.set(id, 'allow');
       else overrides.delete(id);
       changed = true;
     }
     if (changed) {
       renderAll();
       discover();
-      for (const post of posts.values()) void scan(post);
+      for (const post of posts.values()) if (isAttached(post)) void scan(post);
+      sendStats();
     }
   });
   let scheduled = false;
@@ -90,6 +106,7 @@ async function main(): Promise<void> {
     childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['src', 'srcset', 'href'],
   });
   discover();
+  sendStats();
 }
 
 function discover(): void {
@@ -103,18 +120,42 @@ function discover(): void {
   for (const article of document.querySelectorAll<HTMLElement>('article[data-testid="tweet"]')) {
     if (article.parentElement?.closest('article[data-testid="tweet"]')) continue;
     const link = article.querySelector<HTMLAnchorElement>('a[href*="/status/"]:has(time)') ?? article.querySelector<HTMLAnchorElement>('a[href*="/status/"]');
-    const id = link?.getAttribute('href')?.match(/\/status\/(\d+)/)?.[1];
+    const href = link?.getAttribute('href') ?? '';
+    const idMatch = href.match(/\/([^/]+?)\/status\/(\d+)/);
+    const id = idMatch?.[2] ?? link?.getAttribute('href')?.match(/\/status\/(\d+)/)?.[1];
     if (!id) continue;
+    const handle = idMatch?.[1] ?? '';
     const text = Array.from(article.querySelectorAll('[data-testid="tweetText"]'), node => node.textContent?.trim() ?? '').join('\n');
     // X swaps image srcs as media loads; any change re-arms scanning.
-    const urls = [...new Set(Array.from(article.querySelectorAll<HTMLImageElement>('img[src*="pbs.twimg.com/media"]'), img => img.currentSrc || img.src))];
+    const urls = [...new Set(Array.from(article.querySelectorAll<HTMLImageElement>('img[src*="pbs.twimg.com/media"]'))
+      .filter(img => !img.closest('[data-testid="card.wrapper"]')).map(img => img.currentSrc || img.src))];
+    const cardImg = article.querySelector<HTMLImageElement>('[data-testid="card.wrapper"] img[src*="pbs.twimg.com"]');
+    const previewUrl = cardImg?.currentSrc || cardImg?.src || '';
+    const previewText = article.querySelector('[data-testid="card.wrapper"]')?.textContent?.trim() ?? '';
     let post = posts.get(id);
     if (!post) {
-      post = { id, author: '', text, urls, scores: {}, errors: [], pending: false, textDone: false, imagesDone: false, scannedAt: 0, logged: false, recorded: new Set(), textRetries: 0, retryTimer: null };
+      post = { id, handle, author: '', text, urls, previewUrl, previewText, version: 0, partErrors: { text: [], images: [], preview: [] }, scores: {}, previewScores: {}, errors: [], pending: false, textDone: false, imagesDone: false, previewDone: false, scannedAt: 0, logged: false, recorded: new Set(), retryCount: 0, retryAt: null, retryTimer: undefined };
       posts.set(id, post);
     } else {
-      if (post.text !== text) { post.text = text; post.textDone = false; }
-      if (!sameUrls(post.urls, urls)) { post.urls = urls; post.imagesDone = false; }
+      if (post.text !== text || !sameUrls(post.urls, urls) || post.previewUrl !== previewUrl || post.previewText !== previewText) {
+        cancelRetry(post);
+        post.version++;
+        post.retryCount = 0;
+        if (post.text !== text) {
+          post.text = text; post.textDone = false; post.partErrors.text = [];
+          for (const key of TEXT_KEYS) delete post.scores[key];
+        }
+        if (!sameUrls(post.urls, urls)) {
+          post.urls = urls; post.imagesDone = false; post.partErrors.images = [];
+          for (const key of IMAGE_KEYS) delete post.scores[key];
+        }
+        if (post.previewUrl !== previewUrl || post.previewText !== previewText) {
+          post.previewUrl = previewUrl; post.previewText = previewText; post.previewDone = false;
+          post.previewScores = {}; post.partErrors.preview = [];
+        }
+        post.errors = Object.values(post.partErrors).flat();
+      }
+      if (!post.handle && handle) post.handle = handle;
     }
     post.author = article.querySelector('[data-testid="User-Name"]')?.textContent?.trim() ?? post.author;
     let binding = bindings.get(article);
@@ -129,7 +170,7 @@ function discover(): void {
       button.addEventListener('pointerdown', event => event.stopPropagation());
       root.append(button);
       host.addEventListener('click', event => event.stopPropagation());
-      binding = { post, host, root, button, observer: null };
+      binding = { post, host, root, button };
       bindings.set(article, binding);
     }
     if (!binding.host.isConnected) insertHost(article, binding.host);
@@ -141,6 +182,7 @@ function discover(): void {
     render(article, binding);
     void scan(post);
   }
+  for (const post of posts.values()) if (!isAttached(post)) cancelRetry(post);
 }
 
 function headerCarets(article: HTMLElement): HTMLElement[] {
@@ -149,14 +191,14 @@ function headerCarets(article: HTMLElement): HTMLElement[] {
 }
 
 /**
- * Put the icon next to the ⋯/Grok cluster in the post header; posts without
- * a caret there fall back to a right-aligned row under the content.
+ * Put the icon after the ⋯ button in the post header; posts without
+ * a caret fall back to a right-aligned row under the content.
  */
 function insertHost(article: HTMLElement, host: HTMLElement): void {
   const caret = headerCarets(article)[0];
   if (caret?.parentElement) {
     host.dataset.jevSpot = 'header';
-    caret.parentElement.insertBefore(host, caret);
+    caret.parentElement.insertBefore(host, caret.nextSibling);
   } else {
     host.dataset.jevSpot = 'below';
     article.append(host);
@@ -168,65 +210,117 @@ function sameUrls(a: string[], b: string[]): boolean {
 
 function timeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`${label} timed out. Retry scans.`)), ms);
+    const timer = setTimeout(() => reject(new Error(`${label} timed out.`)), ms);
     promise.then(resolve, reject).finally(() => clearTimeout(timer));
   });
 }
 function message(error: unknown): string { return error instanceof Error ? error.message : String(error); }
 
-async function scan(post: Post): Promise<void> {
-  if (!settings.masterEnabled || post.pending) return;
-  const textNeeded = !post.textDone && !!post.text && (settings.enabled.sexualText || settings.enabled.aiGenerated);
-  const imagesNeeded = !post.imagesDone && post.urls.length > 0 && IMAGE_KEYS.some(key => settings.enabled[key]);
-  if (!textNeeded && !imagesNeeded) return;
-  post.pending = true;
-  post.errors = [];
-  renderPost(post);
-  const jobs: Promise<void>[] = [];
-  if (textNeeded) jobs.push((async () => {
-    try {
-      if (!settings.gatewayKey) throw new Error('No AI Gateway key. Text was not checked; image filtering runs locally.');
-      const reply = await timeout(browser.runtime.sendMessage({ type: 'jev', tweetId: post.id, author: post.author, text: post.text }) as Promise<JevReply>, 12000, 'Text scan');
-      if (!reply.ok) throw new Error(reply.error);
-      if (![reply.sexual, reply.ai].every(score => Number.isFinite(score) && score >= 0 && score <= 1)) throw new Error('Invalid text scores');
-      post.scores.sexualText = reply.sexual;
-      post.scores.aiGenerated = reply.ai;
-    } catch (error) { post.errors.push(`Text: ${message(error)}`); }
-    finally { post.textDone = true; }
-  })());
-  if (imagesNeeded) jobs.push((async () => {
-    try {
-      const work = imageQueue.then(() => classifyImages(post.urls));
-      imageQueue = work.catch(() => {});
-      const result = await timeout(work, 30000, 'Image scan');
-      Object.assign(post.scores, result.scores);
-      post.errors.push(...result.errors);
-    } catch (error) { post.errors.push(`Images: ${message(error)}`); }
-    finally { post.imagesDone = true; }
-  })());
-  await Promise.all(jobs);
-  post.pending = false;
-  post.scannedAt = Date.now();
-  for (const text of post.errors) {
-    if (!post.recorded.has(text)) {
-      post.recorded.add(text);
-      void appendScanError(text).catch(() => {});
-    }
-  }
-  renderPost(post);
-  // Quota walls reset over time: re-arm the text scan so late posts get
-  // filtered as the limits allow, instead of failing silently forever.
-  if (post.errors.some(text => /429|rate.?limit/i.test(text)) && post.textRetries < 5 && !post.retryTimer) {
-    post.textRetries += 1;
-    post.textDone = false;
-    post.retryTimer = setTimeout(() => {
-      post.retryTimer = null;
-      void scan(post);
-    }, 45_000);
-  }
+function isAttached(post: Post): boolean {
+  for (const [article, binding] of bindings) if (binding.post === post && article.isConnected) return true;
+  return false;
 }
 
-async function classifyImages(urls: string[]) {
+function cancelRetry(post: Post): void {
+  clearTimeout(post.retryTimer);
+  post.retryTimer = undefined;
+  post.retryAt = null;
+  if (post.partErrors.text.length) post.textDone = false;
+  if (post.partErrors.images.length) post.imagesDone = false;
+  if (post.partErrors.preview.length) post.previewDone = false;
+}
+
+function canRetry(error: string): boolean {
+  return !/no .*key|401|403|unauthorized|forbidden|invalid.*key|billing|payment|insufficient/i.test(error);
+}
+
+async function textScores(post: Post, text: string): Promise<Partial<Record<CategoryKey, number>>> {
+  if (!settings.gatewayKey) throw new Error('Add an AI Gateway key in the extension popup to check text.');
+  const reply = await browser.runtime.sendMessage({ type: 'jev', tweetId: post.id, author: post.author, text }) as JevReply;
+  if (!reply.ok) throw new Error(reply.error);
+  if (![reply.sexual, reply.ai].every(score => Number.isFinite(score) && score >= 0 && score <= 1)) throw new Error('Invalid text scores');
+  return { sexualText: reply.sexual, aiGenerated: reply.ai };
+}
+
+function imageScores(urls: string[]) {
+  const work = imageQueue.then(() => classifyImages(urls));
+  imageQueue = work.catch(() => {});
+  return work;
+}
+
+async function scan(post: Post): Promise<void> {
+  if (!settings.masterEnabled || post.pending || post.retryTimer || !isAttached(post)) return;
+  const textEnabled = TEXT_KEYS.some(key => settings.enabled[key]);
+  const imageEnabled = IMAGE_KEYS.some(key => settings.enabled[key]);
+  const textNeeded = !post.textDone && !!post.text && textEnabled;
+  const imagesNeeded = !post.imagesDone && post.urls.length > 0 && imageEnabled;
+  const previewNeeded = !post.previewDone && ((!!post.previewUrl && imageEnabled) || (!!post.previewText && textEnabled));
+  if (!textNeeded && !imagesNeeded && !previewNeeded) return;
+  const version = post.version;
+  const text = post.text, urls = post.urls, previewUrl = post.previewUrl, previewText = post.previewText;
+  post.pending = true;
+  post.retryAt = null;
+  renderPost(post);
+  const run = async (part: 'text' | 'images' | 'preview', work: () => Promise<{ scores: Partial<Record<CategoryKey, number>>; errors: string[] }>) => {
+    let result;
+    try { result = await work(); }
+    catch (error) { result = { scores: {}, errors: [message(error)] }; }
+    if (post.version !== version) return;
+    post.partErrors[part] = result.errors.map(error => `${part === 'text' ? 'Text' : part === 'images' ? 'Images' : 'Link preview'}: ${error}`);
+    if (part === 'preview') { post.previewScores = result.scores; post.previewDone = true; }
+    else {
+      for (const key of part === 'text' ? TEXT_KEYS : IMAGE_KEYS) delete post.scores[key];
+      Object.assign(post.scores, result.scores);
+      if (part === 'text') post.textDone = true;
+      else post.imagesDone = true;
+    }
+  };
+  const jobs: Promise<void>[] = [];
+  if (textNeeded) jobs.push(run('text', async () => ({ scores: await textScores(post, text), errors: [] })));
+  if (imagesNeeded) jobs.push(run('images', () => imageScores(urls)));
+  if (previewNeeded) jobs.push(run('preview', async () => {
+    const results = await Promise.allSettled([
+      previewUrl && imageEnabled ? imageScores([previewUrl]) : Promise.resolve({ scores: {}, errors: [] }),
+      previewText && textEnabled ? textScores(post, previewText).then(scores => ({ scores, errors: [] as string[] })) : Promise.resolve({ scores: {}, errors: [] }),
+    ]);
+    const scores: Partial<Record<CategoryKey, number>> = {}, errors: string[] = [];
+    for (const result of results) {
+      if (result.status === 'fulfilled') { Object.assign(scores, result.value.scores); errors.push(...result.value.errors); }
+      else errors.push(message(result.reason));
+    }
+    return { scores, errors };
+  }));
+  await Promise.all(jobs);
+  post.pending = false;
+  if (post.version !== version) { void scan(post); return; }
+  post.errors = Object.values(post.partErrors).flat();
+  post.scannedAt = Date.now();
+  for (const error of post.errors) if (!post.recorded.has(error)) {
+    post.recorded.add(error);
+    void browser.runtime.sendMessage({ type: 'log-error', message: error, tweetId: post.id, handle: post.handle })
+      .catch(() => post.recorded.delete(error));
+  }
+  const retryParts = (['text', 'images', 'preview'] as const)
+    .filter(part => post.partErrors[part].some(canRetry));
+  if (retryParts.length && settings.masterEnabled && isAttached(post)) {
+    const delay = Math.min(4_000 * 2 ** Math.min(post.retryCount++, 4), 60_000);
+    post.retryAt = Date.now() + delay;
+    post.retryTimer = setTimeout(() => {
+      post.retryTimer = undefined;
+      post.retryAt = null;
+      for (const part of retryParts) {
+        if (part === 'text') post.textDone = false;
+        else if (part === 'images') post.imagesDone = false;
+        else post.previewDone = false;
+      }
+      void scan(post);
+    }, delay);
+  } else if (!post.errors.length) post.retryCount = 0;
+  renderPost(post);
+  sendStats();
+}
+
+async function classifyImages(urls: string[]): Promise<{ scores: Partial<Record<CategoryKey, number>>; errors: string[] }> {
   const scores: Partial<Record<CategoryKey, number>> = {};
   const errors: string[] = [];
   const model = await loadModel();
@@ -247,7 +341,7 @@ async function classifyImages(urls: string[]) {
   return { scores, errors };
 }
 async function fetchBitmap(url: string): Promise<ImageBitmap> {
-  if (!url) throw new Error('No image URL found; retry the scan.');
+  if (!url) throw new Error('No image URL found.');
   try {
     const response = await fetch(url, { credentials: 'omit', signal: AbortSignal.timeout(8000) });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -269,20 +363,29 @@ function hits(post: Post) {
     return settings.enabled[key] && score !== undefined && score >= settings.thresholds[key] ? [{ key, score }] : [];
   });
 }
+function previewBlocked(post: Post): boolean {
+  // Fail open: only hide the preview when its own scan finished cleanly.
+  if (!settings.masterEnabled || overrides.has(post.id) || post.partErrors.preview.length) return false;
+  return CATEGORY_KEYS.some(key => {
+    const score = post.previewScores[key];
+    return settings.enabled[key] && score !== undefined && score >= settings.thresholds[key];
+  });
+}
 function blocked(post: Post): boolean {
   if (!settings.masterEnabled) return false;
   const override = overrides.get(post.id);
-  return override ? override === 'hide' : hits(post).length > 0;
+  return override ? false : hits(post).length > 0;
 }
 function report(): TabReport {
   const values = [...posts.values()];
   return {
-    analyzed: values.filter(post => Object.keys(post.scores).length > 0).length,
-    blocked: values.filter(blocked).length,
+    analyzed: values.filter(post => Object.keys(post.scores).length > 0 || Object.keys(post.previewScores).length > 0).length,
+    blocked: values.filter(post => blocked(post) || previewBlocked(post)).length,
     pending: values.filter(post => post.pending).length,
     failed: values.filter(post => post.errors.length > 0).length,
+    retrying: values.filter(post => !!post.retryTimer).length,
     lastScannedAt: values.reduce((last, post) => Math.max(last, post.scannedAt), 0),
-    errors: [...new Set(values.flatMap(post => post.errors))].slice(-5), reviewing,
+    errors: [...new Set(values.flatMap(post => post.errors))].slice(-5),
   };
 }
 
@@ -295,8 +398,6 @@ function isDark(element: Element): boolean {
 
 const EYE_SVG = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>';
 const BLOCKED_SVG = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.5 10.5 0 0 1 12 20c-7 0-11-8-11-8a18.5 18.5 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.5 9.5 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
-const WARN_SVG = '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M12 2 1 21h22L12 2zm1 14h-2v2h2v-2zm0-7h-2v5h2V9z"/></svg>';
-const SPIN_SVG = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke-dasharray="42 15"/></svg>';
 
 const ICON_CSS = `
 :host { display: inline-flex; align-items: center; margin: 0 2px; }
@@ -306,15 +407,23 @@ const ICON_CSS = `
   width: 30px; height: 30px; padding: 0; margin: 0;
   border: none; border-radius: 9999px; background: transparent;
   color: var(--jev-fg, #536471); cursor: pointer; opacity: 0.75;
+  position: relative; transition: opacity 0.15s;
 }
 .btn:hover { opacity: 1; background: var(--jev-hover); color: var(--jev-accent, #1d9bf0); }
 .btn:focus-visible { outline: 2px solid var(--jev-accent, #1d9bf0); outline-offset: 2px; opacity: 1; }
-.btn.warn { color: #d18808; opacity: 1; }
-.btn.warn:hover { color: #d18808; background: var(--jev-hover); }
-.spin { animation: jev-rot 0.9s linear infinite; }
-@keyframes jev-rot { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
+.btn.pending { opacity: 0.5; animation: jev-pulse 1.5s ease-in-out infinite; }
+@keyframes jev-pulse { 0%,100% { opacity: 0.45; } 50% { opacity: 0.85; } }
+@media (prefers-reduced-motion: reduce) { .btn.pending { animation: none; opacity: 0.55; } }
+.btn.warn::after { content: ''; position: absolute; top: 3px; right: 3px; width: 7px; height: 7px; border-radius: 50%; background: #d18808; }
 `;
+
+function sendStats() {
+  const r = report();
+  const blocked = r.blocked;
+  if (blocked === lastBadgeBlocked) return;
+  lastBadgeBlocked = blocked;
+  void browser.runtime.sendMessage({ type: 'tab-stats', blocked }).catch(() => {});
+}
 
 function renderAll(): void { for (const [article, binding] of bindings) render(article, binding); }
 function renderPost(post: Post): void {
@@ -324,15 +433,21 @@ function renderPost(post: Post): void {
   if (blocked(post) && !post.logged && hits(post).length) {
     post.logged = true;
     void browser.runtime.sendMessage({ type: 'log-blocked', entry: {
-      tweetId: post.id, author: post.author, snippet: post.text.slice(0, 140), surface: location.pathname.includes('/status/') ? 'status/replies' : 'timeline', ts: Date.now(), reasons: hits(post),
+      tweetId: post.id, handle: post.handle, author: post.author, snippet: post.text.slice(0, 140), surface: location.pathname.includes('/status/') ? 'status/replies' : 'timeline', ts: Date.now(), reasons: hits(post),
     } }).catch(error => { post.logged = false; post.errors.push(`Log: ${message(error)}`); });
   }
 }
 
 function render(article: HTMLElement, binding: Binding): void {
   const { post, host, button } = binding;
-  article.toggleAttribute('data-jev-review', reviewing);
+  // Paused: no filter UI on the page at all.
+  if (!settings.masterEnabled) {
+    host.remove();
+    if (openPostId === post.id) closePanel();
+    return;
+  }
   applyVisibility(article, binding);
+  applyCard(article, post);
   if (!host.isConnected) return;
   const dark = isDark(article);
   host.style.setProperty('--jev-fg', dark ? '#71767b' : '#536471');
@@ -343,13 +458,14 @@ function render(article: HTMLElement, binding: Binding): void {
     style.textContent = ICON_CSS;
     shadow.prepend(style);
   }
-  const icon = post.pending ? SPIN_SVG : blocked(post) ? BLOCKED_SVG : post.errors.length > 0 ? WARN_SVG : EYE_SVG;
+  const icon = blocked(post) ? BLOCKED_SVG : EYE_SVG;
   button.innerHTML = icon;
-  const spinner = button.querySelector('svg');
-  if (post.pending && spinner) spinner.classList.add('spin');
-  if (post.errors.length > 0) button.classList.add('warn');
-  else button.classList.remove('warn');
-  button.setAttribute('aria-label', `Inspect filter for this post: ${stateOf(post)}`);
+  button.classList.toggle('pending', !!post.pending || !!post.retryTimer);
+  button.classList.toggle('warn', post.errors.length > 0 && !post.pending);
+  const stateLabel = stateOf(post);
+  const retryLabel = post.retryAt ? ` — retrying in ${Math.max(0, Math.ceil((post.retryAt - Date.now()) / 1000))}s` : '';
+  button.setAttribute('aria-label', `${stateLabel}${retryLabel}`);
+  button.setAttribute('title', `${stateLabel}${retryLabel}`);
   button.setAttribute('aria-expanded', String(openPostId === post.id));
   button.onclick = (event) => {
     event.stopPropagation();
@@ -358,27 +474,38 @@ function render(article: HTMLElement, binding: Binding): void {
   };
 }
 
-/**
- * Visibility policy: a blocked post disappears as soon as its verdict lands,
- * even if it is onscreen — the user prefers instant removal over layout
- * stability. Review mode keeps everything inspectable.
- */
 function applyVisibility(article: HTMLElement, binding: Binding): void {
-  const { post, observer } = binding;
-  observer?.disconnect();
-  binding.observer = null;
-  if (!blocked(post) || reviewing) {
+  const { post } = binding;
+  if (!blocked(post)) {
     article.removeAttribute('data-jev-hidden');
     return;
   }
   article.setAttribute('data-jev-hidden', '');
+}
+function applyCard(article: HTMLElement, post: Post): void {
+  const card = article.querySelector<HTMLElement>('[data-testid="card.wrapper"]');
+  if (!card) return;
+  if (previewBlocked(post)) {
+    card.dataset.jevCardHidden = '';
+    if (!card.previousElementSibling?.hasAttribute('data-jev-card-link')) {
+      // Keep the link itself; only the preview chrome disappears.
+      const link = document.createElement('a');
+      link.dataset.jevCardLink = '';
+      link.href = card.querySelector('a')?.href ?? '';
+      link.textContent = 'Link preview hidden — open link';
+      card.before(link);
+    }
+  } else {
+    delete card.dataset.jevCardHidden;
+    card.previousElementSibling?.hasAttribute('data-jev-card-link') && card.previousElementSibling.remove();
+  }
 }
 function stateOf(post: Post): string {
   if (!settings.masterEnabled) return 'Paused';
   if (post.pending) return 'Scanning';
   if (blocked(post)) return 'Blocked';
   if (overrides.get(post.id) === 'allow') return 'Allowed by you';
-  if (post.errors.length > 0) return 'Not fully checked';
+  if (post.errors.length > 0) return post.retryTimer ? 'Retry scheduled' : 'Not fully checked';
   if (post.scannedAt) return 'Allowed';
   return 'Not scanned';
 }
@@ -393,6 +520,10 @@ const PANEL_CSS = `
 }
 .head { font-weight: 700; font-size: 15px; margin-bottom: 2px; }
 .meta { color: var(--p-muted); font-size: 13px; margin: 0 0 8px; }
+.retry-status { font-size: 13px; color: var(--p-accent); margin: 4px 0 8px; font-weight: 500; }
+.group-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--p-muted); margin: 10px 0 4px; padding-top: 6px; border-top: 1px solid var(--p-border); }
+.group-label:first-of-type { border-top: none; margin-top: 0; }
 table { width: 100%; border-collapse: collapse; font-size: 15px; }
 td, th { text-align: left; padding: 6px 4px; font-weight: 400; border-bottom: 1px solid var(--p-border); }
 th { color: var(--p-muted); font-size: 13px; font-weight: 600; }
@@ -410,7 +541,6 @@ button {
 button:hover { background: var(--p-hover); }
 button:disabled { opacity: 0.5; cursor: default; }
 button:focus-visible, a:focus-visible { outline: 2px solid var(--p-accent); outline-offset: 2px; }
-.actions { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0 4px; }
 .foot { display: flex; gap: 14px; margin-top: 8px; }
 a { color: var(--p-accent); text-decoration: none; font-size: 14px; font-weight: 600; }
 a:hover { text-decoration: underline; }
@@ -448,9 +578,18 @@ function openPanel(post: Post, anchor: HTMLButtonElement): void {
   if (top + panel.offsetHeight > window.innerHeight - 8) top = Math.max(8, rect.top - panel.offsetHeight - 6);
   panel.style.left = `${left}px`;
   panel.style.top = `${top}px`;
+  // Live countdown for retry timers.
+  if (post.retryAt && !panelCountdownTimer) {
+    panelCountdownTimer = setInterval(() => {
+      if (!panelHost || openPostId !== post.id) { panelCountdownTimer = undefined; return; }
+      renderPanel(post);
+    }, 1000);
+  }
 }
 function closePanel(): void {
   if (!panelHost) { openPostId = null; return; }
+  clearInterval(panelCountdownTimer);
+  panelCountdownTimer = undefined;
   (panelHost as HTMLElement & { _jevClose?: () => void })._jevClose?.();
   panelHost.remove();
   const previous = openPostId;
@@ -459,7 +598,7 @@ function closePanel(): void {
   openPostId = null;
   if (previous) {
     const post = posts.get(previous);
-    if (post) renderPost(post); // refresh aria-expanded on the icon
+    if (post) renderPost(post);
   }
 }
 
@@ -484,69 +623,93 @@ function renderPanel(post: Post): void {
   const panel = element('div');
   panel.className = 'panel';
   const reason = hits(post).map(h => `${CATEGORY_LABELS[h.key]} ${(h.score * 100).toFixed(0)}%`).join(', ');
-  const head = element('div', `${stateOf(post)}${reason ? ` · ${reason}` : ''}`);
+  const previewReason = previewBlocked(post)
+    ? CATEGORY_KEYS.flatMap(key => {
+      const score = post.previewScores[key];
+      return settings.enabled[key] && score !== undefined && score >= settings.thresholds[key]
+        ? [`${CATEGORY_LABELS[key]} ${(score * 100).toFixed(0)}%`]
+        : [];
+    }).join(', ')
+    : '';
+  const head = element('div', `${stateOf(post)}${reason ? ` · ${reason}` : ''}${previewReason && !reason ? ` · ${previewReason} (link preview)` : ''}`);
   head.className = 'head';
-  const meta = element('p',
-    `${post.urls.length} image${post.urls.length === 1 ? '' : 's'} found · ${post.scannedAt ? `Last scan ${new Date(post.scannedAt).toLocaleTimeString()}` : 'No completed scan yet'}`);
+  const imageCount = post.urls.length + (post.previewUrl ? 1 : 0);
+  const meta = element('p', `${[imageCount ? `${imageCount} image${imageCount === 1 ? '' : 's'} found` : '', post.text ? 'Text found' : ''].filter(Boolean).join(' · ') || 'Nothing to check'} · ${post.scannedAt ? `Last scan ${new Date(post.scannedAt).toLocaleTimeString()}` : 'No completed scan yet'}`);
   meta.className = 'meta';
   panel.append(head, meta);
-  const table = element('table');
-  const heading = element('tr');
-  for (const title of ['Category', 'Score', 'Block at']) heading.append(element('th', title));
-  table.append(heading);
-  for (const key of CATEGORY_KEYS) {
-    const row = element('tr');
-    const score = post.scores[key];
-    row.append(element('td', CATEGORY_LABELS[key]), element('td', score === undefined ? 'Not checked' : `${(score * 100).toFixed(1)}%`));
-    const cell = element('td');
-    if (!settings.enabled[key]) cell.append(element('span', 'Off'));
-    else {
-      const input = element('input');
-      input.type = 'number'; input.min = '0'; input.max = '100'; input.step = '0.1';
-      input.value = String(Number((settings.thresholds[key] * 100).toFixed(1)));
-      input.setAttribute('aria-label', `${CATEGORY_LABELS[key]} threshold percent`);
-      input.addEventListener('change', () => {
-        if (!input.validity.valid || input.value === '') return;
-        void (async () => {
-          try {
-            const latest = await loadSettings();
-            latest.thresholds[key] = input.valueAsNumber / 100;
-            await saveSettings(latest);
-          } catch { /* surface through the error log */ }
-        })();
-      });
-      cell.append(input, document.createTextNode('%'));
-    }
-    row.append(cell); table.append(row);
+  if (post.retryAt) {
+    const secs = Math.max(0, Math.ceil((post.retryAt - Date.now()) / 1000));
+    const retryLine = element('p', `Retrying in ${secs}s…`);
+    retryLine.className = 'retry-status';
+    panel.append(retryLine);
   }
-  panel.append(table, element('p', 'Lower thresholds block more. Applies to the whole feed. Drawings includes ordinary anime.'));
-  const actions = element('div'); actions.className = 'actions';
-  const foot = element('div'); foot.className = 'foot';
-  const action = (label: string, run: () => Promise<unknown>, container: HTMLElement = actions, isButton = true) => {
-    if (!isButton) {
-      const link = element('a', label);
-      link.href = browser.runtime.getURL('/logs.html#errors');
-      link.target = '_blank';
-      link.rel = 'noreferrer';
-      container.append(link);
-      return link;
+  // Image categories — shown when post has images or an image preview.
+  if (imageCount > 0) {
+    const groupLabel = element('div', 'Images');
+    groupLabel.className = 'group-label';
+    panel.append(groupLabel);
+    const imageTable = element('table');
+    const heading = element('tr');
+    for (const title of ['Category', 'Score', 'Block at']) heading.append(element('th', title));
+    imageTable.append(heading);
+    for (const key of IMAGE_KEYS) {
+      imageTable.append(buildCategoryRow(post, key, { ...post.scores, ...post.previewScores }));
     }
-    const button = element('button', label); button.type = 'button';
-    button.addEventListener('click', () => { void run(); });
-    container.append(button); return button;
-  };
-  action('Hide this post', () => browser.storage.local.set({ [overridePrefix + post.id]: 'hide' }));
-  action('Always allow', () => browser.storage.local.set({ [overridePrefix + post.id]: 'allow' }));
-  if (overrides.has(post.id)) action('Use automatic filtering', () => browser.storage.local.remove(overridePrefix + post.id));
-  const retry = action('Retry scan', async () => { post.textDone = false; post.imagesDone = false; await scan(post); }) as HTMLButtonElement;
-  retry.disabled = post.pending;
-  panel.append(actions);
-  action('Open error log', () => browser.runtime.sendMessage({ type: 'open-logs', errors: true }), foot);
-  const logsButton = element('button', 'Blocked log'); logsButton.type = 'button';
-  logsButton.addEventListener('click', () => { void browser.runtime.sendMessage({ type: 'open-logs', errors: false }); });
-  foot.append(logsButton);
-  panel.append(foot, element('p', 'Post overrides are saved locally. They do not train the model.'));
+    panel.append(imageTable);
+  }
+  // Text categories — shown when post has text.
+  if (post.text) {
+    const groupLabel = element('div', 'Text');
+    groupLabel.className = 'group-label';
+    panel.append(groupLabel);
+    const textTable = element('table');
+    const heading = element('tr');
+    for (const title of ['Category', 'Score', 'Block at']) heading.append(element('th', title));
+    textTable.append(heading);
+    for (const key of TEXT_KEYS) {
+      textTable.append(buildCategoryRow(post, key));
+    }
+    panel.append(textTable);
+  }
+  panel.append(element('p', 'Lower thresholds block more. Applies to the whole feed.'));
+  const foot = element('div'); foot.className = 'foot';
+  const logsLink = element('a', 'Open logs');
+  logsLink.href = browser.runtime.getURL('/logs.html');
+  logsLink.target = '_blank';
+  logsLink.rel = 'noreferrer';
+  foot.append(logsLink);
+  panel.append(foot);
+  const hint = element('p', 'Unblock posts from the logs page.');
+  hint.className = 'hint';
+  panel.append(hint);
   panelRoot.append(panel);
   const focusTarget = wasFocus ? panelRoot.querySelector<HTMLButtonElement>(`[aria-label="${wasFocus}"]`) : null;
   focusTarget?.focus();
+}
+
+function buildCategoryRow(post: Post, key: CategoryKey, scores: Partial<Record<CategoryKey, number>> = post.scores): HTMLElement {
+  const row = element('tr');
+  const score = scores[key];
+  row.append(element('td', CATEGORY_LABELS[key]), element('td', score === undefined ? 'Not checked' : `${(score * 100).toFixed(1)}%`));
+  const cell = element('td');
+  if (!settings.enabled[key]) cell.append(element('span', 'Off'));
+  else {
+    const input = element('input');
+    input.type = 'number'; input.min = '0'; input.max = '100'; input.step = '0.1';
+    input.value = String(Number((settings.thresholds[key] * 100).toFixed(1)));
+    input.setAttribute('aria-label', `${CATEGORY_LABELS[key]} threshold percent`);
+    input.addEventListener('change', () => {
+      if (!input.validity.valid || input.value === '') return;
+      void (async () => {
+        try {
+          const latest = await loadSettings();
+          latest.thresholds[key] = input.valueAsNumber / 100;
+          await saveSettings(latest);
+        } catch { /* surface through the error log */ }
+      })();
+    });
+    cell.append(input, document.createTextNode('%'));
+  }
+  row.append(cell);
+  return row;
 }

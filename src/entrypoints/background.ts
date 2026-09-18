@@ -2,10 +2,11 @@
 // image fetch proxy, status broadcasting, and toolbar icon state.
 import { experimental_evaluate } from 'ai';
 import { createGateway, type GatewayProvider } from '@ai-sdk/gateway';
-import { appendBlocked } from '../shared/log';
+import { appendBlocked, appendScanError } from '../shared/log';
 import { loadSettings, saveStatus } from '../shared/settings';
 import {
   STORAGE_KEYS,
+  formatCount,
   type BgRequest,
   type FilterStatus,
   type ImageReply,
@@ -14,8 +15,6 @@ import {
 } from '../shared/types';
 
 const QUEUE_CONCURRENCY = 3;
-const MAX_ATTEMPTS = 3;
-const BACKOFF_BASE_MS = 1000;
 
 let settings: Settings | null = null;
 let gatewayInstance: GatewayProvider | null = null;
@@ -109,57 +108,31 @@ async function evaluateText(
   return { sexual, ai };
 }
 
-function isRateLimited(errorMessage: string): boolean {
-  return errorMessage.includes('429') || /RateLimitError/i.test(errorMessage);
-}
-
-function isTimeout(errorMessage: string): boolean {
-  const s = errorMessage.toLowerCase();
-  return s.includes('aborted') || s.includes('timed out') || s.includes('timeout');
-}
-
-function isTransient(errorMessage: string): boolean {
-  const s = errorMessage.toLowerCase();
-  return (
-    s.startsWith('5') ||
-    s.includes('fetch failed') ||
-    s.includes('network') ||
-    s.includes('timeout')
-  );
-}
-
-async function classifyWithRetry(
-  author: string,
-  text: string,
-): Promise<JevReply> {
-  let lastError = 'unknown error';
-  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    const release = await acquireSlot();
-    try {
-      if (!settings?.gatewayKey) throw new Error('no API key configured');
-      const result = await evaluateText(author, text);
-      const invalid = Object.values(result).find(
-        (p) => typeof p !== 'number' || !Number.isFinite(p) || p < 0 || p > 1,
-      );
-      if (invalid !== undefined) {
-        throw new Error(`Jev returned invalid probability ${String(invalid)}`);
-      }
-      if (failingReason) await setFailing(null);
-      return { ok: true, ...result };
-    } catch (error) {
-      lastError = error instanceof Error ? error.message : String(error);
-      // A quota wall or a capped-out call won't improve within a retry
-      // window: fail fast so the feed goes visible and the icon shows the
-      // broken state now.
-      if (isRateLimited(lastError) || isTimeout(lastError) || !isTransient(lastError)) break;
-      if (attempt === MAX_ATTEMPTS) break;
-      await new Promise((r) => setTimeout(r, BACKOFF_BASE_MS * 2 ** (attempt - 1)));
-    } finally {
-      release();
+// Single API attempt: visible retry handling (countdowns, backoff) is owned
+// by the content script, which re-sends 'jev' requests for failed posts.
+async function classify(author: string, text: string): Promise<JevReply> {
+  const release = await acquireSlot();
+  try {
+    if (!settings?.gatewayKey) throw new Error('no API key configured');
+    const result = await evaluateText(author, text);
+    const invalid = Object.values(result).find(
+      (p) => typeof p !== 'number' || !Number.isFinite(p) || p < 0 || p > 1,
+    );
+    if (invalid !== undefined) {
+      throw new Error(`Jev returned invalid probability ${String(invalid)}`);
     }
+    // Only a clean success clears the failing banner: a failing result from
+    // one request must never be overwritten by another request's stale ok.
+    if (failingReason) await setFailing(null);
+    return { ok: true, ...result };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    await setFailing(message);
+    // Fail-open: content script shows the tweet unfiltered.
+    return { ok: false, error: message };
+  } finally {
+    release();
   }
-  await setFailing(lastError);
-  return { ok: false, error: lastError };
 }
 
 async function setFailing(reason: string | null): Promise<void> {
@@ -170,15 +143,111 @@ async function setFailing(reason: string | null): Promise<void> {
     updatedAt: Date.now(),
   };
   await saveStatus(status);
-  const iconPrefix = reason ? 'failing' : 'normal';
-  await browser.action.setIcon({
-    path: {
-      16: `/icons/${iconPrefix}-16.png`,
-      32: `/icons/${iconPrefix}-32.png`,
-      48: `/icons/${iconPrefix}-48.png`,
-      128: `/icons/${iconPrefix}-128.png`,
-    },
-  });
+  await updateIcon();
+}
+
+/**
+ * Toolbar icon: paused (gray) when filtering is off, normal otherwise. The
+ * failing state keeps the normal icon — the badge-less, neutral look — and
+ * the tooltip explains what is wrong instead of an alarm color.
+ * Serialized so concurrent callers can't apply stale icon state.
+ */
+let iconSync: Promise<void> = Promise.resolve();
+
+function updateIcon(): Promise<void> {
+  const run = iconSync
+    .catch(() => undefined)
+    .then(async () => {
+      const paused = !settings?.masterEnabled;
+      const name = paused ? 'paused' : 'normal';
+      await browser.action.setIcon({
+        path: {
+          16: `/icons/${name}-16.png`,
+          32: `/icons/${name}-32.png`,
+          48: `/icons/${name}-48.png`,
+          128: `/icons/${name}-128.png`,
+        },
+      });
+      const reason = failingReason
+        ? ` — failing: ${failingReason.slice(0, 120)}`
+        : '';
+      await browser.action.setTitle({
+        title: `Jev Feed Filter${paused ? ' (paused)' : reason}`,
+      });
+    });
+  iconSync = run;
+  return run;
+}
+
+// Per-tab blocked counts for the toolbar badge, uBlock-style: each tab's
+// badge is set with an explicit tabId so counts never bleed across tabs.
+// Counts live in storage.session (covered by the existing 'storage'
+// permission) so they survive MV3 worker suspension; the browser clears
+// session storage only when the browser itself closes.
+const TAB_COUNT_PREFIX = 'jevTabBlocked:';
+let tabCounts = new Map<number, number>();
+let tabCountsLoaded = false;
+let tabCountSync: Promise<void> = Promise.resolve();
+
+async function loadTabCounts(): Promise<void> {
+  if (tabCountsLoaded) return;
+  const stored = await browser.storage.session.get(null);
+  tabCounts = new Map<number, number>();
+  for (const [key, value] of Object.entries(stored)) {
+    if (key.startsWith(TAB_COUNT_PREFIX) && typeof value === 'number' && Number.isFinite(value) && value >= 0) {
+      tabCounts.set(Number(key.slice(TAB_COUNT_PREFIX.length)), value);
+    }
+  }
+  tabCountsLoaded = true;
+}
+
+// Paused hides every badge; a zero count shows nothing.
+function badgeTextFor(count: number): string {
+  return !settings?.masterEnabled || count <= 0 ? '' : formatCount(count);
+}
+
+function setTabBadge(tabId: number, text: string): void {
+  // The tab can close between tracking and the call: badge errors are benign.
+  void browser.action.setBadgeText({ text, tabId }).catch(() => undefined);
+}
+
+function updateTabCount(tabId: number, blocked: number): Promise<void> {
+  const run = tabCountSync
+    .catch(() => undefined)
+    .then(async () => {
+      await loadTabCounts();
+      tabCounts.set(tabId, blocked);
+      await browser.storage.session.set({ [TAB_COUNT_PREFIX + tabId]: blocked });
+      setTabBadge(tabId, badgeTextFor(blocked));
+    });
+  tabCountSync = run;
+  return run;
+}
+
+function clearTabCount(tabId: number): Promise<void> {
+  const run = tabCountSync
+    .catch(() => undefined)
+    .then(async () => {
+      if (tabCounts.delete(tabId)) {
+        await browser.storage.session.remove(TAB_COUNT_PREFIX + tabId).catch(() => undefined);
+      }
+      setTabBadge(tabId, '');
+    });
+  tabCountSync = run;
+  return run;
+}
+
+// Pause hides every tab's badge but keeps the counts; resume repaints them
+// from storage, so a worker restart mid-pause still restores correctly.
+function repaintTabBadges(): Promise<void> {
+  const run = tabCountSync
+    .catch(() => undefined)
+    .then(async () => {
+      await loadTabCounts();
+      for (const [tabId, count] of tabCounts) setTabBadge(tabId, badgeTextFor(count));
+    });
+  tabCountSync = run;
+  return run;
 }
 
 // Convert Blob to a data URL without FileReader, which is unavailable in
@@ -242,14 +311,10 @@ async function fetchImageDataUrl(url: string): Promise<ImageReply> {
   }
 }
 
-async function handleRequest(request: BgRequest): Promise<unknown> {
+async function handleRequest(request: BgRequest, sender: { tab?: { id?: number } }): Promise<unknown> {
   switch (request.type) {
-    case 'jev': {
-      const reply = await classifyWithRetry(request.author, request.text);
-      if (reply.ok) return reply;
-      // Fail-open: content script shows the tweet unfiltered.
-      return reply;
-    }
+    case 'jev':
+      return classify(request.author, request.text);
     case 'fetch-image':
       return fetchImageDataUrl(request.url);
     case 'get-status': {
@@ -270,15 +335,39 @@ async function handleRequest(request: BgRequest): Promise<unknown> {
       void browser.tabs.create({ url });
       return { ok: true };
     }
+    case 'tab-stats': {
+      // uBlock-style per-tab badge; only content scripts have a sender tab.
+      const tabId = sender.tab?.id;
+      if (typeof tabId !== 'number') return { ok: false };
+      if (!Number.isFinite(request.blocked) || request.blocked < 0) return { ok: false };
+      void updateTabCount(tabId, Math.floor(request.blocked));
+      return { ok: true };
+    }
+    case 'log-error': {
+      // Scan-error rows share the blocked-log queue so read-modify-write
+      // appends from concurrent tabs never clobber each other.
+      const run = logQueue
+        .catch(() => undefined)
+        .then(() =>
+          appendScanError(
+            request.message,
+            request.tweetId
+              ? { tweetId: request.tweetId, handle: request.handle }
+              : undefined,
+          ),
+        );
+      logQueue = run;
+      return run;
+    }
   }
 }
 
-browser.runtime.onMessage.addListener((request: BgRequest) => {
+browser.runtime.onMessage.addListener((request: BgRequest, sender) => {
   if (!request || typeof request !== 'object' || !('type' in request)) return;
-  if (!['jev', 'fetch-image', 'get-status', 'log-blocked', 'open-logs'].includes(request.type)) return;
+  if (!['jev', 'fetch-image', 'get-status', 'log-blocked', 'log-error', 'open-logs', 'tab-stats'].includes(request.type)) return;
   // Return a promise: keeps the message channel open for the async reply.
   // Startup requests wait for settings instead of racing loadSettings().
-  return settingsSync.then(() => handleRequest(request));
+  return settingsSync.then(() => handleRequest(request, sender));
 });
 
 async function init(): Promise<void> {
@@ -286,11 +375,28 @@ async function init(): Promise<void> {
   const stored = await browser.storage.local.get(STORAGE_KEYS.status);
   const status = stored[STORAGE_KEYS.status] as FilterStatus | undefined;
   failingReason = status?.state === 'failing' ? (status.reason ?? 'unknown') : null;
-  await setFailing(failingReason);
+  await updateIcon();
+  void browser.action.setBadgeBackgroundColor({ color: '#1d9bf0' });
+  void browser.action.setBadgeTextColor({ color: '#ffffff' });
 
   browser.storage.onChanged.addListener((changes, area) => {
     if (area !== 'local') return;
-    if (changes[STORAGE_KEYS.settings]) void syncSettings();
+    if (changes[STORAGE_KEYS.settings]) {
+      void syncSettings().then(() => {
+        void updateIcon();
+        // Pause hides every badge but keeps counts; resume repaints them.
+        void repaintTabBadges();
+      });
+    }
+  });
+
+  // Navigation or tab close wipes that tab's count: the content script
+  // re-reports on load, so no stale badge survives onto the next page.
+  browser.tabs.onRemoved.addListener((tabId) => {
+    void clearTabCount(tabId);
+  });
+  browser.tabs.onUpdated.addListener((tabId, changeInfo) => {
+    if (changeInfo.status === 'loading') void clearTabCount(tabId);
   });
 }
 

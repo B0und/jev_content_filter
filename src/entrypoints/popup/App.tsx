@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Switch } from '@base-ui-components/react/switch';
 import { loadSettings, loadStatus, saveSettings } from '../../shared/settings';
-import { CATEGORY_KEYS, CATEGORY_LABELS, type CategoryKey, type Settings, type FilterStatus, type TabReport } from '../../shared/types';
+import { CATEGORY_LABELS, IMAGE_KEYS, TEXT_KEYS, type CategoryKey, type Settings, type FilterStatus, type TabReport } from '../../shared/types';
 import './popup.css';
 
 export function App() {
@@ -10,7 +10,6 @@ export function App() {
   const writes = useRef(Promise.resolve());
   const [status, setStatus] = useState<FilterStatus | null>(null);
   const [report, setReport] = useState<TabReport | null>(null);
-  const [tabId, setTabId] = useState<number>();
   const [missingScript, setMissingScript] = useState(false);
   const [error, setError] = useState('');
 
@@ -21,7 +20,7 @@ export function App() {
       if (activeId === undefined) return;
       try {
         const value = await browser.tabs.sendMessage(activeId, { type: 'get-report' }) as TabReport;
-        if (alive) { setReport(value); setMissingScript(!value); }
+        if (alive) { setReport(value); setMissingScript(false); }
       } catch { if (alive) { setReport(null); setMissingScript(true); } }
     };
     const load = async () => {
@@ -32,7 +31,6 @@ export function App() {
     void loadStatus().then(value => { if (alive) setStatus(value); });
     void browser.tabs.query({ active: true, currentWindow: true }).then(tabs => {
       activeId = tabs[0]?.id;
-      if (alive) setTabId(activeId);
       void refresh();
     });
     const listener = (changes: Record<string, { newValue?: unknown }>, area: string) => {
@@ -55,15 +53,11 @@ export function App() {
     // Start each write immediately; closing a popup must not discard a debounce.
     writes.current = writes.current.then(() => saveSettings(next)).catch(e => setError(`Could not save: ${String(e)}`));
   }
-  async function command(type: 'rescan' | 'review-posts', enabled?: boolean) {
-    if (tabId === undefined) return;
-    try { setReport(await browser.tabs.sendMessage(tabId, { type, enabled }) as TabReport); }
-    catch { setMissingScript(true); }
-  }
   if (!settings) return <main className="popup">Loading settings…</main>;
   const health = !settings.masterEnabled ? 'Paused. Posts are not being filtered.'
     : missingScript ? 'No filter connected to this tab. Open X, or reload your X tab after updating the extension.'
     : !report ? 'Checking this tab…'
+    : report.retrying ? `Retrying ${report.retrying} post${report.retrying === 1 ? '' : 's'}…`
     : report.failed ? `${report.failed} posts were not fully checked. See the error log.`
     : report.pending ? `Scanning ${report.pending} posts…`
     : report.analyzed ? 'Filtering this tab. Use the icon under any post to inspect it.'
@@ -77,13 +71,17 @@ export function App() {
     </header>
     <div className="popup-body">
       <p className={`status ${missingScript || report?.failed ? 'warning' : ''}`} role="status">{health}</p>
-      <p className="hint">Block at this score or higher. Lower % blocks more.</p>
-      <section aria-label="Filter categories" className="categories">
-        {CATEGORY_KEYS.map(key => <Category key={key} category={key} settings={settings} update={update} />)}
+      <section aria-label="Image filters" className="categories">
+        <h2 className="category-group-label">Images</h2>
+        {IMAGE_KEYS.map(key => <Category key={key} category={key} settings={settings} update={update} />)}
+      </section>
+      <section aria-label="Text filters" className="categories">
+        <h2 className="category-group-label">Text</h2>
+        {TEXT_KEYS.map(key => <Category key={key} category={key} settings={settings} update={update} />)}
       </section>
       <p className="hint">Drawings includes ordinary anime and illustrations, not just sexual content.</p>
       <details className="diagnostics">
-        <summary>Scan details &amp; API key</summary>
+        <summary>API key &amp; scan details</summary>
         {report && <p>{report.pending} pending · {report.failed} incomplete<br />
           Last scan: {report.lastScannedAt ? new Date(report.lastScannedAt).toLocaleTimeString() : 'Not yet'}</p>}
         {status?.state === 'failing' && <p>Text checks are failing. Details in the error log. Local image filtering runs separately.</p>}
@@ -93,15 +91,8 @@ export function App() {
         </label>
         <p>Text goes to the AI Gateway. Images are classified locally. No key means text is not checked.</p>
       </details>
-      {report && <div className="actions">
-        <button onClick={() => void command('review-posts', !report.reviewing)}>{report.reviewing ? 'Finish review' : 'Review hidden posts'}</button>
-        <button onClick={() => void command('rescan')}>Retry scans</button>
-      </div>}
-      <div className="log-links">
-        <button onClick={() => void browser.tabs.create({ url: browser.runtime.getURL('/logs.html#errors') })}>Error log</button>
-        <button onClick={() => void browser.tabs.create({ url: browser.runtime.getURL('/logs.html') })}>Blocked log</button>
-      </div>
       {error && <p role="alert" className="warning">{error}</p>}
+      <button className="log-button" onClick={() => void browser.tabs.create({ url: browser.runtime.getURL('/logs.html') })}>Open logs</button>
     </div>
     <footer className="counters" aria-live="polite">
       <div><strong>{report?.analyzed ?? '—'}</strong> analyzed <span>/</span> <strong>{report?.blocked ?? '—'}</strong> blocked</div>

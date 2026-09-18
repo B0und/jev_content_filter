@@ -1,4 +1,4 @@
-// Blocked-tweet log: FIFO capped append, read, and clear over storage.local.
+// Blocked-tweet log and scan-error log: FIFO capped, read, clear over storage.local.
 import { LOG_LIMIT, STORAGE_KEYS, type BlockedEntry } from './types';
 
 export async function loadLog(): Promise<BlockedEntry[]> {
@@ -21,6 +21,9 @@ export async function clearLog(): Promise<void> {
 export interface ScanErrorEntry {
   ts: number;
   message: string;
+  /** Post the error happened on, when known: links the row back to it. */
+  tweetId?: string;
+  handle?: string;
 }
 
 const SCAN_ERROR_LIMIT = 50;
@@ -30,12 +33,20 @@ export async function loadScanErrors(): Promise<ScanErrorEntry[]> {
   return (stored[STORAGE_KEYS.scanErrors] as ScanErrorEntry[] | undefined) ?? [];
 }
 
-/** Dedupe by message; most recent first. */
-export async function appendScanError(message: string): Promise<void> {
+/**
+ * Dedupe by tweet id + message: the same failure on different posts stays
+ * visible on each post's row, while a repeated failure for the same post
+ * updates its timestamp. Entries without a tweet id (legacy records) still
+ * dedupe on message alone.
+ */
+export async function appendScanError(message: string, tweet?: { tweetId: string; handle?: string }): Promise<void> {
+  const entry: ScanErrorEntry = { ts: Date.now(), message };
+  if (tweet?.tweetId !== undefined) entry.tweetId = tweet.tweetId;
+  if (tweet?.handle !== undefined) entry.handle = tweet.handle;
   const list = await loadScanErrors();
   const next = [
-    { ts: Date.now(), message },
-    ...list.filter((e) => e.message !== message),
+    entry,
+    ...list.filter((e) => !(e.message === message && e.tweetId === entry.tweetId)),
   ].slice(0, SCAN_ERROR_LIMIT);
   await browser.storage.local.set({ [STORAGE_KEYS.scanErrors]: next });
 }
