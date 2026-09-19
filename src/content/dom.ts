@@ -63,9 +63,33 @@ export function headerCarets(article: HTMLElement): HTMLElement[] {
 /**
  * Read everything we filter on from one (top-level) tweet article. Media
  * URLs are canonicalized (see canonicalMediaUrl): X rewrites their size
- * params constantly, and the caller treats any snapshot difference as a
- * content change, so raw srcs would make every scroll pass look like an edit.
+ * params constantly, and the caller treats any snapshot difference as an edit.
+ * Video posts expose thumbnails through `*_video_thumb` paths or a video
+ * poster rather than the normal `/media/` path, so those sources are included
+ * while profile pictures and emoji assets are ignored.
  */
+const FILTERABLE_MEDIA_PATH =
+  /^\/(?:media|amplify_video_thumb|ext_tw_video_thumb|tweet_video_thumb)\//;
+
+function mediaSource(element: HTMLImageElement | HTMLVideoElement): string {
+  return element.tagName === 'VIDEO'
+    ? (element.getAttribute('poster') ?? '')
+    : element.currentSrc || element.src;
+}
+
+function isFilterableMediaUrl(url: string): boolean {
+  if (!url) return false;
+  try {
+    const parsed = new URL(url, location.origin);
+    return (
+      parsed.hostname.toLowerCase() === 'pbs.twimg.com' &&
+      FILTERABLE_MEDIA_PATH.test(parsed.pathname)
+    );
+  } catch {
+    return false;
+  }
+}
+
 export function readArticle(article: HTMLElement): ArticleContent | null {
   const link =
     article.querySelector<HTMLAnchorElement>('a[href*="/status/"]:has(time)') ??
@@ -74,9 +98,20 @@ export function readArticle(article: HTMLElement): ArticleContent | null {
   const idMatch = href.match(/\/([^/]+?)\/status\/(\d+)/);
   const id = idMatch?.[2] ?? link?.getAttribute('href')?.match(/\/status\/(\d+)/)?.[1];
   if (!id) return null;
-  const previewImage = article.querySelector<HTMLImageElement>(
-    '[data-testid="card.wrapper"] img[src*="pbs.twimg.com"]',
-  );
+  const previewElement = [
+    ...article.querySelectorAll<HTMLImageElement | HTMLVideoElement>(
+      '[data-testid="card.wrapper"] img, [data-testid="card.wrapper"] video[poster]',
+    ),
+  ].find((element) => isFilterableMediaUrl(mediaSource(element)));
+  const urls = [
+    ...Array.from(article.querySelectorAll<HTMLImageElement>('img')),
+    ...Array.from(article.querySelectorAll<HTMLVideoElement>('video[poster]')),
+  ]
+    .filter((element) => !element.closest('[data-testid="card.wrapper"]'))
+    .map(mediaSource)
+    .filter(isFilterableMediaUrl)
+    .map(canonicalMediaUrl)
+    .filter((url, index, all) => all.indexOf(url) === index);
   return {
     id,
     handle: idMatch?.[1] ?? '',
@@ -85,14 +120,8 @@ export function readArticle(article: HTMLElement): ArticleContent | null {
       article.querySelectorAll('[data-testid="tweetText"]'),
       (node) => node.textContent?.trim() ?? '',
     ).join('\n'),
-    urls: [
-      ...new Set(
-        Array.from(article.querySelectorAll<HTMLImageElement>('img[src*="pbs.twimg.com/media"]'))
-          .filter((img) => !img.closest('[data-testid="card.wrapper"]'))
-          .map((img) => canonicalMediaUrl(img.currentSrc || img.src)),
-      ),
-    ],
-    previewUrl: previewImage ? canonicalMediaUrl(previewImage.currentSrc || previewImage.src) : '',
+    urls,
+    previewUrl: previewElement ? canonicalMediaUrl(mediaSource(previewElement)) : '',
     previewText: article.querySelector('[data-testid="card.wrapper"]')?.textContent?.trim() ?? '',
   };
 }

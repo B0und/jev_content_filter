@@ -23,7 +23,7 @@ import {
   readCache,
   textScores,
 } from '../../src/content/classify';
-import { canonicalMediaUrl } from '../../src/content/dom';
+import { canonicalMediaUrl, readArticle } from '../../src/content/dom';
 import { settings } from '../../src/content/state';
 import { STORAGE_KEYS } from '../../src/shared/types';
 
@@ -68,6 +68,24 @@ describe('media URL canonicalization', () => {
     expect(canonicalMediaUrl('https://pbs.twimg.com/media/AbCdEf.jpg:small')).toBe(
       'https://pbs.twimg.com/media/AbCdEf?format=jpg',
     );
+  });
+});
+describe('article media discovery', () => {
+  it('collects video thumbnails from images and video posters', () => {
+    const thumbnail =
+      'https://pbs.twimg.com/ext_tw_video_thumb/1234567890/pu/img/thumb.jpg?name=small';
+    const poster =
+      'https://pbs.twimg.com/ext_tw_video_thumb/9876543210/pu/img/poster.jpg?name=small';
+    const article = buildTweetArticle({ id: '4100', images: [thumbnail] });
+    const video = document.createElement('video');
+    video.setAttribute('poster', poster);
+    article.append(video);
+
+    expect(readArticle(article)?.urls).toEqual([
+      canonicalMediaUrl(thumbnail),
+      canonicalMediaUrl(poster),
+    ]);
+    article.remove();
   });
 });
 

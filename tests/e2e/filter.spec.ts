@@ -114,6 +114,26 @@ test('runs the bundled image classifier without a text API key', async ({ page, 
   await pornRow.getByRole('spinbutton').press('Tab');
   await expect(post).toBeHidden();
 });
+test('filters video thumbnails on search results', async ({ page, setSettings }) => {
+  test.setTimeout(90_000);
+  const settings = defaultSettings();
+  settings.gatewayKey = '';
+  settings.enabled.sexualText = false;
+  settings.enabled.aiGenerated = false;
+  for (const key of ['porn', 'hentai', 'sexy', 'drawings'] as const) {
+    settings.enabled[key] = true;
+    settings.thresholds[key] = 0;
+  }
+  await setSettings(settings);
+  await page.goto('https://x.com/search?q=big%20boobs&src=typed_query');
+  await page.locator('[data-post="101"]').evaluate((post) => {
+    const image = document.createElement('img');
+    image.src =
+      'https://pbs.twimg.com/amplify_video_thumb/2069468789058465792/img/eZrGHrwKMJo3FT1u?format=jpg&name=small';
+    post.append(image);
+  });
+  await expect(page.locator('[data-post="101"]')).toBeHidden({ timeout: 60_000 });
+});
 test('hides disabled categories from the timeline inspector', async ({ page, setSettings }) => {
   test.setTimeout(90_000);
   const settings = defaultSettings();
