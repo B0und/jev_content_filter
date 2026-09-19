@@ -1,0 +1,57 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "react", "jsx-a11y", "import", "unicorn", "oxc"],
+  "categories": { "correctness": "error" },
+  "jsPlugins": [{ "name": "react-compiler", "specifier": "eslint-plugin-react-hooks" }],
+  "options": { "typeAware": true },
+  "env": { "browser": true, "es2022": true },
+  "ignorePatterns": [
+    ".output/**",
+    ".wxt/**",
+    "node_modules/**",
+    "test-results/**",
+    "playwright-report/**"
+  ],
+  "rules": {
+    "react/rules-of-hooks": "error",
+    "react/exhaustive-deps": "error",
+    "typescript/no-explicit-any": "error",
+    "typescript/no-floating-promises": "error",
+    "no-debugger": "error",
+    "react-compiler/static-components": "error",
+    "react-compiler/use-memo": "error",
+    "react-compiler/void-use-memo": "error",
+    "react-compiler/preserve-manual-memoization": "error",
+    "react-compiler/incompatible-library": "error",
+    "react-compiler/immutability": "error",
+    "react-compiler/globals": "error",
+    "react-compiler/refs": "error",
+    "react-compiler/set-state-in-effect": "error",
+    "react-compiler/error-boundaries": "error",
+    "react-compiler/purity": "error",
+    "react-compiler/set-state-in-render": "error",
+    "react-compiler/unsupported-syntax": "error",
+    "react-compiler/config": "error",
+    "react-compiler/gating": "error",
+    "no-eval": "error",
+    "no-restricted-imports": [
+      "error",
+      { "patterns": [{ "group": ["@base-ui-components/*"], "message": "Use @base-ui/react." }] }
+    ]
+  },
+  "overrides": [
+    {
+      "files": ["src/**/*.ts", "src/**/*.tsx"],
+      "rules": {
+        "no-restricted-globals": [
+          "error",
+          { "name": "chrome", "message": "Import browser from wxt/browser for extension APIs." },
+          {
+            "name": "localStorage",
+            "message": "Use extension storage; service workers do not have localStorage."
+          }
+        ]
+      }
+    }
+  ]
+}

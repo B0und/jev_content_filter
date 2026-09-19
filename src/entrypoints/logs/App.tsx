@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Button } from '@base-ui-components/react/button';
-import { Select } from '@base-ui-components/react/select';
+import { useEffect, useRef, useState } from 'react';
+import { Button } from '@base-ui/react/button';
+import { Select } from '@base-ui/react/select';
+import { Tabs } from '@base-ui/react/tabs';
+import { browser } from 'wxt/browser';
 import { useVirtualizer, type VirtualItem } from '@tanstack/react-virtual';
-import { clearLog, clearScanErrors, type ScanErrorEntry } from '../../shared/log';
+import { type ScanErrorEntry } from '../../shared/log';
 import {
   CATEGORY_LABELS,
   STORAGE_KEYS,
@@ -21,29 +23,38 @@ const OVERRIDES_PREFIX = `${STORAGE_KEYS.overrides}:`;
 
 const REASON_OPTIONS: Array<{ value: ReasonFilter; label: string }> = [
   { value: 'all', label: 'All reasons' },
-  ...(Object.entries(CATEGORY_LABELS) as Array<[CategoryKey, string]>).map(
-    ([key, label]) => ({ value: key, label }),
-  ),
+  ...(Object.entries(CATEGORY_LABELS) as Array<[CategoryKey, string]>).map(([key, label]) => ({
+    value: key,
+    label,
+  })),
 ];
 
-/** Every entry with an ID links to the post; older handle-less entries use the canonical URL. */
+/** Every entry with an ID opens in review mode so the linked post stays visible. */
 function postUrl(entry: { tweetId?: string; handle?: string }): string | null {
   if (!entry.tweetId) return null;
-  return entry.handle
+  const base = entry.handle
     ? `https://x.com/${entry.handle}/status/${entry.tweetId}`
     : `https://x.com/i/status/${entry.tweetId}`;
+  return `${base}?jev=review`;
 }
 
+// The virtualizer manages its own refs/effects and is incompatible with React
+// Compiler memoization, so the row list is an isolated component marked with
+// 'use no memo'; everything above stays compiler-optimized.
 function BlockedRow(props: {
   vRow: VirtualItem;
   entry: BlockedEntry;
   unblocked: Set<string>;
+  unblocking: Set<string>;
   onUnblock: (tweetId: string) => void;
   measure: (node: Element | null) => void;
 }) {
-  const { vRow, entry, unblocked, onUnblock, measure } = props;
+  'use no memo';
+  const { vRow, entry, unblocked, unblocking, onUnblock, measure } = props;
   const url = postUrl(entry);
   const preview = entry.target === 'preview';
+  const isUnblocked = unblocked.has(entry.tweetId);
+  const isUnblocking = unblocking.has(entry.tweetId);
   return (
     <div
       className={preview ? 'row preview-row' : 'row'}
@@ -59,29 +70,47 @@ function BlockedRow(props: {
     >
       <span className="col-time">{new Date(entry.ts).toLocaleString()}</span>
       <span className="col-author">
-        <a href={url ?? undefined} target="_blank" rel="noreferrer">{entry.author}</a>
+        <a href={url ?? undefined} target="_blank" rel="noreferrer">
+          {entry.author}
+        </a>
         {preview && (
-          <span className="preview-chip" title="Only the media preview was hidden; the post itself stays visible">
+          <span
+            className="preview-chip"
+            title="Only the media preview was hidden; the post itself stays visible"
+          >
             Preview
           </span>
         )}
       </span>
       <span className="col-reasons">
-        {entry.reasons.map((r) => `${CATEGORY_LABELS[r.key]} ${(r.score * 100).toFixed(0)}%`).join(', ')}
+        {entry.reasons
+          .map((r) => `${CATEGORY_LABELS[r.key]} ${(r.score * 100).toFixed(0)}%`)
+          .join(', ')}
       </span>
       <span className="col-snippet">{entry.snippet}</span>
       <span className="col-action">
-        {unblocked.has(entry.tweetId) ? (
+        {isUnblocked ? (
           <span className="unblocked-badge">Unblocked</span>
         ) : (
-          <button className="unblock-btn" onClick={() => onUnblock(entry.tweetId)}>Unblock</button>
+          <button
+            className="unblock-btn"
+            disabled={isUnblocking}
+            onClick={() => onUnblock(entry.tweetId)}
+          >
+            Unblock
+          </button>
         )}
       </span>
     </div>
   );
 }
 
-function ErrorRowView(props: { vRow: VirtualItem; entry: ErrorRow; measure: (node: Element | null) => void }) {
+function ErrorRowView(props: {
+  vRow: VirtualItem;
+  entry: ErrorRow;
+  measure: (node: Element | null) => void;
+}) {
+  'use no memo';
   const { vRow, entry, measure } = props;
   const url = postUrl(entry);
   return (
@@ -101,8 +130,49 @@ function ErrorRowView(props: { vRow: VirtualItem; entry: ErrorRow; measure: (nod
       <span className="col-source">{entry.source}</span>
       <span className="col-snippet">{entry.message}</span>
       <span className="col-link">
-        {url && <a href={url} target="_blank" rel="noreferrer">View post ↗</a>}
+        {url && (
+          <a href={url} target="_blank" rel="noreferrer">
+            View post ↗
+          </a>
+        )}
       </span>
+    </div>
+  );
+}
+
+/** Virtualizer instance for one tab's rows; refs inside, so it opts out of the compiler. */
+function VirtualList(props: {
+  rows: Array<{
+    key: string;
+    node: (vRow: VirtualItem, measure: (node: Element | null) => void) => React.ReactNode;
+  }>;
+}) {
+  'use no memo';
+  const scrollRef = useRef<HTMLDivElement>(null);
+  // TanStack Virtual's API returns functions that cannot be memoized; the
+  // compiler directive above skips this component, and this rule disable
+  // records that decision (isolated here, per the audit's instruction to
+  // not broadly suppress compiler rules).
+  // oxlint-disable-next-line react/incompatible-library react-compiler/incompatible-library
+  const virtualizer = useVirtualizer({
+    count: props.rows.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => 64,
+    overscan: 8,
+    getItemKey: (index) => props.rows[index]?.key ?? String(index),
+  });
+  return (
+    <div className="virtual-scroll" ref={scrollRef}>
+      <div
+        className="virtual-inner"
+        style={{ height: virtualizer.getTotalSize(), position: 'relative' }}
+      >
+        {virtualizer.getVirtualItems().map((vRow) => {
+          const row = props.rows[vRow.index];
+          if (!row) return null;
+          return <div key={vRow.key}>{row.node(vRow, virtualizer.measureElement)}</div>;
+        })}
+      </div>
     </div>
   );
 }
@@ -113,10 +183,13 @@ export function App() {
   const [errors, setErrors] = useState<ErrorRow[]>([]);
   const [filter, setFilter] = useState<ReasonFilter>('all');
   const [unblocked, setUnblocked] = useState<Set<string>>(new Set());
-  const tabRefs = useRef<Partial<Record<Tab, HTMLButtonElement | null>>>({});
+  const [unblocking, setUnblocking] = useState<Set<string>>(new Set());
+  const [loadError, setLoadError] = useState('');
+  const [actionError, setActionError] = useState('');
+  const [busyAction, setBusyAction] = useState<'clear-log' | 'clear-errors' | null>(null);
 
-  const refresh = useCallback(() => {
-    void (async () => {
+  const refresh = async () => {
+    try {
       // Only the keys this page renders: log, scan errors, filter status, plus
       // per-tweet allow overrides for the tweets currently in the log.
       const stored = await browser.storage.local.get([
@@ -136,6 +209,7 @@ export function App() {
         rows.unshift({ ts: status.updatedAt, message: status.reason, source: 'Text API' });
       }
       setErrors(rows);
+      setLoadError('');
       const overrideKeys = storedLog.map((entry) => `${OVERRIDES_PREFIX}${entry.tweetId}`);
       if (overrideKeys.length === 0) {
         setUnblocked(new Set());
@@ -149,16 +223,32 @@ export function App() {
             .map(([key]) => key.slice(OVERRIDES_PREFIX.length)),
         ),
       );
-    })();
-  }, []);
+    } catch (e) {
+      // Storage reads can fail (quota, worker restart): surface it honestly
+      // instead of showing a quietly empty log.
+      setLoadError(`Could not load the log: ${String(e)}`);
+    }
+  };
 
   useEffect(() => {
-    refresh();
-    const listener = (changes: Record<string, { newValue?: unknown; oldValue?: unknown }>, area: string) => {
+    // The initial refresh is the effect synchronizing with the storage
+    // external system; its setState calls happen after awaits, not
+    // synchronously in the effect body.
+    // oxlint-disable-next-line react/set-state-in-effect react-compiler/set-state-in-effect
+    void refresh();
+    const listener = (
+      changes: Record<string, { newValue?: unknown; oldValue?: unknown }>,
+      area: string,
+    ) => {
       if (area !== 'local') return;
       const keys = Object.keys(changes);
-      if (keys.some((k) => k === STORAGE_KEYS.log || k === STORAGE_KEYS.scanErrors || k === STORAGE_KEYS.status)) {
-        refresh();
+      if (
+        keys.some(
+          (k) =>
+            k === STORAGE_KEYS.log || k === STORAGE_KEYS.scanErrors || k === STORAGE_KEYS.status,
+        )
+      ) {
+        void refresh();
         return;
       }
       const overrideKeys = keys.filter((k) => k.startsWith(OVERRIDES_PREFIX));
@@ -175,14 +265,14 @@ export function App() {
     };
     browser.storage.onChanged.addListener(listener);
     return () => browser.storage.onChanged.removeListener(listener);
-  }, [refresh]);
+  }, []);
 
   /** Tab clicks and hash edits stay in sync without polluting session history. */
-  const switchTab = useCallback((next: Tab) => {
+  function switchTab(next: Tab) {
     setTab(next);
     const hash = `#${next}`;
     if (location.hash !== hash) history.replaceState(null, '', hash);
-  }, []);
+  }
 
   // Sync hash for direct open-logs links.
   useEffect(() => {
@@ -191,154 +281,182 @@ export function App() {
     return () => window.removeEventListener('hashchange', handler);
   }, []);
 
-  const filtered = useMemo(
-    () =>
-      filter === 'all'
-        ? log
-        : log.filter((entry) => entry.reasons.some((r) => r.key === filter)),
-    [log, filter],
-  );
+  const filtered =
+    filter === 'all' ? log : log.filter((entry) => entry.reasons.some((r) => r.key === filter));
 
-  const onClear = useCallback(async () => {
-    await clearLog();
-    setLog([]);
-  }, []);
+  async function onUnblock(tweetId: string) {
+    setActionError('');
+    setUnblocking((prev) => new Set(prev).add(tweetId));
+    try {
+      await browser.storage.local.set({ [`${OVERRIDES_PREFIX}${tweetId}`]: 'allow' });
+      // The storage.onChanged listener also records this; setting it here
+      // covers environments where change events are unreliable. The badge
+      // only appears once the write has actually succeeded.
+      setUnblocked((prev) => new Set(prev).add(tweetId));
+    } catch (e) {
+      setActionError(`Could not unblock this post: ${String(e)}`);
+    } finally {
+      setUnblocking((prev) => {
+        const next = new Set(prev);
+        next.delete(tweetId);
+        return next;
+      });
+    }
+  }
 
-  const onClearErrors = useCallback(async () => {
-    await clearScanErrors();
-    setErrors([]);
-  }, []);
+  async function onClear() {
+    setActionError('');
+    setBusyAction('clear-log');
+    try {
+      // Serialized through the background log queue so an in-flight append
+      // cannot resurrect entries right after the clear.
+      const reply = (await browser.runtime.sendMessage({ type: 'clear-log' })) as
+        | { ok?: boolean }
+        | undefined;
+      if (!reply?.ok) throw new Error('background did not confirm the clear');
+      setLog([]);
+      setActionError('');
+    } catch (e) {
+      setActionError(`Could not clear the log: ${String(e)}`);
+    } finally {
+      setBusyAction(null);
+    }
+  }
 
-  const onUnblock = useCallback(async (tweetId: string) => {
-    setUnblocked((prev) => new Set(prev).add(tweetId));
-    await browser.storage.local.set({ [`${OVERRIDES_PREFIX}${tweetId}`]: 'allow' });
-  }, []);
+  async function onClearErrors() {
+    setActionError('');
+    setBusyAction('clear-errors');
+    try {
+      const reply = (await browser.runtime.sendMessage({ type: 'clear-errors' })) as
+        | { ok?: boolean }
+        | undefined;
+      if (!reply?.ok) throw new Error('background did not confirm the clear');
+      setErrors((prev) => prev.filter((row) => row.source !== 'Scan'));
+      setActionError('');
+    } catch (e) {
+      setActionError(`Could not clear scan errors: ${String(e)}`);
+    } finally {
+      setBusyAction(null);
+    }
+  }
 
-  const onTabKeyDown = useCallback(
-    (event: React.KeyboardEvent) => {
-      const index = TABS.indexOf(tab);
-      let next: number | null = null;
-      if (event.key === 'ArrowRight') next = (index + 1) % TABS.length;
-      else if (event.key === 'ArrowLeft') next = (index - 1 + TABS.length) % TABS.length;
-      else if (event.key === 'Home') next = 0;
-      else if (event.key === 'End') next = TABS.length - 1;
-      if (next === null) return;
-      event.preventDefault();
-      const nextTab = TABS[next];
-      if (!nextTab) return;
-      switchTab(nextTab);
-      tabRefs.current[nextTab]?.focus();
-    },
-    [switchTab, tab],
-  );
-
-  const list: readonly (BlockedEntry | ErrorRow)[] = tab === 'blocked' ? filtered : errors;
-
-  // Virtual list for BOTH tabs; rows are measured as rendered, so varied
-  // content, resizes, filter changes and tab switches never overlap.
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const virtualizer = useVirtualizer({
-    count: list.length,
-    getScrollElement: () => scrollRef.current,
-    estimateSize: () => 64,
-    overscan: 8,
-    getItemKey: (index) => {
-      const item = list[index];
-      return tab === 'blocked'
-        ? `b:${(item as BlockedEntry).tweetId}`
-        : `e:${(item as ErrorRow).source}:${(item as ErrorRow).message}`;
-    },
-  });
-
-  // A new tab or filter starts at the top of its list.
-  useEffect(() => {
-    scrollRef.current?.scrollTo({ top: 0 });
-  }, [tab, filter]);
-
-  const emptyMessage =
-    tab === 'errors'
-      ? 'No scan errors. Errors appear here if scanning fails.'
-      : filter !== 'all' && log.length > 0
-        ? 'No blocked posts match this filter.'
-        : "No blocked posts. Posts appear here as they're filtered.";
+  // Stable identity for virtualizer rows: blocked rows key on tweet id, error
+  // rows on timestamp + tweet id + message so same-message entries from
+  // different posts keep distinct identities.
+  const blockedRows = filtered.map((entry) => ({
+    key: `b:${entry.tweetId}`,
+    node: (vRow: VirtualItem, measure: (node: Element | null) => void) => (
+      <BlockedRow
+        vRow={vRow}
+        entry={entry}
+        unblocked={unblocked}
+        unblocking={unblocking}
+        onUnblock={(tweetId) => void onUnblock(tweetId)}
+        measure={measure}
+      />
+    ),
+  }));
+  const errorRows = errors.map((entry) => ({
+    key: `e:${entry.ts}:${entry.tweetId ?? ''}:${entry.message}`,
+    node: (vRow: VirtualItem, measure: (node: Element | null) => void) => (
+      <ErrorRowView vRow={vRow} entry={entry} measure={measure} />
+    ),
+  }));
 
   return (
     <main className="logs">
-      <header className="logs-header">
-        <div className="tabs" role="tablist" aria-label="Log sections" onKeyDown={onTabKeyDown}>
-          {TABS.map((key) => (
-            <button
-              key={key}
-              ref={(node) => {
-                tabRefs.current[key] = node;
-              }}
-              type="button"
-              role="tab"
-              id={`tab-${key}`}
-              aria-selected={tab === key}
-              aria-controls={`panel-${key}`}
-              tabIndex={tab === key ? 0 : -1}
-              className={tab === key ? 'tab active' : 'tab'}
-              onClick={() => switchTab(key)}
-            >
-              {key === 'blocked' ? 'Blocked' : 'Errors'}
-              <span className="tab-count">{key === 'blocked' ? filtered.length : errors.length}</span>
-            </button>
-          ))}
-        </div>
-        <div className="logs-controls">
-          {tab === 'blocked' && (
-            <Select.Root<ReasonFilter>
-              value={filter}
-              onValueChange={(value) => setFilter(value as ReasonFilter)}
-            >
-              <Select.Trigger className="filter-trigger" aria-label="Filter by reason">
-                {REASON_OPTIONS.find((o) => o.value === filter)?.label}
-              </Select.Trigger>
-              <Select.Portal>
-                <Select.Positioner>
-                  <Select.Popup className="filter-popup">
-                    {REASON_OPTIONS.map((option) => (
-                      <Select.Item key={option.value} value={option.value} className="filter-item">
-                        <Select.ItemText>{option.label}</Select.ItemText>
-                      </Select.Item>
-                    ))}
-                  </Select.Popup>
-                </Select.Positioner>
-              </Select.Portal>
-            </Select.Root>
-          )}
-          {tab === 'blocked' && <Button className="action-btn" onClick={() => void onClear()}>Clear all</Button>}
-          {tab === 'errors' && <Button className="action-btn" onClick={() => void onClearErrors()}>Clear errors</Button>}
-        </div>
-      </header>
-
-      <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
-        {list.length === 0 ? (
-          <p className="logs-empty">{emptyMessage}</p>
-        ) : (
-          <div className="virtual-scroll" ref={scrollRef}>
-            <div className="virtual-inner" style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
-              {virtualizer.getVirtualItems().map((vRow) => {
-                const item = list[vRow.index];
-                if (!item) return null;
-                return tab === 'blocked' ? (
-                  <BlockedRow
-                    key={vRow.key}
-                    vRow={vRow}
-                    entry={item as BlockedEntry}
-                    unblocked={unblocked}
-                    onUnblock={(tweetId) => void onUnblock(tweetId)}
-                    measure={virtualizer.measureElement}
-                  />
-                ) : (
-                  <ErrorRowView key={vRow.key} vRow={vRow} entry={item as ErrorRow} measure={virtualizer.measureElement} />
-                );
-              })}
-            </div>
+      <Tabs.Root
+        value={tab}
+        onValueChange={(value) => {
+          if (typeof value === 'string' && TABS.includes(value as Tab)) switchTab(value as Tab);
+        }}
+      >
+        <header className="logs-header">
+          <Tabs.List className="tabs" aria-label="Log sections">
+            {TABS.map((key) => (
+              <Tabs.Tab key={key} value={key} className={tab === key ? 'tab active' : 'tab'}>
+                {key === 'blocked' ? 'Blocked' : 'Errors'}
+                <span className="tab-count">
+                  {key === 'blocked' ? filtered.length : errors.length}
+                </span>
+              </Tabs.Tab>
+            ))}
+          </Tabs.List>
+          <div className="logs-controls">
+            {tab === 'blocked' && (
+              <Select.Root<ReasonFilter>
+                items={REASON_OPTIONS}
+                value={filter}
+                onValueChange={(value) => {
+                  if (value !== null) setFilter(value as ReasonFilter);
+                }}
+              >
+                <Select.Trigger className="filter-trigger" aria-label="Filter by reason">
+                  <Select.Value />
+                </Select.Trigger>
+                <Select.Portal>
+                  <Select.Positioner className="filter-positioner">
+                    <Select.Popup className="filter-popup">
+                      {REASON_OPTIONS.map((option) => (
+                        <Select.Item
+                          key={option.value}
+                          value={option.value}
+                          className="filter-item"
+                        >
+                          <Select.ItemText>{option.label}</Select.ItemText>
+                        </Select.Item>
+                      ))}
+                    </Select.Popup>
+                  </Select.Positioner>
+                </Select.Portal>
+              </Select.Root>
+            )}
+            {tab === 'blocked' && (
+              <Button
+                className="action-btn"
+                disabled={busyAction !== null}
+                onClick={() => void onClear()}
+              >
+                {busyAction === 'clear-log' ? 'Clearing…' : 'Clear all'}
+              </Button>
+            )}
+            {tab === 'errors' && (
+              <Button
+                className="action-btn"
+                disabled={busyAction !== null}
+                onClick={() => void onClearErrors()}
+              >
+                {busyAction === 'clear-errors' ? 'Clearing…' : 'Clear errors'}
+              </Button>
+            )}
           </div>
+        </header>
+        {(loadError || actionError) && (
+          <p role="alert" className="logs-error">
+            {actionError || loadError}
+          </p>
         )}
-      </div>
+
+        <Tabs.Panel value="blocked" keepMounted className="logs-panel">
+          {blockedRows.length === 0 ? (
+            <p className="logs-empty">
+              {filter !== 'all' && log.length > 0
+                ? 'No blocked posts match this filter.'
+                : "No blocked posts. Posts appear here as they're filtered."}
+            </p>
+          ) : (
+            <VirtualList rows={blockedRows} />
+          )}
+        </Tabs.Panel>
+
+        <Tabs.Panel value="errors" keepMounted className="logs-panel">
+          {errorRows.length === 0 ? (
+            <p className="logs-empty">No scan errors. Errors appear here if scanning fails.</p>
+          ) : (
+            <VirtualList rows={errorRows} />
+          )}
+        </Tabs.Panel>
+      </Tabs.Root>
     </main>
   );
 }

@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Extension acceptance feed</title>
+    <style>
+      body {
+        margin: 24px auto;
+        max-width: 600px;
+        font: 16px system-ui;
+        color: #e7e9ea;
+        background: #15202b;
+      }
+      article {
+        padding: 16px;
+        border: 1px solid #536471;
+      }
+      .header {
+        display: flex;
+        justify-content: space-between;
+      }
+      a {
+        color: #1d9bf0;
+      }
+      button {
+        cursor: pointer;
+      }
+      img {
+        width: 180px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <article data-testid="tweet" data-post="101">
+        <div class="header">
+          <div data-testid="User-Name">Gardener @gardener</div>
+          <div><button data-testid="caret" aria-label="More">...</button></div>
+        </div>
+        <a href="/gardener/status/101"><time>10:00</time></a>
+        <div data-testid="tweetText">A calm afternoon in the garden.</div>
+      </article>
+      <article data-testid="tweet" data-post="102">
+        <div class="header">
+          <div data-testid="User-Name">Test author @test</div>
+          <div><button data-testid="caret" aria-label="More">...</button></div>
+        </div>
+        <a href="/test/status/102"><time>10:01</time></a>
+        <div data-testid="tweetText">BLOCK_TEXT controlled classifier fixture.</div>
+      </article>
+      <article data-testid="tweet" data-post="103">
+        <div class="header">
+          <div data-testid="User-Name">Link author @link</div>
+          <div><button data-testid="caret" aria-label="More">...</button></div>
+        </div>
+        <a href="/link/status/103"><time>10:02</time></a>
+        <div data-testid="tweetText">An ordinary link.</div>
+        <div data-testid="card.wrapper">
+          <a href="https://example.com/article"><span>BLOCK_TEXT link preview fixture</span></a>
+        </div>
+      </article>
+    </main>
+  </body>
+</html>

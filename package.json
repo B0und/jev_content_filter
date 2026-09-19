@@ -7,10 +7,19 @@
     "dev": "wxt",
     "build": "wxt build",
     "zip": "wxt zip",
-    "compile": "tsc --noEmit"
+    "compile": "tsc --noEmit",
+    "postinstall": "wxt prepare",
+    "lint": "oxlint --deny-warnings",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "npm run build && playwright test",
+    "check": "npm run compile && npm run lint && npm run format:check && npm test && npm run test:e2e"
   },
   "dependencies": {
-    "@base-ui-components/react": "^1.0.0-rc.0",
+    "@ai-sdk/gateway": "^4.0.86",
+    "@base-ui/react": "^1.8.0",
     "@tanstack/react-virtual": "^3.14.13",
     "@tensorflow/tfjs": "^4.22.0",
     "ai": "^7.0.105",
@@ -19,10 +28,23 @@
     "react-dom": "^19.2.0"
   },
   "devDependencies": {
+    "@babel/core": "^7.29.7",
+    "@playwright/test": "^1.63.0",
+    "@rolldown/plugin-babel": "^0.2.4",
+    "@types/babel__core": "^7.20.5",
+    "@types/chrome": "^0.3.0",
+    "@types/node": "^24.13.5",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@wxt-dev/module-react": "^1.1.3",
+    "babel-plugin-react-compiler": "^1.0.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "happy-dom": "^20.14.5",
+    "oxfmt": "^0.68.0",
+    "oxlint": "^1.83.0",
+    "oxlint-tsgolint": "^7.0.2002",
     "typescript": "^5.9.0",
+    "vitest": "^5.0.1",
     "wxt": "^0.21.4"
   }
 }

@@ -24,11 +24,22 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .popup *, .popup *::before, .popup *::after { transition: none !important; animation: none !important; }
+  .popup *,
+  .popup *::before,
+  .popup *::after {
+    transition: none !important;
+    animation: none !important;
+  }
 }
 
-:root { font-family: system-ui, sans-serif; font-size: 16px; line-height: 1.5; }
-body { margin: 0; }
+:root {
+  font-family: system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+}
+body {
+  margin: 0;
+}
 
 /* Fixed viewport: header and footer pinned, body scrolls */
 .popup {
@@ -48,7 +59,11 @@ body { margin: 0; }
   border-bottom: 1px solid var(--border);
   flex: none;
 }
-.popup-header h1 { font-size: 17px; margin: 0; font-weight: 700; }
+.popup-header h1 {
+  font-size: 17px;
+  margin: 0;
+  font-weight: 700;
+}
 .popup-body {
   flex: 1;
   overflow-y: auto;
@@ -57,13 +72,32 @@ body { margin: 0; }
   flex-direction: column;
   gap: 12px;
 }
-.popup-body p, .popup-body .hint { margin: 0; }
-.popup .hint { font-size: 13px; color: var(--text-secondary); }
-.popup .status { font-weight: 600; font-size: 14px; }
-.popup .warning { color: var(--danger); }
+.popup .hint {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+/* <output> is the semantic status element (implicit role=status); keep the
+   block layout the previous role=status <p> provided. */
+.popup output {
+  display: block;
+  margin: 0;
+}
+.popup-body p {
+  margin: 0;
+}
+.popup .status {
+  font-weight: 600;
+  font-size: 14px;
+}
+.popup .warning {
+  color: var(--danger);
+}
 
 /* Category groups: two columns, Text deliberately separate from Images */
-.categories { display: flex; flex-direction: column; }
+.categories {
+  display: flex;
+  flex-direction: column;
+}
 .category-group-label {
   font-size: 11px;
   font-weight: 700;
@@ -72,7 +106,9 @@ body { margin: 0; }
   color: var(--text-secondary);
   margin: 8px 0 2px;
 }
-.category-group-label:first-child { margin-top: 0; }
+.category-group-label:first-child {
+  margin-top: 0;
+}
 
 /* Compact two-line category rows: label + switch on top, threshold slider below */
 .category {
@@ -83,7 +119,9 @@ body { margin: 0; }
   padding: 7px 0;
   border-bottom: 1px solid var(--border);
 }
-.category:last-child { border-bottom: none; }
+.category:last-child {
+  border-bottom: none;
+}
 .category-label {
   display: flex;
   align-items: center;
@@ -92,8 +130,14 @@ body { margin: 0; }
   font-size: 14px;
   min-width: 0;
 }
-.category-label > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.category.disabled .category-label > span { opacity: 0.55; }
+.category-label > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.category.disabled .category-label > span {
+  opacity: 0.55;
+}
 .threshold {
   grid-column: 1 / -1;
   display: flex;
@@ -101,8 +145,13 @@ body { margin: 0; }
   gap: 8px;
   padding-left: 50px; /* switch (40) + gap (10): slider aligns under label text */
 }
-.threshold input[type="range"] { flex: 1; min-width: 0; width: 100%; accent-color: var(--blue); }
-.threshold input[type="number"] {
+.threshold input[type='range'] {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  accent-color: var(--blue);
+}
+.threshold input[type='number'] {
   width: 4.7em;
   font: inherit;
   font-size: 13px;
@@ -112,7 +161,9 @@ body { margin: 0; }
   background: var(--bg-input);
   color: var(--text);
 }
-.threshold input:disabled { opacity: 0.5; }
+.threshold input:disabled {
+  opacity: 0.5;
+}
 
 /* Switches: deliberate class selectors so Base UI root/thumb styles are not overwritten */
 .popup .switch {
@@ -130,8 +181,13 @@ body { margin: 0; }
   -webkit-appearance: none;
   appearance: none;
 }
-.popup .switch[data-checked] { background: var(--blue); }
-.popup .switch[disabled] { opacity: 0.5; cursor: default; }
+.popup .switch[data-checked] {
+  background: var(--blue);
+}
+.popup .switch[disabled] {
+  opacity: 0.5;
+  cursor: default;
+}
 .popup .thumb {
   position: absolute;
   top: 2px;
@@ -144,12 +200,24 @@ body { margin: 0; }
   transition: left 0.15s;
   display: block;
 }
-.popup .switch[data-checked] .thumb { left: 20px; }
-.popup .switch:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
-.popup input:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+.popup .switch[data-checked] .thumb {
+  left: 20px;
+}
+.popup .switch:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+.popup input:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 1px;
+}
 
 /* Buttons */
-.popup button, .popup button:visited { font: inherit; color: inherit; }
+.popup button,
+.popup button:visited {
+  font: inherit;
+  color: inherit;
+}
 .popup button {
   padding: 7px 12px;
   font-size: 14px;
@@ -161,14 +229,37 @@ body { margin: 0; }
   cursor: pointer;
   transition: background 0.15s;
 }
-.popup button:hover { background: color-mix(in srgb, var(--text-secondary) 12%, var(--bg)); }
-.popup button:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
-.popup .log-button { align-self: flex-start; }
-.popup .diagnostics { font-size: 13px; }
-.popup .diagnostics summary { cursor: pointer; font-size: 14px; font-weight: 600; }
-.popup .diagnostics p { margin: 8px 0 0; }
-.popup .key-field { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; font-weight: 600; }
-.popup .key-field input {
+.popup button:hover {
+  background: color-mix(in srgb, var(--text-secondary) 12%, var(--bg));
+}
+.popup button:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+.popup .log-button {
+  align-self: flex-start;
+}
+.popup .diagnostics {
+  font-size: 13px;
+}
+.popup .diagnostics summary {
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+}
+.popup .diagnostics p {
+  margin: 8px 0 0;
+}
+.popup .provider-field,
+.popup .key-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 10px;
+  font-weight: 600;
+}
+.popup .provider-field select {
+  width: 100%;
   font: inherit;
   font-weight: 400;
   font-size: 14px;
@@ -177,9 +268,50 @@ body { margin: 0; }
   border-radius: 6px;
   background: var(--bg-input);
   color: var(--text);
-  -webkit-text-security: disc; /* belt-and-suspenders masking even if type changes */
 }
-.popup .key-field input:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+.popup .key-input {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.popup .key-input input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-weight: 400;
+  font-size: 14px;
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-input);
+  color: var(--text);
+}
+.popup .key-input input[type='password'] {
+  -webkit-text-security: disc;
+}
+.popup .key-visibility {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-color: var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+}
+.popup .key-visibility:hover {
+  color: var(--text);
+}
+.popup .key-visibility svg {
+  display: block;
+}
+.popup .key-input input:focus-visible,
+.popup .provider-field select:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 1px;
+}
 
 /* Footer counters */
 .popup .counters {
@@ -188,7 +320,18 @@ body { margin: 0; }
   padding: 10px 16px;
   background: color-mix(in srgb, var(--text-secondary) 6%, var(--bg));
 }
-.popup .counters div:first-child { font-size: 14px; }
-.popup .counters strong { font-size: 16px; font-variant-numeric: tabular-nums; }
-.popup .counters div:last-child { font-size: 12px; color: var(--text-secondary); }
-.popup .counters span { opacity: 0.5; margin: 0 2px; }
+.popup .counters div:first-child {
+  font-size: 14px;
+}
+.popup .counters strong {
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+}
+.popup .counters div:last-child {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.popup .counters span {
+  opacity: 0.5;
+  margin: 0 2px;
+}

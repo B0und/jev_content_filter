@@ -1,8 +1,18 @@
+import babel from '@rolldown/plugin-babel';
 import { defineConfig } from 'wxt';
 
 export default defineConfig({
   srcDir: 'src',
+  imports: false,
   modules: ['@wxt-dev/module-react'],
+  react: {
+    vitePluginsBefore: [
+      babel({
+        include: /\/src\/.*\.[jt]sx$/,
+        plugins: [['babel-plugin-react-compiler', { target: '19' }]],
+      }),
+    ],
+  },
   manifest: {
     name: 'Jev Feed Filter',
     icons: {
@@ -18,6 +28,8 @@ export default defineConfig({
       'https://pbs.twimg.com/*',
       'https://video.twimg.com/*',
       'https://ai-gateway.vercel.sh/*',
+      'https://api.typesafe.ai/*',
+      'https://openrouter.ai/*',
     ],
   },
 });

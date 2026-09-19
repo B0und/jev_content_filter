@@ -1,4 +1,5 @@
 // Blocked-tweet log and scan-error log: FIFO capped, read, clear over storage.local.
+import { browser } from 'wxt/browser';
 import { LOG_LIMIT, STORAGE_KEYS, type BlockedEntry } from './types';
 
 export async function loadLog(): Promise<BlockedEntry[]> {
@@ -39,7 +40,10 @@ export async function loadScanErrors(): Promise<ScanErrorEntry[]> {
  * updates its timestamp. Entries without a tweet id (legacy records) still
  * dedupe on message alone.
  */
-export async function appendScanError(message: string, tweet?: { tweetId: string; handle?: string }): Promise<void> {
+export async function appendScanError(
+  message: string,
+  tweet?: { tweetId: string; handle?: string },
+): Promise<void> {
   const entry: ScanErrorEntry = { ts: Date.now(), message };
   if (tweet?.tweetId !== undefined) entry.tweetId = tweet.tweetId;
   if (tweet?.handle !== undefined) entry.handle = tweet.handle;
