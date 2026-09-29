@@ -78,7 +78,7 @@ export const test = base.extend<{
   worker: async ({ context }, provide) => {
     const worker = context.serviceWorkers()[0] ?? (await context.waitForEvent('serviceworker'));
     const settings = defaultSettings();
-    settings.gatewayKey = 'test-only-not-a-real-key';
+    settings.providerKeys.vercel = 'test-only-not-a-real-key';
     for (const key of ['porn', 'hentai', 'sexy', 'drawings'] as const)
       settings.enabled[key] = false;
     await worker.evaluate(async (value) => {

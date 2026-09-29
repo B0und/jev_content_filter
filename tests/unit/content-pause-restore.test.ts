@@ -58,10 +58,14 @@ describe('pause restore', () => {
         () => article.querySelector('[data-jev-card-link]') == null,
         'card link placeholder stayed',
       );
-      await until(
-        () => article.querySelector('[data-jev-host]') == null,
-        'filter UI stayed while paused',
-      );
+      await until(() => {
+        const host = article.querySelector<HTMLElement>('[data-jev-host]');
+        return (
+          host?.getAttribute('aria-hidden') === 'true' &&
+          host.style.visibility === 'hidden' &&
+          host.style.pointerEvents === 'none'
+        );
+      }, 'filter control remained visible while paused');
       expect(test.handle.report().blocked).toBe(0);
     } finally {
       stopRuntime(test);

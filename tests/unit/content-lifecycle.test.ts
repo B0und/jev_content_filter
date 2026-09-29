@@ -1,16 +1,20 @@
 // Lifecycle regressions: invalidation removes every trace, late/recycled
 // DOM stays consistent, and a failed scan never hides unrelated content.
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { JevReply } from '../../src/shared/types';
 import {
-  clearFeed,
+  aria,
   buildTweetArticle,
+  browser,
+  clearFeed,
   iconButton,
+  nsfwProbe,
   startRuntime,
   stopRuntime,
   until,
-  aria,
 } from './support';
+import { STORAGE_KEYS } from '../../src/shared/types';
+
+type FakeJevReply = { ok: true; sexual: number; ai: number } | { ok: false; error: string };
 
 describe('content lifecycle', () => {
   afterEach(() => {
@@ -85,16 +89,106 @@ describe('content lifecycle', () => {
     stopRuntime(test);
   });
 
+  it('observes a video poster assigned late and replaced', async () => {
+    const test = await startRuntime();
+    nsfwProbe.predictions = [{ className: 'Porn', probability: 0.99 }];
+    const article = buildTweetArticle({ id: '2010' });
+    const card = document.createElement('div');
+    card.setAttribute('data-testid', 'card.wrapper');
+    const video = document.createElement('video');
+    video.setAttribute('poster', '');
+    card.append(video);
+    article.append(card);
+    test.handle.discover();
+
+    video.setAttribute('poster', 'https://pbs.twimg.com/ext_tw_video_thumb/2010/pu/img/late.jpg');
+    await until(
+      () => card.hasAttribute('data-jev-card-hidden') && test.handle.report().blocked === 1,
+      'late poster was not classified',
+    );
+
+    nsfwProbe.predictions = [{ className: 'Porn', probability: 0.01 }];
+    video.setAttribute(
+      'poster',
+      'https://pbs.twimg.com/ext_tw_video_thumb/2010/pu/img/replaced.jpg',
+    );
+    await until(
+      () =>
+        !card.hasAttribute('data-jev-card-hidden') &&
+        test.handle.report().blocked === 0 &&
+        aria(iconButton(article)).includes('Allowed'),
+      'replacement poster did not replace the old preview decision',
+    );
+    stopRuntime(test);
+  });
+
+  it('counts duplicate bindings once and follows recycled articles through detach and return', async () => {
+    const test = await startRuntime();
+    test.bg.respond = () => ({ ok: true, sexual: 0.99, ai: 0.01 });
+    const first = buildTweetArticle({ id: '2011', text: 'shared explicit text' });
+    const second = buildTweetArticle({ id: '2011', text: 'shared explicit text' });
+    test.handle.discover();
+    await until(
+      () =>
+        first.hasAttribute('data-jev-hidden') &&
+        second.hasAttribute('data-jev-hidden') &&
+        test.handle.report().blocked === 1,
+      'duplicate articles did not share one visible report entry',
+    );
+    expect(test.handle.report().analyzed).toBe(1);
+    expect(test.bg.jevCalls).toHaveLength(1);
+
+    first.remove();
+    expect(test.handle.report().blocked).toBe(1);
+    test.handle.discover();
+    second.remove();
+    expect(test.handle.report().blocked).toBe(0);
+    test.handle.discover();
+    await until(
+      () => test.bg.stats.at(-1) === 0,
+      'badge did not clear after the last binding detached',
+    );
+
+    document.body.append(first);
+    test.handle.discover();
+    await until(
+      () => first.hasAttribute('data-jev-hidden') && aria(iconButton(first)).includes('Blocked'),
+      'retained post did not return',
+    );
+    expect(test.bg.jevCalls).toHaveLength(1);
+
+    const statusLink = first.querySelector<HTMLAnchorElement>('a[href*="/status/"]');
+    const textNode = first.querySelector('[data-testid="tweetText"]');
+    if (!statusLink || !textNode) throw new Error('tweet identity nodes missing');
+    statusLink.setAttribute('href', '/user/status/2012');
+    textNode.textContent = 'recycled explicit text';
+    test.handle.discover();
+    await until(
+      () =>
+        test.bg.jevCalls.length === 2 &&
+        first.hasAttribute('data-jev-hidden') &&
+        aria(iconButton(first)).includes('Blocked'),
+      'recycled article did not bind and classify its new post',
+    );
+    expect(test.handle.report().blocked).toBe(1);
+
+    statusLink.setAttribute('href', '/user/status/2011');
+    textNode.textContent = 'shared explicit text';
+    test.handle.discover();
+    expect(test.handle.report().blocked).toBe(1);
+    expect(first.hasAttribute('data-jev-hidden')).toBe(true);
+    expect(test.bg.jevCalls).toHaveLength(2);
+    stopRuntime(test);
+  });
+
   it('discards a scan result for superseded content and re-scans', async () => {
     const test = await startRuntime();
     const article = buildTweetArticle({ id: '2005', text: 'first text' });
-    const first = Promise.withResolvers<JevReply>();
+    const first = Promise.withResolvers<FakeJevReply>();
     let calls = 0;
     test.bg.respond = () => {
       calls += 1;
-      return calls === 1
-        ? first.promise
-        : Promise.resolve({ ok: true, sexual: 0.99, ai: 0.01 } as JevReply);
+      return calls === 1 ? first.promise : Promise.resolve({ ok: true, sexual: 0.99, ai: 0.01 });
     };
     test.handle.discover();
     await until(() => aria(iconButton(article)).includes('Scanning'), 'scan did not start');
@@ -115,6 +209,96 @@ describe('content lifecycle', () => {
     expect(calls).toBe(2);
     expect(aria(iconButton(article))).toContain('Blocked');
 
+    stopRuntime(test);
+  });
+
+  it('keeps attached posts beyond the detached retention limit and retains recent returns', async () => {
+    const test = await startRuntime();
+    test.bg.respond = () => ({ ok: true, sexual: 0.99, ai: 0.01 });
+    const oldest = buildTweetArticle({ id: '2020', text: 'oldest retained marker' });
+    const detached = Array.from({ length: 200 }, (_, index) =>
+      buildTweetArticle({ id: String(3000 + index) }),
+    );
+    const recent = buildTweetArticle({ id: '4000', text: 'recent retained marker' });
+    test.handle.discover();
+    await until(
+      () => oldest.hasAttribute('data-jev-hidden') && recent.hasAttribute('data-jev-hidden'),
+      'marker posts were not classified',
+    );
+    expect(test.handle.report().blocked).toBe(2);
+    expect(test.bg.jevCalls).toHaveLength(2);
+
+    oldest.remove();
+    for (const article of detached) article.remove();
+    test.handle.discover();
+    expect(test.handle.report().blocked).toBe(1);
+    await until(() => test.bg.stats.at(-1) === 1, 'badge did not account for detached posts');
+    // Remove the persistent score cache so a retained Post and an evicted
+    // Post have observably different work on return.
+    const stored = await browser.storage.local.get(null);
+    await browser.storage.local.remove(
+      Object.keys(stored).filter((key) => key.startsWith(STORAGE_KEYS.scores)),
+    );
+
+    recent.remove();
+    test.handle.discover();
+    expect(test.handle.report().blocked).toBe(0);
+    document.body.append(recent);
+    test.handle.discover();
+    await until(
+      () => recent.hasAttribute('data-jev-hidden') && aria(iconButton(recent)).includes('Blocked'),
+      'recent detached post did not return',
+    );
+    expect(test.bg.jevCalls).toHaveLength(2);
+
+    document.body.append(oldest);
+    test.handle.discover();
+    await until(
+      () =>
+        test.bg.jevCalls.length === 3 &&
+        oldest.hasAttribute('data-jev-hidden') &&
+        aria(iconButton(oldest)).includes('Blocked'),
+      'oldest detached post was not evicted and rescanned on return',
+    );
+    expect(test.handle.report().blocked).toBe(2);
+    stopRuntime(test);
+  });
+
+  it('discards an in-flight result when detached-post eviction replaces the post', async () => {
+    const test = await startRuntime();
+    const first = Promise.withResolvers<FakeJevReply>();
+    let calls = 0;
+    test.bg.respond = () => {
+      calls += 1;
+      return calls === 1 ? first.promise : Promise.resolve({ ok: true, sexual: 0.99, ai: 0.01 });
+    };
+    const article = buildTweetArticle({ id: '2021', text: 'pending eviction marker' });
+    test.handle.discover();
+    await until(() => aria(iconButton(article)).includes('Scanning'), 'scan did not start');
+
+    const detached = Array.from({ length: 201 }, (_, index) =>
+      buildTweetArticle({ id: String(5000 + index) }),
+    );
+    test.handle.discover();
+    article.remove();
+    for (const item of detached) item.remove();
+    test.handle.discover();
+
+    document.body.append(article);
+    test.handle.discover();
+    await until(
+      () =>
+        calls === 2 &&
+        article.hasAttribute('data-jev-hidden') &&
+        aria(iconButton(article)).includes('Blocked'),
+      'evicted post did not receive a fresh scan on return',
+    );
+    first.resolve({ ok: true, sexual: 0.01, ai: 0.01 });
+    await Promise.resolve();
+
+    expect(article.hasAttribute('data-jev-hidden')).toBe(true);
+    expect(test.handle.report().blocked).toBe(1);
+    expect(calls).toBe(2);
     stopRuntime(test);
   });
 

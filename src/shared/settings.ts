@@ -5,8 +5,11 @@ import {
   type FilterStatus,
   CATEGORY_KEYS,
   isTextProvider,
+  TEXT_PROVIDERS,
   type CategoryKey,
   type Settings,
+  type SettingsChange,
+  type SettingsReply,
 } from './types';
 
 /**
@@ -28,7 +31,9 @@ function thresholdFromLegacySlider(slider: unknown): number | undefined {
  */
 export async function loadSettings(): Promise<Settings> {
   const stored = await browser.storage.local.get(STORAGE_KEYS.settings);
-  const raw = (stored[STORAGE_KEYS.settings] ?? {}) as Partial<Settings> & {
+  const value: unknown = stored[STORAGE_KEYS.settings];
+  const raw = (typeof value === 'object' && value !== null ? value : {}) as Partial<Settings> & {
+    gatewayKey?: unknown;
     sliders?: Partial<Record<CategoryKey, number>>;
   };
   const defaults = defaultSettings();
@@ -52,21 +57,83 @@ export async function loadSettings(): Promise<Settings> {
         : defaults.thresholds[key];
   }
   const textProvider = isTextProvider(raw.textProvider) ? raw.textProvider : defaults.textProvider;
+  const providerKeys = { ...defaults.providerKeys };
+  for (const provider of TEXT_PROVIDERS) {
+    const key = raw.providerKeys?.[provider];
+    if (typeof key === 'string') providerKeys[provider] = key;
+  }
+  // Historical storage had one key associated with the selected provider.
+  // Never copy it to any other provider, and never override a modern map.
+  if (raw.providerKeys === undefined && typeof raw.gatewayKey === 'string') {
+    providerKeys[textProvider] = raw.gatewayKey;
+  }
 
   return {
     masterEnabled:
       typeof raw.masterEnabled === 'boolean' ? raw.masterEnabled : defaults.masterEnabled,
     textProvider,
-    // The API key comes only from stored user settings — never from env. Read
-    // gatewayKey for one release so existing Vercel users migrate in place.
-    gatewayKey: typeof raw.gatewayKey === 'string' ? raw.gatewayKey : defaults.gatewayKey,
+    providerKeys,
+    textConfigRevision:
+      typeof raw.textConfigRevision === 'number' &&
+      Number.isSafeInteger(raw.textConfigRevision) &&
+      raw.textConfigRevision >= 0
+        ? raw.textConfigRevision
+        : 0,
     enabled,
     thresholds,
   };
 }
 
-export async function saveSettings(settings: Settings): Promise<void> {
-  await browser.storage.local.set({ [STORAGE_KEYS.settings]: settings });
+export function applySettingsChange(current: Settings, change: SettingsChange): Settings {
+  const next = { ...current };
+  switch (change.field) {
+    case 'masterEnabled':
+      if (typeof change.value !== 'boolean') throw new Error('Invalid filtering setting.');
+      next.masterEnabled = change.value;
+      break;
+    case 'textProvider':
+      if (!isTextProvider(change.value)) throw new Error('Invalid text provider.');
+      next.textProvider = change.value;
+      break;
+    case 'providerKey':
+      if (!isTextProvider(change.provider) || typeof change.value !== 'string')
+        throw new Error('Invalid provider credential.');
+      next.providerKeys = { ...current.providerKeys, [change.provider]: change.value };
+      break;
+    case 'enabled':
+      if (!CATEGORY_KEYS.includes(change.category) || typeof change.value !== 'boolean')
+        throw new Error('Invalid category setting.');
+      next.enabled = { ...current.enabled, [change.category]: change.value };
+      break;
+    case 'threshold':
+      if (
+        !CATEGORY_KEYS.includes(change.category) ||
+        !Number.isFinite(change.value) ||
+        change.value < 0 ||
+        change.value > 1
+      )
+        throw new Error('Invalid category threshold.');
+      next.thresholds = { ...current.thresholds, [change.category]: change.value };
+      break;
+    default:
+      throw new Error('Unknown settings field.');
+  }
+  if (
+    next.textProvider !== current.textProvider ||
+    next.providerKeys[next.textProvider] !== current.providerKeys[current.textProvider]
+  )
+    next.textConfigRevision++;
+  return next;
+}
+
+/** The worker owns read-modify-write, even when the originating popup closes. */
+export async function updateSettings(change: SettingsChange): Promise<Settings> {
+  const reply = (await browser.runtime.sendMessage({
+    type: 'update-settings',
+    change,
+  })) as SettingsReply;
+  if (!reply?.ok) throw new Error(reply?.error ?? 'No settings response.');
+  return reply.settings;
 }
 
 export async function loadStatus(): Promise<FilterStatus> {

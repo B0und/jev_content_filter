@@ -8,6 +8,8 @@ import {
   manualReviewFor,
   metricsFor,
   NSFWJS_LABELS,
+  PROVENANCE_LABELS,
+  SEXUAL_CONTENT_POLICY,
   parseSolutionImport,
   predictionFor,
   predictionLabel,
@@ -29,7 +31,7 @@ import './styles.css';
 
 type CaseFilter = 'all' | BenchmarkModality;
 
-const TASKS: BenchmarkTask[] = ['explicit', 'aiGenerated'];
+const TASKS: BenchmarkTask[] = ['sexualContent', 'aiGenerated'];
 const NSFWJS_TASKS: NsfwjsTask[] = ['porn', 'hentai', 'sexy', 'drawings'];
 const SOLUTION_KINDS: SolutionKind[] = ['llm', 'nsfwjs', 'other'];
 const TRUTH_OPTIONS: Array<{ value: TruthValue; label: string }> = [
@@ -54,9 +56,7 @@ function readFileAsDataUrl(file: File): Promise<string> {
 }
 
 function formatCaseLabel(item: BenchmarkCase): string {
-  return item.labels.explicit === 'unknown' && item.labels.aiGenerated === 'unknown'
-    ? 'Needs labels'
-    : `${item.labels.explicit === 'unknown' ? '—' : item.labels.explicit === 'yes' ? 'Explicit' : 'Safe'} · ${item.labels.aiGenerated === 'unknown' ? '—' : item.labels.aiGenerated === 'yes' ? 'AI' : 'Human'}`;
+  return `Sexual content: ${item.labels.sexualContent} · AI origin: ${item.labels.aiGenerated}`;
 }
 
 function MetricCell({ value }: { value: number | null }) {
@@ -309,8 +309,11 @@ export function App() {
       title,
       imageUrl: sampleType === 'image' ? sampleImage : undefined,
       text: sampleType === 'text' ? sampleText.trim() : undefined,
-      labels: { explicit: 'unknown', aiGenerated: 'unknown' },
-      notes: sampleFileName ? `Imported from ${sampleFileName}.` : '',
+      labels: { sexualContent: 'unknown', aiGenerated: 'unknown' },
+      provenance: 'user-provided',
+      notes: sampleFileName
+        ? `User-provided sample from ${sampleFileName}; original author/source is unverified.`
+        : 'User-provided sample; original author/source is unverified.',
       createdAt: new Date().toISOString(),
     };
     setState((current) => ({
@@ -423,6 +426,17 @@ export function App() {
         </div>
       </section>
 
+      <section className="policy-banner" aria-label="Sexual content benchmark policy">
+        <strong>Sexual content policy</strong>
+        <p>{SEXUAL_CONTENT_POLICY}</p>
+        <p>
+          When older state is migrated, prior &quot;Explicit&quot; yes labels remain positive and
+          prior no labels become unknown. Prior explicit scores are omitted because they answer a
+          narrower question; the threshold resets to 0.5. AI-origin labels use recorded provenance,
+          never writing style.
+        </p>
+      </section>
+
       <main className="lab-grid">
         <aside className="case-rail" aria-label="Benchmark cases">
           <div className="rail-heading">
@@ -519,6 +533,9 @@ export function App() {
                     <span className={`modality-pill ${selectedCase.modality}`}>
                       {selectedCase.modality}
                     </span>
+                    <span className={`provenance-pill ${selectedCase.provenance}`}>
+                      {PROVENANCE_LABELS[selectedCase.provenance]}
+                    </span>
                     <span>{selectedCase.id}</span>
                   </div>
                   <h2>{selectedCase.title}</h2>
@@ -605,8 +622,14 @@ export function App() {
                     <strong>No solution runs yet.</strong>
                     <span>
                       Add a solution for manual score entry, or import JSON predictions from a model
-                      run.
+                      run. LLM output uses <code>sexualContent</code> and <code>aiGenerated</code>;
+                      legacy <code>explicit</code> scores are not mapped.
                     </span>
+                    <code>
+                      {
+                        '{ "name": "LLM run", "type": "llm", "predictions": { "case-id": { "sexualContent": 0.78, "aiGenerated": 0.04 } } }'
+                      }
+                    </code>
                     <code>
                       {
                         '{ "name": "nsfwjs", "type": "nsfwjs", "predictions": { "case-id": { "nsfwjs": { "porn": 0.22, "hentai": 0.81, "sexy": 0.35, "drawings": 0.12 } } } }'
@@ -624,7 +647,7 @@ export function App() {
                         <thead>
                           <tr>
                             <th>Solution</th>
-                            <th colSpan={3}>Explicit</th>
+                            <th colSpan={3}>Sexual content</th>
                             <th colSpan={3}>AI-generated</th>
                             <th>Coverage</th>
                             <th colSpan={3}>Manual review</th>
@@ -647,11 +670,11 @@ export function App() {
                         </thead>
                         <tbody>
                           {state.solutions.map((solution) => {
-                            const explicit = metricsFor(
+                            const sexualContent = metricsFor(
                               state.cases,
                               solution,
-                              'explicit',
-                              state.thresholds.explicit,
+                              'sexualContent',
+                              state.thresholds.sexualContent,
                             );
                             const aiGenerated = metricsFor(
                               state.cases,
@@ -669,16 +692,16 @@ export function App() {
                                   </span>
                                   {solution.description && <small>{solution.description}</small>}
                                 </th>
-                                <MetricCell value={explicit.f1} />
-                                <MetricCell value={explicit.precision} />
-                                <MetricCell value={explicit.recall} />
+                                <MetricCell value={sexualContent.f1} />
+                                <MetricCell value={sexualContent.precision} />
+                                <MetricCell value={sexualContent.recall} />
                                 <MetricCell value={aiGenerated.f1} />
                                 <MetricCell value={aiGenerated.precision} />
                                 <MetricCell value={aiGenerated.recall} />
                                 <td>
-                                  {explicit.labeled + aiGenerated.labeled === 0
+                                  {sexualContent.labeled + aiGenerated.labeled === 0
                                     ? '—'
-                                    : `${explicit.scored + aiGenerated.scored} / ${explicit.labeled + aiGenerated.labeled}`}
+                                    : `${sexualContent.scored + aiGenerated.scored} / ${sexualContent.labeled + aiGenerated.labeled}`}
                                 </td>
                                 <td>{review.right}</td>
                                 <td>{review.wrong}</td>

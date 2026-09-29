@@ -2,9 +2,7 @@
 // image inference, and the retry policy. External compute (the Jev gateway
 // via background messages, and the bundled NSFWJS model) lives behind these
 // functions only.
-import { load as loadNsfwCore, type NSFWJS } from 'nsfwjs/core';
-import { MobileNetV2Model } from 'nsfwjs/models/mobilenet_v2';
-import * as tf from '@tensorflow/tfjs';
+import { loadImageClassifier } from './image-loader';
 import { browser } from 'wxt/browser';
 import {
   CATEGORY_KEYS,
@@ -23,7 +21,7 @@ import { canonicalMediaUrl } from './dom';
  * Bump when cache shape/read rules change so stale entries are ignored by
  * construction (keys carry the version).
  */
-const CACHE_VERSION = 5;
+const CACHE_VERSION = 6;
 const CACHE_PREFIX = `${STORAGE_KEYS.scores}:v${CACHE_VERSION}:`;
 /** Legacy prefixes are only ever evicted, never read. */
 const ALL_CACHE_PREFIX = `${STORAGE_KEYS.scores}:`;
@@ -134,18 +132,34 @@ export async function textScores(
   post: Post,
   text: string,
 ): Promise<Partial<Record<CategoryKey, number>>> {
-  // Provider changes must not reuse scores produced by a different API.
-  const key = `${CACHE_PREFIX}t:${settings.current.textProvider}:${hash64(text)}`;
+  const current = settings.current;
+  const provider = current.textProvider;
+  const revision = current.textConfigRevision;
+  const key = `${CACHE_PREFIX}t:${provider}:${hash64(text)}`;
   const cached = await readCache(key);
+  if (
+    settings.current.textProvider !== provider ||
+    settings.current.textConfigRevision !== revision
+  )
+    throw new Error('Text configuration changed.');
   if (cached) return cached.scores;
-  if (!settings.current.gatewayKey)
+  if (!current.providerKeys[provider])
     throw new Error('Add an API key in the extension popup to check text.');
   const reply = (await browser.runtime.sendMessage({
     type: 'jev',
     tweetId: post.id,
     text,
+    provider,
+    revision,
   })) as JevReply;
   if (!reply.ok) throw new Error(reply.error);
+  if (
+    reply.provider !== provider ||
+    reply.revision !== revision ||
+    settings.current.textProvider !== provider ||
+    settings.current.textConfigRevision !== revision
+  )
+    throw new Error('Text configuration changed.');
   if (
     ![reply.sexual, reply.ai].every((score) => Number.isFinite(score) && score >= 0 && score <= 1)
   )
@@ -199,14 +213,12 @@ async function classifyImages(
     }
   }
   if (!misses.length) return { scores, errors };
-  const model = await loadModel();
+  const model = await loadImageClassifier();
   for (const miss of misses) {
     let bitmap: ImageBitmap | undefined;
-    let pixels: tf.Tensor3D | undefined;
     try {
       bitmap = await fetchBitmap(miss.url);
-      pixels = tf.browser.fromPixels(bitmap, 3);
-      const predictions = await model.classify(pixels);
+      const predictions = await model.classify(bitmap);
       const imageScores: Partial<Record<CategoryKey, number>> = {};
       for (const prediction of predictions) {
         const category =
@@ -220,7 +232,6 @@ async function classifyImages(
     } catch (error) {
       errors.push(`Image ${miss.index + 1}: ${message(error)}`);
     } finally {
-      pixels?.dispose();
       bitmap?.close();
     }
   }
@@ -243,19 +254,6 @@ async function fetchBitmap(url: string): Promise<ImageBitmap> {
     return createImageBitmap(await (await fetch(reply.dataUrl)).blob());
   }
 }
-
-function loadModel(): Promise<NSFWJS> {
-  if (!modelPromise)
-    modelPromise = loadNsfwCore('MobileNetV2', {
-      size: 224,
-      modelDefinitions: [MobileNetV2Model],
-    }).catch((error) => {
-      modelPromise = null;
-      throw error;
-    });
-  return modelPromise;
-}
-let modelPromise: Promise<NSFWJS> | null = null;
 
 function timeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
   const { promise: timed, resolve, reject } = Promise.withResolvers<T>();

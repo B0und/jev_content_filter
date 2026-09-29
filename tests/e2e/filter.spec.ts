@@ -14,6 +14,7 @@ test('filters posts and previews, restores them on pause, and persists an unbloc
   await expect(blocked).toBeHidden();
   await expect(previewPost).toBeVisible();
   await expect(previewPost.locator('[data-testid="card.wrapper"]')).toBeHidden();
+  await expect(previewPost.locator('[data-jev-card-link]')).toBeVisible();
 
   const popup = await context.newPage();
   await popup.goto(`chrome-extension://${extensionId}/popup.html`);
@@ -40,6 +41,90 @@ test('filters posts and previews, restores them on pause, and persists an unbloc
   await page.reload();
   await expect(blocked).toBeVisible();
   await expect(blocked.getByRole('button', { name: 'Allowed by you', exact: true })).toBeVisible();
+});
+test('collapses blocked timeline cells and restores their space on pause', async ({
+  page,
+  context,
+  extensionId,
+}) => {
+  await page.goto('https://x.com/home');
+  const blocked = page.locator('[data-post="102"]');
+  const previewCard = page.locator('[data-post="103"] [data-testid="card.wrapper"]');
+  await expect(previewCard).toBeHidden();
+  await expect(blocked).toBeHidden();
+  const blockedCell = blocked.locator('xpath=..');
+  await expect
+    .poll(() => blockedCell.evaluate((cell) => cell.getBoundingClientRect().height))
+    .toBe(0);
+  await expect(page.locator('[data-post="101"] [data-jev-host]')).toHaveCount(1);
+  const controlBox = await page.locator('[data-post="101"]').evaluate((article) => {
+    const host = article.querySelector<HTMLElement>('[data-jev-host]');
+    const caret = article.querySelector<HTMLElement>('[data-testid="caret"]');
+    const button = host?.shadowRoot?.querySelector('button');
+    if (!host || !caret || !button) throw new Error('filter control geometry is unavailable');
+    const rect = (element: Element) => {
+      const box = element.getBoundingClientRect();
+      return {
+        left: box.left,
+        right: box.right,
+        top: box.top,
+        bottom: box.bottom,
+        width: box.width,
+      };
+    };
+    return { article: rect(article), host: rect(host), button: rect(button), caret: rect(caret) };
+  });
+  expect(controlBox.host.width).toBeGreaterThanOrEqual(30);
+  expect(controlBox.button.width).toBeGreaterThanOrEqual(30);
+  expect(controlBox.button.left).toBeGreaterThanOrEqual(controlBox.host.left);
+  expect(controlBox.button.right).toBeLessThanOrEqual(controlBox.host.right);
+  expect(controlBox.button.left).toBeGreaterThanOrEqual(controlBox.article.left);
+  expect(controlBox.button.right).toBeLessThanOrEqual(controlBox.article.right);
+  const spacing = await page.locator('[data-post="101"]').evaluate((article) => {
+    const host = article.querySelector<HTMLElement>('[data-jev-host]')!;
+    const author = article.querySelector('[data-testid="User-Name"]')!;
+    const text = article.querySelector('[data-testid="tweetText"]')!;
+    const measure = () => ({
+      gap: text.getBoundingClientRect().top - author.getBoundingClientRect().bottom,
+      height: article.getBoundingClientRect().height,
+    });
+    const enabled = measure();
+    const parent = host.parentNode!;
+    const next = host.nextSibling;
+    host.remove();
+    const native = measure();
+    parent.insertBefore(host, next);
+    return { enabled, native };
+  });
+  expect(spacing.enabled).toEqual(spacing.native);
+
+  const initialTop = await page.evaluate(() => {
+    const marker = document.createElement('div');
+    marker.dataset.layoutSentinel = '';
+    marker.style.height = '1px';
+    document.querySelector('main')!.append(marker);
+    return marker.getBoundingClientRect().top;
+  });
+
+  const popup = await context.newPage();
+  await popup.goto(`chrome-extension://${extensionId}/popup.html`);
+  const toggle = popup.getByRole('switch', { name: 'Enable filtering', exact: true });
+
+  await toggle.click();
+  await expect(blocked).toBeVisible();
+  const pausedTop = await page
+    .locator('[data-layout-sentinel]')
+    .evaluate((marker) => marker.getBoundingClientRect().top);
+  const restoredHeight = await blockedCell.evaluate((cell) => cell.getBoundingClientRect().height);
+  expect(restoredHeight).toBeGreaterThan(0);
+  expect(pausedTop - initialTop).toBe(restoredHeight);
+
+  await toggle.click();
+  await expect(blocked).toBeHidden();
+  const resumedTop = await page
+    .locator('[data-layout-sentinel]')
+    .evaluate((marker) => marker.getBoundingClientRect().top);
+  expect(resumedTop).toBe(initialTop);
 });
 
 test('inspects a post, changes its threshold, and opens extension logs', async ({
@@ -84,7 +169,7 @@ test('a failed text request stays visible and exposes an error', async ({ page, 
 test('runs the bundled image classifier without a text API key', async ({ page, setSettings }) => {
   test.setTimeout(90_000);
   const settings = defaultSettings();
-  settings.gatewayKey = '';
+  settings.providerKeys.vercel = '';
   settings.enabled.sexualText = false;
   settings.enabled.aiGenerated = false;
   for (const key of ['porn', 'hentai', 'sexy', 'drawings'] as const) settings.thresholds[key] = 1;
@@ -117,7 +202,7 @@ test('runs the bundled image classifier without a text API key', async ({ page, 
 test('filters video thumbnails on search results', async ({ page, setSettings }) => {
   test.setTimeout(90_000);
   const settings = defaultSettings();
-  settings.gatewayKey = '';
+  settings.providerKeys.vercel = '';
   settings.enabled.sexualText = false;
   settings.enabled.aiGenerated = false;
   for (const key of ['porn', 'hentai', 'sexy', 'drawings'] as const) {
@@ -137,7 +222,7 @@ test('filters video thumbnails on search results', async ({ page, setSettings })
 test('hides disabled categories from the timeline inspector', async ({ page, setSettings }) => {
   test.setTimeout(90_000);
   const settings = defaultSettings();
-  settings.gatewayKey = 'test-only-not-a-real-key';
+  settings.providerKeys.vercel = 'test-only-not-a-real-key';
   settings.enabled.drawings = false;
   settings.enabled.sexualText = true;
   settings.enabled.aiGenerated = false;
@@ -170,7 +255,7 @@ test('opens blocked image posts in review mode from logs', async ({
 }) => {
   test.setTimeout(90_000);
   const settings = defaultSettings();
-  settings.gatewayKey = '';
+  settings.providerKeys.vercel = '';
   settings.enabled.sexualText = false;
   settings.enabled.aiGenerated = false;
   settings.thresholds.porn = 0;
@@ -207,7 +292,7 @@ test('opens blocked image posts in review mode from logs', async ({
 test('does not flap when X swaps media size variants', async ({ page, setSettings }) => {
   test.setTimeout(90_000);
   const settings = defaultSettings();
-  settings.gatewayKey = '';
+  settings.providerKeys.vercel = '';
   settings.enabled.sexualText = false;
   settings.enabled.aiGenerated = false;
   for (const key of ['porn', 'hentai', 'sexy', 'drawings'] as const) {
@@ -263,7 +348,7 @@ test('rechecks recycled posts and newly enabled preview categories', async ({
   setSettings,
 }) => {
   const settings = defaultSettings();
-  settings.gatewayKey = 'test-only-not-a-real-key';
+  settings.providerKeys.vercel = 'test-only-not-a-real-key';
   for (const key of ['porn', 'hentai', 'sexy', 'drawings'] as const) settings.enabled[key] = false;
   settings.enabled.sexualText = false;
   settings.enabled.aiGenerated = false;

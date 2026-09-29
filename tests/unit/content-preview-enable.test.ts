@@ -40,7 +40,9 @@ describe('category enable transitions', () => {
     // Assign the classifier reply before the settings write: the runtime
     // scans immediately when the change lands.
     test.bg.respond = () => ({ ok: true, sexual: 0.9, ai: 0.01 });
-    const enabled: Settings = baseSettings({ gatewayKey: 'test-key' });
+    const enabled: Settings = baseSettings({
+      providerKeys: { vercel: 'test-key', typesafe: '', openrouter: '' },
+    });
     await browser.storage.local.set({ [STORAGE_KEYS.settings]: enabled });
 
     await until(

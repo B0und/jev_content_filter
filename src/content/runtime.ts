@@ -28,6 +28,7 @@ import {
 import { closePanelIfOpen } from './ui';
 import {
   bindings,
+  clearBindingIndex,
   isAttached,
   newPost,
   overrides,
@@ -35,10 +36,13 @@ import {
   report,
   reviewMode,
   settings,
+  trackBinding,
+  untrackBinding,
   type Post,
 } from './state';
 
 const overridePrefix = `${STORAGE_KEYS.overrides}:`;
+const MAX_DETACHED_POSTS = 200;
 /** Tracks what blocked count we last told the background for this tab. */
 let lastBadgeBlocked = -1;
 let observer: MutationObserver | null = null;
@@ -82,17 +86,19 @@ export async function startContentFilter(ctx: ContentScriptContext): Promise<Con
   // Schedule one coalesced discovery pass per frame for X's DOM churn.
   let scheduled = false;
   const schedule = () => {
-    if (scheduled) return;
+    if (activeCtx !== ctx || ctx.isInvalid || scheduled) return;
     scheduled = true;
     ctx.requestAnimationFrame(() => {
       scheduled = false;
-      discover();
+      if (activeCtx === ctx && !ctx.isInvalid) discover();
     });
   };
   // Only changes X can make: our own writes (hosts, panel, card link) are
   // filtered out in the record handler so the runtime never reschedules
   // itself.
+  observer?.disconnect();
   observer = new MutationObserver((mutations) => {
+    if (activeCtx !== ctx || ctx.isInvalid) return;
     if (!mutations.some((record) => !isOwnMutation(record))) return;
     schedule();
   });
@@ -102,10 +108,10 @@ export async function startContentFilter(ctx: ContentScriptContext): Promise<Con
       subtree: true,
       characterData: true,
       attributes: true,
-      attributeFilter: ['src', 'srcset', 'href'],
+      attributeFilter: ['src', 'srcset', 'href', 'poster'],
     });
   }
-  ctx.onInvalidated(teardown);
+  ctx.onInvalidated(() => teardown(ctx));
 
   discover();
   sendStats();
@@ -129,7 +135,9 @@ async function handleStorageChanges(
     const current = settings.current;
     const resuming = !previous.masterEnabled && current.masterEnabled;
     const textConfigChanged =
-      previous.gatewayKey !== current.gatewayKey || previous.textProvider !== current.textProvider;
+      previous.textConfigRevision !== current.textConfigRevision ||
+      previous.textProvider !== current.textProvider ||
+      previous.providerKeys[previous.textProvider] !== current.providerKeys[current.textProvider];
     for (const post of posts.values()) {
       if (!current.masterEnabled || textConfigChanged) cancelRetry(post);
       if (textConfigChanged) {
@@ -139,6 +147,10 @@ async function handleStorageChanges(
         post.partErrors.text = [];
         post.partErrors.preview = [];
         post.retryCount = 0;
+        for (const key of TEXT_KEYS) {
+          delete post.scores[key];
+          delete post.previewScores[key];
+        }
       }
       // Enabling a category must trigger the missing checks: a post scanned
       // while a category was off has no scores for it and stays done until
@@ -206,11 +218,11 @@ function isOwnMutation(record: MutationRecord): boolean {
 
 function discover(): void {
   if (!activeCtx || activeCtx.isInvalid) return;
-  for (const [article, binding] of bindings) {
+  let bindingsChanged = false;
+  for (const [article] of bindings) {
     if (!article.isConnected) {
-      binding.host.remove();
-      bindings.delete(article);
-      if (panelOpenFor(binding.post.id)) closePanelIfOpen();
+      detachBinding(article);
+      bindingsChanged = true;
     }
   }
   for (const article of document.querySelectorAll<HTMLElement>('article[data-testid="tweet"]')) {
@@ -265,23 +277,58 @@ function discover(): void {
     }
     if (content.author) post.author = content.author;
     let binding = bindings.get(article);
-    if (!binding || binding.post !== post) {
-      // X recycles article nodes for new tweets: rebuild the binding when
-      // the node now shows a different post.
-      binding?.host.remove();
+    if (binding && binding.post !== post) {
+      // X recycles article nodes for new tweets: release the old post first.
+      detachBinding(article);
+      binding = undefined;
+      bindingsChanged = true;
+    }
+    if (!binding) {
       binding = createBinding(post);
-      bindings.set(article, binding);
+      trackBinding(article, binding);
+      bindingsChanged = true;
     }
     render(article, binding);
     void scan(post);
   }
-  for (const post of posts.values()) if (!isAttached(post)) cancelRetry(post);
+  evictDetachedPosts();
+  if (bindingsChanged) sendStats();
+}
+
+function detachBinding(article: HTMLElement): void {
+  const binding = untrackBinding(article);
+  if (!binding) return;
+  binding.host.remove();
+  if (isAttached(binding.post)) return;
+  cancelRetry(binding.post);
+  if (posts.get(binding.post.id) === binding.post) {
+    posts.delete(binding.post.id);
+    posts.set(binding.post.id, binding.post);
+  }
+  if (panelOpenFor(binding.post.id)) closePanelIfOpen();
+}
+
+function evictDetachedPosts(): void {
+  let detachedCount = 0;
+  for (const post of posts.values()) if (!isAttached(post)) detachedCount++;
+  if (detachedCount <= MAX_DETACHED_POSTS) return;
+
+  for (const [id, post] of posts) {
+    if (detachedCount <= MAX_DETACHED_POSTS) break;
+    if (isAttached(post)) continue;
+    cancelRetry(post);
+    post.version++;
+    post.pending = false;
+    posts.delete(id);
+    detachedCount--;
+  }
 }
 
 // --- Scan orchestration -----------------------------------------------------
 
 async function scan(post: Post): Promise<void> {
-  if (!activeCtx || activeCtx.isInvalid) return;
+  const scanCtx = activeCtx;
+  if (!scanCtx || scanCtx.isInvalid || posts.get(post.id) !== post) return;
   if (!settings.current.masterEnabled) {
     restoreAll();
     return;
@@ -313,7 +360,13 @@ async function scan(post: Post): Promise<void> {
     } catch (error) {
       result = { scores: {}, errors: [message(error)] };
     }
-    if (post.version !== version) return;
+    if (
+      activeCtx !== scanCtx ||
+      scanCtx.isInvalid ||
+      posts.get(post.id) !== post ||
+      post.version !== version
+    )
+      return;
     post.partErrors[part] = result.errors.map(
       (error) =>
         `${part === 'text' ? 'Text' : part === 'images' ? 'Images' : 'Link preview'}: ${error}`,
@@ -356,7 +409,7 @@ async function scan(post: Post): Promise<void> {
     );
   await Promise.all(jobs);
   // Context died mid-scan: drop the result, don't touch DOM or background.
-  if (!activeCtx || activeCtx.isInvalid) return;
+  if (activeCtx !== scanCtx || scanCtx.isInvalid || posts.get(post.id) !== post) return;
   post.pending = false;
   if (post.version !== version) {
     void scan(post);
@@ -396,6 +449,7 @@ function scheduleRetry(
   if (!pendingCtx || pendingCtx.isInvalid) return;
   post.retryAt = Date.now() + delay;
   post.retryTimer = pendingCtx.setTimeout(() => {
+    if (activeCtx !== pendingCtx || pendingCtx.isInvalid || posts.get(post.id) !== post) return;
     post.retryTimer = undefined;
     post.retryAt = null;
     for (const part of parts) {
@@ -427,7 +481,8 @@ function flushBadge(): Promise<void> {
 
 // --- Teardown ---------------------------------------------------------------
 
-function teardown(): void {
+function teardown(ctx: ContentScriptContext): void {
+  if (activeCtx !== ctx) return;
   observer?.disconnect();
   observer = null;
   activeCtx = null;
@@ -437,4 +492,5 @@ function teardown(): void {
   overrides.clear();
   lastBadgeBlocked = -1;
   removeAllUI();
+  clearBindingIndex();
 }

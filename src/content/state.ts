@@ -49,6 +49,32 @@ export interface Binding {
 
 export const posts = new Map<string, Post>();
 export const bindings = new Map<HTMLElement, Binding>();
+/** Article bindings grouped by post, so attachment checks don't scan the feed. */
+let articlesByPost = new WeakMap<Post, Set<HTMLElement>>();
+export function trackBinding(article: HTMLElement, binding: Binding): void {
+  bindings.set(article, binding);
+  let articles = articlesByPost.get(binding.post);
+  if (!articles) {
+    articles = new Set();
+    articlesByPost.set(binding.post, articles);
+  }
+  articles.add(article);
+}
+
+export function untrackBinding(article: HTMLElement): Binding | undefined {
+  const binding = bindings.get(article);
+  if (!binding) return undefined;
+  bindings.delete(article);
+  const articles = articlesByPost.get(binding.post);
+  articles?.delete(article);
+  if (articles?.size === 0) articlesByPost.delete(binding.post);
+  return binding;
+}
+
+export function clearBindingIndex(): void {
+  articlesByPost = new WeakMap();
+}
+
 export const overrides = new Map<string, 'allow'>();
 /** Replaced wholesale whenever settings are loaded; readers always see the latest. */
 export const settings: { current: Settings } = { current: defaultSettings() };
@@ -144,24 +170,43 @@ export function stateOf(post: Post): string {
 }
 
 export function isAttached(post: Post): boolean {
-  for (const [article, binding] of bindings)
-    if (binding.post === post && article.isConnected) return true;
+  if (posts.get(post.id) !== post) return false;
+  for (const article of articlesByPost.get(post) ?? []) if (article.isConnected) return true;
   return false;
 }
 
 export function report(): TabReport {
-  // Only posts actually on the page count — detached/recycled posts must
-  // not inflate the badge or the logs-page numbers.
-  const values = [...posts.values()].filter(isAttached);
+  // Only currently connected bindings count. Reading `isConnected` directly
+  // avoids stale attachment counters before MutationObserver delivery.
+  const attached = new Set<Post>();
+  for (const [article, binding] of bindings)
+    if (article.isConnected && posts.get(binding.post.id) === binding.post)
+      attached.add(binding.post);
+
+  let analyzed = 0,
+    blockedCount = 0,
+    pending = 0,
+    failed = 0,
+    retrying = 0,
+    lastScannedAt = 0;
+  const errors = new Set<string>();
+  for (const post of attached) {
+    if (Object.keys(post.scores).length > 0 || Object.keys(post.previewScores).length > 0)
+      analyzed++;
+    if (blocked(post) || previewBlocked(post)) blockedCount++;
+    if (post.pending) pending++;
+    if (post.errors.length > 0) failed++;
+    if (post.retryTimer) retrying++;
+    lastScannedAt = Math.max(lastScannedAt, post.scannedAt);
+    for (const error of post.errors) errors.add(error);
+  }
   return {
-    analyzed: values.filter(
-      (post) => Object.keys(post.scores).length > 0 || Object.keys(post.previewScores).length > 0,
-    ).length,
-    blocked: values.filter((post) => blocked(post) || previewBlocked(post)).length,
-    pending: values.filter((post) => post.pending).length,
-    failed: values.filter((post) => post.errors.length > 0).length,
-    retrying: values.filter((post) => !!post.retryTimer).length,
-    lastScannedAt: values.reduce((last, post) => Math.max(last, post.scannedAt), 0),
-    errors: [...new Set(values.flatMap((post) => post.errors))].slice(-5),
+    analyzed,
+    blocked: blockedCount,
+    pending,
+    failed,
+    retrying,
+    lastScannedAt,
+    errors: [...errors].slice(-5),
   };
 }

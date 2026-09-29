@@ -14,12 +14,21 @@ export interface Settings {
   masterEnabled: boolean;
   /** Provider that evaluates the text questions. */
   textProvider: TextProvider;
-  /** API key for the selected text provider. */
-  gatewayKey: string;
+  /** Credentials never move between providers. */
+  providerKeys: Record<TextProvider, string>;
+  /** Incremented when the selected provider or its credential changes. */
+  textConfigRevision: number;
   enabled: Record<CategoryKey, boolean>;
   /** Probability cutoff, 0..1. Lower blocks more. */
   thresholds: Record<CategoryKey, number>;
 }
+
+export type SettingsChange =
+  | { field: 'masterEnabled'; value: boolean }
+  | { field: 'textProvider'; value: TextProvider }
+  | { field: 'providerKey'; provider: TextProvider; value: string }
+  | { field: 'enabled'; category: CategoryKey; value: boolean }
+  | { field: 'threshold'; category: CategoryKey; value: number };
 export interface FilterStatus {
   state: 'ok' | 'failing';
   reason?: string;
@@ -47,7 +56,8 @@ export interface TabReport {
   errors: string[];
 }
 export type BgRequest =
-  | { type: 'jev'; tweetId: string; text: string }
+  | { type: 'jev'; tweetId: string; text: string; provider: TextProvider; revision: number }
+  | { type: 'update-settings'; change: SettingsChange }
   | { type: 'fetch-image'; url: string }
   | { type: 'get-status' }
   | { type: 'log-blocked'; entry: BlockedEntry }
@@ -56,7 +66,10 @@ export type BgRequest =
   | { type: 'clear-errors' }
   | { type: 'open-logs'; errors: boolean }
   | { type: 'tab-stats'; blocked: number };
-export type JevReply = { ok: true; sexual: number; ai: number } | { ok: false; error: string };
+export type JevReply =
+  | { ok: true; sexual: number; ai: number; provider: TextProvider; revision: number }
+  | { ok: false; error: string; stale?: boolean };
+export type SettingsReply = { ok: true; settings: Settings } | { ok: false; error: string };
 export type ImageReply = { ok: true; dataUrl: string } | { ok: false; error: string };
 export const STORAGE_KEYS = {
   settings: 'settings',
@@ -82,7 +95,8 @@ export function defaultSettings(): Settings {
   return {
     masterEnabled: true,
     textProvider: 'vercel',
-    gatewayKey: '',
+    providerKeys: { vercel: '', typesafe: '', openrouter: '' },
+    textConfigRevision: 0,
     enabled: {
       porn: true,
       hentai: true,

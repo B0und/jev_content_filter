@@ -8,7 +8,7 @@
 import { evaluateText } from './text-provider';
 import { browser } from 'wxt/browser';
 import { appendBlocked, appendScanError, clearLog, clearScanErrors } from '../shared/log';
-import { loadSettings, saveStatus } from '../shared/settings';
+import { applySettingsChange, loadSettings, saveStatus } from '../shared/settings';
 import {
   STORAGE_KEYS,
   formatCount,
@@ -17,6 +17,8 @@ import {
   type ImageReply,
   type JevReply,
   type Settings,
+  type SettingsChange,
+  type TextProvider,
 } from '../shared/types';
 
 const QUEUE_CONCURRENCY = 3;
@@ -57,6 +59,22 @@ function syncSettings(): Promise<void> {
   return settingsSync;
 }
 
+function changeSettings(change: SettingsChange): Promise<Settings> {
+  const run = settingsSync
+    .catch(() => undefined)
+    .then(async () => {
+      const next = applySettingsChange(await loadSettings(), change);
+      await browser.storage.local.set({ [STORAGE_KEYS.settings]: next });
+      settings = next;
+      return next;
+    });
+  settingsSync = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  return run;
+}
+
 // Slot ownership is transferred explicitly: releaseSlot hands the permit
 // directly to the next waiter (keeping `active` as the count of held
 // permits) instead of decrementing and re-incrementing, which let requests
@@ -81,35 +99,34 @@ function releaseSlot(): void {
 
 // Single API attempt: visible retry handling (countdowns, backoff) is owned
 // by the content script, which re-sends 'jev' requests for failed posts.
-async function classify(text: string): Promise<JevReply> {
-  const release = await acquireSlot();
+async function classify(text: string, provider: TextProvider, revision: number): Promise<JevReply> {
+  const stale = (): boolean =>
+    settings?.textProvider !== provider || settings.textConfigRevision !== revision;
+  const staleReply = { ok: false, stale: true, error: 'Text configuration changed.' } as const;
+  let release: (() => void) | undefined;
   try {
-    const current = settings;
-    if (!current?.gatewayKey) throw new Error('no API key configured');
-    const result = await evaluateText({
-      provider: current.textProvider,
-      apiKey: current.gatewayKey,
-      text,
-    });
-    // Only a clean success clears the failing banner: a failing result from
-    // one request must never be overwritten by another request's stale ok.
+    await settingsSync;
+    if (stale()) return staleReply;
+    release = await acquireSlot();
+    await settingsSync;
+    if (stale()) return staleReply;
+    const apiKey = settings?.providerKeys[provider];
+    if (!apiKey) throw new Error('no API key configured');
+    const result = await evaluateText({ provider, apiKey, text });
+    if (stale()) return staleReply;
     if (failingReason) await setFailing(null);
-    return { ok: true, ...result };
+    return { ok: true, provider, revision, ...result };
   } catch (error) {
+    if (stale()) return staleReply;
     let message = error instanceof Error ? error.message : String(error);
-    // The content script decides whether a failure is worth retrying from
-    // this text alone: prefix the HTTP status so auth/permission failures
-    // (e.g. a revoked key) are recognized as non-retryable even when the
-    // gateway error wrapper hides the status in its message.
     const statusCode = (error as { statusCode?: unknown } | null)?.statusCode;
     if (typeof statusCode === 'number' && !message.includes(String(statusCode))) {
       message = `${statusCode}: ${message}`;
     }
     await setFailing(message);
-    // Fail-open: content script shows the tweet unfiltered.
     return { ok: false, error: message };
   } finally {
-    release();
+    release?.();
   }
 }
 
@@ -310,6 +327,7 @@ function enqueueLogOperation(operation: () => Promise<void>): Promise<{ ok: true
 
 const BG_REQUEST_TYPES = [
   'jev',
+  'update-settings',
   'fetch-image',
   'get-status',
   'log-blocked',
@@ -336,7 +354,9 @@ async function handleRequest(
 ): Promise<unknown> {
   switch (request.type) {
     case 'jev':
-      return classify(request.text);
+      return classify(request.text, request.provider, request.revision);
+    case 'update-settings':
+      return { ok: true, settings: await changeSettings(request.change) };
     case 'fetch-image':
       return fetchImageDataUrl(request.url);
     case 'get-status': {
@@ -395,6 +415,8 @@ function onMessageListener(
 
 async function init(): Promise<void> {
   await syncSettings();
+  // Rewrite normalized historical settings once, removing the old shared key.
+  if (settings) await browser.storage.local.set({ [STORAGE_KEYS.settings]: settings });
   // Restore the failing banner persisted by a previous worker run before any
   // classification can report success: otherwise a request served before
   // this line could "succeed" while the stored status stays stale-failing.

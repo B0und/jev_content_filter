@@ -11,8 +11,7 @@ import {
   stopRuntime,
   until,
 } from './support';
-// Support must be imported first: it registers the NSFWJS/TF mocks the
-// classify module uses.
+// Support registers external image-inference mocks before classification loads.
 import { afterEach, describe, expect, it } from 'vitest';
 import { browser } from 'wxt/browser';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
@@ -26,6 +25,7 @@ import {
 import { canonicalMediaUrl, readArticle } from '../../src/content/dom';
 import { settings } from '../../src/content/state';
 import { STORAGE_KEYS } from '../../src/shared/types';
+import { applySettingsChange } from '../../src/shared/settings';
 
 describe('media URL canonicalization', () => {
   it('collapses the size variants X oscillates between', () => {
@@ -95,7 +95,7 @@ describe('score cache', () => {
   });
 
   it('rejects malformed, out-of-range, and stale-version entries', async () => {
-    const key = `${STORAGE_KEYS.scores}:v5:t:abc`;
+    const key = `${STORAGE_KEYS.scores}:v6:t:abc`;
     await browser.storage.local.set({ [key]: { scores: { porn: 3 }, ts: 1 } });
     expect(await readCache(key)).toBeNull();
     await browser.storage.local.set({ [key]: { scores: { porn: 'high' }, ts: 1 } });
@@ -103,7 +103,7 @@ describe('score cache', () => {
     await browser.storage.local.set({ [key]: { scores: { madeUpKey: 0.5 }, ts: 1 } });
     expect(await readCache(key)).toBeNull();
     // Versioned keys: anything stored under the previous scheme is ignored.
-    const previous = `${STORAGE_KEYS.scores}:v3:t:abc`;
+    const previous = `${STORAGE_KEYS.scores}:v5:t:abc`;
     await browser.storage.local.set({ [previous]: { scores: { porn: 0.9 }, ts: 1 } });
     expect(await readCache(previous)).toBeNull();
     const legacy = `${STORAGE_KEYS.scores}:t:abc`;
@@ -132,7 +132,9 @@ describe('score cache', () => {
   });
 
   it('reuses cached text scores regardless of author', async () => {
-    settings.current = baseSettings({ gatewayKey: 'test-key' });
+    settings.current = baseSettings({
+      providerKeys: { vercel: 'test-key', typesafe: 'test-key', openrouter: '' },
+    });
     const post = newPostStub('4000');
     const otherPost = newPostStub('4001', 'same text');
     const bg = installFakeBackground();
@@ -142,11 +144,14 @@ describe('score cache', () => {
     expect(first).toEqual({ sexualText: 0.4, aiGenerated: 0.2 });
     const second = await textScores(otherPost, 'same text');
     expect(second).toEqual(first);
-    expect(bg.jevCalls).toEqual([{ type: 'jev', tweetId: '4000', text: 'same text' }]);
+    expect(bg.jevCalls).toHaveLength(1);
   });
   it('does not reuse text scores after the provider changes', async () => {
     fakeBrowser.reset();
-    settings.current = baseSettings({ gatewayKey: 'test-key', textProvider: 'vercel' });
+    settings.current = baseSettings({
+      providerKeys: { vercel: 'test-key', typesafe: 'test-key', openrouter: '' },
+      textProvider: 'vercel',
+    });
     const post = newPostStub('4010');
     const bg = installFakeBackground();
     bg.respond = () => ({ ok: true, sexual: 0.4, ai: 0.2 });
@@ -162,6 +167,43 @@ describe('score cache', () => {
       aiGenerated: 0.7,
     });
     expect(bg.jevCalls).toHaveLength(2);
+  });
+
+  it('does not cache a response after its provider configuration becomes obsolete', async () => {
+    fakeBrowser.reset();
+    settings.current = baseSettings({
+      providerKeys: { vercel: 'synthetic-vercel', typesafe: 'synthetic-typesafe', openrouter: '' },
+    });
+    const post = newPostStub('4020');
+    const bg = installFakeBackground();
+    const gate = Promise.withResolvers<{ ok: true; sexual: number; ai: number }>();
+    bg.respond = () => gate.promise;
+    const old = textScores(post, 'configuration-race');
+    const rejected = expect(old).rejects.toThrow('Text configuration changed');
+    await until(() => bg.jevCalls.length === 1);
+    settings.current = applySettingsChange(settings.current, {
+      field: 'textProvider',
+      value: 'typesafe',
+    });
+    gate.resolve({ ok: true, sexual: 0.1, ai: 0.1 });
+    await rejected;
+    const stored = await browser.storage.local.get(null);
+    expect(Object.keys(stored).filter((key) => key.startsWith(STORAGE_KEYS.scores))).toEqual([]);
+    bg.respond = () => ({ ok: true, sexual: 0.9, ai: 0.2 });
+    await expect(textScores(post, 'configuration-race')).resolves.toEqual({
+      sexualText: 0.9,
+      aiGenerated: 0.2,
+    });
+    settings.current = applySettingsChange(settings.current, {
+      field: 'textProvider',
+      value: 'vercel',
+    });
+    bg.respond = () => ({ ok: true, sexual: 0.3, ai: 0.1 });
+    await expect(textScores(post, 'configuration-race')).resolves.toEqual({
+      sexualText: 0.3,
+      aiGenerated: 0.1,
+    });
+    expect(bg.jevCalls).toHaveLength(3);
   });
 });
 
@@ -181,7 +223,7 @@ describe('NSFW class mapping', () => {
 
 describe('retry policy', () => {
   it('does not retry missing-key failures', async () => {
-    const test = await startRuntime({ gatewayKey: '' });
+    const test = await startRuntime({ providerKeys: { vercel: '', typesafe: '', openrouter: '' } });
     const article = buildTweetArticle({ id: '4001', text: 'something to check' });
     test.handle.discover();
 
@@ -207,7 +249,7 @@ describe('retry policy', () => {
     for (let index = 0; index < 50; index++) {
       writes.push(
         browser.storage.local.set({
-          [`${STORAGE_KEYS.scores}:v5:seed:${index}`]: { scores: { porn: 0.5 }, ts: index },
+          [`${STORAGE_KEYS.scores}:v6:seed:${index}`]: { scores: { porn: 0.5 }, ts: index },
         }),
       );
     }

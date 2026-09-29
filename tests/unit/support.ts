@@ -11,31 +11,29 @@ import {
   defaultSettings,
   STORAGE_KEYS,
   type BlockedEntry,
-  type JevReply,
+  type SettingsChange,
+  type TextProvider,
   type Settings,
   type TabReport,
 } from '../../src/shared/types';
 import { newPost, type Post } from '../../src/content/state';
+import { applySettingsChange, loadSettings } from '../../src/shared/settings';
 
 /** A minimal Post for direct classify-module calls. */
 export function newPostStub(id: string, text = `text ${id}`): Post {
   return newPost(id, `user${id}`, text, [], '', '');
 }
 
-// NSFWJS + TF are heavy and external; replaced with a controllable stub.
+// Image downloads and inference are external; policy/cache behavior stays real.
 const nsfw = vi.hoisted(() => ({
   predictions: [] as Array<{ className: string; probability: number }>,
   loadCount: 0,
 }));
-vi.mock('nsfwjs/core', () => ({
-  load: async () => {
-    nsfw.loadCount += 1;
+vi.mock('../../src/content/image-loader', () => ({
+  loadImageClassifier: async () => {
+    if (!nsfw.loadCount) nsfw.loadCount++;
     return { classify: async () => nsfw.predictions };
   },
-}));
-vi.mock('nsfwjs/models/mobilenet_v2', () => ({ MobileNetV2Model: class {} }));
-vi.mock('@tensorflow/tfjs', () => ({
-  browser: { fromPixels: () => ({ dispose: () => {} }) },
 }));
 // No network in unit tests: image downloads and bitmap decode are stubbed;
 // inference itself comes from the NSFWJS stub above.
@@ -58,13 +56,20 @@ export function baseSettings(overrides: Partial<Settings> = {}): Settings {
     ...base,
     ...overrides,
     enabled: { ...base.enabled, ...overrides.enabled },
+    providerKeys: { ...base.providerKeys, ...overrides.providerKeys },
     thresholds: { ...base.thresholds, ...overrides.thresholds },
   };
 }
 
 export interface FakeBackground {
   /** Replies for 'jev'; replaced per test. May return a promise. */
-  respond: (request: { tweetId: string; text: string }) => JevReply | Promise<JevReply>;
+  respond: (request: {
+    tweetId: string;
+    text: string;
+  }) =>
+    | { ok: true; sexual: number; ai: number }
+    | { ok: false; error: string }
+    | Promise<{ ok: true; sexual: number; ai: number } | { ok: false; error: string }>;
   jevCalls: Array<{ tweetId: string; text: string }>;
   blockedEntries: BlockedEntry[];
   loggedErrors: string[];
@@ -87,10 +92,27 @@ export function installFakeBackground(): FakeBackground {
     (request: unknown, _sender, sendResponse: (value: unknown) => void) => {
       const type = (request as { type?: string } | null)?.type;
       if (type === 'jev') {
-        const req = request as { tweetId: string; text: string };
+        const req = request as {
+          tweetId: string;
+          text: string;
+          provider: TextProvider;
+          revision: number;
+        };
         bg.jevCalls.push(req);
         void (async () => {
-          sendResponse(await bg.respond(req));
+          const reply = await bg.respond(req);
+          sendResponse(
+            reply.ok ? { ...reply, provider: req.provider, revision: req.revision } : reply,
+          );
+        })();
+        return true;
+      }
+      if (type === 'update-settings') {
+        void (async () => {
+          const patch = request as { change: SettingsChange };
+          const next = applySettingsChange(await loadSettings(), patch.change);
+          await browser.storage.local.set({ [STORAGE_KEYS.settings]: next });
+          sendResponse({ ok: true, settings: next });
         })();
         return true;
       }
@@ -135,9 +157,12 @@ export async function startRuntime(
   settingsOverrides: Partial<Settings> = {},
 ): Promise<RuntimeTest> {
   fakeBrowser.reset();
-  // Realistic default: a gateway key must be present for text checks.
+  // Text tests use synthetic credentials only.
   await browser.storage.local.set({
-    [STORAGE_KEYS.settings]: baseSettings({ gatewayKey: 'test-key', ...settingsOverrides }),
+    [STORAGE_KEYS.settings]: baseSettings({
+      providerKeys: { vercel: 'test-key', typesafe: 'test-key', openrouter: 'test-key' },
+      ...settingsOverrides,
+    }),
   });
   const bg = installFakeBackground();
   const ctx = new ContentScriptContext('test');

@@ -219,6 +219,28 @@ button:hover,
   border-bottom: 1px solid var(--line);
 }
 
+.policy-banner {
+  display: grid;
+  gap: 6px;
+  margin-top: 16px;
+  padding: 12px 15px;
+  border-left: 3px solid var(--amber);
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.policy-banner strong {
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.policy-banner p {
+  max-width: 110ch;
+  margin: 0;
+}
+
 .strip-stat {
   display: grid;
   gap: 2px;
@@ -464,12 +486,30 @@ button:hover,
 
 .case-kicker {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   margin-bottom: 11px;
   color: var(--faint);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 10px;
+}
+
+.provenance-pill {
+  padding: 4px 6px;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-family: inherit;
+}
+
+.provenance-pill.synthetic-ai {
+  border-color: var(--amber);
+  color: var(--amber);
+}
+
+.provenance-pill.user-reported {
+  border-color: var(--blue);
+  color: var(--blue);
 }
 
 .modality-pill {

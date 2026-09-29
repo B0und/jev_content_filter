@@ -22,6 +22,12 @@ export default defineConfig({
       128: '/icons/normal-128.png',
     },
     permissions: ['storage'],
+    web_accessible_resources: [
+      {
+        resources: ['image-inference.js'],
+        matches: ['https://x.com/*', 'https://twitter.com/*'],
+      },
+    ],
     host_permissions: [
       'https://x.com/*',
       'https://twitter.com/*',

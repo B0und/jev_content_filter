@@ -4,7 +4,7 @@
 import { browser } from 'wxt/browser';
 import type { ContentScriptContext } from 'wxt/utils/content-script-context';
 import { CATEGORY_LABELS, IMAGE_KEYS, TEXT_KEYS, type CategoryKey } from '../shared/types';
-import { loadSettings, saveSettings } from '../shared/settings';
+import { updateSettings } from '../shared/settings';
 import { message } from './classify';
 import { headerCarets, insertHost } from './dom';
 import {
@@ -27,14 +27,15 @@ const BLOCKED_SVG =
   '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.5 10.5 0 0 1 12 20c-7 0-11-8-11-8a18.5 18.5 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.5 9.5 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
 
 const ICON_CSS = `
-:host { display: inline-flex; align-items: center; margin: 0 2px; }
-:host([data-jev-spot="below"]) { display: flex; justify-content: flex-end; padding: 2px 16px 10px; }
+:host { display: inline-block; position: relative; width: 30px; height: 0; flex: 0 0 auto; align-self: center; vertical-align: middle; margin: 0 2px; }
+:host([data-jev-spot="below"]) { display: block; width: auto; margin: 0 16px; }
+:host([data-jev-spot="below"]) .btn { top: auto; bottom: 0; left: auto; right: 0; transform: none; }
 .btn {
   display: inline-flex; align-items: center; justify-content: center;
   width: 30px; height: 30px; padding: 0; margin: 0;
   border: none; border-radius: 9999px; background: transparent;
   color: var(--jev-fg, #536471); cursor: pointer; opacity: 0.75;
-  position: relative; transition: opacity 0.15s;
+  position: absolute; top: 0; left: 0; transform: translateY(-50%); transition: opacity 0.15s;
 }
 .btn:hover { opacity: 1; background: var(--jev-hover); color: var(--jev-accent, #1d9bf0); }
 .btn:focus-visible { outline: 2px solid var(--jev-accent, #1d9bf0); outline-offset: 2px; opacity: 1; }
@@ -42,7 +43,31 @@ const ICON_CSS = `
 .btn.warn::after { content: ''; position: absolute; top: 3px; right: 3px; width: 7px; height: 7px; border-radius: 50%; background: #d18808; }
 `;
 
-const GLOBAL_CSS = `article[data-jev-hidden], [data-jev-card-hidden] { display:none!important; } [data-jev-card-link] { display:block; margin:8px 0; color:#1d9bf0; overflow-wrap:anywhere; }`;
+const GLOBAL_CSS = `
+article[data-jev-hidden],
+[data-testid="cellInnerDiv"]:has(article[data-jev-hidden]):not(:has(article:not([data-jev-hidden]))) {
+  display: none !important;
+}
+[data-jev-card-hidden] {
+  position: relative !important;
+  visibility: hidden !important;
+}
+[data-jev-card-hidden] > :not([data-jev-card-link]),
+[data-jev-card-hidden] > :not([data-jev-card-link]) * {
+  visibility: hidden !important;
+}
+[data-jev-card-hidden] > [data-jev-card-link] {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  padding: 8px;
+  margin: 0;
+  color: #1d9bf0;
+  overflow-wrap: anywhere;
+  visibility: visible !important;
+}
+`;
 
 let globalStyle: HTMLStyleElement | null = null;
 
@@ -89,18 +114,18 @@ function applyCard(article: HTMLElement, post: Post, hiding: boolean): void {
   if (!card) return;
   if (hiding && previewBlocked(post)) {
     card.dataset.jevCardHidden = '';
-    if (!card.previousElementSibling?.hasAttribute('data-jev-card-link')) {
-      // Keep the link itself; only the preview chrome disappears.
+    if (!card.querySelector('[data-jev-card-link]')) {
+      // Keep the card's layout box and put the link over its hidden contents.
       const link = document.createElement('a');
       link.dataset.jevCardLink = '';
       link.href = card.querySelector('a')?.href ?? '';
       link.textContent = 'Link preview hidden — open link';
-      card.before(link);
+      card.append(link);
     }
   } else {
     delete card.dataset.jevCardHidden;
-    const previous = card.previousElementSibling;
-    if (previous?.hasAttribute('data-jev-card-link')) previous.remove();
+    const link = card.querySelector('[data-jev-card-link]');
+    link?.remove();
   }
 }
 
@@ -175,17 +200,30 @@ function logBlocked(
   });
 }
 
+function setHostVisibility(host: HTMLElement, button: HTMLButtonElement, visible: boolean): void {
+  host.style.visibility = visible ? '' : 'hidden';
+  host.style.pointerEvents = visible ? '' : 'none';
+  if (visible) {
+    host.removeAttribute('aria-hidden');
+    button.removeAttribute('tabindex');
+  } else {
+    host.setAttribute('aria-hidden', 'true');
+    button.tabIndex = -1;
+  }
+}
+
 export function render(article: HTMLElement, binding: Binding): void {
   const { post, host, button } = binding;
-  // Paused: no filter UI on the page at all — and nothing stays hidden.
+  // Paused: keep the invisible control slot so toggling cannot reflow the feed.
   if (!settings.current.masterEnabled) {
-    host.remove();
+    setHostVisibility(host, button, false);
     article.removeAttribute('data-jev-hidden');
     applyCard(article, post, false);
     if (openPostId === post.id) closePanel();
     return;
   }
   if (!article.isConnected) return;
+  setHostVisibility(host, button, true);
   applyVisibility(article, binding);
   applyCard(article, post, true);
   if (!host.isConnected) insertHost(article, host);
@@ -606,11 +644,14 @@ function buildCategoryRow(
     if (!input.validity.valid || input.value === '') return;
     void (async () => {
       try {
-        const latest = await loadSettings();
-        latest.thresholds[key] = input.valueAsNumber / 100;
-        await saveSettings(latest);
-      } catch {
-        /* surface through the error log */
+        await updateSettings({
+          field: 'threshold',
+          category: key,
+          value: input.valueAsNumber / 100,
+        });
+      } catch (error) {
+        post.errors.push(`Settings: ${message(error)}`);
+        renderPost(post);
       }
     })();
   });

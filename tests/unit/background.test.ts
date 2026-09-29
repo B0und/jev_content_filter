@@ -41,7 +41,12 @@ function evaluateResult(answers: Record<string, unknown>) {
 const SETTINGS = {
   masterEnabled: true,
   textProvider: 'vercel' as const,
-  gatewayKey: 'test-only-not-a-real-key',
+  providerKeys: {
+    vercel: 'synthetic-vercel',
+    typesafe: 'synthetic-typesafe',
+    openrouter: 'synthetic-openrouter',
+  },
+  textConfigRevision: 0,
   enabled: {
     porn: true,
     hentai: true,
@@ -106,8 +111,14 @@ describe('jev classification', () => {
       }),
     );
     await expect(
-      fakeBrowser.runtime.sendMessage({ type: 'jev', tweetId: 't1', text: 'hi' }),
-    ).resolves.toEqual({ ok: true, sexual: 0.93, ai: 0.05 });
+      fakeBrowser.runtime.sendMessage({
+        type: 'jev',
+        tweetId: 't1',
+        text: 'hi',
+        provider: 'vercel',
+        revision: 0,
+      }),
+    ).resolves.toMatchObject({ ok: true, sexual: 0.93, ai: 0.05 });
   });
   it.each([
     {
@@ -140,15 +151,21 @@ describe('jev classification', () => {
     });
 
     await expect(
-      fakeBrowser.runtime.sendMessage({ type: 'jev', tweetId: 'direct', text: 'hello' }),
-    ).resolves.toEqual({ ok: true, sexual, ai });
+      fakeBrowser.runtime.sendMessage({
+        type: 'jev',
+        tweetId: 'direct',
+        text: 'hello',
+        provider,
+        revision: 0,
+      }),
+    ).resolves.toMatchObject({ ok: true, sexual, ai });
 
     expect(fetchMock).toHaveBeenCalledWith(
       endpoint,
       expect.objectContaining({
         method: 'POST',
         headers: {
-          Authorization: 'Bearer test-only-not-a-real-key',
+          Authorization: `Bearer synthetic-${provider}`,
           'Content-Type': 'application/json',
         },
       }),
@@ -175,6 +192,8 @@ describe('jev classification', () => {
     );
     const reply = await fakeBrowser.runtime.sendMessage({
       type: 'jev',
+      provider: 'vercel',
+      revision: 0,
       tweetId: 't1',
       text: 'hi',
     });
@@ -192,7 +211,13 @@ describe('jev classification', () => {
       }),
     );
     await expect(
-      fakeBrowser.runtime.sendMessage({ type: 'jev', tweetId: 't1', text: 'hi' }),
+      fakeBrowser.runtime.sendMessage({
+        type: 'jev',
+        tweetId: 't1',
+        text: 'hi',
+        provider: 'vercel',
+        revision: 0,
+      }),
     ).resolves.toEqual({ ok: false, error: expect.stringContaining('probability') });
   });
 
@@ -202,6 +227,8 @@ describe('jev classification', () => {
     evaluateMock.mockResolvedValue(evaluateResult({ ai: okAnswer(0.5) }));
     const reply = await fakeBrowser.runtime.sendMessage({
       type: 'jev',
+      provider: 'vercel',
+      revision: 0,
       tweetId: 't1',
       text: 'hi',
     });
@@ -227,8 +254,14 @@ describe('jev classification', () => {
       }),
     );
     await expect(
-      fakeBrowser.runtime.sendMessage({ type: 'jev', tweetId: 't2', text: 'x' }),
-    ).resolves.toEqual({ ok: true, sexual: 0.1, ai: 0.1 });
+      fakeBrowser.runtime.sendMessage({
+        type: 'jev',
+        tweetId: 't2',
+        text: 'x',
+        provider: 'vercel',
+        revision: 0,
+      }),
+    ).resolves.toMatchObject({ ok: true, sexual: 0.1, ai: 0.1 });
     await expect(fakeBrowser.runtime.sendMessage({ type: 'get-status' })).resolves.toMatchObject({
       state: 'ok',
     });
@@ -246,6 +279,8 @@ describe('gateway status surfacing', () => {
     evaluateMock.mockRejectedValue(error);
     const reply = (await fakeBrowser.runtime.sendMessage({
       type: 'jev',
+      provider: 'vercel',
+      revision: 0,
       tweetId: 't1',
       text: 'hi',
     })) as { ok: boolean; error: string };
@@ -261,6 +296,8 @@ describe('gateway status surfacing', () => {
     evaluateMock.mockRejectedValue(error);
     const reply = (await fakeBrowser.runtime.sendMessage({
       type: 'jev',
+      provider: 'vercel',
+      revision: 0,
       tweetId: 't1',
       text: 'hi',
     })) as { ok: boolean; error: string };
@@ -369,5 +406,100 @@ describe('per-tab badge counts', () => {
       const stored = await fakeBrowser.storage.session.get(null);
       expect(stored[`jevTabBlocked:${tab.id}`]).toBeUndefined();
     });
+  });
+});
+
+describe('configuration transitions', () => {
+  it('preserves concurrent field edits from independent settings callers', async () => {
+    await fakeBrowser.storage.local.set({ settings: SETTINGS });
+    await startWorker();
+    await Promise.all([
+      fakeBrowser.runtime.sendMessage({
+        type: 'update-settings',
+        change: { field: 'threshold', category: 'porn', value: 0.2 },
+      }),
+      fakeBrowser.runtime.sendMessage({
+        type: 'update-settings',
+        change: { field: 'threshold', category: 'hentai', value: 0.3 },
+      }),
+      fakeBrowser.runtime.sendMessage({
+        type: 'update-settings',
+        change: { field: 'masterEnabled', value: false },
+      }),
+    ]);
+    const stored = await fakeBrowser.storage.local.get('settings');
+    expect(stored.settings).toMatchObject({
+      masterEnabled: false,
+      thresholds: { porn: 0.2, hentai: 0.3 },
+      providerKeys: SETTINGS.providerKeys,
+    });
+  });
+
+  it('rejects queued and in-flight old configurations without invoking the new provider for them', async () => {
+    await fakeBrowser.storage.local.set({ settings: SETTINGS });
+    await startWorker();
+    const gate = Promise.withResolvers<{ answers: Record<string, unknown> }>();
+    evaluateMock.mockImplementation(() => gate.promise);
+    const oldRequests = Array.from({ length: 4 }, (_, index) =>
+      fakeBrowser.runtime.sendMessage({
+        type: 'jev',
+        tweetId: `old-${index}`,
+        text: `old ${index}`,
+        provider: 'vercel',
+        revision: 0,
+      }),
+    );
+    await vi.waitFor(() => expect(evaluateMock).toHaveBeenCalledTimes(3));
+    await fakeBrowser.runtime.sendMessage({
+      type: 'update-settings',
+      change: { field: 'textProvider', value: 'typesafe' },
+    });
+    gate.resolve(evaluateResult({ sexual: okAnswer(0.1), ai: okAnswer(0.1) }));
+    const replies = await Promise.all(oldRequests);
+    expect(replies.every((reply) => !reply.ok && reply.stale)).toBe(true);
+    expect(evaluateMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock).not.toHaveBeenCalled();
+    await expect(fakeBrowser.runtime.sendMessage({ type: 'get-status' })).resolves.toMatchObject({
+      state: 'ok',
+    });
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ answers: { sexual: { probability: 0.9 }, ai: { probability: 0.2 } } }),
+    });
+    await expect(
+      fakeBrowser.runtime.sendMessage({
+        type: 'jev',
+        tweetId: 'new',
+        text: 'new text',
+        provider: 'typesafe',
+        revision: 1,
+      }),
+    ).resolves.toMatchObject({ ok: true, provider: 'typesafe', revision: 1, sexual: 0.9 });
+    expect(fetchMock.mock.calls[0]?.[1].headers.Authorization).toBe('Bearer synthetic-typesafe');
+  });
+
+  it('does not send another providers key when switching to an unconfigured provider', async () => {
+    await fakeBrowser.storage.local.set({
+      settings: {
+        ...SETTINGS,
+        providerKeys: { vercel: 'synthetic-vercel', typesafe: '', openrouter: '' },
+      },
+    });
+    await startWorker();
+    await fakeBrowser.runtime.sendMessage({
+      type: 'update-settings',
+      change: { field: 'textProvider', value: 'typesafe' },
+    });
+    await expect(
+      fakeBrowser.runtime.sendMessage({
+        type: 'jev',
+        tweetId: 'unconfigured',
+        text: 'text',
+        provider: 'typesafe',
+        revision: 1,
+      }),
+    ).resolves.toMatchObject({ ok: false, error: expect.stringContaining('no API key') });
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(createGatewayMock).not.toHaveBeenCalled();
   });
 });

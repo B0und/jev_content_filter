@@ -1,7 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { Switch } from '@base-ui/react/switch';
 import { browser } from 'wxt/browser';
-import { loadSettings, loadStatus, saveSettings } from '../../shared/settings';
+import {
+  applySettingsChange,
+  loadSettings,
+  loadStatus,
+  updateSettings,
+} from '../../shared/settings';
 import {
   CATEGORY_LABELS,
   IMAGE_KEYS,
@@ -11,6 +16,7 @@ import {
   isTextProvider,
   type CategoryKey,
   type Settings,
+  type SettingsChange,
   type TextProvider,
   type FilterStatus,
   type TabReport,
@@ -41,9 +47,10 @@ export function App() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [showGatewayKey, setShowGatewayKey] = useState(false);
   const [loadFailed, setLoadFailed] = useState(false);
-  // Serialized storage writes: each update chains onto the previous write so a
-  // quick popup close can never drop a debounced-in-flight change.
+  // Requests are sent immediately; the worker serializes mutations after popup close.
   const writes = useRef(Promise.resolve());
+  const pendingWrites = useRef(0);
+  const writeGeneration = useRef(0);
   const [status, setStatus] = useState<FilterStatus | null>(null);
   const [report, setReport] = useState<TabReport | null>(null);
   // sendMessage fails transiently while an X tab navigates; only report the
@@ -76,8 +83,10 @@ export function App() {
       }
     };
     const load = async () => {
+      const generation = writeGeneration.current;
       const value = await loadSettings();
-      if (alive) setSettings(value);
+      if (alive && !pendingWrites.current && generation === writeGeneration.current)
+        setSettings(value);
     };
     load().catch(() => {
       if (alive) setLoadFailed(true);
@@ -97,9 +106,7 @@ export function App() {
     const listener = (changes: Record<string, { newValue?: unknown }>, area: string) => {
       if (area !== 'local') return;
       if (changes.settings) {
-        // Reconcile with what actually landed in storage once our own write
-        // chain settles, so two windows editing settings converge instead of
-        // clobbering each other.
+        // Reconcile after our outstanding patches, without overwriting optimistic edits.
         void writes.current
           .then(() => load())
           .catch(() => {
@@ -118,23 +125,21 @@ export function App() {
     };
   }, []);
 
-  function update(change: (value: Settings) => Settings) {
-    setSettings((value) => {
-      if (!value) return value;
-      const next = change(value);
-      setSaving(true);
-      const pending = writes.current
-        .then(() => saveSettings(next))
-        .then(() => {
-          setSaving(false);
-        })
-        .catch((e) => {
-          setSaving(false);
-          setError(`Could not save settings: ${String(e)}`);
-        });
-      writes.current = pending;
-      return next;
-    });
+  function update(change: SettingsChange) {
+    writeGeneration.current++;
+    setSettings((value) => (value ? applySettingsChange(value, change) : value));
+    pendingWrites.current++;
+    setSaving(true);
+    const pending = updateSettings(change)
+      .then(() => undefined)
+      .catch((e) => {
+        setError(`Could not save settings: ${String(e)}`);
+      })
+      .finally(() => {
+        pendingWrites.current--;
+        if (!pendingWrites.current) setSaving(false);
+      });
+    writes.current = Promise.all([writes.current, pending]).then(() => undefined);
   }
   if (!settings && loadFailed)
     return (
@@ -173,7 +178,7 @@ export function App() {
           className="switch"
           aria-label="Enable filtering"
           checked={settings.masterEnabled}
-          onCheckedChange={(checked) => update((value) => ({ ...value, masterEnabled: checked }))}
+          onCheckedChange={(checked) => update({ field: 'masterEnabled', value: checked })}
         >
           <Switch.Thumb className="thumb" />
         </Switch.Root>
@@ -227,7 +232,7 @@ export function App() {
                 const provider = event.currentTarget.value;
                 if (!isTextProvider(provider)) return;
                 setShowGatewayKey(false);
-                update((value) => ({ ...value, textProvider: provider }));
+                update({ field: 'textProvider', value: provider });
               }}
             >
               {TEXT_PROVIDERS.map((provider) => (
@@ -243,11 +248,15 @@ export function App() {
               <input
                 id="gateway-key"
                 type={showGatewayKey ? 'text' : 'password'}
-                value={settings.gatewayKey}
+                value={settings.providerKeys[settings.textProvider]}
                 autoComplete="off"
                 placeholder={providerDetails.placeholder}
                 onChange={(event) =>
-                  update((value) => ({ ...value, gatewayKey: event.target.value }))
+                  update({
+                    field: 'providerKey',
+                    provider: settings.textProvider,
+                    value: event.target.value,
+                  })
                 }
               />
               <button
@@ -319,7 +328,7 @@ function Category({
 }: {
   category: CategoryKey;
   settings: Settings;
-  update: (change: (value: Settings) => Settings) => void;
+  update: (change: SettingsChange) => void;
 }) {
   const percent = Number((settings.thresholds[key] * 100).toFixed(1));
   const [draft, setDraft] = useState(String(percent));
@@ -331,10 +340,7 @@ function Category({
     setDraft(String(percent));
   }
   const setPercent = (value: number) =>
-    update((settings) => ({
-      ...settings,
-      thresholds: { ...settings.thresholds, [key]: value / 100 },
-    }));
+    update({ field: 'threshold', category: key, value: value / 100 });
   return (
     <div className={`category ${settings.enabled[key] ? '' : 'disabled'}`}>
       <div className="category-label">
@@ -342,12 +348,7 @@ function Category({
           className="switch"
           aria-label={`Enable ${CATEGORY_LABELS[key]}`}
           checked={settings.enabled[key]}
-          onCheckedChange={(checked) =>
-            update((settings) => ({
-              ...settings,
-              enabled: { ...settings.enabled, [key]: checked },
-            }))
-          }
+          onCheckedChange={(checked) => update({ field: 'enabled', category: key, value: checked })}
         >
           <Switch.Thumb className="thumb" />
         </Switch.Root>

@@ -15,9 +15,10 @@ export interface ArticleContent {
  * between size variants while the feed scrolls (`name=small` ↔
  * `name=120x120`, the legacy `:small` suffix, extension vs `format=`
  * spelling). Every `/media/` variant names the same underlying image, so
- * normal media snapshots must ignore those volatile parameters. Card-image
- * URLs require their `name` variant to address the stored asset; when X
- * supplies a card URL without one, default to the fetchable `small` variant.
+ * normal media snapshots must ignore those volatile parameters. Video
+ * thumbnails use a fixed `medium` variant for both identity and download.
+ * Card-image URLs require their `name` variant to address the stored asset;
+ * when X supplies a card URL without one, default to `small`.
  *
  * The result stays directly fetchable — twimg requires `format=` (a bare
  * media path 404s) — so identity, cache keys, and the image download all
@@ -37,6 +38,7 @@ export function canonicalMediaUrl(url: string): string {
   const suffixFormat = sized.match(/\.(jpe?g|png|webp|gif|avif)$/i)?.[1];
   const path = sized.replace(/\.(?:jpe?g|png|webp|gif|avif)$/i, ''); // folded into format
   const isMediaPath = path.startsWith('/media/');
+  const isVideoThumbnail = !isMediaPath && FILTERABLE_MEDIA_PATH.test(path);
   const isCardPath = path.startsWith('/card_img/');
   const params = new URLSearchParams(parsed.search);
   const format = params.get('format') ?? suffixFormat;
@@ -44,6 +46,7 @@ export function canonicalMediaUrl(url: string): string {
   // `/media/` uses name only for a volatile size variant. Card-image URLs
   // require their name variant to address the actual stored asset.
   if (isMediaPath) params.delete('name');
+  else if (isVideoThumbnail) params.set('name', 'medium');
   else if (isCardPath && !params.has('name')) params.set('name', 'small');
   if (format) params.set('format', format.toLowerCase());
   params.sort();
@@ -89,11 +92,33 @@ function isFilterableMediaUrl(url: string): boolean {
     return false;
   }
 }
+function cardPreviewText(card: HTMLElement | null): string {
+  if (!card) return '';
+  return Array.from(card.childNodes)
+    .filter((node) => !(node instanceof Element && node.hasAttribute('data-jev-card-link')))
+    .map((node) => node.textContent ?? '')
+    .join('')
+    .trim();
+}
 
 export function readArticle(article: HTMLElement): ArticleContent | null {
-  const link =
-    article.querySelector<HTMLAnchorElement>('a[href*="/status/"]:has(time)') ??
-    article.querySelector<HTMLAnchorElement>('a[href*="/status/"]');
+  // Quote hydration must not change the identity of the containing post.
+  let link: HTMLAnchorElement | undefined;
+  for (const candidate of article.querySelectorAll<HTMLAnchorElement>('a[href*="/status/"]')) {
+    const container = candidate.parentElement?.closest(
+      '[role="link"], [data-testid="card.wrapper"]',
+    );
+    if (
+      candidate.closest('article') !== article ||
+      (container && container !== article && article.contains(container))
+    )
+      continue;
+    link ??= candidate;
+    if (candidate.querySelector('time')) {
+      link = candidate;
+      break;
+    }
+  }
   const href = link?.getAttribute('href') ?? '';
   const idMatch = href.match(/\/([^/]+?)\/status\/(\d+)/);
   const id = idMatch?.[2] ?? link?.getAttribute('href')?.match(/\/status\/(\d+)/)?.[1];
@@ -122,7 +147,9 @@ export function readArticle(article: HTMLElement): ArticleContent | null {
     ).join('\n'),
     urls,
     previewUrl: previewElement ? canonicalMediaUrl(mediaSource(previewElement)) : '',
-    previewText: article.querySelector('[data-testid="card.wrapper"]')?.textContent?.trim() ?? '',
+    previewText: cardPreviewText(
+      article.querySelector<HTMLElement>('[data-testid="card.wrapper"]'),
+    ),
   };
 }
 
