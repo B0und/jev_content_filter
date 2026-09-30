@@ -134,9 +134,9 @@ async function setFailing(reason: string | null): Promise<void> {
   failingReason = reason;
   const status: FilterStatus = {
     state: reason ? 'failing' : 'ok',
-    reason: reason ?? undefined,
     updatedAt: Date.now(),
   };
+  if (reason !== null) status.reason = reason;
   await saveStatus(status);
   await updateIcon();
 }
@@ -350,7 +350,7 @@ function isBgRequest(value: unknown): value is BgRequest {
 
 async function handleRequest(
   request: BgRequest,
-  sender: { tab?: { id?: number } },
+  sender: { tab?: { id?: number | undefined } | undefined },
 ): Promise<unknown> {
   switch (request.type) {
     case 'jev':
@@ -366,12 +366,12 @@ async function handleRequest(
     case 'log-blocked':
       return enqueueLogOperation(() => appendBlocked(request.entry));
     case 'log-error':
-      return enqueueLogOperation(() =>
-        appendScanError(
-          request.message,
-          request.tweetId ? { tweetId: request.tweetId, handle: request.handle } : undefined,
-        ),
-      );
+      return enqueueLogOperation(() => {
+        if (!request.tweetId) return appendScanError(request.message);
+        const tweet: { tweetId: string; handle?: string } = { tweetId: request.tweetId };
+        if (request.handle !== undefined) tweet.handle = request.handle;
+        return appendScanError(request.message, tweet);
+      });
     case 'clear-log':
       return enqueueLogOperation(() => clearLog());
     case 'clear-errors':
@@ -400,7 +400,7 @@ async function handleRequest(
 // (returning only a Promise silently yields `undefined` in some hosts).
 function onMessageListener(
   request: unknown,
-  sender: { tab?: { id?: number } },
+  sender: { tab?: { id?: number | undefined } | undefined },
   sendResponse: (reply: unknown) => void,
 ): true | undefined {
   if (!isBgRequest(request)) return;

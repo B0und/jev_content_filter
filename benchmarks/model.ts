@@ -355,17 +355,18 @@ function normalizeCase(value: unknown): BenchmarkCase | null {
         : 'unknown'
     : 'unknown';
   const modality = item.modality === 'text' ? 'text' : 'image';
-  return {
+  const normalized: BenchmarkCase = {
     id: item.id,
     modality,
     title: item.title,
-    imageUrl: typeof item.imageUrl === 'string' ? item.imageUrl : undefined,
-    text: typeof item.text === 'string' ? item.text : undefined,
     labels: { sexualContent, aiGenerated: labels ? truthValue(labels.aiGenerated) : 'unknown' },
     provenance: benchmarkProvenance(item.provenance),
     notes: typeof item.notes === 'string' ? item.notes : '',
     createdAt: typeof item.createdAt === 'string' ? item.createdAt : new Date().toISOString(),
   };
+  if (typeof item.imageUrl === 'string') normalized.imageUrl = item.imageUrl;
+  if (typeof item.text === 'string') normalized.text = item.text;
+  return normalized;
 }
 
 function solutionKind(value: unknown): SolutionKind {

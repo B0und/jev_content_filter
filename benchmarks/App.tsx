@@ -307,8 +307,6 @@ export function App() {
       id: createId('case'),
       modality: sampleType,
       title,
-      imageUrl: sampleType === 'image' ? sampleImage : undefined,
-      text: sampleType === 'text' ? sampleText.trim() : undefined,
       labels: { sexualContent: 'unknown', aiGenerated: 'unknown' },
       provenance: 'user-provided',
       notes: sampleFileName
@@ -316,6 +314,8 @@ export function App() {
         : 'User-provided sample; original author/source is unverified.',
       createdAt: new Date().toISOString(),
     };
+    if (sampleType === 'image') item.imageUrl = sampleImage;
+    else item.text = sampleText.trim();
     setState((current) => ({
       ...current,
       cases: [item, ...current.cases],

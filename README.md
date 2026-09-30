@@ -21,6 +21,22 @@ Open `chrome://extensions`, enable Developer mode, choose **Load unpacked**, and
 
 Open the extension popup, select a text provider, and enter that provider's API key. Credentials come from extension settings, not build-time environment variables. Each provider has its own key slot; changing providers never transfers another provider's key. An unconfigured provider cannot make text requests. Image filtering needs no API key.
 
+## Effect tooling
+
+The project uses Effect v4 release candidates with TypeScript 7 and `@effect/tsgo`. Compiler and lint integration versions are pinned in `package.json`; keep them compatible when upgrading. Import Schema from `effect/Schema`.
+
+`npm ci` generates WXT types through `postinstall` and patches native TypeScript and Oxlint through `prepare`. If lifecycle scripts are disabled, run `npm run postinstall` and `npm run prepare` manually.
+
+Run both `npm run compile` for TypeScript types and `npm run lint` for lint rules and Effect diagnostics. `.oxlintrc.json` extends the recommended Effect preset. The tsconfig plugin sets `diagnostics: false` to avoid duplicate reports while retaining editor refactors.
+
+VS Code and Cursor settings enable the native TypeScript server at `node_modules/typescript/bin`. Enable TypeScript 7 editor support and select the workspace compiler as the sole TypeScript language server.
+
+TypeScript configuration inherits WXT's bundled-app settings. The incremental cache lives in `.wxt/tsconfig.tsbuildinfo`; remove it after compiler upgrades if diagnostics are stale. The Effect integration uses the `@effect/language-service` plugin key and the installed `@effect/tsgo` schema.
+
+Before writing Effect code, read `node_modules/effect/AGENTS.md` completely and follow its relevant links to bundled documentation and examples. Search `node_modules/effect/src` for public API signatures, JSDoc, and implementations when needed. Internal implementation techniques are not automatically suitable application patterns.
+
+Prefer installed documentation and source when references differ. `AGENTS.md` contains the agent workflow.
+
 ## Filtering behavior
 
 - Lower thresholds block more content. Thresholds are probabilities between 0 and 1; the popup displays percentages.

@@ -123,7 +123,7 @@ function applyCard(article: HTMLElement, post: Post, hiding: boolean): void {
       card.append(link);
     }
   } else {
-    delete card.dataset.jevCardHidden;
+    card.removeAttribute('data-jev-card-hidden');
     const link = card.querySelector('[data-jev-card-link]');
     link?.remove();
   }
