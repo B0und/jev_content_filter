@@ -1,33 +1,52 @@
-import { load as loadNsfwCore, type NSFWJS } from 'nsfwjs/core';
+import { Effect } from 'effect';
+import { load as loadNsfwCore } from 'nsfwjs/core';
+import type { NSFWJS } from 'nsfwjs/core';
 import { MobileNetV2Model } from 'nsfwjs/models/mobilenet_v2';
-import { browser as tfBrowser, type Tensor3D } from '@tensorflow/tfjs';
+import { browser as tfBrowser } from '@tensorflow/tfjs';
+import type { Tensor3D } from '@tensorflow/tfjs';
+import { BrowserError, browserEffect } from '../shared/browser';
 
 export interface ImageClassifier {
-  classify(bitmap: ImageBitmap): Promise<Array<{ className: string; probability: number }>>;
+  classify(
+    bitmap: ImageBitmap,
+  ): Effect.Effect<Array<{ className: string; probability: number }>, BrowserError>;
 }
 
 declare global {
   var jevImageClassifier: ImageClassifier | undefined;
 }
 
-let modelPromise: Promise<NSFWJS> | null = null;
+let model: NSFWJS | undefined;
 
-export const imageClassifier: ImageClassifier = {
-  async classify(bitmap) {
-    modelPromise ??= loadNsfwCore('MobileNetV2', {
+const loadModel = Effect.suspend(() => {
+  if (model) return Effect.succeed(model);
+  return browserEffect('load NSFWJS model', () =>
+    loadNsfwCore('MobileNetV2', {
       size: 224,
       modelDefinitions: [MobileNetV2Model],
-    }).catch((error) => {
-      modelPromise = null;
-      throw error;
+    }),
+  ).pipe(Effect.tap((loaded) => Effect.sync(() => (model = loaded))));
+});
+
+export const imageClassifier: ImageClassifier = {
+  classify(bitmap) {
+    return Effect.gen(function* () {
+      const loaded = yield* loadModel;
+      const pixels = yield* Effect.try({
+        try: () => tfBrowser.fromPixels(bitmap, 3),
+        catch: (cause) => new BrowserError({ operation: 'prepare image pixels', cause }),
+      });
+      return yield* Effect.acquireUseRelease(
+        Effect.succeed(pixels as Tensor3D),
+        (tensor) =>
+          // NSFWJS exposes no cancellation signal. Keep its global inference
+          // serialized until the native Promise settles; interruption then
+          // prevents the cancelled scan from consuming its result.
+          Effect.uninterruptible(
+            browserEffect('classify image locally', () => loaded.classify(tensor)),
+          ),
+        (tensor) => Effect.sync(() => tensor.dispose()),
+      );
     });
-    const model = await modelPromise;
-    let pixels: Tensor3D | undefined;
-    try {
-      pixels = tfBrowser.fromPixels(bitmap, 3);
-      return await model.classify(pixels);
-    } finally {
-      pixels?.dispose();
-    }
   },
 };

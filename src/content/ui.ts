@@ -1,7 +1,7 @@
-// Rendering and the inspector panel. Everything here owns DOM only — policy
-// decisions come from state, classification from classify, and lifecycle
-// wiring from runtime.
-import { browser } from 'wxt/browser';
+// Rendering and inspector DOM stay here; Effect values represent external
+// logging requests that the content runtime owns.
+import { Clock, Effect } from 'effect';
+import { browserEffect, browserRuntime } from '../shared/browser';
 import type { ContentScriptContext } from 'wxt/utils/content-script-context';
 import { CATEGORY_LABELS, IMAGE_KEYS, TEXT_KEYS, type CategoryKey } from '../shared/types';
 import { updateSettings } from '../shared/settings';
@@ -158,21 +158,31 @@ export function renderAll(): void {
   for (const [article, binding] of bindings) render(article, binding);
 }
 
-export function renderPost(post: Post): void {
-  if (posts.get(post.id) !== post) return;
+export function renderPost(post: Post): Array<Effect.Effect<void>> {
+  if (posts.get(post.id) !== post) return [];
   for (const [article, binding] of bindings) if (binding.post === post) render(article, binding);
   if (openPostId === post.id) renderPanel(post);
+  const effects: Array<Effect.Effect<void>> = [];
   if (settings.current.masterEnabled && !reviewMode.current) {
     const postHits = hits(post);
     if (postHits.length && !post.logged) {
       post.logged = true;
-      void logBlocked(post, postHits, post.text, 'post');
+      effects.push(logBlocked(post, postHits, post.text, 'post'));
     }
     const previewReasons = previewHits(post);
     if (previewBlocked(post) && previewReasons.length && !post.previewLogged) {
       post.previewLogged = true;
-      void logBlocked(post, previewReasons, post.previewText || post.text, 'preview');
+      effects.push(logBlocked(post, previewReasons, post.previewText || post.text, 'preview'));
     }
+  }
+  return effects;
+}
+
+function renderPostAtUiBoundary(post: Post): void {
+  for (const effect of renderPost(post)) {
+    void browserRuntime.runPromise(effect).catch((error: unknown) => {
+      console.error('Content logging effect failed', error);
+    });
   }
 }
 
@@ -181,22 +191,30 @@ function logBlocked(
   reasons: Array<{ key: CategoryKey; score: number }>,
   snippet: string,
   target: 'post' | 'preview',
-): Promise<unknown> {
-  const entry = {
-    tweetId: post.id,
-    handle: post.handle,
-    target,
-    author: post.author,
-    snippet: snippet.slice(0, 140),
-    surface: location.pathname.includes('/status/') ? 'status/replies' : 'timeline',
-    ts: Date.now(),
-    reasons,
-  };
-  return browser.runtime.sendMessage({ type: 'log-blocked', entry }).catch((error) => {
-    if (target === 'post') {
-      post.logged = false;
-      post.errors.push(`Log: ${message(error)}`);
-    } else post.previewLogged = false;
+): Effect.Effect<void> {
+  return Effect.gen(function* () {
+    const entry = {
+      tweetId: post.id,
+      handle: post.handle,
+      target,
+      author: post.author,
+      snippet: snippet.slice(0, 140),
+      surface: location.pathname.includes('/status/') ? 'status/replies' : 'timeline',
+      ts: yield* Clock.currentTimeMillis,
+      reasons,
+    };
+    yield* browserEffect('log blocked content', () =>
+      browser.runtime.sendMessage({ type: 'log-blocked', entry }),
+    ).pipe(
+      Effect.catch((error) =>
+        Effect.sync(() => {
+          if (target === 'post') {
+            post.logged = false;
+            post.errors.push(`Log: ${message(error)}`);
+          } else post.previewLogged = false;
+        }),
+      ),
+    );
   });
 }
 
@@ -248,7 +266,7 @@ export function render(article: HTMLElement, binding: Binding): void {
   const expanded = openPostId === post.id;
   const signature = [
     blocked(post) ? 'b' : 'e',
-    String(post.pending || post.retryTimer != null),
+    String(post.pending || post.retryAt !== null),
     post.errors.length > 0 && !post.pending ? 'warn' : '',
     stateLabel,
     retryLabel,
@@ -258,7 +276,7 @@ export function render(article: HTMLElement, binding: Binding): void {
   if (binding.renderState === signature) return;
   binding.renderState = signature;
   button.innerHTML = blocked(post) ? BLOCKED_SVG : EYE_SVG;
-  button.classList.toggle('pending', !!post.pending || !!post.retryTimer);
+  button.classList.toggle('pending', !!post.pending || post.retryAt !== null);
   button.classList.toggle('warn', post.errors.length > 0 && !post.pending);
   buttonPosts.set(button, post);
   button.setAttribute('aria-label', `${stateLabel}${retryLabel}`);
@@ -457,7 +475,7 @@ function closePanel(): void {
   panelAnchor = null;
   if (previous) {
     const post = posts.get(previous);
-    if (post) renderPost(post);
+    if (post) renderPostAtUiBoundary(post);
   }
   // Return focus to the button that opened the panel (no-op when focus is
   // already elsewhere, e.g. the user clicked into another control).
@@ -572,7 +590,13 @@ function renderPanel(post: Post): void {
   logsLink.rel = 'noreferrer';
   logsLink.addEventListener('click', (event) => {
     event.preventDefault();
-    void browser.runtime.sendMessage({ type: 'open-logs', errors: false }).catch(() => {});
+    void browserRuntime
+      .runPromise(
+        browserEffect('open logs from content panel', () =>
+          browser.runtime.sendMessage({ type: 'open-logs', errors: false }),
+        ),
+      )
+      .catch(() => {});
   });
   foot.append(logsLink);
   panel.append(foot);
@@ -642,18 +666,18 @@ function buildCategoryRow(
   input.setAttribute('data-jev-cat', key);
   input.addEventListener('change', () => {
     if (!input.validity.valid || input.value === '') return;
-    void (async () => {
-      try {
-        await updateSettings({
+    void browserRuntime
+      .runPromise(
+        updateSettings({
           field: 'threshold',
           category: key,
           value: input.valueAsNumber / 100,
-        });
-      } catch (error) {
+        }),
+      )
+      .catch((error: unknown) => {
         post.errors.push(`Settings: ${message(error)}`);
-        renderPost(post);
-      }
-    })();
+        renderPostAtUiBoundary(post);
+      });
   });
   cell.append(input, document.createTextNode('%'));
   row.append(cell);

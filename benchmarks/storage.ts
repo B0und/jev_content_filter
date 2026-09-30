@@ -1,31 +1,66 @@
+import { Context, Effect, Layer, ManagedRuntime, Semaphore } from 'effect';
+import * as Schema from 'effect/Schema';
 import { normalizeBenchmarkState, type BenchmarkState } from './model';
 
-const STORAGE_ENDPOINT = '/api/benchmark/state';
-let saveQueue = Promise.resolve();
-
-async function requestState(
-  method: 'GET' | 'POST',
-  state?: BenchmarkState,
-): Promise<BenchmarkState> {
-  const request: RequestInit = { method, credentials: 'same-origin' };
-  if (method === 'POST' && state) {
-    request.headers = { 'Content-Type': 'application/json' };
-    request.body = JSON.stringify(state);
+export class BenchmarkStorageError extends Schema.TaggedError<BenchmarkStorageError>()(
+  'BenchmarkStorageError',
+  {
+    cause: Schema.Defect(),
+  },
+) {
+  override get message(): string {
+    return this.cause instanceof Error ? this.cause.message : String(this.cause);
   }
-  const response = await fetch(STORAGE_ENDPOINT, request);
-  if (!response.ok) throw new Error(`SQLite storage request failed (${response.status}).`);
-  return normalizeBenchmarkState((await response.json()) as unknown);
 }
 
-export async function loadBenchmarkState(): Promise<BenchmarkState> {
-  return requestState('GET');
+export class BenchmarkStorage extends Context.Service<
+  BenchmarkStorage,
+  {
+    readonly load: Effect.Effect<BenchmarkState, BenchmarkStorageError>;
+    readonly save: (state: BenchmarkState) => Effect.Effect<void, BenchmarkStorageError>;
+  }
+>()('jev/benchmarks/BenchmarkStorage') {
+  static readonly layer = Layer.effect(
+    BenchmarkStorage,
+    Effect.gen(function* () {
+      const writes = yield* Semaphore.make(1);
+      const request = Effect.fn('BenchmarkStorage.request')(function* (
+        method: 'GET' | 'POST',
+        state?: BenchmarkState,
+      ) {
+        const value = yield* Effect.tryPromise({
+          try: async (signal) => {
+            const init: RequestInit = { method, credentials: 'same-origin', signal };
+            if (method === 'POST' && state) {
+              init.headers = { 'Content-Type': 'application/json' };
+              init.body = JSON.stringify(state);
+            }
+            const response = await fetch('/api/benchmark/state', init);
+            if (!response.ok)
+              throw new Error(`SQLite storage request failed (${response.status}).`);
+            return response.json() as Promise<unknown>;
+          },
+          catch: (cause) => new BenchmarkStorageError({ cause }),
+        });
+        return normalizeBenchmarkState(value);
+      });
+      return BenchmarkStorage.of({
+        load: request('GET'),
+        save: (state) =>
+          request('POST', state).pipe(Effect.asVoid, Semaphore.withPermits(writes, 1)),
+      });
+    }),
+  );
 }
 
-export function saveBenchmarkState(state: BenchmarkState): Promise<void> {
-  saveQueue = saveQueue
-    .catch(() => undefined)
-    .then(async () => {
-      await requestState('POST', state);
-    });
-  return saveQueue;
-}
+export const benchmarkRuntime = ManagedRuntime.make(BenchmarkStorage.layer);
+
+export const loadBenchmarkState = Effect.gen(function* () {
+  return yield* (yield* BenchmarkStorage).load;
+});
+
+export const saveBenchmarkState = Effect.fn('saveBenchmarkState')(function* (
+  state: BenchmarkState,
+) {
+  yield* (yield* BenchmarkStorage).save(state);
+});

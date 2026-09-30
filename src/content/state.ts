@@ -33,9 +33,8 @@ export interface Post {
   previewLogged: boolean;
   recorded: Set<string>;
   retryCount: number;
+  /** Non-null while an Effect retry fiber is scheduled. */
   retryAt: number | null;
-  /** Window timer id; cleared through clearTimeout. */
-  retryTimer: number | undefined;
 }
 
 export interface Binding {
@@ -113,7 +112,6 @@ export function newPost(
     recorded: new Set(),
     retryCount: 0,
     retryAt: null,
-    retryTimer: undefined,
   };
 }
 
@@ -164,7 +162,8 @@ export function stateOf(post: Post): string {
   if (post.pending) return 'Scanning';
   if (blocked(post)) return 'Blocked';
   if (overrides.get(post.id) === 'allow') return 'Allowed by you';
-  if (post.errors.length > 0) return post.retryTimer ? 'Retry scheduled' : 'Not fully checked';
+  if (post.errors.length > 0)
+    return post.retryAt !== null ? 'Retry scheduled' : 'Not fully checked';
   if (post.scannedAt) return 'Allowed';
   return 'Not scanned';
 }
@@ -196,7 +195,7 @@ export function report(): TabReport {
     if (blocked(post) || previewBlocked(post)) blockedCount++;
     if (post.pending) pending++;
     if (post.errors.length > 0) failed++;
-    if (post.retryTimer) retrying++;
+    if (post.retryAt !== null) retrying++;
     lastScannedAt = Math.max(lastScannedAt, post.scannedAt);
     for (const error of post.errors) errors.add(error);
   }

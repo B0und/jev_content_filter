@@ -1,3 +1,5 @@
+import { Cause, Context, Effect, Exit, Layer, ManagedRuntime, Stream } from 'effect';
+import * as Schema from 'effect/Schema';
 import { mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
@@ -62,17 +64,38 @@ export class SQLiteBenchmarkStore {
   }
 }
 
-async function readJson(request: IncomingMessage): Promise<unknown> {
+class BenchmarkRequestError extends Schema.TaggedError<BenchmarkRequestError>()(
+  'BenchmarkRequestError',
+  {
+    cause: Schema.Defect(),
+  },
+) {}
+
+class BenchmarkDatabase extends Context.Service<BenchmarkDatabase, SQLiteBenchmarkStore>()(
+  'jev/benchmarks/Database',
+) {}
+
+const readJson = Effect.fn('readBenchmarkJson')(function* (request: IncomingMessage) {
   const chunks: Buffer[] = [];
   let size = 0;
-  for await (const chunk of request) {
-    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
-    size += buffer.byteLength;
-    if (size > 16 * 1024 * 1024) throw new Error('Request body is too large.');
-    chunks.push(buffer);
-  }
-  return JSON.parse(Buffer.concat(chunks).toString('utf8')) as unknown;
-}
+  yield* Stream.fromAsyncIterable(request, (cause) => new BenchmarkRequestError({ cause })).pipe(
+    Stream.runForEach((chunk) =>
+      Effect.gen(function* () {
+        const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+        size += buffer.byteLength;
+        if (size > 16 * 1024 * 1024)
+          return yield* new BenchmarkRequestError({
+            cause: new Error('Request body is too large.'),
+          });
+        chunks.push(buffer);
+      }),
+    ),
+  );
+  return yield* Effect.try({
+    try: () => JSON.parse(Buffer.concat(chunks).toString('utf8')) as unknown,
+    catch: (cause) => new BenchmarkRequestError({ cause }),
+  });
+});
 
 function sendJson(response: ServerResponse, status: number, value: unknown): void {
   const payload = JSON.stringify(value);
@@ -82,41 +105,72 @@ function sendJson(response: ServerResponse, status: number, value: unknown): voi
   response.end(payload);
 }
 
-async function handleRequest(
-  request: IncomingMessage,
-  response: ServerResponse,
-  store: SQLiteBenchmarkStore,
-): Promise<void> {
-  try {
+const handleRequest = Effect.fn('handleBenchmarkRequest')(
+  function* (request: IncomingMessage, response: ServerResponse) {
+    const store = yield* BenchmarkDatabase;
     if (request.method === 'GET') {
-      sendJson(response, 200, store.load());
+      const state = yield* Effect.try({
+        try: () => store.load(),
+        catch: (cause) => new BenchmarkRequestError({ cause }),
+      });
+      sendJson(response, 200, state);
       return;
     }
     if (request.method === 'POST') {
-      sendJson(response, 200, store.save(await readJson(request)));
+      const value = yield* readJson(request);
+      const state = yield* Effect.try({
+        try: () => store.save(value),
+        catch: (cause) => new BenchmarkRequestError({ cause }),
+      });
+      sendJson(response, 200, state);
       return;
     }
     sendJson(response, 405, { error: 'Only GET and POST are supported.' });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'SQLite storage request failed.';
-    sendJson(response, 400, { error: message });
-  }
-}
+  },
+  (effect, _request, response) =>
+    effect.pipe(
+      Effect.catch((error) =>
+        Effect.sync(() => {
+          const message =
+            error.cause instanceof Error ? error.cause.message : 'SQLite storage request failed.';
+          sendJson(response, 400, { error: message });
+        }),
+      ),
+    ),
+);
 
 export function createBenchmarkStoragePlugin(filePath = DEFAULT_DATABASE_PATH): Plugin {
   return {
     name: 'jev-benchmark-sqlite-storage',
     configureServer(server: ViteDevServer) {
-      const store = new SQLiteBenchmarkStore(filePath);
+      const runtime = ManagedRuntime.make(
+        Layer.effect(
+          BenchmarkDatabase,
+          Effect.acquireRelease(
+            Effect.try({
+              try: () => new SQLiteBenchmarkStore(filePath),
+              catch: (cause) => new BenchmarkRequestError({ cause }),
+            }),
+            (store) => Effect.sync(() => store.close()),
+          ),
+        ),
+      );
       server.middlewares.use(STORAGE_ENDPOINT, (request, response, next) => {
         if (request.method !== 'GET' && request.method !== 'POST') {
           next();
           return;
         }
-        void handleRequest(request, response, store);
+        runtime.runCallback(handleRequest(request, response), {
+          onExit: (exit) => {
+            if (Exit.isFailure(exit) && !response.writableEnded && !response.destroyed)
+              sendJson(response, 400, { error: Cause.pretty(exit.cause) });
+          },
+        });
       });
       return () => {
-        server.httpServer?.once('close', () => store.close());
+        server.httpServer?.once('close', () => {
+          void runtime.dispose();
+        });
       };
     },
   };

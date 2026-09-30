@@ -3,6 +3,7 @@
 // and a fake background listening on real runtime.onMessage. External
 // compute (Jev gateway, NSFWJS/tfjs) is mocked here; decisions and storage
 // stay real.
+import { Effect } from 'effect';
 import { expect, vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { browser } from 'wxt/browser';
@@ -30,9 +31,11 @@ const nsfw = vi.hoisted(() => ({
   loadCount: 0,
 }));
 vi.mock('../../src/content/image-loader', () => ({
-  loadImageClassifier: async () => {
+  loadImageClassifier: () => {
     if (!nsfw.loadCount) nsfw.loadCount++;
-    return { classify: async () => nsfw.predictions };
+    return Effect.succeed({
+      classify: () => Effect.succeed(nsfw.predictions),
+    });
   },
 }));
 // No network in unit tests: image downloads and bitmap decode are stubbed;
@@ -110,7 +113,7 @@ export function installFakeBackground(): FakeBackground {
       if (type === 'update-settings') {
         void (async () => {
           const patch = request as { change: SettingsChange };
-          const next = applySettingsChange(await loadSettings(), patch.change);
+          const next = applySettingsChange(await Effect.runPromise(loadSettings()), patch.change);
           await browser.storage.local.set({ [STORAGE_KEYS.settings]: next });
           sendResponse({ ok: true, settings: next });
         })();

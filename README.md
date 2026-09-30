@@ -37,6 +37,19 @@ Before writing Effect code, read `node_modules/effect/AGENTS.md` completely and 
 
 Prefer installed documentation and source when references differ. `AGENTS.md` contains the agent workflow.
 
+## Runtime architecture
+
+Effect owns asynchronous work; React and the DOM modules own rendering.
+
+- `src/background/runtime.ts` builds one `BackgroundWorker` Layer and `ManagedRuntime`. Three scoped consumers process classification jobs; admission is capped at three active requests plus 64 waiting. Semaphores serialize settings, log, status, icon, and tab-count mutations. Browser listeners still register synchronously for MV3 worker wake-up.
+- `src/content/runtime.ts` builds a `ContentSession` Layer per WXT context. Scans and retry fibers belong to its Scope. Context invalidation restores the DOM and disposes the runtime, interrupting pending work.
+- `src/content/classify.ts` composes cache reads, schema-decoded replies, scoring, and cache writes as Effects. A semaphore serializes local image inference. Provider revisions prevent obsolete replies from reaching the cache.
+- `src/shared/browser.ts` adapts native Promise APIs into interruptible Effects with `BrowserError`. Provider failures have a separate typed error; provider keys are redacted before errors leave the adapter.
+- Popup polling and log-page reads run through disposable runtimes. Settings writes and log actions cross into Effect at React event handlers; the background worker remains the owner of persistent mutations.
+- `benchmarks/storage.ts` owns the lab's serialized saves in a `BenchmarkStorage` Layer. The Vite storage plugin scopes the SQLite connection to the server lifetime and consumes request bodies through an Effect Stream.
+
+Promises remain at framework callbacks and native SDK adapters. Pure filtering policy, DOM discovery helpers, and benchmark metrics do not need an Effect runtime.
+
 ## Filtering behavior
 
 - Lower thresholds block more content. Thresholds are probabilities between 0 and 1; the popup displays percentages.

@@ -98,6 +98,22 @@ describe('background worker lifecycle', () => {
       updatedAt: 0,
     });
   });
+
+  it('replies to messages when native storage initialization fails', async () => {
+    const failure = new Error('storage unavailable');
+    const get = vi.spyOn(fakeBrowser.storage.local, 'get').mockRejectedValue(failure);
+    const report = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    try {
+      await startWorker();
+      await expect(fakeBrowser.runtime.sendMessage({ type: 'get-status' })).resolves.toMatchObject({
+        ok: false,
+        error: expect.stringContaining('load status'),
+      });
+    } finally {
+      get.mockRestore();
+      report.mockRestore();
+    }
+  });
 });
 
 describe('jev classification', () => {
@@ -264,6 +280,93 @@ describe('jev classification', () => {
     ).resolves.toMatchObject({ ok: true, sexual: 0.1, ai: 0.1 });
     await expect(fakeBrowser.runtime.sendMessage({ type: 'get-status' })).resolves.toMatchObject({
       state: 'ok',
+    });
+  });
+  it('bounds waiting classification requests at 64 while running three providers', async () => {
+    await fakeBrowser.storage.local.set({ settings: SETTINGS });
+    await startWorker();
+    const gate = Promise.withResolvers<{ answers: Record<string, unknown> }>();
+    evaluateMock.mockImplementation(() => gate.promise);
+    const requests = Array.from({ length: 68 }, (_, index) =>
+      fakeBrowser.runtime.sendMessage({
+        type: 'jev',
+        tweetId: `queued-${index}`,
+        text: `queued ${index}`,
+        provider: 'vercel',
+        revision: 0,
+      }),
+    );
+
+    let overflowReply: unknown;
+    for (const request of requests) {
+      void request.then((reply) => {
+        if (!reply.ok && reply.error?.includes('queue full')) overflowReply = reply;
+      });
+    }
+    await vi.waitFor(() => expect(overflowReply).toBeDefined());
+    gate.resolve(evaluateResult({ sexual: okAnswer(0.1), ai: okAnswer(0.1) }));
+    const replies = await Promise.all(requests);
+
+    expect(
+      replies.filter((reply) => !reply.ok && reply.error?.includes('queue full')),
+    ).toHaveLength(1);
+    expect(replies.filter((reply) => reply.ok)).toHaveLength(67);
+  });
+});
+
+describe('image fetch proxy', () => {
+  it('rejects non-Twimg hosts without making a request', async () => {
+    await startWorker();
+    const url = 'https://example.com/image.png';
+    await expect(fakeBrowser.runtime.sendMessage({ type: 'fetch-image', url })).resolves.toEqual({
+      ok: false,
+      error: `image proxy: host not allowed for ${url}`,
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('returns a data URL for an allowed image', async () => {
+    await startWorker();
+    fetchMock.mockResolvedValue({
+      ok: true,
+      blob: async () => new Blob(['x'], { type: 'image/png' }),
+    });
+
+    await expect(
+      fakeBrowser.runtime.sendMessage({
+        type: 'fetch-image',
+        url: 'https://pbs.twimg.com/media/image.png',
+      }),
+    ).resolves.toEqual({ ok: true, dataUrl: 'data:image/png;base64,eA==' });
+  });
+
+  it('rejects images over the proxy size limit', async () => {
+    await startWorker();
+    fetchMock.mockResolvedValue({
+      ok: true,
+      blob: async () => ({ size: 8 * 1024 * 1024 + 1 }),
+    });
+
+    await expect(
+      fakeBrowser.runtime.sendMessage({
+        type: 'fetch-image',
+        url: 'https://pbs.twimg.com/media/image.png',
+      }),
+    ).resolves.toMatchObject({ ok: false, error: expect.stringContaining('image too large') });
+  });
+
+  it('reports the image fetch timeout', async () => {
+    await startWorker();
+    fetchMock.mockRejectedValue(new DOMException('timed out', 'TimeoutError'));
+
+    await expect(
+      fakeBrowser.runtime.sendMessage({
+        type: 'fetch-image',
+        url: 'https://pbs.twimg.com/media/image.png',
+      }),
+    ).resolves.toMatchObject({
+      ok: false,
+      error: expect.stringContaining('timed out after 10000ms'),
     });
   });
 });

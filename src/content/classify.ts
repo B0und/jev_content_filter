@@ -1,19 +1,32 @@
-// Classification: persistent score cache, Jev text scores, local NSFWJS
-// image inference, and the retry policy. External compute (the Jev gateway
-// via background messages, and the bundled NSFWJS model) lives behind these
-// functions only.
-import { loadImageClassifier } from './image-loader';
+// Classification owns cache access, provider-revision checks, and cancellable
+// text/image scoring. DOM and block policy stay in their dedicated modules.
+import { Clock, Duration, Effect, Option, Semaphore } from 'effect';
+import * as Schema from 'effect/Schema';
 import { browser } from 'wxt/browser';
-import {
-  CATEGORY_KEYS,
-  IMAGE_KEYS,
-  STORAGE_KEYS,
-  type CategoryKey,
-  type ImageReply,
-  type JevReply,
-} from '../shared/types';
+import { browserEffect, BrowserError } from '../shared/browser';
+import { CATEGORY_KEYS, IMAGE_KEYS, STORAGE_KEYS, type CategoryKey } from '../shared/types';
 import { settings, type Post } from './state';
 import { canonicalMediaUrl } from './dom';
+import { loadImageClassifier } from './image-loader';
+const JevReplySchema = Schema.Union([
+  Schema.Struct({
+    ok: Schema.Literal(true),
+    sexual: Schema.Finite,
+    ai: Schema.Finite,
+    provider: Schema.String,
+    revision: Schema.Finite,
+  }),
+  Schema.Struct({ ok: Schema.Literal(false), error: Schema.String }),
+]);
+
+const ImageReplySchema = Schema.Union([
+  Schema.Struct({ ok: Schema.Literal(true), dataUrl: Schema.String }),
+  Schema.Struct({ ok: Schema.Literal(false), error: Schema.String }),
+]);
+
+class ClassificationError extends Schema.TaggedError<ClassificationError>()('ClassificationError', {
+  message: Schema.String,
+}) {}
 
 // --- Persistent score cache -------------------------------------------------
 
@@ -33,6 +46,10 @@ interface CachedScores {
   ts: number;
 }
 
+const CachedScoreEntrySchema = Schema.Struct({
+  scores: Schema.Unknown,
+  ts: Schema.Unknown,
+});
 /** 64-bit-ish FNV-1a + djb2 pair, base36: collisions become vanishingly unlikely. */
 function hash64(input: string): string {
   let h1 = 0x811c9dc5;
@@ -66,41 +83,51 @@ function validScores(scores: unknown): scores is Partial<Record<CategoryKey, num
   );
 }
 
-export async function readCache(key: string): Promise<CachedScores | null> {
+export const readCache = Effect.fnUntraced(function* (key: string) {
   // Older cache versions are never read, only evicted.
   if (!key.startsWith(CACHE_PREFIX)) return null;
-  try {
-    const stored = await browser.storage.local.get(key);
-    const value = stored[key] as CachedScores | undefined;
-    if (value === undefined || typeof value.ts !== 'number' || !validScores(value.scores))
-      return null;
-    return value;
-  } catch {
+  const stored = yield* browserEffect('read score cache', () =>
+    browser.storage.local.get(key),
+  ).pipe(Effect.orElseSucceed(() => null));
+  if (stored === null) return null;
+  const value: unknown = stored[key];
+  if (
+    !Schema.is(CachedScoreEntrySchema)(value) ||
+    typeof value.ts !== 'number' ||
+    !validScores(value.scores)
+  )
     return null;
-  }
-}
+  return value as CachedScores;
+});
 
-export function writeCache(key: string, scores: Partial<Record<CategoryKey, number>>): void {
-  cacheWrites += 1;
-  void browser.storage.local.set({ [key]: { scores, ts: Date.now() } }).catch(() => {});
-  if (cacheWrites % 250 === 0) void evictCache();
-}
+export const writeCache = Effect.fnUntraced(function* (
+  key: string,
+  scores: Partial<Record<CategoryKey, number>>,
+) {
+  const shouldEvict = yield* Effect.sync(() => ++cacheWrites % 250 === 0);
+  const timestamp = yield* Clock.currentTimeMillis;
+  yield* browserEffect('write score cache', () =>
+    browser.storage.local.set({ [key]: { scores, ts: timestamp } }),
+  ).pipe(Effect.ignore);
+  if (shouldEvict) yield* evictCache();
+});
 
-export async function evictCache(): Promise<void> {
-  try {
-    const all = await browser.storage.local.get(null);
-    const entries = Object.entries(all).filter(([key]) => key.startsWith(ALL_CACHE_PREFIX));
-    if (entries.length <= CACHE_LIMIT) return;
-    // Keep the newest entries; drop the rest.
-    const dropKeys = entries
-      .sort((a, b) => ((b[1] as CachedScores)?.ts ?? 0) - ((a[1] as CachedScores)?.ts ?? 0))
-      .slice(CACHE_LIMIT)
-      .map(([key]) => key);
-    await browser.storage.local.remove(dropKeys);
-  } catch {
-    /* cache is best-effort */
-  }
-}
+export const evictCache = Effect.fnUntraced(function* () {
+  const all = yield* browserEffect('read score cache for eviction', () =>
+    browser.storage.local.get(null),
+  ).pipe(Effect.orElseSucceed(() => null));
+  if (all === null) return;
+  const entries = Object.entries(all).filter(([key]) => key.startsWith(ALL_CACHE_PREFIX));
+  if (entries.length <= CACHE_LIMIT) return;
+  // Keep the newest entries; drop the rest.
+  const dropKeys = entries
+    .sort((a, b) => ((b[1] as CachedScores)?.ts ?? 0) - ((a[1] as CachedScores)?.ts ?? 0))
+    .slice(CACHE_LIMIT)
+    .map(([key]) => key);
+  yield* browserEffect('evict score cache', () => browser.storage.local.remove(dropKeys)).pipe(
+    Effect.ignore,
+  );
+});
 
 // --- Retry policy -----------------------------------------------------------
 
@@ -117,69 +144,67 @@ export function canRetry(error: string): boolean {
 /** Give up on a post after this many failed scans, whatever the error. */
 export const MAX_RETRIES = 5;
 
-export function cancelRetry(post: Post): void {
-  clearTimeout(post.retryTimer);
-  post.retryTimer = undefined;
-  post.retryAt = null;
-  if (post.partErrors.text.length) post.textDone = false;
-  if (post.partErrors.images.length) post.imagesDone = false;
-  if (post.partErrors.preview.length) post.previewDone = false;
-}
-
 // --- Text scores ------------------------------------------------------------
 
-export async function textScores(
+export const textScores = Effect.fnUntraced(function* (
   post: Post,
   text: string,
-): Promise<Partial<Record<CategoryKey, number>>> {
+): Effect.fn.Return<Partial<Record<CategoryKey, number>>, BrowserError | ClassificationError> {
   const current = settings.current;
   const provider = current.textProvider;
   const revision = current.textConfigRevision;
   const key = `${CACHE_PREFIX}t:${provider}:${hash64(text)}`;
-  const cached = await readCache(key);
+  const cached = yield* readCache(key);
   if (
     settings.current.textProvider !== provider ||
     settings.current.textConfigRevision !== revision
   )
-    throw new Error('Text configuration changed.');
+    return yield* new ClassificationError({ message: 'Text configuration changed.' });
   if (cached) return cached.scores;
   if (!current.providerKeys[provider])
-    throw new Error('Add an API key in the extension popup to check text.');
-  const reply = (await browser.runtime.sendMessage({
-    type: 'jev',
-    tweetId: post.id,
-    text,
-    provider,
-    revision,
-  })) as JevReply;
-  if (!reply.ok) throw new Error(reply.error);
+    return yield* new ClassificationError({
+      message: 'Add an API key in the extension popup to check text.',
+    });
+  const rawReply: unknown = yield* browserEffect('classify text', () =>
+    browser.runtime.sendMessage({
+      type: 'jev',
+      tweetId: post.id,
+      text,
+      provider,
+      revision,
+    }),
+  );
+  const reply = yield* Schema.decodeUnknownEffect(JevReplySchema)(rawReply).pipe(
+    Effect.mapError(
+      () => new ClassificationError({ message: 'Invalid text classification response.' }),
+    ),
+  );
+  if (!reply.ok) return yield* new ClassificationError({ message: reply.error });
   if (
     reply.provider !== provider ||
     reply.revision !== revision ||
     settings.current.textProvider !== provider ||
     settings.current.textConfigRevision !== revision
   )
-    throw new Error('Text configuration changed.');
+    return yield* new ClassificationError({ message: 'Text configuration changed.' });
   if (
     ![reply.sexual, reply.ai].every((score) => Number.isFinite(score) && score >= 0 && score <= 1)
   )
-    throw new Error('Invalid text scores');
+    return yield* new ClassificationError({ message: 'Invalid text scores' });
   const scores = { sexualText: reply.sexual, aiGenerated: reply.ai };
-  writeCache(key, scores);
+  yield* writeCache(key, scores);
   return scores;
-}
+});
 
 // --- Image scores -----------------------------------------------------------
 
-// Serialize all local image inference; TF models must not classify in
-// parallel or memory blows up.
-let imageQueue: Promise<unknown> = Promise.resolve();
+// TF models must not classify in parallel or memory blows up. Semaphore
+// acquisition is interruptible, so queued scans disappear with their scope.
+const imageInference = Semaphore.makeUnsafe(1);
 
-export function imageScores(urls: string[]) {
-  const work = imageQueue.then(() => classifyImages(urls));
-  imageQueue = work.catch(() => {});
-  return work;
-}
+export const imageScores = Effect.fnUntraced(function* (urls: string[]) {
+  return yield* Semaphore.withPermit(imageInference, classifyImages(urls));
+});
 
 /**
  * NSFWJS model class names are singular ('Drawing') while our category key
@@ -193,75 +218,91 @@ const NSFW_CLASS_TO_CATEGORY: Record<string, CategoryKey> = {
   sexy: 'sexy',
 };
 
-async function classifyImages(
+const classifyImages = Effect.fnUntraced(function* (
   urls: string[],
-): Promise<{ scores: Partial<Record<CategoryKey, number>>; errors: string[] }> {
+): Effect.fn.Return<
+  { scores: Partial<Record<CategoryKey, number>>; errors: string[] },
+  BrowserError | ClassificationError
+> {
   const scores: Partial<Record<CategoryKey, number>> = {};
   const errors: string[] = [];
   const misses: Array<{ url: string; index: number }> = [];
   for (let index = 0; index < urls.length; index++) {
-    const cached = await readCache(
-      `${CACHE_PREFIX}i:${hash64(canonicalMediaUrl(urls[index] ?? ''))}`,
-    );
+    const url = urls[index] ?? '';
+    const cached = yield* readCache(`${CACHE_PREFIX}i:${hash64(canonicalMediaUrl(url))}`);
     if (cached) {
       for (const [key, value] of Object.entries(cached.scores)) {
         const category = key as CategoryKey;
         scores[category] = Math.max(scores[category] ?? 0, value);
       }
     } else {
-      misses.push({ url: urls[index] ?? '', index });
+      misses.push({ url, index });
     }
   }
   if (!misses.length) return { scores, errors };
-  const model = await loadImageClassifier();
+  const model = yield* loadImageClassifier();
   for (const miss of misses) {
-    let bitmap: ImageBitmap | undefined;
-    try {
-      bitmap = await fetchBitmap(miss.url);
-      const predictions = await model.classify(bitmap);
-      const imageScores: Partial<Record<CategoryKey, number>> = {};
-      for (const prediction of predictions) {
-        const category =
-          NSFW_CLASS_TO_CATEGORY[prediction.className.toLowerCase().replace(/s$/, '')];
-        if (category && IMAGE_KEYS.includes(category)) {
-          imageScores[category] = Math.max(imageScores[category] ?? 0, prediction.probability);
-          scores[category] = Math.max(scores[category] ?? 0, prediction.probability);
-        }
-      }
-      writeCache(`${CACHE_PREFIX}i:${hash64(canonicalMediaUrl(miss.url))}`, imageScores);
-    } catch (error) {
-      errors.push(`Image ${miss.index + 1}: ${message(error)}`);
-    } finally {
-      bitmap?.close();
+    const outcome = yield* Effect.acquireUseRelease(
+      fetchBitmap(miss.url),
+      (bitmap) => model.classify(bitmap),
+      (bitmap) => Effect.sync(() => bitmap.close()),
+    ).pipe(
+      Effect.map((predictions) => ({ predictions }) as const),
+      Effect.catch((error) => Effect.succeed({ error } as const)),
+    );
+    if ('error' in outcome) {
+      errors.push(`Image ${miss.index + 1}: ${message(outcome.error)}`);
+      continue;
     }
+    const imageScores: Partial<Record<CategoryKey, number>> = {};
+    for (const prediction of outcome.predictions) {
+      const category = NSFW_CLASS_TO_CATEGORY[prediction.className.toLowerCase().replace(/s$/, '')];
+      if (category && IMAGE_KEYS.includes(category)) {
+        imageScores[category] = Math.max(imageScores[category] ?? 0, prediction.probability);
+        scores[category] = Math.max(scores[category] ?? 0, prediction.probability);
+      }
+    }
+    yield* writeCache(`${CACHE_PREFIX}i:${hash64(canonicalMediaUrl(miss.url))}`, imageScores);
   }
   return { scores, errors };
-}
+});
 
-async function fetchBitmap(url: string): Promise<ImageBitmap> {
-  if (!url) throw new Error('No image URL found.');
-  try {
-    const response = await fetch(url, { credentials: 'omit', signal: AbortSignal.timeout(8000) });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    return await createImageBitmap(await response.blob());
-  } catch {
-    const reply = await timeout(
-      browser.runtime.sendMessage({ type: 'fetch-image', url }) as Promise<ImageReply>,
-      10000,
-      'Image download',
+function fetchBitmap(url: string): Effect.Effect<ImageBitmap, BrowserError | ClassificationError> {
+  if (!url) return Effect.fail(new ClassificationError({ message: 'No image URL found.' }));
+  const direct = Effect.gen(function* () {
+    const response = yield* browserEffect('download image', (signal) =>
+      fetch(url, {
+        credentials: 'omit',
+        signal: AbortSignal.any([signal, AbortSignal.timeout(8_000)]),
+      }),
     );
-    if (!reply.ok) throw new Error(reply.error);
-    return createImageBitmap(await (await fetch(reply.dataUrl)).blob());
-  }
-}
-
-function timeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
-  const { promise: timed, resolve, reject } = Promise.withResolvers<T>();
-  const timer = setTimeout(() => reject(new Error(`${label} timed out.`)), ms);
-  promise.then(resolve, reject).finally(() => clearTimeout(timer));
-  return timed;
+    if (!response.ok) return yield* new ClassificationError({ message: `HTTP ${response.status}` });
+    const blob = yield* browserEffect('read downloaded image', () => response.blob());
+    return yield* browserEffect('decode image', () => createImageBitmap(blob));
+  });
+  const fallback = Effect.gen(function* () {
+    const rawReply = yield* browserEffect('request image from background', () =>
+      browser.runtime.sendMessage({ type: 'fetch-image', url }),
+    ).pipe(Effect.timeoutOption(Duration.millis(10_000)));
+    if (Option.isNone(rawReply))
+      return yield* new ClassificationError({ message: 'Image download timed out.' });
+    const reply = yield* Schema.decodeUnknownEffect(ImageReplySchema)(rawReply.value).pipe(
+      Effect.mapError(
+        () => new ClassificationError({ message: 'Invalid image download response.' }),
+      ),
+    );
+    if (!reply.ok) return yield* new ClassificationError({ message: reply.error });
+    const response = yield* browserEffect('read background image data', () => fetch(reply.dataUrl));
+    const blob = yield* browserEffect('read background image body', () => response.blob());
+    return yield* browserEffect('decode background image', () => createImageBitmap(blob));
+  });
+  return direct.pipe(Effect.catch(() => fallback));
 }
 
 export function message(error: unknown): string {
+  if (error instanceof BrowserError) {
+    const cause = error.cause;
+    return cause instanceof Error ? cause.message : String(cause);
+  }
   return error instanceof Error ? error.message : String(error);
 }

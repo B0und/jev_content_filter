@@ -1,3 +1,5 @@
+import { Effect, Fiber } from 'effect';
+import { BrowserError, browserEffect } from '../src/shared/browser';
 import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react';
 import {
   createId,
@@ -26,7 +28,7 @@ import {
   type SolutionKind,
   type TruthValue,
 } from './model';
-import { loadBenchmarkState, saveBenchmarkState } from './storage';
+import { benchmarkRuntime, loadBenchmarkState, saveBenchmarkState } from './storage';
 import './styles.css';
 
 type CaseFilter = 'all' | BenchmarkModality;
@@ -43,17 +45,36 @@ function isNsfwjsTask(task: ScoreKey): task is NsfwjsTask {
   return NSFWJS_TASKS.includes(task as NsfwjsTask);
 }
 
-function readFileAsDataUrl(file: File): Promise<string> {
-  const { promise, resolve, reject } = Promise.withResolvers<string>();
-  const reader = new FileReader();
-  reader.onload = () => {
-    if (typeof reader.result === 'string') resolve(reader.result);
-    else reject(new Error('Could not read the image file.'));
-  };
-  reader.onerror = () => reject(new Error('Could not read the image file.'));
-  reader.readAsDataURL(file);
-  return promise;
-}
+const readFileAsDataUrl = (file: File) =>
+  Effect.callback<string, BrowserError>((resume) => {
+    const reader = new FileReader();
+    reader.onload = () =>
+      resume(
+        typeof reader.result === 'string'
+          ? Effect.succeed(reader.result)
+          : Effect.fail(
+              new BrowserError({
+                operation: 'read image',
+                cause: 'Could not read the image file.',
+              }),
+            ),
+      );
+    reader.onerror = () =>
+      resume(
+        Effect.fail(
+          new BrowserError({
+            operation: 'read image',
+            cause: reader.error ?? 'Could not read the image file.',
+          }),
+        ),
+      );
+    reader.readAsDataURL(file);
+    return Effect.sync(() => {
+      reader.onload = null;
+      reader.onerror = null;
+      if (reader.readyState === FileReader.LOADING) reader.abort();
+    });
+  });
 
 function formatCaseLabel(item: BenchmarkCase): string {
   return `Sexual content: ${item.labels.sexualContent} · AI origin: ${item.labels.aiGenerated}`;
@@ -78,31 +99,44 @@ export function App() {
   const [notice, setNotice] = useState('');
 
   useEffect(() => {
-    let cancelled = false;
-    void loadBenchmarkState()
-      .then((loaded) => {
-        if (cancelled) return;
-        setState(loaded);
-        setStorageError('');
-        setStorageReady(true);
-      })
-      .catch((error: unknown) => {
-        if (cancelled) return;
-        setStorageError(error instanceof Error ? error.message : 'SQLite storage is unavailable.');
-        setStorageReady(true);
-      });
+    const fiber = benchmarkRuntime.runFork(
+      loadBenchmarkState.pipe(
+        Effect.match({
+          onSuccess: (loaded) => {
+            setState(loaded);
+            setStorageError('');
+            setStorageReady(true);
+          },
+          onFailure: (error) => {
+            setStorageError(error.message);
+            setStorageReady(true);
+          },
+        }),
+      ),
+    );
     return () => {
-      cancelled = true;
+      benchmarkRuntime.runFork(Fiber.interrupt(fiber));
     };
   }, []);
 
   useEffect(() => {
     if (!storageReady) return;
-    void saveBenchmarkState(state)
-      .then(() => setStorageError(''))
-      .catch((error: unknown) => {
-        setStorageError(error instanceof Error ? error.message : 'SQLite storage is unavailable.');
-      });
+    let alive = true;
+    benchmarkRuntime.runFork(
+      saveBenchmarkState(state).pipe(
+        Effect.match({
+          onSuccess: () => {
+            if (alive) setStorageError('');
+          },
+          onFailure: (error) => {
+            if (alive) setStorageError(error.message);
+          },
+        }),
+      ),
+    );
+    return () => {
+      alive = false;
+    };
   }, [state, storageReady]);
 
   const selectedCase =
@@ -265,17 +299,21 @@ export function App() {
     setNotice('Solution removed from this local benchmark.');
   }
 
-  async function importSolution(event: ChangeEvent<HTMLInputElement>) {
+  function importSolution(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     event.target.value = '';
     if (!file) return;
-    try {
-      const solution = parseSolutionImport(await file.text());
-      setState((current) => ({ ...current, solutions: [...current.solutions, solution] }));
-      setNotice(`Imported ${solution.name}.`);
-    } catch (error) {
-      setNotice(error instanceof Error ? error.message : 'Could not import that solution.');
-    }
+    benchmarkRuntime.runFork(
+      Effect.gen(function* () {
+        const text = yield* browserEffect('read solution', () => file.text());
+        const solution = yield* Effect.try({
+          try: () => parseSolutionImport(text),
+          catch: (cause) => new BrowserError({ operation: 'import solution', cause }),
+        });
+        setState((current) => ({ ...current, solutions: [...current.solutions, solution] }));
+        setNotice(`Imported ${solution.name}.`);
+      }).pipe(Effect.catch((error) => Effect.sync(() => setNotice(error.message)))),
+    );
   }
 
   function exportDataset() {
@@ -288,7 +326,7 @@ export function App() {
     setNotice('Benchmark state exported.');
   }
 
-  async function addSample(event: FormEvent<HTMLFormElement>) {
+  function addSample(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const title = sampleTitle.trim();
     if (!title) {
@@ -328,16 +366,21 @@ export function App() {
     setNotice(`Added ${title}. Mark the human labels before comparing models.`);
   }
 
-  async function chooseSampleImage(event: ChangeEvent<HTMLInputElement>) {
+  function chooseSampleImage(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
-    try {
-      setSampleImage(await readFileAsDataUrl(file));
-      setSampleFileName(file.name);
-      setNotice(`${file.name} ready to add.`);
-    } catch (error) {
-      setNotice(error instanceof Error ? error.message : 'Could not read the image.');
-    }
+    benchmarkRuntime.runFork(
+      readFileAsDataUrl(file).pipe(
+        Effect.match({
+          onSuccess: (dataUrl) => {
+            setSampleImage(dataUrl);
+            setSampleFileName(file.name);
+            setNotice(`${file.name} ready to add.`);
+          },
+          onFailure: (error) => setNotice(error.message),
+        }),
+      ),
+    );
   }
 
   if (!storageReady) {

@@ -1,3 +1,5 @@
+import { Effect, Layer, ManagedRuntime } from 'effect';
+import { BrowserError, browserEffect, browserRuntime } from '../../shared/browser';
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@base-ui/react/button';
 import { Select } from '@base-ui/react/select';
@@ -187,35 +189,36 @@ export function App() {
   const [loadError, setLoadError] = useState('');
   const [actionError, setActionError] = useState('');
   const [busyAction, setBusyAction] = useState<'clear-log' | 'clear-errors' | null>(null);
+  const alive = useRef(false);
+  const refreshGeneration = useRef(0);
 
-  const refresh = async () => {
-    try {
-      // Only the keys this page renders: log, scan errors, filter status, plus
-      // per-tweet allow overrides for the tweets currently in the log.
-      const stored = await browser.storage.local.get([
-        STORAGE_KEYS.log,
-        STORAGE_KEYS.scanErrors,
-        STORAGE_KEYS.status,
-      ]);
+  useEffect(() => {
+    const runtime = ManagedRuntime.make(Layer.empty);
+    alive.current = true;
+    const refresh = Effect.gen(function* () {
+      const generation = ++refreshGeneration.current;
+      const stored = yield* browserEffect('load log page', () =>
+        browser.storage.local.get([STORAGE_KEYS.log, STORAGE_KEYS.scanErrors, STORAGE_KEYS.status]),
+      );
       const storedLog = (stored[STORAGE_KEYS.log] as BlockedEntry[] | undefined) ?? [];
       const scanErrors = (stored[STORAGE_KEYS.scanErrors] as ScanErrorEntry[] | undefined) ?? [];
       const status = (stored[STORAGE_KEYS.status] as FilterStatus | undefined) ?? {
         state: 'ok' as const,
         updatedAt: 0,
       };
-      setLog(storedLog);
+      const overrideKeys = storedLog.map((entry) => `${OVERRIDES_PREFIX}${entry.tweetId}`);
+      const overrides = overrideKeys.length
+        ? yield* browserEffect('load allow overrides', () =>
+            browser.storage.local.get(overrideKeys),
+          )
+        : {};
+      if (!alive.current || generation !== refreshGeneration.current) return;
       const rows: ErrorRow[] = scanErrors.map((entry) => ({ ...entry, source: 'Scan' }));
-      if (status.state === 'failing' && status.reason) {
+      if (status.state === 'failing' && status.reason)
         rows.unshift({ ts: status.updatedAt, message: status.reason, source: 'Text API' });
-      }
+      setLog(storedLog);
       setErrors(rows);
       setLoadError('');
-      const overrideKeys = storedLog.map((entry) => `${OVERRIDES_PREFIX}${entry.tweetId}`);
-      if (overrideKeys.length === 0) {
-        setUnblocked(new Set());
-        return;
-      }
-      const overrides = await browser.storage.local.get(overrideKeys);
       setUnblocked(
         new Set(
           Object.entries(overrides)
@@ -223,19 +226,14 @@ export function App() {
             .map(([key]) => key.slice(OVERRIDES_PREFIX.length)),
         ),
       );
-    } catch (e) {
-      // Storage reads can fail (quota, worker restart): surface it honestly
-      // instead of showing a quietly empty log.
-      setLoadError(`Could not load the log: ${String(e)}`);
-    }
-  };
-
-  useEffect(() => {
-    // The initial refresh is the effect synchronizing with the storage
-    // external system; its setState calls happen after awaits, not
-    // synchronously in the effect body.
-    // oxlint-disable-next-line react/set-state-in-effect react-compiler/set-state-in-effect
-    void refresh();
+    }).pipe(
+      Effect.catch((cause) =>
+        Effect.sync(() => {
+          if (alive.current) setLoadError(`Could not load the log: ${String(cause)}`);
+        }),
+      ),
+    );
+    runtime.runFork(refresh);
     const listener = (
       changes: Record<string, { newValue?: unknown; oldValue?: unknown }>,
       area: string,
@@ -248,7 +246,7 @@ export function App() {
             k === STORAGE_KEYS.log || k === STORAGE_KEYS.scanErrors || k === STORAGE_KEYS.status,
         )
       ) {
-        void refresh();
+        runtime.runFork(refresh);
         return;
       }
       const overrideKeys = keys.filter((k) => k.startsWith(OVERRIDES_PREFIX));
@@ -264,7 +262,11 @@ export function App() {
       });
     };
     browser.storage.onChanged.addListener(listener);
-    return () => browser.storage.onChanged.removeListener(listener);
+    return () => {
+      alive.current = false;
+      browser.storage.onChanged.removeListener(listener);
+      void runtime.dispose();
+    };
   }, []);
 
   /** Tab clicks and hash edits stay in sync without polluting session history. */
@@ -284,60 +286,69 @@ export function App() {
   const filtered =
     filter === 'all' ? log : log.filter((entry) => entry.reasons.some((r) => r.key === filter));
 
-  async function onUnblock(tweetId: string) {
+  function onUnblock(tweetId: string) {
     setActionError('');
     setUnblocking((prev) => new Set(prev).add(tweetId));
-    try {
-      await browser.storage.local.set({ [`${OVERRIDES_PREFIX}${tweetId}`]: 'allow' });
-      // The storage.onChanged listener also records this; setting it here
-      // covers environments where change events are unreliable. The badge
-      // only appears once the write has actually succeeded.
-      setUnblocked((prev) => new Set(prev).add(tweetId));
-    } catch (e) {
-      setActionError(`Could not unblock this post: ${String(e)}`);
-    } finally {
-      setUnblocking((prev) => {
-        const next = new Set(prev);
-        next.delete(tweetId);
-        return next;
-      });
-    }
+    browserRuntime.runFork(
+      browserEffect('unblock post', () =>
+        browser.storage.local.set({ [`${OVERRIDES_PREFIX}${tweetId}`]: 'allow' }),
+      ).pipe(
+        Effect.tap(() =>
+          Effect.sync(() => {
+            if (alive.current) setUnblocked((prev) => new Set(prev).add(tweetId));
+          }),
+        ),
+        Effect.catch((cause) =>
+          Effect.sync(() => {
+            if (alive.current) setActionError(`Could not unblock this post: ${String(cause)}`);
+          }),
+        ),
+        Effect.ensuring(
+          Effect.sync(() => {
+            if (!alive.current) return;
+            setUnblocking((prev) => {
+              const next = new Set(prev);
+              next.delete(tweetId);
+              return next;
+            });
+          }),
+        ),
+      ),
+    );
   }
 
-  async function onClear() {
+  function clear(type: 'clear-log' | 'clear-errors') {
     setActionError('');
-    setBusyAction('clear-log');
-    try {
-      // Serialized through the background log queue so an in-flight append
-      // cannot resurrect entries right after the clear.
-      const reply = (await browser.runtime.sendMessage({ type: 'clear-log' })) as
-        | { ok?: boolean }
-        | undefined;
-      if (!reply?.ok) throw new Error('background did not confirm the clear');
-      setLog([]);
-      setActionError('');
-    } catch (e) {
-      setActionError(`Could not clear the log: ${String(e)}`);
-    } finally {
-      setBusyAction(null);
-    }
-  }
-
-  async function onClearErrors() {
-    setActionError('');
-    setBusyAction('clear-errors');
-    try {
-      const reply = (await browser.runtime.sendMessage({ type: 'clear-errors' })) as
-        | { ok?: boolean }
-        | undefined;
-      if (!reply?.ok) throw new Error('background did not confirm the clear');
-      setErrors((prev) => prev.filter((row) => row.source !== 'Scan'));
-      setActionError('');
-    } catch (e) {
-      setActionError(`Could not clear scan errors: ${String(e)}`);
-    } finally {
-      setBusyAction(null);
-    }
+    setBusyAction(type);
+    browserRuntime.runFork(
+      Effect.gen(function* () {
+        const reply: { ok?: boolean } | undefined = yield* browserEffect(type, () =>
+          browser.runtime.sendMessage({ type }),
+        );
+        if (!reply?.ok)
+          return yield* new BrowserError({
+            operation: type,
+            cause: 'background did not confirm the clear',
+          });
+        if (!alive.current) return;
+        if (type === 'clear-log') setLog([]);
+        else setErrors((prev) => prev.filter((row) => row.source !== 'Scan'));
+      }).pipe(
+        Effect.catch((cause) =>
+          Effect.sync(() => {
+            if (alive.current)
+              setActionError(
+                `Could not clear ${type === 'clear-log' ? 'the log' : 'scan errors'}: ${String(cause)}`,
+              );
+          }),
+        ),
+        Effect.ensuring(
+          Effect.sync(() => {
+            if (alive.current) setBusyAction(null);
+          }),
+        ),
+      ),
+    );
   }
 
   // Stable identity for virtualizer rows: blocked rows key on tweet id, error
@@ -351,7 +362,7 @@ export function App() {
         entry={entry}
         unblocked={unblocked}
         unblocking={unblocking}
-        onUnblock={(tweetId) => void onUnblock(tweetId)}
+        onUnblock={onUnblock}
         measure={measure}
       />
     ),
@@ -415,7 +426,7 @@ export function App() {
               <Button
                 className="action-btn"
                 disabled={busyAction !== null}
-                onClick={() => void onClear()}
+                onClick={() => clear('clear-log')}
               >
                 {busyAction === 'clear-log' ? 'Clearing…' : 'Clear all'}
               </Button>
@@ -424,7 +435,7 @@ export function App() {
               <Button
                 className="action-btn"
                 disabled={busyAction !== null}
-                onClick={() => void onClearErrors()}
+                onClick={() => clear('clear-errors')}
               >
                 {busyAction === 'clear-errors' ? 'Clearing…' : 'Clear errors'}
               </Button>

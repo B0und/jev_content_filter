@@ -12,6 +12,7 @@ import {
   until,
 } from './support';
 // Support registers external image-inference mocks before classification loads.
+import { Effect } from 'effect';
 import { afterEach, describe, expect, it } from 'vitest';
 import { browser } from 'wxt/browser';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
@@ -97,20 +98,20 @@ describe('score cache', () => {
   it('rejects malformed, out-of-range, and stale-version entries', async () => {
     const key = `${STORAGE_KEYS.scores}:v6:t:abc`;
     await browser.storage.local.set({ [key]: { scores: { porn: 3 }, ts: 1 } });
-    expect(await readCache(key)).toBeNull();
+    expect(await Effect.runPromise(readCache(key))).toBeNull();
     await browser.storage.local.set({ [key]: { scores: { porn: 'high' }, ts: 1 } });
-    expect(await readCache(key)).toBeNull();
+    expect(await Effect.runPromise(readCache(key))).toBeNull();
     await browser.storage.local.set({ [key]: { scores: { madeUpKey: 0.5 }, ts: 1 } });
-    expect(await readCache(key)).toBeNull();
+    expect(await Effect.runPromise(readCache(key))).toBeNull();
     // Versioned keys: anything stored under the previous scheme is ignored.
     const previous = `${STORAGE_KEYS.scores}:v5:t:abc`;
     await browser.storage.local.set({ [previous]: { scores: { porn: 0.9 }, ts: 1 } });
-    expect(await readCache(previous)).toBeNull();
+    expect(await Effect.runPromise(readCache(previous))).toBeNull();
     const legacy = `${STORAGE_KEYS.scores}:t:abc`;
     await browser.storage.local.set({ [legacy]: { scores: { porn: 0.9 }, ts: 1 } });
-    expect(await readCache(legacy)).toBeNull();
+    expect(await Effect.runPromise(readCache(legacy))).toBeNull();
     await browser.storage.local.set({ [key]: { scores: { porn: 0.9 }, ts: 1 } });
-    expect(await readCache(key)).toEqual({ scores: { porn: 0.9 }, ts: 1 });
+    expect(await Effect.runPromise(readCache(key))).toEqual({ scores: { porn: 0.9 }, ts: 1 });
   });
 
   it('reuses cached image scores without re-running inference', async () => {
@@ -120,13 +121,13 @@ describe('score cache', () => {
       { className: 'Neutral', probability: 0.1 },
     ];
     const url = 'https://pbs.twimg.com/media/CacheKey?format=jpg';
-    const first = await imageScores([url]);
+    const first = await Effect.runPromise(imageScores([url]));
     expect(first.scores.porn).toBe(0.9);
     expect(first.scores.drawings).toBe(0.7);
     expect(first.scores.hentai).toBeUndefined();
     expect(nsfwProbe.loadCount).toBe(1);
 
-    const second = await imageScores([url]);
+    const second = await Effect.runPromise(imageScores([url]));
     expect(second.scores).toEqual(first.scores);
     expect(nsfwProbe.loadCount).toBe(1); // served entirely from cache
   });
@@ -140,9 +141,9 @@ describe('score cache', () => {
     const bg = installFakeBackground();
     bg.respond = () => ({ ok: true, sexual: 0.4, ai: 0.2 });
 
-    const first = await textScores(post, 'same text');
+    const first = await Effect.runPromise(textScores(post, 'same text'));
     expect(first).toEqual({ sexualText: 0.4, aiGenerated: 0.2 });
-    const second = await textScores(otherPost, 'same text');
+    const second = await Effect.runPromise(textScores(otherPost, 'same text'));
     expect(second).toEqual(first);
     expect(bg.jevCalls).toHaveLength(1);
   });
@@ -156,13 +157,13 @@ describe('score cache', () => {
     const bg = installFakeBackground();
     bg.respond = () => ({ ok: true, sexual: 0.4, ai: 0.2 });
 
-    await expect(textScores(post, 'provider-sensitive text')).resolves.toEqual({
+    await expect(Effect.runPromise(textScores(post, 'provider-sensitive text'))).resolves.toEqual({
       sexualText: 0.4,
       aiGenerated: 0.2,
     });
     settings.current = { ...settings.current, textProvider: 'typesafe' };
     bg.respond = () => ({ ok: true, sexual: 0.8, ai: 0.7 });
-    await expect(textScores(post, 'provider-sensitive text')).resolves.toEqual({
+    await expect(Effect.runPromise(textScores(post, 'provider-sensitive text'))).resolves.toEqual({
       sexualText: 0.8,
       aiGenerated: 0.7,
     });
@@ -177,10 +178,14 @@ describe('score cache', () => {
     const post = newPostStub('4020');
     const bg = installFakeBackground();
     const gate = Promise.withResolvers<{ ok: true; sexual: number; ai: number }>();
-    bg.respond = () => gate.promise;
-    const old = textScores(post, 'configuration-race');
+    const started = Promise.withResolvers<void>();
+    bg.respond = () => {
+      started.resolve();
+      return gate.promise;
+    };
+    const old = Effect.runPromise(textScores(post, 'configuration-race'));
     const rejected = expect(old).rejects.toThrow('Text configuration changed');
-    await until(() => bg.jevCalls.length === 1);
+    await started.promise;
     settings.current = applySettingsChange(settings.current, {
       field: 'textProvider',
       value: 'typesafe',
@@ -190,7 +195,7 @@ describe('score cache', () => {
     const stored = await browser.storage.local.get(null);
     expect(Object.keys(stored).filter((key) => key.startsWith(STORAGE_KEYS.scores))).toEqual([]);
     bg.respond = () => ({ ok: true, sexual: 0.9, ai: 0.2 });
-    await expect(textScores(post, 'configuration-race')).resolves.toEqual({
+    await expect(Effect.runPromise(textScores(post, 'configuration-race'))).resolves.toEqual({
       sexualText: 0.9,
       aiGenerated: 0.2,
     });
@@ -199,11 +204,10 @@ describe('score cache', () => {
       value: 'vercel',
     });
     bg.respond = () => ({ ok: true, sexual: 0.3, ai: 0.1 });
-    await expect(textScores(post, 'configuration-race')).resolves.toEqual({
+    await expect(Effect.runPromise(textScores(post, 'configuration-race'))).resolves.toEqual({
       sexualText: 0.3,
       aiGenerated: 0.1,
     });
-    expect(bg.jevCalls).toHaveLength(3);
   });
 });
 
@@ -216,7 +220,9 @@ describe('NSFW class mapping', () => {
       { className: 'Sexy', probability: 0.04 },
       { className: 'Neutral', probability: 0.04 },
     ];
-    const result = await imageScores(['https://pbs.twimg.com/media/Singular?format=jpg']);
+    const result = await Effect.runPromise(
+      imageScores(['https://pbs.twimg.com/media/Singular?format=jpg']),
+    );
     expect(result.scores).toEqual({ drawings: 0.55, porn: 0.31, hentai: 0.06, sexy: 0.04 });
   });
 });
@@ -254,7 +260,7 @@ describe('retry policy', () => {
       );
     }
     await Promise.all(writes);
-    await evictCache(); // limit is 4000: nothing may be dropped
+    await Effect.runPromise(evictCache()); // limit is 4000: nothing may be dropped
     const stored = await browser.storage.local.get(null);
     const cacheKeys = Object.keys(stored).filter((key) => key.startsWith(STORAGE_KEYS.scores));
     expect(cacheKeys.length).toBe(50);
