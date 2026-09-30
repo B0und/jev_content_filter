@@ -45,7 +45,9 @@ Effect owns asynchronous work; React and the DOM modules own rendering.
 - `src/content/runtime.ts` builds a `ContentSession` Layer per WXT context. Scans and retry fibers belong to its Scope. Context invalidation restores the DOM and disposes the runtime, interrupting pending work.
 - `src/content/classify.ts` composes cache reads, schema-decoded replies, scoring, and cache writes as Effects. A semaphore serializes local image inference. Provider revisions prevent obsolete replies from reaching the cache.
 - `src/shared/browser.ts` adapts native Promise APIs into interruptible Effects with `BrowserError`. Provider failures have a separate typed error; provider keys are redacted before errors leave the adapter.
-- Popup polling and log-page reads run through disposable runtimes. Settings writes and log actions cross into Effect at React event handlers; the background worker remains the owner of persistent mutations.
+- `src/entrypoints/popup/state.ts` and `src/entrypoints/logs/state.ts` expose snapshots through `useSyncExternalStore`. They own optimistic settings edits, pending log actions, storage reconciliation, and errors. React handlers call domain operations.
+- Each open view scopes its reads and polling to a disposable runtime. Submitted writes run separately so closing the view does not cancel them. The background worker serializes settings changes and log clearing; unblock actions write persistent allow overrides.
+- `src/shared/schemas.ts` validates browser messages, stored log rows, status, settings acknowledgements, and tab reports before they enter application state.
 - `benchmarks/storage.ts` owns the lab's serialized saves in a `BenchmarkStorage` Layer. The Vite storage plugin scopes the SQLite connection to the server lifetime and consumes request bodies through an Effect Stream.
 
 Promises remain at framework callbacks and native SDK adapters. Pure filtering policy, DOM discovery helpers, and benchmark metrics do not need an Effect runtime.

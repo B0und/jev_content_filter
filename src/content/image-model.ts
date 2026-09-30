@@ -3,7 +3,6 @@ import { load as loadNsfwCore } from 'nsfwjs/core';
 import type { NSFWJS } from 'nsfwjs/core';
 import { MobileNetV2Model } from 'nsfwjs/models/mobilenet_v2';
 import { browser as tfBrowser } from '@tensorflow/tfjs';
-import type { Tensor3D } from '@tensorflow/tfjs';
 import { BrowserError, browserEffect } from '../shared/browser';
 
 export interface ImageClassifier {
@@ -37,7 +36,7 @@ export const imageClassifier: ImageClassifier = {
         catch: (cause) => new BrowserError({ operation: 'prepare image pixels', cause }),
       });
       return yield* Effect.acquireUseRelease(
-        Effect.succeed(pixels as Tensor3D),
+        Effect.succeed(pixels),
         (tensor) =>
           // NSFWJS exposes no cancellation signal. Keep its global inference
           // serialized until the native Promise settles; interruption then

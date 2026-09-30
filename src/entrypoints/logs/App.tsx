@@ -1,35 +1,34 @@
-import { Effect, Layer, ManagedRuntime } from 'effect';
-import { BrowserError, browserEffect, browserRuntime } from '../../shared/browser';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Button } from '@base-ui/react/button';
 import { Select } from '@base-ui/react/select';
 import { Tabs } from '@base-ui/react/tabs';
-import { browser } from 'wxt/browser';
 import { useVirtualizer, type VirtualItem } from '@tanstack/react-virtual';
-import { type ScanErrorEntry } from '../../shared/log';
 import {
+  CATEGORY_KEYS,
   CATEGORY_LABELS,
-  STORAGE_KEYS,
   type BlockedEntry,
   type CategoryKey,
-  type FilterStatus,
 } from '../../shared/types';
+import { logsState, type ErrorRow } from './state';
 import './logs.css';
 
 type Tab = 'blocked' | 'errors';
 type ReasonFilter = 'all' | CategoryKey;
-type ErrorRow = ScanErrorEntry & { source: string };
 
 const TABS: readonly Tab[] = ['blocked', 'errors'];
-const OVERRIDES_PREFIX = `${STORAGE_KEYS.overrides}:`;
 
 const REASON_OPTIONS: Array<{ value: ReasonFilter; label: string }> = [
   { value: 'all', label: 'All reasons' },
-  ...(Object.entries(CATEGORY_LABELS) as Array<[CategoryKey, string]>).map(([key, label]) => ({
-    value: key,
-    label,
-  })),
+  ...CATEGORY_KEYS.map((key) => ({ value: key, label: CATEGORY_LABELS[key] })),
 ];
+
+function isTab(value: string): value is Tab {
+  return TABS.some((tab) => tab === value);
+}
+
+function isReasonFilter(value: string): value is ReasonFilter {
+  return value === 'all' || CATEGORY_KEYS.some((key) => key === value);
+}
 
 /** Every entry with an ID links to its permalink, which is never hidden. */
 function postUrl(entry: { tweetId?: string; handle?: string }): string | null {
@@ -45,8 +44,8 @@ function postUrl(entry: { tweetId?: string; handle?: string }): string | null {
 function BlockedRow(props: {
   vRow: VirtualItem;
   entry: BlockedEntry;
-  unblocked: Set<string>;
-  unblocking: Set<string>;
+  unblocked: ReadonlySet<string>;
+  unblocking: ReadonlySet<string>;
   onUnblock: (tweetId: string) => void;
   measure: (node: Element | null) => void;
 }) {
@@ -90,14 +89,14 @@ function BlockedRow(props: {
       </span>
       <span className="col-snippet">{entry.snippet}</span>
       <span className="col-action">
-        {isUnblocked ? (
+        {isUnblocking ? (
+          <button className="unblock-btn" disabled>
+            Unblocking…
+          </button>
+        ) : isUnblocked ? (
           <span className="unblocked-badge">Unblocked</span>
         ) : (
-          <button
-            className="unblock-btn"
-            disabled={isUnblocking}
-            onClick={() => onUnblock(entry.tweetId)}
-          >
+          <button className="unblock-btn" onClick={() => onUnblock(entry.tweetId)}>
             Unblock
           </button>
         )}
@@ -180,93 +179,14 @@ function VirtualList(props: {
 
 export function App() {
   const [tab, setTab] = useState<Tab>(() => (location.hash === '#errors' ? 'errors' : 'blocked'));
-  const [log, setLog] = useState<BlockedEntry[]>([]);
-  const [errors, setErrors] = useState<ErrorRow[]>([]);
   const [filter, setFilter] = useState<ReasonFilter>('all');
-  const [unblocked, setUnblocked] = useState<Set<string>>(new Set());
-  const [unblocking, setUnblocking] = useState<Set<string>>(new Set());
-  const [loadError, setLoadError] = useState('');
-  const [actionError, setActionError] = useState('');
-  const [busyAction, setBusyAction] = useState<'clear-log' | 'clear-errors' | null>(null);
-  const alive = useRef(false);
-  const refreshGeneration = useRef(0);
-
-  useEffect(() => {
-    const runtime = ManagedRuntime.make(Layer.empty);
-    alive.current = true;
-    const refresh = Effect.gen(function* () {
-      const generation = ++refreshGeneration.current;
-      const stored = yield* browserEffect('load log page', () =>
-        browser.storage.local.get([STORAGE_KEYS.log, STORAGE_KEYS.scanErrors, STORAGE_KEYS.status]),
-      );
-      const storedLog = (stored[STORAGE_KEYS.log] as BlockedEntry[] | undefined) ?? [];
-      const scanErrors = (stored[STORAGE_KEYS.scanErrors] as ScanErrorEntry[] | undefined) ?? [];
-      const status = (stored[STORAGE_KEYS.status] as FilterStatus | undefined) ?? {
-        state: 'ok' as const,
-        updatedAt: 0,
-      };
-      const overrideKeys = storedLog.map((entry) => `${OVERRIDES_PREFIX}${entry.tweetId}`);
-      const overrides = overrideKeys.length
-        ? yield* browserEffect('load allow overrides', () =>
-            browser.storage.local.get(overrideKeys),
-          )
-        : {};
-      if (!alive.current || generation !== refreshGeneration.current) return;
-      const rows: ErrorRow[] = scanErrors.map((entry) => ({ ...entry, source: 'Scan' }));
-      if (status.state === 'failing' && status.reason)
-        rows.unshift({ ts: status.updatedAt, message: status.reason, source: 'Text API' });
-      setLog(storedLog);
-      setErrors(rows);
-      setLoadError('');
-      setUnblocked(
-        new Set(
-          Object.entries(overrides)
-            .filter(([, value]) => value === 'allow')
-            .map(([key]) => key.slice(OVERRIDES_PREFIX.length)),
-        ),
-      );
-    }).pipe(
-      Effect.catch((cause) =>
-        Effect.sync(() => {
-          if (alive.current) setLoadError(`Could not load the log: ${String(cause)}`);
-        }),
-      ),
-    );
-    runtime.runFork(refresh);
-    const listener = (
-      changes: Record<string, { newValue?: unknown; oldValue?: unknown }>,
-      area: string,
-    ) => {
-      if (area !== 'local') return;
-      const keys = Object.keys(changes);
-      if (
-        keys.some(
-          (k) =>
-            k === STORAGE_KEYS.log || k === STORAGE_KEYS.scanErrors || k === STORAGE_KEYS.status,
-        )
-      ) {
-        runtime.runFork(refresh);
-        return;
-      }
-      const overrideKeys = keys.filter((k) => k.startsWith(OVERRIDES_PREFIX));
-      if (overrideKeys.length === 0) return; // Unrelated change (settings, …): leave the page alone.
-      setUnblocked((prev) => {
-        const next = new Set(prev);
-        for (const key of overrideKeys) {
-          const id = key.slice(OVERRIDES_PREFIX.length);
-          if (changes[key]?.newValue === 'allow') next.add(id);
-          else next.delete(id);
-        }
-        return next;
-      });
-    };
-    browser.storage.onChanged.addListener(listener);
-    return () => {
-      alive.current = false;
-      browser.storage.onChanged.removeListener(listener);
-      void runtime.dispose();
-    };
-  }, []);
+  const snapshot = useSyncExternalStore(
+    logsState.subscribe,
+    logsState.getSnapshot,
+    logsState.getSnapshot,
+  );
+  const { log, errors, unblocked, unblocking, loadError, actionError, busyAction } = snapshot;
+  useEffect(() => logsState.start(), []);
 
   /** Tab clicks and hash edits stay in sync without polluting session history. */
   function switchTab(next: Tab) {
@@ -285,71 +205,6 @@ export function App() {
   const filtered =
     filter === 'all' ? log : log.filter((entry) => entry.reasons.some((r) => r.key === filter));
 
-  function onUnblock(tweetId: string) {
-    setActionError('');
-    setUnblocking((prev) => new Set(prev).add(tweetId));
-    browserRuntime.runFork(
-      browserEffect('unblock post', () =>
-        browser.storage.local.set({ [`${OVERRIDES_PREFIX}${tweetId}`]: 'allow' }),
-      ).pipe(
-        Effect.tap(() =>
-          Effect.sync(() => {
-            if (alive.current) setUnblocked((prev) => new Set(prev).add(tweetId));
-          }),
-        ),
-        Effect.catch((cause) =>
-          Effect.sync(() => {
-            if (alive.current) setActionError(`Could not unblock this post: ${String(cause)}`);
-          }),
-        ),
-        Effect.ensuring(
-          Effect.sync(() => {
-            if (!alive.current) return;
-            setUnblocking((prev) => {
-              const next = new Set(prev);
-              next.delete(tweetId);
-              return next;
-            });
-          }),
-        ),
-      ),
-    );
-  }
-
-  function clear(type: 'clear-log' | 'clear-errors') {
-    setActionError('');
-    setBusyAction(type);
-    browserRuntime.runFork(
-      Effect.gen(function* () {
-        const reply: { ok?: boolean } | undefined = yield* browserEffect(type, () =>
-          browser.runtime.sendMessage({ type }),
-        );
-        if (!reply?.ok)
-          return yield* new BrowserError({
-            operation: type,
-            cause: 'background did not confirm the clear',
-          });
-        if (!alive.current) return;
-        if (type === 'clear-log') setLog([]);
-        else setErrors((prev) => prev.filter((row) => row.source !== 'Scan'));
-      }).pipe(
-        Effect.catch((cause) =>
-          Effect.sync(() => {
-            if (alive.current)
-              setActionError(
-                `Could not clear ${type === 'clear-log' ? 'the log' : 'scan errors'}: ${String(cause)}`,
-              );
-          }),
-        ),
-        Effect.ensuring(
-          Effect.sync(() => {
-            if (alive.current) setBusyAction(null);
-          }),
-        ),
-      ),
-    );
-  }
-
   // Stable identity for virtualizer rows: blocked rows key on tweet id, error
   // rows on timestamp + tweet id + message so same-message entries from
   // different posts keep distinct identities.
@@ -361,7 +216,7 @@ export function App() {
         entry={entry}
         unblocked={unblocked}
         unblocking={unblocking}
-        onUnblock={onUnblock}
+        onUnblock={logsState.unblock}
         measure={measure}
       />
     ),
@@ -378,7 +233,7 @@ export function App() {
       <Tabs.Root
         value={tab}
         onValueChange={(value) => {
-          if (typeof value === 'string' && TABS.includes(value as Tab)) switchTab(value as Tab);
+          if (typeof value === 'string' && isTab(value)) switchTab(value);
         }}
       >
         <header className="logs-header">
@@ -398,7 +253,7 @@ export function App() {
                 items={REASON_OPTIONS}
                 value={filter}
                 onValueChange={(value) => {
-                  if (value !== null) setFilter(value as ReasonFilter);
+                  if (typeof value === 'string' && isReasonFilter(value)) setFilter(value);
                 }}
               >
                 <Select.Trigger className="filter-trigger" aria-label="Filter by reason">
@@ -425,7 +280,7 @@ export function App() {
               <Button
                 className="action-btn"
                 disabled={busyAction !== null}
-                onClick={() => clear('clear-log')}
+                onClick={() => logsState.clear('clear-log')}
               >
                 {busyAction === 'clear-log' ? 'Clearing…' : 'Clear all'}
               </Button>
@@ -434,7 +289,7 @@ export function App() {
               <Button
                 className="action-btn"
                 disabled={busyAction !== null}
-                onClick={() => clear('clear-errors')}
+                onClick={() => logsState.clear('clear-errors')}
               >
                 {busyAction === 'clear-errors' ? 'Clearing…' : 'Clear errors'}
               </Button>

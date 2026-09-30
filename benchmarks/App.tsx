@@ -42,7 +42,7 @@ const TRUTH_OPTIONS: Array<{ value: TruthValue; label: string }> = [
   { value: 'unknown', label: 'Unknown' },
 ];
 function isNsfwjsTask(task: ScoreKey): task is NsfwjsTask {
-  return NSFWJS_TASKS.includes(task as NsfwjsTask);
+  return Object.prototype.hasOwnProperty.call(NSFWJS_LABELS, task);
 }
 
 const readFileAsDataUrl = (file: File) =>
@@ -529,7 +529,10 @@ export function App() {
                 Type
                 <select
                   value={sampleType}
-                  onChange={(event) => setSampleType(event.target.value as BenchmarkModality)}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    if (value === 'text' || value === 'image') setSampleType(value);
+                  }}
                 >
                   <option value="text">Text</option>
                   <option value="image">Image</option>
@@ -646,7 +649,11 @@ export function App() {
                     <select
                       aria-label="Solution type"
                       value={solutionKind}
-                      onChange={(event) => setSolutionKind(event.target.value as SolutionKind)}
+                      onChange={(event) => {
+                        const value = event.target.value;
+                        if (value === 'llm' || value === 'nsfwjs' || value === 'other')
+                          setSolutionKind(value);
+                      }}
                     >
                       {SOLUTION_KINDS.map((kind) => (
                         <option key={kind} value={kind}>

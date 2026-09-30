@@ -33,7 +33,8 @@ describe('pause restore', () => {
         () => article.hasAttribute('data-jev-hidden'),
         'post was not hidden after classification',
       );
-      const card = article.querySelector('[data-testid="card.wrapper"]') as HTMLElement;
+      const card = article.querySelector('[data-testid="card.wrapper"]');
+      if (!(card instanceof HTMLElement)) throw new Error('card wrapper missing');
       await until(() => card.hasAttribute('data-jev-card-hidden'), 'link preview was not hidden');
       await until(
         () => article.querySelector('[data-jev-card-link]') != null,

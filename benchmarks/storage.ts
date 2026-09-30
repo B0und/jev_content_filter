@@ -38,7 +38,8 @@ export class BenchmarkStorage extends Context.Service<
             const response = await fetch('/api/benchmark/state', init);
             if (!response.ok)
               throw new Error(`SQLite storage request failed (${response.status}).`);
-            return response.json() as Promise<unknown>;
+            const payload: unknown = await response.json();
+            return payload;
           },
           catch: (cause) => new BenchmarkStorageError({ cause }),
         });

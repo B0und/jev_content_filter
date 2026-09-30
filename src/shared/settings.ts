@@ -2,6 +2,7 @@ import { Effect } from 'effect';
 import * as Schema from 'effect/Schema';
 import { BrowserError, browserEffect } from './browser';
 import { browser } from 'wxt/browser';
+import { FilterStatusSchema, SettingsReplySchema } from './schemas';
 import {
   STORAGE_KEYS,
   defaultSettings,
@@ -9,10 +10,8 @@ import {
   CATEGORY_KEYS,
   isTextProvider,
   TEXT_PROVIDERS,
-  type CategoryKey,
   type Settings,
   type SettingsChange,
-  type SettingsReply,
 } from './types';
 
 /**
@@ -33,8 +32,10 @@ function thresholdFromLegacySlider(slider: unknown): number | undefined {
  * never fall back to build-time env data (a gateway key is a user secret).
  */
 const storedRecord = Schema.Record(Schema.String, Schema.Unknown);
-const asRecord = (value: unknown): Record<string, unknown> =>
-  Schema.is(storedRecord)(value) ? value : {};
+const isStoredRecord = Schema.is(storedRecord);
+const isSettingsReply = Schema.is(SettingsReplySchema);
+const isFilterStatus = Schema.is(FilterStatusSchema);
+const asRecord = (value: unknown): Record<string, unknown> => (isStoredRecord(value) ? value : {});
 
 export const loadSettings = Effect.fn('loadSettings')(function* () {
   const stored = yield* browserEffect('load settings', () =>
@@ -47,8 +48,8 @@ export const loadSettings = Effect.fn('loadSettings')(function* () {
   const storedProviderKeys = asRecord(raw.providerKeys);
   const defaults = defaultSettings();
 
-  const enabled = {} as Record<CategoryKey, boolean>;
-  const thresholds = {} as Record<CategoryKey, number>;
+  const enabled = defaults.enabled;
+  const thresholds = defaults.thresholds;
   for (const key of CATEGORY_KEYS) {
     const storedEnabled = storedEnabledMap[key];
     enabled[key] = typeof storedEnabled === 'boolean' ? storedEnabled : defaults.enabled[key];
@@ -137,13 +138,18 @@ export function applySettingsChange(current: Settings, change: SettingsChange): 
 
 /** The worker owns read-modify-write, even when the originating popup closes. */
 export const updateSettings = Effect.fn('updateSettings')(function* (change: SettingsChange) {
-  const reply: SettingsReply | undefined = yield* browserEffect('update settings', () =>
+  const reply: unknown = yield* browserEffect('update settings', () =>
     browser.runtime.sendMessage({ type: 'update-settings', change }),
   );
-  if (!reply?.ok)
+  if (!isSettingsReply(reply))
     return yield* new BrowserError({
       operation: 'update settings',
-      cause: reply?.error ?? 'No settings response.',
+      cause: 'Invalid settings response.',
+    });
+  if (!reply.ok)
+    return yield* new BrowserError({
+      operation: 'update settings',
+      cause: reply.error,
     });
   return reply.settings;
 });
@@ -155,12 +161,8 @@ export const loadStatus = Effect.fn('loadStatus')(function* (): Effect.fn.Return
   const stored = yield* browserEffect('load status', () =>
     browser.storage.local.get(STORAGE_KEYS.status),
   );
-  return (
-    (stored[STORAGE_KEYS.status] as FilterStatus | undefined) ?? {
-      state: 'ok',
-      updatedAt: 0,
-    }
-  );
+  const status: unknown = stored[STORAGE_KEYS.status];
+  return isFilterStatus(status) ? status : { state: 'ok', updatedAt: 0 };
 });
 
 export const saveStatus = (status: FilterStatus) =>

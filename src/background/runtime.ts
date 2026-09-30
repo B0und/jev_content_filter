@@ -20,6 +20,7 @@ import * as Schema from 'effect/Schema';
 import { browser } from 'wxt/browser';
 import { BrowserError, browserEffect } from '../shared/browser';
 import { appendBlocked, appendScanError, clearLog, clearScanErrors } from '../shared/log';
+import { BgRequestSchema } from '../shared/schemas';
 import { applySettingsChange, loadSettings, loadStatus, saveStatus } from '../shared/settings';
 import {
   STORAGE_KEYS,
@@ -82,15 +83,7 @@ class ImageProxyError extends Schema.TaggedError<ImageProxyError>()('ImageProxyE
   message: Schema.String,
 }) {}
 
-function isBgRequest(value: unknown): value is BgRequest {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'type' in value &&
-    typeof value.type === 'string' &&
-    Object.hasOwn(BG_REQUEST_TYPES, value.type)
-  );
-}
+const isBgRequest = Schema.is(BgRequestSchema);
 
 function isAllowedImageUrl(url: string): boolean {
   let parsed: URL;
@@ -487,7 +480,19 @@ function onMessageListener(
   sender: MessageSender,
   sendResponse: (reply: unknown) => void,
 ): true | undefined {
-  if (!isBgRequest(request)) return;
+  if (
+    typeof request !== 'object' ||
+    request === null ||
+    !('type' in request) ||
+    typeof request.type !== 'string' ||
+    !Object.hasOwn(BG_REQUEST_TYPES, request.type)
+  ) {
+    return;
+  }
+  if (!isBgRequest(request)) {
+    sendResponse({ ok: false, error: 'Invalid request.' });
+    return true;
+  }
   const effect = Effect.flatMap(BackgroundWorker, (worker) =>
     worker.handleRequest(request, sender),
   );

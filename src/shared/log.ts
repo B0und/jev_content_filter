@@ -1,14 +1,25 @@
 // Blocked-tweet log and scan-error log: FIFO capped, read, clear over storage.local.
 import { Clock, Effect } from 'effect';
-import { browserEffect } from './browser';
+import * as Schema from 'effect/Schema';
+import { browserEffect, type BrowserError } from './browser';
 import { browser } from 'wxt/browser';
 import { LOG_LIMIT, STORAGE_KEYS, type BlockedEntry } from './types';
+import { BlockedEntrySchema, ScanErrorEntrySchema } from './schemas';
 
-export const loadLog = Effect.fn('loadLog')(function* () {
+const isBlockedEntry = Schema.is(BlockedEntrySchema);
+const isScanErrorEntry = Schema.is(ScanErrorEntrySchema);
+
+export const loadLog = Effect.fn('loadLog')(function* (): Effect.fn.Return<
+  BlockedEntry[],
+  BrowserError
+> {
   const stored = yield* browserEffect('load blocked log', () =>
     browser.storage.local.get(STORAGE_KEYS.log),
   );
-  return (stored[STORAGE_KEYS.log] as BlockedEntry[] | undefined) ?? [];
+  const value: unknown = stored[STORAGE_KEYS.log];
+  if (!Array.isArray(value)) return [];
+  const entries: unknown[] = value;
+  return entries.filter(isBlockedEntry);
 });
 
 export const appendBlocked = Effect.fn('appendBlocked')(function* (entry: BlockedEntry) {
@@ -35,11 +46,17 @@ export interface ScanErrorEntry {
 
 const SCAN_ERROR_LIMIT = 50;
 
-export const loadScanErrors = Effect.fn('loadScanErrors')(function* () {
+export const loadScanErrors = Effect.fn('loadScanErrors')(function* (): Effect.fn.Return<
+  ScanErrorEntry[],
+  BrowserError
+> {
   const stored = yield* browserEffect('load scan errors', () =>
     browser.storage.local.get(STORAGE_KEYS.scanErrors),
   );
-  return (stored[STORAGE_KEYS.scanErrors] as ScanErrorEntry[] | undefined) ?? [];
+  const value: unknown = stored[STORAGE_KEYS.scanErrors];
+  if (!Array.isArray(value)) return [];
+  const entries: unknown[] = value;
+  return entries.filter(isScanErrorEntry);
 });
 
 /**

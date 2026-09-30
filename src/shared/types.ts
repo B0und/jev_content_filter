@@ -7,7 +7,7 @@ export const TEXT_PROVIDER_LABELS: Record<TextProvider, string> = {
 };
 export const TEXT_PROVIDERS: TextProvider[] = ['vercel', 'typesafe', 'openrouter'];
 export function isTextProvider(value: unknown): value is TextProvider {
-  return typeof value === 'string' && TEXT_PROVIDERS.includes(value as TextProvider);
+  return TEXT_PROVIDERS.some((provider) => provider === value);
 }
 
 export interface Settings {
@@ -92,7 +92,14 @@ export const CATEGORY_LABELS: Record<CategoryKey, string> = {
   sexualText: 'Sexual text',
   aiGenerated: 'AI-written text',
 };
-export const CATEGORY_KEYS = Object.keys(CATEGORY_LABELS) as CategoryKey[];
+export const CATEGORY_KEYS: CategoryKey[] = [
+  'porn',
+  'hentai',
+  'sexy',
+  'drawings',
+  'sexualText',
+  'aiGenerated',
+];
 export const IMAGE_KEYS: CategoryKey[] = ['porn', 'hentai', 'sexy', 'drawings'];
 export const TEXT_KEYS: CategoryKey[] = ['sexualText', 'aiGenerated'];
 export function defaultSettings(): Settings {

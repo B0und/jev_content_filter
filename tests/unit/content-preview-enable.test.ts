@@ -89,7 +89,8 @@ describe('category enable transitions', () => {
 
     // The logs page unblocks by writing an override — the preview restores.
     await browser.storage.local.set({ [`${STORAGE_KEYS.overrides}:3002`]: 'allow' });
-    const card = article.querySelector('[data-testid="card.wrapper"]') as HTMLElement;
+    const card = article.querySelector('[data-testid="card.wrapper"]');
+    if (!(card instanceof HTMLElement)) throw new Error('card wrapper missing');
     await until(
       () => !card.hasAttribute('data-jev-card-hidden'),
       'preview stayed hidden after override',

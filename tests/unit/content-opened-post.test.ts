@@ -86,7 +86,8 @@ describe('opened post', () => {
     const article = buildTweetArticle({ id: '2023', text: 'explicit detached post' });
     test.handle.discover();
     await until(() => test.bg.jevCalls.length === 1);
-    const post = posts.get('2023')!;
+    const post = posts.get('2023');
+    if (!post) throw new Error('post missing from runtime state');
     article.remove();
     response.resolve(explicit());
     await until(() => !post.pending && post.textDone);

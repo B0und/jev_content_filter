@@ -1,6 +1,7 @@
 // Content runtime lifecycle: discovery, scan orchestration, statistics, and
 // teardown. The session Layer owns every scan and retry fiber.
 import { Clock, Context, Duration, Effect, Fiber, Layer, ManagedRuntime, Scope } from 'effect';
+import * as Schema from 'effect/Schema';
 import { browser } from 'wxt/browser';
 import type { ContentScriptContext } from 'wxt/utils/content-script-context';
 import { browserEffect, type BrowserError } from '../shared/browser';
@@ -43,6 +44,8 @@ import {
 } from './state';
 
 const overridePrefix = `${STORAGE_KEYS.overrides}:`;
+
+const GetReportRequestSchema = Schema.Struct({ type: Schema.Literal('get-report') });
 const MAX_DETACHED_POSTS = 200;
 /** Tracks what blocked count we last told the background for this tab. */
 let lastBadgeBlocked = -1;
@@ -270,7 +273,7 @@ class ContentSession extends Context.Service<ContentSession, ContentSessionApi>(
                 previewText && textEnabled
                   ? capture(
                       textScores(post, previewText).pipe(
-                        Effect.map((scores) => ({ scores, errors: [] as string[] })),
+                        Effect.map((scores): PartResult => ({ scores, errors: [] })),
                       ),
                     )
                   : Effect.succeed({ value: { scores: {}, errors: [] } } as const);
@@ -502,8 +505,7 @@ class ContentSession extends Context.Service<ContentSession, ContentSessionApi>(
             installActivation(ctx);
 
             const onMessage = (request: unknown) => {
-              if ((request as { type?: string } | null)?.type === 'get-report')
-                return Promise.resolve(report());
+              if (Schema.is(GetReportRequestSchema)(request)) return Promise.resolve(report());
               return undefined;
             };
             yield* Effect.sync(() => browser.runtime.onMessage.addListener(onMessage));

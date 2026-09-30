@@ -4,6 +4,7 @@
 // compute (Jev gateway, NSFWJS/tfjs) is mocked here; decisions and storage
 // stay real.
 import { Effect } from 'effect';
+import * as Schema from 'effect/Schema';
 import { expect, vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { browser } from 'wxt/browser';
@@ -12,13 +13,14 @@ import {
   defaultSettings,
   STORAGE_KEYS,
   type BlockedEntry,
-  type SettingsChange,
-  type TextProvider,
   type Settings,
   type TabReport,
 } from '../../src/shared/types';
 import { newPost, type Post } from '../../src/content/state';
 import { applySettingsChange, loadSettings } from '../../src/shared/settings';
+import { BgRequestSchema } from '../../src/shared/schemas';
+
+const isBgRequest = Schema.is(BgRequestSchema);
 
 /** A minimal Post for direct classify-module calls. */
 export function newPostStub(id: string, text = `text ${id}`): Post {
@@ -26,10 +28,10 @@ export function newPostStub(id: string, text = `text ${id}`): Post {
 }
 
 // Image downloads and inference are external; policy/cache behavior stays real.
-const nsfw = vi.hoisted(() => ({
-  predictions: [] as Array<{ className: string; probability: number }>,
-  loadCount: 0,
-}));
+const nsfw = vi.hoisted(() => {
+  const predictions: Array<{ className: string; probability: number }> = [];
+  return { predictions, loadCount: 0 };
+});
 vi.mock('../../src/content/image-loader', () => ({
   loadImageClassifier: () => {
     if (!nsfw.loadCount) nsfw.loadCount++;
@@ -93,49 +95,42 @@ export function installFakeBackground(): FakeBackground {
   // combined with a literal `true` return (callback style).
   browser.runtime.onMessage.addListener(
     (request: unknown, _sender, sendResponse: (value: unknown) => void) => {
-      const type = (request as { type?: string } | null)?.type;
-      if (type === 'jev') {
-        const req = request as {
-          tweetId: string;
-          text: string;
-          provider: TextProvider;
-          revision: number;
-        };
-        bg.jevCalls.push(req);
+      if (!isBgRequest(request)) return false;
+      if (request.type === 'jev') {
+        bg.jevCalls.push(request);
         void (async () => {
-          const reply = await bg.respond(req);
+          const reply = await bg.respond(request);
           sendResponse(
-            reply.ok ? { ...reply, provider: req.provider, revision: req.revision } : reply,
+            reply.ok ? { ...reply, provider: request.provider, revision: request.revision } : reply,
           );
         })();
         return true;
       }
-      if (type === 'update-settings') {
+      if (request.type === 'update-settings') {
         void (async () => {
-          const patch = request as { change: SettingsChange };
-          const next = applySettingsChange(await Effect.runPromise(loadSettings()), patch.change);
+          const next = applySettingsChange(await Effect.runPromise(loadSettings()), request.change);
           await browser.storage.local.set({ [STORAGE_KEYS.settings]: next });
           sendResponse({ ok: true, settings: next });
         })();
         return true;
       }
-      if (type === 'log-blocked') {
-        bg.blockedEntries.push((request as { entry: BlockedEntry }).entry);
+      if (request.type === 'log-blocked') {
+        bg.blockedEntries.push(request.entry);
         sendResponse({ ok: true });
         return true;
       }
-      if (type === 'log-error') {
-        bg.loggedErrors.push((request as { message: string }).message);
+      if (request.type === 'log-error') {
+        bg.loggedErrors.push(request.message);
         sendResponse({ ok: true });
         return true;
       }
-      if (type === 'open-logs') {
-        bg.openLogs.push(request as { errors: boolean });
+      if (request.type === 'open-logs') {
+        bg.openLogs.push(request);
         sendResponse({ ok: true });
         return true;
       }
-      if (type === 'tab-stats') {
-        bg.stats.push((request as { blocked: number }).blocked);
+      if (request.type === 'tab-stats') {
+        bg.stats.push(request.blocked);
         sendResponse({ ok: true });
         return true;
       }

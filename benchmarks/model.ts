@@ -1,3 +1,5 @@
+import { Predicate } from 'effect';
+
 export type BenchmarkModality = 'image' | 'text';
 export type TruthValue = 'yes' | 'no' | 'unknown';
 export type BenchmarkTask = 'sexualContent' | 'aiGenerated';
@@ -287,9 +289,8 @@ function score(value: unknown): number | null {
 }
 
 function normalizeNsfwjsScores(value: unknown): NsfwjsScores {
-  if (value === null || typeof value !== 'object' || Array.isArray(value))
-    return emptyNsfwjsScores();
-  const scores = value as Record<string, unknown>;
+  if (!Predicate.isObject(value)) return emptyNsfwjsScores();
+  const scores = value;
   return {
     porn: score(scores.porn),
     hentai: score(scores.hentai),
@@ -299,9 +300,8 @@ function normalizeNsfwjsScores(value: unknown): NsfwjsScores {
 }
 
 function normalizeReview(value: unknown): PredictionReview {
-  if (value === null || typeof value !== 'object' || Array.isArray(value))
-    return emptyPredictionReview();
-  const review = value as Record<string, unknown>;
+  if (!Predicate.isObject(value)) return emptyPredictionReview();
+  const review = value;
   const verdict = (entry: unknown): ReviewVerdict =>
     entry === 'right' || entry === 'wrong' ? entry : 'unreviewed';
   return {
@@ -315,8 +315,8 @@ function normalizeReview(value: unknown): PredictionReview {
 }
 
 function normalizePrediction(value: unknown): Prediction {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) return emptyPrediction();
-  const prediction = value as Record<string, unknown>;
+  if (!Predicate.isObject(value)) return emptyPrediction();
+  const prediction = value;
   const sexualContent = score(prediction.sexualContent);
   const aiGenerated = score(prediction.aiGenerated);
   const nsfwjs = normalizeNsfwjsScores(prediction.nsfwjs ?? prediction);
@@ -340,13 +340,10 @@ function benchmarkProvenance(value: unknown): BenchmarkProvenance {
 }
 
 function normalizeCase(value: unknown): BenchmarkCase | null {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) return null;
-  const item = value as Record<string, unknown>;
+  if (!Predicate.isObject(value)) return null;
+  const item = value;
   if (typeof item.id !== 'string' || typeof item.title !== 'string') return null;
-  const labels =
-    item.labels !== null && typeof item.labels === 'object' && !Array.isArray(item.labels)
-      ? (item.labels as Record<string, unknown>)
-      : null;
+  const labels = Predicate.isObject(item.labels) ? item.labels : null;
   const sexualContent = labels
     ? Object.prototype.hasOwnProperty.call(labels, 'sexualContent')
       ? truthValue(labels.sexualContent)
@@ -374,15 +371,10 @@ function solutionKind(value: unknown): SolutionKind {
 }
 
 function normalizeSolution(value: unknown): BenchmarkSolution | null {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) return null;
-  const item = value as Record<string, unknown>;
+  if (!Predicate.isObject(value)) return null;
+  const item = value;
   if (typeof item.id !== 'string' || typeof item.name !== 'string') return null;
-  const rawPredictions =
-    item.predictions !== null &&
-    typeof item.predictions === 'object' &&
-    !Array.isArray(item.predictions)
-      ? (item.predictions as Record<string, unknown>)
-      : {};
+  const rawPredictions = Predicate.isObject(item.predictions) ? item.predictions : {};
   return {
     id: item.id,
     name: item.name,
@@ -399,8 +391,8 @@ function normalizeSolution(value: unknown): BenchmarkSolution | null {
 
 export function normalizeBenchmarkState(value: unknown): BenchmarkState {
   const fallback = initialBenchmarkState();
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) return fallback;
-  const state = value as Record<string, unknown>;
+  if (!Predicate.isObject(value)) return fallback;
+  const state = value;
   const cases = Array.isArray(state.cases)
     ? state.cases.map(normalizeCase).filter((item): item is BenchmarkCase => item !== null)
     : fallback.cases;
@@ -409,12 +401,7 @@ export function normalizeBenchmarkState(value: unknown): BenchmarkState {
         .map(normalizeSolution)
         .filter((item): item is BenchmarkSolution => item !== null)
     : fallback.solutions;
-  const rawThresholds =
-    state.thresholds !== null &&
-    typeof state.thresholds === 'object' &&
-    !Array.isArray(state.thresholds)
-      ? (state.thresholds as Record<string, unknown>)
-      : {};
+  const rawThresholds = Predicate.isObject(state.thresholds) ? state.thresholds : {};
   const selectedCaseId =
     typeof state.selectedCaseId === 'string' &&
     cases.some((item) => item.id === state.selectedCaseId)
@@ -526,21 +513,17 @@ export function parseSolutionImport(input: string): BenchmarkSolution {
   } catch {
     throw new Error('Solution file is not valid JSON.');
   }
-  if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+  if (!Predicate.isObject(parsed)) {
     throw new Error('Solution JSON needs a non-empty "name".');
   }
-  const payload = parsed as Record<string, unknown>;
+  const payload = parsed;
   if (typeof payload.name !== 'string' || !payload.name.trim()) {
     throw new Error('Solution JSON needs a non-empty "name".');
   }
-  if (
-    payload.predictions === null ||
-    typeof payload.predictions !== 'object' ||
-    Array.isArray(payload.predictions)
-  ) {
+  if (!Predicate.isObject(payload.predictions)) {
     throw new Error('Solution JSON needs a "predictions" object keyed by case ID.');
   }
-  const predictions = payload.predictions as Record<string, unknown>;
+  const predictions = payload.predictions;
   return {
     id: createId('solution'),
     name: payload.name.trim(),

@@ -1,14 +1,5 @@
-import { Effect, Layer, ManagedRuntime } from 'effect';
-import { browserEffect, browserRuntime } from '../../shared/browser';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { Switch } from '@base-ui/react/switch';
-import { browser } from 'wxt/browser';
-import {
-  applySettingsChange,
-  loadSettings,
-  loadStatus,
-  updateSettings,
-} from '../../shared/settings';
 import {
   CATEGORY_LABELS,
   IMAGE_KEYS,
@@ -20,9 +11,8 @@ import {
   type Settings,
   type SettingsChange,
   type TextProvider,
-  type FilterStatus,
-  type TabReport,
 } from '../../shared/types';
+import { popupState } from './state';
 import './popup.css';
 
 const PROVIDER_DETAILS: Record<
@@ -46,127 +36,15 @@ const PROVIDER_DETAILS: Record<
   },
 };
 export function App() {
-  const [settings, setSettings] = useState<Settings | null>(null);
   const [showGatewayKey, setShowGatewayKey] = useState(false);
-  const [loadFailed, setLoadFailed] = useState(false);
-  // The worker owns writes even when this popup closes.
-  const pendingWrites = useRef(0);
-  const writeGeneration = useRef(0);
-  const alive = useRef(false);
-  const [status, setStatus] = useState<FilterStatus | null>(null);
-  const [report, setReport] = useState<TabReport | null>(null);
-  // sendMessage fails transiently while an X tab navigates; only report the
-  // filter as disconnected after repeated failures, not the first blip.
-  const [missingScript, setMissingScript] = useState(false);
-  const probeFailures = useRef(0);
-  const [error, setError] = useState('');
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    const runtime = ManagedRuntime.make(Layer.empty);
-    alive.current = true;
-    let activeId: number | undefined;
-    const refresh = Effect.gen(function* () {
-      const tabId = activeId;
-      if (tabId === undefined) return;
-      yield* browserEffect('read tab report', () =>
-        browser.tabs.sendMessage(tabId, { type: 'get-report' }),
-      ).pipe(
-        Effect.match({
-          onSuccess: (value: TabReport) => {
-            probeFailures.current = 0;
-            setReport(value);
-            setMissingScript(false);
-          },
-          onFailure: () => {
-            probeFailures.current++;
-            if (probeFailures.current >= 2) {
-              setReport(null);
-              setMissingScript(true);
-            }
-          },
-        }),
-      );
-    });
-    const load = Effect.gen(function* () {
-      const generation = writeGeneration.current;
-      const value = yield* loadSettings();
-      if (!pendingWrites.current && generation === writeGeneration.current) setSettings(value);
-    });
-    const listener = (changes: Record<string, { newValue?: unknown }>, area: string) => {
-      if (area !== 'local') return;
-      if (changes.settings && !pendingWrites.current) runtime.runFork(load.pipe(Effect.ignore));
-      if (changes.filterStatus) setStatus(changes.filterStatus.newValue as FilterStatus);
-      runtime.runFork(refresh);
-    };
-    const program = Effect.gen(function* () {
-      yield* Effect.acquireRelease(
-        Effect.sync(() => browser.storage.onChanged.addListener(listener)),
-        () => Effect.sync(() => browser.storage.onChanged.removeListener(listener)),
-      );
-      yield* Effect.forkScoped(
-        load.pipe(Effect.catch(() => Effect.sync(() => setLoadFailed(true)))),
-      );
-      yield* Effect.forkScoped(
-        loadStatus().pipe(
-          Effect.tap((value) => Effect.sync(() => setStatus(value))),
-          Effect.catch(() => Effect.void),
-        ),
-      );
-      const tabs = yield* browserEffect('find active tab', () =>
-        browser.tabs.query({ active: true, currentWindow: true }),
-      );
-      activeId = tabs[0]?.id;
-      yield* refresh;
-      return yield* Effect.forever(Effect.sleep(1500).pipe(Effect.andThen(refresh)));
-    });
-    runtime.runFork(
-      Effect.scoped(program).pipe(
-        Effect.catch((cause) => Effect.sync(() => setError(String(cause)))),
-      ),
-    );
-    return () => {
-      alive.current = false;
-      void runtime.dispose();
-    };
-  }, []);
-
-  function update(change: SettingsChange) {
-    writeGeneration.current++;
-    setSettings((value) => (value ? applySettingsChange(value, change) : value));
-    pendingWrites.current++;
-    setSaving(true);
-    browserRuntime.runFork(
-      updateSettings(change).pipe(
-        Effect.catch((cause) =>
-          Effect.sync(() => {
-            if (alive.current) setError(`Could not save settings: ${String(cause)}`);
-          }),
-        ),
-        Effect.ensuring(
-          Effect.gen(function* () {
-            pendingWrites.current--;
-            if (pendingWrites.current || !alive.current) return;
-            setSaving(false);
-            const generation = writeGeneration.current;
-            yield* loadSettings().pipe(
-              Effect.tap((value) =>
-                Effect.sync(() => {
-                  if (
-                    alive.current &&
-                    !pendingWrites.current &&
-                    generation === writeGeneration.current
-                  )
-                    setSettings(value);
-                }),
-              ),
-              Effect.catch(() => Effect.void),
-            );
-          }),
-        ),
-      ),
-    );
-  }
+  const state = useSyncExternalStore(
+    popupState.subscribe,
+    popupState.getSnapshot,
+    popupState.getSnapshot,
+  );
+  const { settings, loadFailed, status, report, missingScript, error, saving } = state;
+  useEffect(() => popupState.start(), []);
+  const update = popupState.update;
   if (!settings && loadFailed)
     return (
       <main className="popup">
@@ -311,22 +189,7 @@ export function App() {
             {error}
           </p>
         )}
-        <button
-          className="log-button"
-          onClick={() =>
-            browserRuntime.runFork(
-              browserEffect('open logs', () =>
-                browser.tabs.create({ url: browser.runtime.getURL('/logs.html') }),
-              ).pipe(
-                Effect.catch((cause) =>
-                  Effect.sync(() => {
-                    if (alive.current) setError(`Could not open logs: ${String(cause)}`);
-                  }),
-                ),
-              ),
-            )
-          }
-        >
+        <button className="log-button" onClick={popupState.openLogs}>
           Open logs
         </button>
       </div>

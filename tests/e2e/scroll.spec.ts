@@ -1,4 +1,8 @@
 import { test, expect } from './fixtures';
+import * as Schema from 'effect/Schema';
+import { TabReportSchema } from '../../src/shared/schemas';
+
+const decodeReport = Schema.decodeUnknownSync(TabReportSchema);
 
 test('preserves page-load badge totals during sustained native scrolling and recycled returns', async ({
   page,
@@ -16,14 +20,16 @@ test('preserves page-load badge totals during sustained native scrolling and rec
     if (id === undefined) throw new Error('Timeline tab missing');
     return id;
   });
-  const report = () =>
-    worker.evaluate((id) => chrome.tabs.sendMessage(id, { type: 'get-report' }), tabId);
+  const report = async () =>
+    decodeReport(
+      await worker.evaluate((id) => chrome.tabs.sendMessage(id, { type: 'get-report' }), tabId),
+    );
   const badge = () => worker.evaluate((id) => chrome.action.getBadgeText({ tabId: id }), tabId);
   await expect(page.locator('[data-post="702"]')).toBeHidden();
   await expect(page.locator('[data-post="703"]')).toBeHidden();
   await expect.poll(badge).toBe('2');
   await expect.poll(async () => (await report()).pending).toBe(0);
-  let lastScan = (await report()).lastScannedAt as number;
+  let lastScan = (await report()).lastScannedAt;
   const samples: Array<{ scrollStart: number; badge: string }> = [];
 
   for (let step = 1; step <= 26; step++) {
@@ -31,7 +37,7 @@ test('preserves page-load badge totals during sustained native scrolling and rec
     await expect(page.locator('main')).toHaveAttribute('data-scroll-start', String(step * 10));
     await expect.poll(async () => (await report()).lastScannedAt).toBeGreaterThan(lastScan);
     await expect.poll(async () => (await report()).pending).toBe(0);
-    lastScan = (await report()).lastScannedAt as number;
+    lastScan = (await report()).lastScannedAt;
     const count = await badge();
     samples.push({ scrollStart: step * 10, badge: count });
     expect(count, `Badge reset while scrolling: ${JSON.stringify(samples)}`).toBe('2');

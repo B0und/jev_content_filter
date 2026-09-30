@@ -473,7 +473,8 @@ test('keeps page-load badge totals across recycled cells and log visits, then re
   await page.evaluate(() => {
     document.querySelector('[data-post="102"]')?.closest('[data-testid="cellInnerDiv"]')?.remove();
     document.querySelector('[data-post="103"]')?.remove();
-    const next = document.querySelector('[data-post="101"]')!.cloneNode(true) as HTMLElement;
+    const next = document.querySelector('[data-post="101"]')?.cloneNode(true);
+    if (!(next instanceof HTMLElement)) throw new Error('Source article missing');
     next.dataset.post = '104';
     next.querySelector('a')!.setAttribute('href', '/gardener/status/104');
     next.querySelector('[data-jev-host]')?.remove();
@@ -498,7 +499,8 @@ test('keeps page-load badge totals across recycled cells and log visits, then re
   await expect.poll(badge).toBe('2');
 
   await page.evaluate(() => {
-    const next = document.querySelector('[data-post="104"]')!.cloneNode(true) as HTMLElement;
+    const next = document.querySelector('[data-post="104"]')?.cloneNode(true);
+    if (!(next instanceof HTMLElement)) throw new Error('Source article missing');
     next.dataset.post = '105';
     next.querySelector('a')!.setAttribute('href', '/test/status/105');
     next.querySelector('[data-jev-host]')?.remove();

@@ -320,7 +320,8 @@ describe('content lifecycle', () => {
     test.handle.discover();
     await until(() => article.hasAttribute('data-jev-hidden'), 'post not blocked');
 
-    const image = article.querySelector('img') as HTMLImageElement;
+    const image = article.querySelector('img');
+    if (!(image instanceof HTMLImageElement)) throw new Error('article image missing');
     const callsAfterScan = test.bg.jevCalls.length;
     // Simulate X's size-param oscillation: identical media id, different name.
     for (let index = 0; index < 40; index++) {

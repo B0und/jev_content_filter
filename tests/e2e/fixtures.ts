@@ -7,9 +7,14 @@ import {
   type Worker,
 } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
+import * as Schema from 'effect/Schema';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { defaultSettings, type Settings } from '../../src/shared/types';
+
+const isEvaluationRequest = Schema.is(
+  Schema.Struct({ state: Schema.Struct({ tweet_text: Schema.String }) }),
+);
 
 export const test = base.extend<{
   context: BrowserContext;
@@ -52,10 +57,10 @@ export const test = base.extend<{
       const url = new URL(route.request().url());
       if (url.protocol === 'chrome-extension:') return route.continue();
       if (url.hostname === 'ai-gateway.vercel.sh') {
-        const request = route.request().postDataJSON() as {
-          state?: { tweet_text?: string };
-        } | null;
-        const text = request?.state?.tweet_text ?? '';
+        const request: unknown = route.request().postDataJSON();
+        if (!isEvaluationRequest(request))
+          return route.fulfill({ status: 400, json: { error: 'Missing tweet text' } });
+        const text = request.state.tweet_text;
         if (text.includes('API_FAILURE'))
           return route.fulfill({ status: 401, json: { error: 'Invalid test API key' } });
         return route.fulfill({

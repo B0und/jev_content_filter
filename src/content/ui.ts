@@ -240,7 +240,7 @@ function setHostVisibility(host: HTMLElement, button: HTMLButtonElement, visible
 }
 
 export function render(article: HTMLElement, binding: Binding): void {
-  const { post, host, button } = binding;
+  const { post, host, root, button } = binding;
   // Paused: keep the invisible control slot so toggling cannot reflow the feed.
   if (!settings.current.masterEnabled) {
     setHostVisibility(host, button, false);
@@ -263,7 +263,7 @@ export function render(article: HTMLElement, binding: Binding): void {
   const dark = isDark(article);
   host.style.setProperty('--jev-fg', dark ? '#71767b' : '#536471');
   host.style.setProperty('--jev-hover', dark ? 'rgba(239,243,244,0.1)' : 'rgba(15,20,25,0.05)');
-  const shadow = host.shadowRoot as ShadowRoot;
+  const shadow = root;
   if (!shadow.querySelector('style')) {
     const style = document.createElement('style');
     style.textContent = ICON_CSS;
@@ -360,8 +360,8 @@ function element<K extends keyof HTMLElementTagNameMap>(
 
 function placePanel(anchor: HTMLElement): void {
   if (!panelRoot) return;
-  const panel = panelRoot.querySelector('.panel') as HTMLElement | null;
-  if (!panel) return;
+  const panel = panelRoot.querySelector('.panel');
+  if (!(panel instanceof HTMLElement)) return;
   const rect = anchor.getBoundingClientRect();
   let left = Math.min(
     Math.max(8, rect.right - panelSize.width + 30),
@@ -406,10 +406,12 @@ function openPanel(post: Post, anchor: HTMLButtonElement, _ctx: ContentScriptCon
   openPostId = post.id;
   panelAnchor = anchor;
   panelFocusCategory = null;
-  panelHost = document.createElement('div');
-  panelHost.setAttribute('data-jev-panel', '');
-  panelRoot = panelHost.attachShadow({ mode: 'open' });
-  document.body.append(panelHost);
+  const host = document.createElement('div');
+  host.setAttribute('data-jev-panel', '');
+  const root = host.attachShadow({ mode: 'open' });
+  panelHost = host;
+  panelRoot = root;
+  document.body.append(host);
   // Keep this panel's dismissal listeners independent of script-wide
   // invalidation: each open gets its own lifetime, torn down on close.
   const panelSignals = new AbortController();
@@ -457,7 +459,11 @@ function openPanel(post: Post, anchor: HTMLButtonElement, _ctx: ContentScriptCon
     panelFrame = 0;
   };
   renderPanel(post);
-  const panel = panelRoot.querySelector('.panel') as HTMLElement;
+  const panel = root.querySelector('.panel');
+  if (!(panel instanceof HTMLElement)) {
+    closePanel();
+    return;
+  }
   panelSize = { width: panel.offsetWidth, height: panel.offsetHeight };
   placePanel(anchor);
   // Keyboard users land in the panel itself, not nowhere.
@@ -494,7 +500,9 @@ function closePanel(): void {
 }
 
 function renderPanel(post: Post): void {
-  if (!panelRoot || openPostId !== post.id) return;
+  const root = panelRoot;
+  const host = panelHost;
+  if (!root || !host || openPostId !== post.id) return;
   const dark = isDark(document.body);
   const vars = dark
     ? {
@@ -515,15 +523,15 @@ function renderPanel(post: Post): void {
         '--p-accent': '#1d9bf0',
         '--p-shadow': 'rgba(101,119,134,0.28)',
       };
-  for (const [name, value] of Object.entries(vars)) panelHost!.style.setProperty(name, value);
+  for (const [name, value] of Object.entries(vars)) host.style.setProperty(name, value);
   // Preserve focus across rebuilds (countdown ticks re-render the panel);
   // threshold inputs are found again by category instead of label escaping.
   const focusedCategory = panelFocusCategory;
   panelFocusCategory = null;
-  panelRoot.replaceChildren();
+  root.replaceChildren();
   const style = element('style');
   style.textContent = PANEL_CSS;
-  panelRoot.append(style);
+  root.append(style);
   const panel = element('div');
   panel.className = 'panel';
   panel.tabIndex = -1;
@@ -613,15 +621,13 @@ function renderPanel(post: Post): void {
   const hint = element('p', 'Unblock posts from the logs page.');
   hint.className = 'hint';
   panel.append(hint);
-  panelRoot.append(panel);
+  root.append(panel);
   if (panelPos) {
     panel.style.left = `${panelPos.left}px`;
     panel.style.top = `${panelPos.top}px`;
   }
   if (focusedCategory) {
-    const restored = panelRoot.querySelector<HTMLInputElement>(
-      `[data-jev-cat="${focusedCategory}"]`,
-    );
+    const restored = root.querySelector<HTMLInputElement>(`[data-jev-cat="${focusedCategory}"]`);
     restored?.focus();
   }
   // Live countdown for retry timers; stops once no retry is pending.
@@ -636,8 +642,7 @@ function renderPanel(post: Post): void {
         return;
       }
       if (!current.retryAt) renderPanel(current);
-      else
-        panelRoot?.querySelector<HTMLElement>('.retry-status')?.replaceChildren(retryText(current));
+      else root.querySelector<HTMLElement>('.retry-status')?.replaceChildren(retryText(current));
     }, 1000);
   }
 }

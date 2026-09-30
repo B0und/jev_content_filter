@@ -5,6 +5,7 @@ import * as Schema from 'effect/Schema';
 import { browser } from 'wxt/browser';
 import { browserEffect, BrowserError } from '../shared/browser';
 import { CATEGORY_KEYS, IMAGE_KEYS, STORAGE_KEYS, type CategoryKey } from '../shared/types';
+import { CategoryKeySchema } from '../shared/schemas';
 import { settings, type Post } from './state';
 import { canonicalMediaUrl } from './dom';
 import { loadImageClassifier } from './image-loader';
@@ -41,15 +42,21 @@ const ALL_CACHE_PREFIX = `${STORAGE_KEYS.scores}:`;
 const CACHE_LIMIT = 4000;
 let cacheWrites = 0;
 
-interface CachedScores {
-  scores: Partial<Record<CategoryKey, number>>;
-  ts: number;
-}
-
+const CachedProbabilitySchema = Schema.Finite.pipe(
+  Schema.check(Schema.isGreaterThanOrEqualTo(0), Schema.isLessThanOrEqualTo(1)),
+);
+const CachedScoresSchema = Schema.Record(
+  CategoryKeySchema,
+  Schema.optionalKey(CachedProbabilitySchema),
+);
 const CachedScoreEntrySchema = Schema.Struct({
-  scores: Schema.Unknown,
-  ts: Schema.Unknown,
+  scores: CachedScoresSchema,
+  ts: Schema.Finite,
 });
+const CachedTimestampEntrySchema = Schema.Struct({ ts: Schema.Finite });
+const isCachedScoreEntry = Schema.is(CachedScoreEntrySchema);
+const isCachedTimestampEntry = Schema.is(CachedTimestampEntrySchema);
+const isCategoryKey = Schema.is(CategoryKeySchema);
 /** 64-bit-ish FNV-1a + djb2 pair, base36: collisions become vanishingly unlikely. */
 function hash64(input: string): string {
   let h1 = 0x811c9dc5;
@@ -62,27 +69,6 @@ function hash64(input: string): string {
   return `${(h1 >>> 0).toString(36)}${h2.toString(36)}`;
 }
 
-/**
- * Scores are valid only when every value is a finite probability under a
- * known category. Anything else is treated as a miss and overwritten by the
- * next write.
- */
-function validScores(scores: unknown): scores is Partial<Record<CategoryKey, number>> {
-  if (typeof scores !== 'object' || scores === null) return false;
-  const entries = Object.entries(scores as Record<string, unknown>);
-  return (
-    entries.length > 0 &&
-    entries.every(
-      ([key, value]) =>
-        (CATEGORY_KEYS as string[]).includes(key) &&
-        typeof value === 'number' &&
-        Number.isFinite(value) &&
-        value >= 0 &&
-        value <= 1,
-    )
-  );
-}
-
 export const readCache = Effect.fnUntraced(function* (key: string) {
   // Older cache versions are never read, only evicted.
   if (!key.startsWith(CACHE_PREFIX)) return null;
@@ -91,13 +77,10 @@ export const readCache = Effect.fnUntraced(function* (key: string) {
   ).pipe(Effect.orElseSucceed(() => null));
   if (stored === null) return null;
   const value: unknown = stored[key];
-  if (
-    !Schema.is(CachedScoreEntrySchema)(value) ||
-    typeof value.ts !== 'number' ||
-    !validScores(value.scores)
-  )
-    return null;
-  return value as CachedScores;
+  if (!isCachedScoreEntry(value)) return null;
+  const scoreKeys = Object.keys(value.scores);
+  if (scoreKeys.length === 0 || !scoreKeys.every(isCategoryKey)) return null;
+  return value;
 });
 
 export const writeCache = Effect.fnUntraced(function* (
@@ -112,6 +95,10 @@ export const writeCache = Effect.fnUntraced(function* (
   if (shouldEvict) yield* evictCache();
 });
 
+function cacheTimestamp(value: unknown): number {
+  return isCachedTimestampEntry(value) ? value.ts : 0;
+}
+
 export const evictCache = Effect.fnUntraced(function* () {
   const all = yield* browserEffect('read score cache for eviction', () =>
     browser.storage.local.get(null),
@@ -121,7 +108,7 @@ export const evictCache = Effect.fnUntraced(function* () {
   if (entries.length <= CACHE_LIMIT) return;
   // Keep the newest entries; drop the rest.
   const dropKeys = entries
-    .sort((a, b) => ((b[1] as CachedScores)?.ts ?? 0) - ((a[1] as CachedScores)?.ts ?? 0))
+    .sort((a, b) => cacheTimestamp(b[1]) - cacheTimestamp(a[1]))
     .slice(CACHE_LIMIT)
     .map(([key]) => key);
   yield* browserEffect('evict score cache', () => browser.storage.local.remove(dropKeys)).pipe(
@@ -210,7 +197,10 @@ export const imageScores = Effect.fnUntraced(function* (urls: string[]) {
  * NSFWJS model class names are singular ('Drawing') while our category key
  * is 'drawings'; map explicitly instead of matching the enum by accident.
  */
-const NSFW_CLASS_TO_CATEGORY: Record<string, CategoryKey> = {
+type NsfwClassName = 'drawing' | 'drawings' | 'hentai' | 'porn' | 'sexy';
+const NsfwClassNameSchema = Schema.Literals(['drawing', 'drawings', 'hentai', 'porn', 'sexy']);
+const isNsfwClassName = Schema.is(NsfwClassNameSchema);
+const NSFW_CLASS_TO_CATEGORY: Record<NsfwClassName, CategoryKey> = {
   drawing: 'drawings',
   drawings: 'drawings',
   hentai: 'hentai',
@@ -231,9 +221,9 @@ const classifyImages = Effect.fnUntraced(function* (
     const url = urls[index] ?? '';
     const cached = yield* readCache(`${CACHE_PREFIX}i:${hash64(canonicalMediaUrl(url))}`);
     if (cached) {
-      for (const [key, value] of Object.entries(cached.scores)) {
-        const category = key as CategoryKey;
-        scores[category] = Math.max(scores[category] ?? 0, value);
+      for (const category of CATEGORY_KEYS) {
+        const value = cached.scores[category];
+        if (value !== undefined) scores[category] = Math.max(scores[category] ?? 0, value);
       }
     } else {
       misses.push({ url, index });
@@ -256,8 +246,10 @@ const classifyImages = Effect.fnUntraced(function* (
     }
     const imageScores: Partial<Record<CategoryKey, number>> = {};
     for (const prediction of outcome.predictions) {
-      const category = NSFW_CLASS_TO_CATEGORY[prediction.className.toLowerCase().replace(/s$/, '')];
-      if (category && IMAGE_KEYS.includes(category)) {
+      const className = prediction.className.toLowerCase().replace(/s$/, '');
+      if (!isNsfwClassName(className)) continue;
+      const category = NSFW_CLASS_TO_CATEGORY[className];
+      if (IMAGE_KEYS.includes(category)) {
         imageScores[category] = Math.max(imageScores[category] ?? 0, prediction.probability);
         scores[category] = Math.max(scores[category] ?? 0, prediction.probability);
       }

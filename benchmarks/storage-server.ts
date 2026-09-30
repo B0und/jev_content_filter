@@ -34,12 +34,11 @@ export class SQLiteBenchmarkStore {
   }
 
   load(): BenchmarkState {
-    const row = this.database.prepare('SELECT payload FROM benchmark_state WHERE id = 1').get() as
-      | { payload?: unknown }
-      | undefined;
+    const row = this.database.prepare('SELECT payload FROM benchmark_state WHERE id = 1').get();
     if (!row || typeof row.payload !== 'string') return this.save(initialBenchmarkState());
     try {
-      return normalizeBenchmarkState(JSON.parse(row.payload) as unknown);
+      const payload: unknown = JSON.parse(row.payload);
+      return normalizeBenchmarkState(payload);
     } catch {
       return this.save(initialBenchmarkState());
     }
@@ -92,7 +91,10 @@ const readJson = Effect.fn('readBenchmarkJson')(function* (request: IncomingMess
     ),
   );
   return yield* Effect.try({
-    try: () => JSON.parse(Buffer.concat(chunks).toString('utf8')) as unknown,
+    try: () => {
+      const payload: unknown = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+      return payload;
+    },
     catch: (cause) => new BenchmarkRequestError({ cause }),
   });
 });

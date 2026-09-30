@@ -18,7 +18,8 @@ afterEach(() => {
 describe('captured public X thread', () => {
   it('extracts the full note tweet and photo instead of its truncated legacy text or avatar', () => {
     const tweet = captured.tweets[0];
-    if (!tweet) throw new Error('Captured note tweet missing');
+    if (!tweet?.note_tweet || !tweet.legacy.extended_entities)
+      throw new Error('Captured note tweet or photo missing');
     const content = readArticle(article(tweet.rest_id));
     const user = tweet.core.user_results.result.core;
     expect(content).toMatchObject({
@@ -28,11 +29,9 @@ describe('captured public X thread', () => {
     });
     expect(content?.author).toContain(`@${user.screen_name}`);
     expect(content?.text).not.toBe(tweet.legacy.full_text);
-    expect(content?.text.startsWith(tweet.note_tweet!.note_tweet_results.result.text)).toBe(true);
+    expect(content?.text.startsWith(tweet.note_tweet.note_tweet_results.result.text)).toBe(true);
     expect(content?.urls).toEqual(
-      tweet.legacy.extended_entities!.media.map((media) =>
-        canonicalMediaUrl(media.media_url_https),
-      ),
+      tweet.legacy.extended_entities.media.map((media) => canonicalMediaUrl(media.media_url_https)),
     );
   });
 

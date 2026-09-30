@@ -134,9 +134,14 @@ describe('text provider effects', () => {
         );
       } else {
         server.use(
-          http.post('https://api.typesafe.ai/v1/systemone', ({ request }) =>
-            rejectOnAbort(request.signal),
-          ),
+          http.post('https://api.typesafe.ai/v1/systemone', ({ request }) => {
+            const response = Promise.withResolvers<Response>();
+            requestSignal.resolve(request.signal);
+            request.signal.addEventListener('abort', () => response.resolve(HttpResponse.error()), {
+              once: true,
+            });
+            return response.promise;
+          }),
         );
       }
 

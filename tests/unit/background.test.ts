@@ -4,6 +4,9 @@
 // AI evaluation (gateway model) is mocked; decisions and storage are real.
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
+import { Effect } from 'effect';
+import { loadLog } from '../../src/shared/log';
+import type { BlockedEntry, Settings, TextProvider } from '../../src/shared/types';
 
 const { evaluateMock, createGatewayMock, fetchMock } = vi.hoisted(() => ({
   evaluateMock: vi.fn(),
@@ -38,9 +41,9 @@ function evaluateResult(answers: Record<string, unknown>) {
   };
 }
 
-const SETTINGS = {
+const SETTINGS: Settings = {
   masterEnabled: true,
-  textProvider: 'vercel' as const,
+  textProvider: 'vercel',
   providerKeys: {
     vercel: 'synthetic-vercel',
     typesafe: 'synthetic-typesafe',
@@ -65,14 +68,19 @@ const SETTINGS = {
   },
 };
 
-function blockedEntry(tweetId: string) {
+const DECISION_RESPONSES: Array<{ provider: TextProvider; sexual: number; ai: number }> = [
+  { provider: 'typesafe', sexual: 0.87, ai: 0.12 },
+  { provider: 'openrouter', sexual: 0.78, ai: 0.21 },
+];
+
+function blockedEntry(tweetId: string): BlockedEntry {
   return {
     tweetId,
     author: 'author',
     snippet: 'snippet',
     surface: 'timeline',
     ts: Date.now(),
-    reasons: [{ key: 'porn' as const, score: 0.9 }],
+    reasons: [{ key: 'porn', score: 0.9 }],
   };
 }
 
@@ -96,6 +104,14 @@ describe('background worker lifecycle', () => {
     await expect(fakeBrowser.runtime.sendMessage({ type: 'get-status' })).resolves.toEqual({
       state: 'ok',
       updatedAt: 0,
+    });
+  });
+
+  it('rejects malformed known background messages', async () => {
+    await startWorker();
+    await expect(fakeBrowser.runtime.sendMessage({ type: 'jev' })).resolves.toEqual({
+      ok: false,
+      error: 'Invalid request.',
     });
   });
 
@@ -136,66 +152,34 @@ describe('jev classification', () => {
       }),
     ).resolves.toMatchObject({ ok: true, sexual: 0.93, ai: 0.05 });
   });
-  it.each([
-    {
-      provider: 'typesafe' as const,
-      endpoint: 'https://api.typesafe.ai/v1/systemone',
-      model: 'jev-latest',
-      sexual: 0.87,
-      ai: 0.12,
-    },
-    {
-      provider: 'openrouter' as const,
-      endpoint: 'https://openrouter.ai/api/alpha/decisions',
-      model: 'typesafe/jev-1.13',
-      sexual: 0.78,
-      ai: 0.21,
-    },
-  ])('uses the $provider Decisions API', async ({ provider, endpoint, model, sexual, ai }) => {
-    await fakeBrowser.storage.local.set({
-      settings: { ...SETTINGS, textProvider: provider },
-    });
-    await startWorker();
-    fetchMock.mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        answers: {
-          sexual: { type: 'noul', noul: sexual },
-          ai: { type: 'noul', noul: ai },
-        },
-      }),
-    });
+  it.each(DECISION_RESPONSES)(
+    'propagates the $provider classification to the caller',
+    async ({ provider, sexual, ai }) => {
+      await fakeBrowser.storage.local.set({
+        settings: { ...SETTINGS, textProvider: provider },
+      });
+      await startWorker();
+      fetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          answers: {
+            sexual: { type: 'noul', noul: sexual },
+            ai: { type: 'noul', noul: ai },
+          },
+        }),
+      });
 
-    await expect(
-      fakeBrowser.runtime.sendMessage({
-        type: 'jev',
-        tweetId: 'direct',
-        text: 'hello',
-        provider,
-        revision: 0,
-      }),
-    ).resolves.toMatchObject({ ok: true, sexual, ai });
-
-    expect(fetchMock).toHaveBeenCalledWith(
-      endpoint,
-      expect.objectContaining({
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer synthetic-${provider}`,
-          'Content-Type': 'application/json',
-        },
-      }),
-    );
-    const request = fetchMock.mock.calls[0]?.[1] as RequestInit;
-    expect(JSON.parse(request.body as string)).toMatchObject({
-      model,
-      state: { tweet_text: 'hello' },
-      questions: {
-        sexual: { type: 'noul' },
-        ai: { type: 'noul' },
-      },
-    });
-  });
+      await expect(
+        fakeBrowser.runtime.sendMessage({
+          type: 'jev',
+          tweetId: 'direct',
+          text: 'hello',
+          provider,
+          revision: 0,
+        }),
+      ).resolves.toMatchObject({ ok: true, sexual, ai });
+    },
+  );
 
   it('fails open on missing/undefined probability instead of propagating it', async () => {
     await fakeBrowser.storage.local.set({ settings: SETTINGS });
@@ -377,34 +361,39 @@ describe('gateway status surfacing', () => {
     // message that never mentions "401" ("Invalid error response format: …").
     await fakeBrowser.storage.local.set({ settings: SETTINGS });
     await startWorker();
-    const error = new Error('Invalid error response format: Gateway request failed');
-    (error as { statusCode?: number }).statusCode = 401;
+    const error = Object.assign(
+      new Error('Invalid error response format: Gateway request failed'),
+      { statusCode: 401 },
+    );
     evaluateMock.mockRejectedValue(error);
-    const reply = (await fakeBrowser.runtime.sendMessage({
-      type: 'jev',
-      provider: 'vercel',
-      revision: 0,
-      tweetId: 't1',
-      text: 'hi',
-    })) as { ok: boolean; error: string };
-    expect(reply.ok).toBe(false);
-    expect(reply.error).toContain('401');
+    await expect(
+      fakeBrowser.runtime.sendMessage({
+        type: 'jev',
+        provider: 'vercel',
+        revision: 0,
+        tweetId: 't1',
+        text: 'hi',
+      }),
+    ).resolves.toMatchObject({
+      ok: false,
+      error: expect.stringContaining('401'),
+    });
   });
 
   it('leaves messages that already carry the status untouched', async () => {
     await fakeBrowser.storage.local.set({ settings: SETTINGS });
     await startWorker();
-    const error = new Error('HTTP 403 forbidden');
-    (error as { statusCode?: number }).statusCode = 403;
+    const error = Object.assign(new Error('HTTP 403 forbidden'), { statusCode: 403 });
     evaluateMock.mockRejectedValue(error);
-    const reply = (await fakeBrowser.runtime.sendMessage({
-      type: 'jev',
-      provider: 'vercel',
-      revision: 0,
-      tweetId: 't1',
-      text: 'hi',
-    })) as { ok: boolean; error: string };
-    expect(reply.error).toBe('HTTP 403 forbidden');
+    await expect(
+      fakeBrowser.runtime.sendMessage({
+        type: 'jev',
+        provider: 'vercel',
+        revision: 0,
+        tweetId: 't1',
+        text: 'hi',
+      }),
+    ).resolves.toMatchObject({ ok: false, error: 'HTTP 403 forbidden' });
   });
 });
 
@@ -415,9 +404,8 @@ describe('serialized log queue', () => {
       fakeBrowser.runtime.sendMessage({ type: 'log-blocked', entry: blockedEntry('a') }),
       fakeBrowser.runtime.sendMessage({ type: 'log-blocked', entry: blockedEntry('b') }),
     ]);
-    const stored = await fakeBrowser.storage.local.get('blockedLog');
-    const log = stored.blockedLog as Array<{ tweetId: string }>;
-    expect(log.map((e) => e.tweetId).sort()).toEqual(['a', 'b']);
+    const log = await Effect.runPromise(loadLog());
+    expect(log.map((entry) => entry.tweetId).sort()).toEqual(['a', 'b']);
   });
 
   it('routes clear-log through the same queue so appends cannot resurrect entries', async () => {
@@ -431,15 +419,14 @@ describe('serialized log queue', () => {
       entry: blockedEntry('b'),
     });
     const cleared = await fakeBrowser.runtime.sendMessage({ type: 'clear-log' });
-    await expect(append).resolves.toBeDefined();
+    await append;
 
     expect(cleared).toEqual({ ok: true });
-    let stored = await fakeBrowser.storage.local.get('blockedLog');
-    expect(stored.blockedLog).toEqual([]);
+    expect(await Effect.runPromise(loadLog())).toEqual([]);
 
     await fakeBrowser.runtime.sendMessage({ type: 'log-blocked', entry: blockedEntry('c') });
-    stored = await fakeBrowser.storage.local.get('blockedLog');
-    expect((stored.blockedLog as Array<{ tweetId: string }>).map((e) => e.tweetId)).toEqual(['c']);
+    const log = await Effect.runPromise(loadLog());
+    expect(log.map((entry) => entry.tweetId)).toEqual(['c']);
   });
 
   it('routes clear-errors through the same queue', async () => {
@@ -462,11 +449,12 @@ describe('per-tab badge counts', () => {
     await fakeBrowser.storage.local.set({ settings: SETTINGS });
     await startWorker();
     const tab = await fakeBrowser.tabs.create({});
-    await (fakeBrowser.runtime.onMessage.trigger(
+    const responses = await fakeBrowser.runtime.onMessage.trigger(
       { type: 'tab-stats', blocked: 1234 },
       { tab },
       () => undefined,
-    ) as Promise<unknown[]>);
+    );
+    for (const response of responses) if (response) await response;
     // The count and badge are applied asynchronously after the trigger.
     await vi.waitFor(async () => {
       const stored = await fakeBrowser.storage.session.get(null);
@@ -479,11 +467,12 @@ describe('per-tab badge counts', () => {
 
   it('ignores tab-stats without a sender tab', async () => {
     await startWorker();
-    await (fakeBrowser.runtime.onMessage.trigger(
+    const responses = await fakeBrowser.runtime.onMessage.trigger(
       { type: 'tab-stats', blocked: 5 },
       {},
       () => undefined,
-    ) as Promise<unknown[]>);
+    );
+    for (const response of responses) if (response) await response;
     const stored = await fakeBrowser.storage.session.get(null);
     expect(stored).toEqual({});
   });
@@ -492,11 +481,12 @@ describe('per-tab badge counts', () => {
     await fakeBrowser.storage.local.set({ settings: SETTINGS });
     await startWorker();
     const tab = await fakeBrowser.tabs.create({});
-    await (fakeBrowser.runtime.onMessage.trigger(
+    const responses = await fakeBrowser.runtime.onMessage.trigger(
       { type: 'tab-stats', blocked: 3 },
       { tab },
       () => undefined,
-    ) as Promise<unknown[]>);
+    );
+    for (const response of responses) if (response) await response;
     await vi.waitFor(async () => {
       const stored = await fakeBrowser.storage.session.get(null);
       expect(stored[`jevTabBlocked:${tab.id}`]).toBe(3);
