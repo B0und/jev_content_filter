@@ -34,6 +34,7 @@ import {
   overrides,
   posts,
   report,
+  resetPageStats,
   reviewMode,
   settings,
   trackBinding,
@@ -57,7 +58,7 @@ type Dispatch = (effect: Effect.Effect<void, BrowserError>) => void;
 export interface ContentHandle {
   /** Force a discovery pass; the observer batches mutations into this. */
   discover(): void;
-  /** Current report for the visible posts. */
+  /** Live scan statistics and cumulative totals for this page load. */
   report(): TabReport;
 }
 
@@ -81,7 +82,7 @@ class ContentSession extends Context.Service<ContentSession, ContentSessionApi>(
         const retryFibers = new Map<Post, Fiber.Fiber<void, never>>();
 
         const reportStats = Effect.fnUntraced(function* () {
-          const blocked = report().blocked;
+          const blocked = report().pageBlocked;
           if (blocked === lastBadgeBlocked) return;
           lastBadgeBlocked = blocked;
           yield* Effect.forkIn(
@@ -638,6 +639,7 @@ function teardown(ctx: ContentScriptContext): void {
   activeCtx = null;
   reviewMode.current = false;
   posts.clear();
+  resetPageStats();
   overrides.clear();
   lastBadgeBlocked = -1;
   removeAllUI();

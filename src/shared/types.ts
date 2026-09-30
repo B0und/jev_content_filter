@@ -46,8 +46,12 @@ export interface BlockedEntry {
   reasons: Array<{ key: CategoryKey; score: number }>;
 }
 export interface TabReport {
+  /** Currently attached posts; pending and error fields use the same live scope. */
   analyzed: number;
   blocked: number;
+  /** Unique posts analyzed or blocked during this document's lifetime. */
+  pageAnalyzed: number;
+  pageBlocked: number;
   pending: number;
   failed: number;
   /** Posts waiting for an automatic retry. */

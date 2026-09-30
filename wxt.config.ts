@@ -21,7 +21,7 @@ export default defineConfig({
       48: '/icons/normal-48.png',
       128: '/icons/normal-128.png',
     },
-    permissions: ['storage'],
+    permissions: ['storage', 'webNavigation'],
     web_accessible_resources: [
       {
         resources: ['image-inference.js'],

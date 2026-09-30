@@ -7,6 +7,7 @@ import {
   type Worker,
 } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { defaultSettings, type Settings } from '../../src/shared/types';
 
@@ -30,9 +31,17 @@ export const test = base.extend<{
     },
     { auto: true },
   ],
-  context: async ({ browserName, headless }, provide) => {
+  context: async ({ browserName, headless }, provide, testInfo) => {
     if (browserName !== 'chromium') throw new Error('Extension E2E requires Chromium');
-    const extension = path.resolve('.output/chrome-mv3');
+    const extension = path.resolve(process.env.JEV_EXTENSION_PATH ?? '.output/chrome-mv3');
+    testInfo.annotations.push({ type: 'extension-path', description: extension });
+    if (process.env.JEV_EXTENSION_PATH) console.info(`Testing installed bundle: ${extension}`);
+    for (const file of ['manifest.json', 'background.js', 'content-scripts/content.js']) {
+      const bytes = await readFile(path.join(extension, file));
+      const hash = createHash('sha256').update(bytes).digest('hex');
+      testInfo.annotations.push({ type: `extension-sha256:${file}`, description: hash });
+      if (process.env.JEV_EXTENSION_PATH) console.info(`${file} SHA256: ${hash}`);
+    }
     const context = await chromium.launchPersistentContext('', {
       channel: 'chromium',
       headless,

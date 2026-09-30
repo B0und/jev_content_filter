@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Scrolling extension acceptance feed</title>
+    <style>
+      body {
+        margin: 0;
+        font: 16px system-ui;
+      }
+      main {
+        position: relative;
+        width: 600px;
+        margin: 0 auto;
+      }
+      .cell {
+        position: absolute;
+        width: 100%;
+      }
+      article {
+        min-height: 180px;
+        padding: 16px;
+        border: 1px solid #888;
+      }
+      .header {
+        display: flex;
+        justify-content: space-between;
+      }
+    </style>
+  </head>
+  <body>
+    <main data-scroll-start="0"></main>
+    <script>
+      const rowHeight = 240;
+      const rowCount = 300;
+      const windowSize = 8;
+      const main = document.querySelector('main');
+      main.style.height = `${rowHeight * rowCount}px`;
+      const cells = Array.from({ length: windowSize }, () => {
+        const cell = document.createElement('div');
+        cell.className = 'cell';
+        cell.dataset.testid = 'cellInnerDiv';
+        cell.innerHTML = `<article data-testid="tweet">
+          <div class="header"><div data-testid="User-Name">Gardener @gardener</div>
+            <div><button data-testid="caret" aria-label="More">...</button></div></div>
+          <a><time>10:00</time></a><div data-testid="tweetText"></div>
+        </article>`;
+        main.append(cell);
+        return cell;
+      });
+      const draw = () => {
+        const start = Math.min(rowCount - windowSize, Math.max(0, Math.floor(scrollY / rowHeight)));
+        for (let slot = 0; slot < cells.length; slot++) {
+          const index = start + slot;
+          const cell = cells[slot];
+          const article = cell.querySelector('article');
+          if (article.dataset.index === String(index)) continue;
+          article.dataset.index = String(index);
+          article.dataset.post = String(700 + index);
+          article.querySelector('a').setAttribute('href', `/gardener/status/${700 + index}`);
+          article.querySelector('[data-testid="tweetText"]').textContent =
+            index === 2 || index === 3
+              ? `BLOCK_TEXT scrolling fixture ${index}`
+              : `An ordinary gardening post ${index}`;
+          cell.style.top = `${index * rowHeight}px`;
+        }
+        main.dataset.scrollStart = String(start);
+        // X can update its route without replacing the document while browsing a feed.
+        if (start > 0) history.replaceState(null, '', `/home?cursor=${start}`);
+      };
+      window.addEventListener('scroll', draw, { passive: true });
+      draw();
+    </script>
+  </body>
+</html>

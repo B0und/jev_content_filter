@@ -412,3 +412,84 @@ test('persists popup edits and supports keyboard log filtering and clearing', as
   await popup.getByRole('button', { name: 'Clear all' }).click();
   await expect(popup.getByRole('tabpanel')).toContainText('No blocked posts.');
 });
+
+test('keeps page-load badge totals across recycled cells and log visits, then resets on reload', async ({
+  page,
+  context,
+  worker,
+  extensionId,
+  setSettings,
+}) => {
+  await page.goto('https://x.com/home');
+  await expect(page.locator('[data-post="102"]')).toBeHidden();
+  await expect(page.locator('[data-post="103"] [data-testid="card.wrapper"]')).toBeHidden();
+  const tabId = await worker.evaluate(async () => {
+    const tabs = await chrome.tabs.query({ url: 'https://x.com/home' });
+    const id = tabs[0]?.id;
+    if (id === undefined) throw new Error('Timeline tab missing');
+    return id;
+  });
+  const badge = () => worker.evaluate((id) => chrome.action.getBadgeText({ tabId: id }), tabId);
+  const report = () =>
+    worker.evaluate((id) => chrome.tabs.sendMessage(id, { type: 'get-report' }), tabId);
+  await expect.poll(badge).toBe('2');
+
+  const logs = await context.newPage();
+  await logs.goto(`chrome-extension://${extensionId}/logs.html`);
+  await expect(logs.locator('.row')).toHaveCount(2);
+  await logs.bringToFront();
+  await page.evaluate(() => {
+    document.querySelector('[data-post="102"]')?.closest('[data-testid="cellInnerDiv"]')?.remove();
+    document.querySelector('[data-post="103"]')?.remove();
+    const next = document.querySelector('[data-post="101"]')!.cloneNode(true) as HTMLElement;
+    next.dataset.post = '104';
+    next.querySelector('a')!.setAttribute('href', '/gardener/status/104');
+    next.querySelector('[data-jev-host]')?.remove();
+    next.querySelector('[data-testid="tweetText"]')!.textContent =
+      'Another ordinary gardening post.';
+    document.querySelector('main')!.append(next);
+  });
+  await expect.poll(async () => (await report()).analyzed).toBe(2);
+  await page.bringToFront();
+  await expect.poll(badge).toBe('2');
+  await expect.poll(async () => (await report()).pageBlocked).toBe(2);
+  await expect.poll(async () => (await report()).pageAnalyzed).toBe(4);
+
+  const settings = defaultSettings();
+  settings.providerKeys.vercel = 'test-only-not-a-real-key';
+  for (const key of ['porn', 'hentai', 'sexy', 'drawings'] as const) settings.enabled[key] = false;
+  settings.masterEnabled = false;
+  await setSettings(settings);
+  await expect.poll(badge).toBe('');
+  settings.masterEnabled = true;
+  await setSettings(settings);
+  await expect.poll(badge).toBe('2');
+
+  await page.evaluate(() => {
+    const next = document.querySelector('[data-post="104"]')!.cloneNode(true) as HTMLElement;
+    next.dataset.post = '105';
+    next.querySelector('a')!.setAttribute('href', '/test/status/105');
+    next.querySelector('[data-jev-host]')?.remove();
+    next.querySelector('[data-testid="tweetText"]')!.textContent =
+      'BLOCK_TEXT another blocked post.';
+    document.querySelector('main')!.append(next);
+  });
+  await expect(page.locator('[data-post="105"]')).toBeHidden();
+  await expect.poll(badge).toBe('3');
+  const popup = await context.newPage();
+  await page.bringToFront();
+  await popup.goto(`chrome-extension://${extensionId}/popup.html`);
+  await expect(popup.locator('.counters')).toContainText('5 analyzed / 3 blocked');
+  await logs
+    .locator('.row')
+    .filter({ hasText: 'another blocked post' })
+    .getByRole('button', { name: 'Unblock', exact: true })
+    .click();
+  await expect(page.locator('[data-post="105"]')).toBeVisible();
+  await expect.poll(badge).toBe('3');
+  await page.reload();
+  await expect(page.locator('[data-post="102"]')).toBeHidden();
+  await expect(page.locator('[data-post="103"] [data-testid="card.wrapper"]')).toBeHidden();
+  await expect.poll(badge).toBe('2');
+  await expect.poll(async () => (await report()).pageAnalyzed).toBe(3);
+});

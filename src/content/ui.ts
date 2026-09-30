@@ -14,6 +14,7 @@ import {
   posts,
   previewBlocked,
   previewHits,
+  recordPageStats,
   reviewMode,
   settings,
   stateOf,
@@ -241,6 +242,7 @@ export function render(article: HTMLElement, binding: Binding): void {
     return;
   }
   if (!article.isConnected) return;
+  recordPageStats(post);
   setHostVisibility(host, button, true);
   applyVisibility(article, binding);
   applyCard(article, post, true);

@@ -332,8 +332,8 @@ export function App() {
       </div>
       <footer className="counters" aria-live="polite">
         <div>
-          <strong>{report?.analyzed ?? '—'}</strong> analyzed <span>/</span>{' '}
-          <strong>{report?.blocked ?? '—'}</strong> blocked
+          <strong>{report?.pageAnalyzed ?? '—'}</strong> analyzed <span>/</span>{' '}
+          <strong>{report?.pageBlocked ?? '—'}</strong> blocked
         </div>
         <div>This tab, since page load</div>
       </footer>

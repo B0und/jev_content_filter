@@ -71,7 +71,7 @@ interface BackgroundWorkerApi {
   ) => Effect.Effect<unknown, BrowserError>;
   settingsChanged: Effect.Effect<void, BrowserError>;
   tabRemoved: (tabId: number) => Effect.Effect<void, BrowserError>;
-  tabLoading: (tabId: number) => Effect.Effect<void, BrowserError>;
+  tabNavigated: (tabId: number) => Effect.Effect<void, BrowserError>;
 }
 
 class BackgroundWorker extends Context.Service<BackgroundWorker, BackgroundWorkerApi>()(
@@ -466,7 +466,7 @@ function BackgroundWorkerLive() {
         handleRequest,
         settingsChanged: updateSettingsAfterStorageChange(),
         tabRemoved: clearTabCount,
-        tabLoading: clearTabCount,
+        tabNavigated: clearTabCount,
       });
     }),
   );
@@ -525,10 +525,10 @@ export function startBackground(): void {
       'failed to clear removed tab count',
     );
   });
-  browser.tabs.onUpdated.addListener((tabId, changeInfo) => {
-    if (changeInfo.status !== 'loading') return;
+  browser.webNavigation.onCommitted.addListener(({ tabId, frameId }) => {
+    if (frameId !== 0) return;
     runBackgroundEffect(
-      Effect.flatMap(BackgroundWorker, (worker) => worker.tabLoading(tabId)),
+      Effect.flatMap(BackgroundWorker, (worker) => worker.tabNavigated(tabId)),
       'failed to clear navigating tab count',
     );
   });

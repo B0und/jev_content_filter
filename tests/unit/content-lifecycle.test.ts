@@ -46,6 +46,8 @@ describe('content lifecycle', () => {
     expect(test.handle.report()).toEqual({
       analyzed: 0,
       blocked: 0,
+      pageAnalyzed: 0,
+      pageBlocked: 0,
       pending: 0,
       failed: 0,
       retrying: 0,
@@ -144,10 +146,8 @@ describe('content lifecycle', () => {
     second.remove();
     expect(test.handle.report().blocked).toBe(0);
     test.handle.discover();
-    await until(
-      () => test.bg.stats.at(-1) === 0,
-      'badge did not clear after the last binding detached',
-    );
+    expect(test.handle.report().pageAnalyzed).toBe(1);
+    expect(test.handle.report().pageBlocked).toBe(1);
 
     document.body.append(first);
     test.handle.discover();
@@ -171,12 +171,15 @@ describe('content lifecycle', () => {
       'recycled article did not bind and classify its new post',
     );
     expect(test.handle.report().blocked).toBe(1);
+    expect(test.handle.report().pageBlocked).toBe(2);
 
     statusLink.setAttribute('href', '/user/status/2011');
     textNode.textContent = 'shared explicit text';
     test.handle.discover();
     expect(test.handle.report().blocked).toBe(1);
     expect(first.hasAttribute('data-jev-hidden')).toBe(true);
+    expect(test.handle.report().pageAnalyzed).toBe(2);
+    expect(test.handle.report().pageBlocked).toBe(2);
     expect(test.bg.jevCalls).toHaveLength(2);
     stopRuntime(test);
   });
@@ -232,7 +235,6 @@ describe('content lifecycle', () => {
     for (const article of detached) article.remove();
     test.handle.discover();
     expect(test.handle.report().blocked).toBe(1);
-    await until(() => test.bg.stats.at(-1) === 1, 'badge did not account for detached posts');
     // Remove the persistent score cache so a retained Post and an evicted
     // Post have observably different work on return.
     const stored = await browser.storage.local.get(null);
@@ -261,6 +263,7 @@ describe('content lifecycle', () => {
       'oldest detached post was not evicted and rescanned on return',
     );
     expect(test.handle.report().blocked).toBe(2);
+    expect(test.handle.report().pageBlocked).toBe(2);
     stopRuntime(test);
   });
 

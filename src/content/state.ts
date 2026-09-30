@@ -48,6 +48,9 @@ export interface Binding {
 
 export const posts = new Map<string, Post>();
 export const bindings = new Map<HTMLElement, Binding>();
+// Keep only identities so totals survive detached-post eviction without retaining scores or DOM.
+const pageAnalyzed = new Set<string>();
+const pageBlocked = new Set<string>();
 /** Article bindings grouped by post, so attachment checks don't scan the feed. */
 let articlesByPost = new WeakMap<Post, Set<HTMLElement>>();
 export function trackBinding(article: HTMLElement, binding: Binding): void {
@@ -174,9 +177,27 @@ export function isAttached(post: Post): boolean {
   return false;
 }
 
+export function recordPageStats(post: Post): void {
+  if (!pageAnalyzed.has(post.id)) {
+    for (const key of CATEGORY_KEYS) {
+      if (post.scores[key] !== undefined || post.previewScores[key] !== undefined) {
+        pageAnalyzed.add(post.id);
+        break;
+      }
+    }
+  }
+  if (!pageBlocked.has(post.id) && (blocked(post) || previewBlocked(post)))
+    pageBlocked.add(post.id);
+}
+
+export function resetPageStats(): void {
+  pageAnalyzed.clear();
+  pageBlocked.clear();
+}
+
 export function report(): TabReport {
-  // Only currently connected bindings count. Reading `isConnected` directly
-  // avoids stale attachment counters before MutationObserver delivery.
+  // Live scan statistics use connected bindings; cumulative totals do not.
+  // Reading isConnected avoids stale attachment counters before observer delivery.
   const attached = new Set<Post>();
   for (const [article, binding] of bindings)
     if (article.isConnected && posts.get(binding.post.id) === binding.post)
@@ -202,6 +223,8 @@ export function report(): TabReport {
   return {
     analyzed,
     blocked: blockedCount,
+    pageAnalyzed: pageAnalyzed.size,
+    pageBlocked: pageBlocked.size,
     pending,
     failed,
     retrying,

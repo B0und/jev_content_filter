@@ -58,6 +58,8 @@ Promises remain at framework callbacks and native SDK adapters. Pure filtering p
 - Drawings includes ordinary anime and illustrations, not only sexual content. Disable that category if you want nonsexual illustrations to remain visible.
 - Link previews have separate scores and can be hidden without hiding the post.
 - Pause restores hidden posts and previews. Unblocking a post persists an allow override.
+- The toolbar badge and popup totals count unique posts analyzed or blocked since page load. A post and its blocked preview count once. Timeline recycling, tab switches, unblocking, and log clearing do not subtract past blocks. Pause hides the badge without erasing the count; reloading or navigating to a new document resets it.
+- Badge resets use top-frame `webNavigation.onCommitted` events. Same-document history updates and iframe navigation preserve totals. The extension requests `webNavigation` permission for this distinction.
 - Failed checks do not produce a blocking score. Successfully checked parts can still block a post; previews with scan errors remain visible. Transient failures have bounded retries.
 - Videos are checked through thumbnails/posters, not every frame. Thumbnail-size changes reuse the same scores; new thumbnail assets and late or replaced posters trigger another scan.
 - Quoted-post content is included in filtering, but quoted timestamps and links do not replace the parent post's identity or its blocked-log link.
@@ -117,6 +119,17 @@ npm run test:e2e
 
 `npm run check` runs these checks together. Browser tests load the real built extension and bundled image model, but intercept provider and media requests. Unit tests substitute external inference while exercising filtering decisions, storage, and lifecycle transitions.
 
+The scrolling regression sends native wheel events through a virtualized feed, reuses article nodes, changes the URL with `history.replaceState`, and returns to earlier posts after exceeding detached-post retention. Separate navigation coverage checks iframe and top-frame commits.
+
+Tests normally load this worktree's `.output/chrome-mv3`, not the extension configured in your regular browser. To check that installed artifact without rebuilding or overwriting it:
+
+```sh
+JEV_EXTENSION_PATH=/absolute/path/to/the/loaded/chrome-mv3 \
+  npx playwright test tests/e2e/scroll.spec.ts
+```
+
+The report records the loaded path and SHA256 hashes of the manifest, background bundle, and content bundle. This launches an isolated Chromium profile; it does not attach to your logged-in X session. Reloading a different checkout's extension does not install this worktree's fixes.
+
 ## Code layout
 
 - `src/entrypoints`: WXT wiring, popup, logs, and the on-demand image-inference script.
@@ -126,4 +139,4 @@ npm run test:e2e
 - `benchmarks`: local evaluation UI, metrics, import/export normalization, and SQLite persistence.
 - `tests/unit` and `tests/e2e`: deterministic regressions and Chromium scenarios.
 
-Feed reports use attached posts rather than the entire browsing history. Up to 200 detached posts are retained; attached posts are exempt from that limit. Evicted posts cannot apply late scan results to recycled articles.
+Feed reports keep live scan statistics separate from page-load totals. Live analyzed/blocked, pending, failure, and retry statistics use attached posts. Cumulative totals retain post identities for the document lifetime, independently of the 200-detached-post retention limit. Attached posts are exempt from that limit. Evicted posts cannot apply late scan results to recycled articles.
