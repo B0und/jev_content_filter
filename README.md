@@ -4,7 +4,7 @@ A Chromium MV3 extension that filters posts and link previews on X and Twitter. 
 
 ## Development and installation
 
-Use a current Node.js LTS release, preferably Node 24 or newer, and npm.
+Use Node.js 22.12.0 or newer and npm. A current LTS release, preferably Node 24 or newer, is recommended. MSW v3 requires at least Node 22.12.0.
 
 ```sh
 npm ci
