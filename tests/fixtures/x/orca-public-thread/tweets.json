@@ -1,0 +1,410 @@
+{
+  "source": "https://x.com/OrcaRouter/status/2105364729422344549",
+  "operation": "TweetDetail",
+  "sanitization": "Selected public tweet results; viewer state and request metadata omitted.",
+  "tweets": [
+    {
+      "__typename": "Tweet",
+      "rest_id": "2105364729422344549",
+      "core": {
+        "user_results": {
+          "result": {
+            "__typename": "User",
+            "rest_id": "2049258250923810816",
+            "core": {
+              "created_at": "Tue Apr 28 22:43:39 +0000 2026",
+              "name": "OrcaRouter 🐳",
+              "screen_name": "OrcaRouter"
+            }
+          }
+        }
+      },
+      "legacy": {
+        "id_str": "2105364729422344549",
+        "full_text": "Following our post, we just analyzed and open sourced the system prompts behind 12 open + closed-source coding agent harnesses — Claude Code, Codex, Cursor, Devin, Factory Droid, OpenCode, Cline, Kilo, MiMoCode, MiniMax Code, GLM ZCode &amp; DeepSeek DSH.\n\nWe looked at two things:\n→ https://t.co/42ftcC03as",
+        "display_text_range": [0, 283],
+        "entities": {
+          "media": [
+            {
+              "allow_download_status": {
+                "allow_download": true
+              },
+              "display_url": "pic.x.com/42ftcC03as",
+              "expanded_url": "https://x.com/OrcaRouter/status/2105364729422344549/photo/1",
+              "ext_media_availability": {
+                "status": "Available"
+              },
+              "features": {
+                "large": {
+                  "faces": [
+                    {
+                      "h": 75,
+                      "w": 75,
+                      "x": 37,
+                      "y": 415
+                    },
+                    {
+                      "h": 71,
+                      "w": 71,
+                      "x": 901,
+                      "y": 688
+                    }
+                  ]
+                },
+                "medium": {
+                  "faces": [
+                    {
+                      "h": 63,
+                      "w": 63,
+                      "x": 31,
+                      "y": 352
+                    },
+                    {
+                      "h": 60,
+                      "w": 60,
+                      "x": 765,
+                      "y": 584
+                    }
+                  ]
+                },
+                "orig": {
+                  "faces": [
+                    {
+                      "h": 75,
+                      "w": 75,
+                      "x": 37,
+                      "y": 415
+                    },
+                    {
+                      "h": 71,
+                      "w": 71,
+                      "x": 901,
+                      "y": 688
+                    }
+                  ]
+                },
+                "small": {
+                  "faces": [
+                    {
+                      "h": 36,
+                      "w": 36,
+                      "x": 17,
+                      "y": 199
+                    },
+                    {
+                      "h": 34,
+                      "w": 34,
+                      "x": 433,
+                      "y": 331
+                    }
+                  ]
+                }
+              },
+              "id_str": "2105364239728939008",
+              "indices": [284, 307],
+              "media_key": "3_2105364239728939008",
+              "media_results": {
+                "result": {
+                  "media_key": "3_2105364239728939008"
+                }
+              },
+              "media_url_https": "https://pbs.twimg.com/media/HTfBnw_akAAcyWc.jpg",
+              "original_info": {
+                "focus_rects": [
+                  {
+                    "h": 791,
+                    "w": 1413,
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "h": 939,
+                    "w": 939,
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "h": 939,
+                    "w": 824,
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "h": 939,
+                    "w": 470,
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "h": 939,
+                    "w": 1413,
+                    "x": 0,
+                    "y": 0
+                  }
+                ],
+                "height": 939,
+                "width": 1413
+              },
+              "sizes": {
+                "large": {
+                  "h": 939,
+                  "resize": "fit",
+                  "w": 1413
+                },
+                "medium": {
+                  "h": 797,
+                  "resize": "fit",
+                  "w": 1200
+                },
+                "small": {
+                  "h": 452,
+                  "resize": "fit",
+                  "w": 680
+                },
+                "thumb": {
+                  "h": 150,
+                  "resize": "crop",
+                  "w": 150
+                }
+              },
+              "type": "photo",
+              "url": "https://t.co/42ftcC03as"
+            }
+          ]
+        },
+        "extended_entities": {
+          "media": [
+            {
+              "allow_download_status": {
+                "allow_download": true
+              },
+              "display_url": "pic.x.com/42ftcC03as",
+              "expanded_url": "https://x.com/OrcaRouter/status/2105364729422344549/photo/1",
+              "ext_media_availability": {
+                "status": "Available"
+              },
+              "features": {
+                "large": {
+                  "faces": [
+                    {
+                      "h": 75,
+                      "w": 75,
+                      "x": 37,
+                      "y": 415
+                    },
+                    {
+                      "h": 71,
+                      "w": 71,
+                      "x": 901,
+                      "y": 688
+                    }
+                  ]
+                },
+                "medium": {
+                  "faces": [
+                    {
+                      "h": 63,
+                      "w": 63,
+                      "x": 31,
+                      "y": 352
+                    },
+                    {
+                      "h": 60,
+                      "w": 60,
+                      "x": 765,
+                      "y": 584
+                    }
+                  ]
+                },
+                "orig": {
+                  "faces": [
+                    {
+                      "h": 75,
+                      "w": 75,
+                      "x": 37,
+                      "y": 415
+                    },
+                    {
+                      "h": 71,
+                      "w": 71,
+                      "x": 901,
+                      "y": 688
+                    }
+                  ]
+                },
+                "small": {
+                  "faces": [
+                    {
+                      "h": 36,
+                      "w": 36,
+                      "x": 17,
+                      "y": 199
+                    },
+                    {
+                      "h": 34,
+                      "w": 34,
+                      "x": 433,
+                      "y": 331
+                    }
+                  ]
+                }
+              },
+              "id_str": "2105364239728939008",
+              "indices": [284, 307],
+              "media_key": "3_2105364239728939008",
+              "media_results": {
+                "result": {
+                  "media_key": "3_2105364239728939008"
+                }
+              },
+              "media_url_https": "https://pbs.twimg.com/media/HTfBnw_akAAcyWc.jpg",
+              "original_info": {
+                "focus_rects": [
+                  {
+                    "h": 791,
+                    "w": 1413,
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "h": 939,
+                    "w": 939,
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "h": 939,
+                    "w": 824,
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "h": 939,
+                    "w": 470,
+                    "x": 0,
+                    "y": 0
+                  },
+                  {
+                    "h": 939,
+                    "w": 1413,
+                    "x": 0,
+                    "y": 0
+                  }
+                ],
+                "height": 939,
+                "width": 1413
+              },
+              "sizes": {
+                "large": {
+                  "h": 939,
+                  "resize": "fit",
+                  "w": 1413
+                },
+                "medium": {
+                  "h": 797,
+                  "resize": "fit",
+                  "w": 1200
+                },
+                "small": {
+                  "h": 452,
+                  "resize": "fit",
+                  "w": 680
+                },
+                "thumb": {
+                  "h": 150,
+                  "resize": "crop",
+                  "w": 150
+                }
+              },
+              "type": "photo",
+              "url": "https://t.co/42ftcC03as"
+            }
+          ]
+        }
+      },
+      "note_tweet": {
+        "is_expandable": true,
+        "note_tweet_results": {
+          "result": {
+            "entity_set": {
+              "hashtags": [],
+              "smarttags": [],
+              "symbols": [],
+              "urls": [],
+              "user_mentions": []
+            },
+            "id": "Tm90ZVR3ZWV0OjIxMDUzNjQ3MjkzNDI2NzY5OTI=",
+            "richtext": {
+              "richtext_tags": []
+            },
+            "text": "Following our post, we just analyzed and open sourced the system prompts behind 12 open + closed-source coding agent harnesses — Claude Code, Codex, Cursor, Devin, Factory Droid, OpenCode, Cline, Kilo, MiMoCode, MiniMax Code, GLM ZCode & DeepSeek DSH.\n\nWe looked at two things:\n→ Their “secret sauce”: prompts, tools, memory, skills, rules & agent loops\n→ How model-agnostic each harness really is\n\nFull comparison ↓"
+          }
+        }
+      }
+    },
+    {
+      "__typename": "Tweet",
+      "rest_id": "2105364764235014477",
+      "core": {
+        "user_results": {
+          "result": {
+            "__typename": "User",
+            "rest_id": "2049258250923810816",
+            "core": {
+              "created_at": "Tue Apr 28 22:43:39 +0000 2026",
+              "name": "OrcaRouter 🐳",
+              "screen_name": "OrcaRouter"
+            }
+          }
+        }
+      },
+      "legacy": {
+        "id_str": "2105364764235014477",
+        "full_text": "https://t.co/d6INxMO2Li",
+        "display_text_range": [0, 23],
+        "entities": {
+          "urls": [
+            {
+              "display_url": "github.com/Continuum-AI-C…",
+              "expanded_url": "https://github.com/Continuum-AI-Corp/OrcaPromptVault",
+              "indices": [0, 23],
+              "url": "https://t.co/d6INxMO2Li"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "__typename": "Tweet",
+      "rest_id": "2105377435000926364",
+      "core": {
+        "user_results": {
+          "result": {
+            "__typename": "User",
+            "rest_id": "2049258250923810816",
+            "core": {
+              "created_at": "Tue Apr 28 22:43:39 +0000 2026",
+              "name": "OrcaRouter 🐳",
+              "screen_name": "OrcaRouter"
+            }
+          }
+        }
+      },
+      "legacy": {
+        "id_str": "2105377435000926364",
+        "full_text": "System prompts extracted with OrcaReplay https://t.co/uxTqz2xEZa",
+        "display_text_range": [0, 64],
+        "entities": {
+          "urls": [
+            {
+              "display_url": "github.com/Continuum-AI-C…",
+              "expanded_url": "https://github.com/Continuum-AI-Corp/OrcaReplay",
+              "indices": [41, 64],
+              "url": "https://t.co/uxTqz2xEZa"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

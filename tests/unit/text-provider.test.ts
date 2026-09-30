@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { Effect } from 'effect';
+import { Effect, Exit } from 'effect';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { http, HttpResponse } from 'msw/http';
 import { setupServer } from 'msw/node';
@@ -141,15 +141,14 @@ describe('text provider effects', () => {
       }
 
       const controller = new AbortController();
-      const pending = Effect.runPromise(
+      const pending = Effect.runPromiseExit(
         evaluateText({ provider, apiKey: API_KEY, text: 'hello' }),
         { signal: controller.signal },
       );
       const signal = await requestSignal.promise;
       controller.abort();
       await vi.waitFor(() => expect(signal.aborted).toBe(true));
-      await pending.catch(() => undefined);
-      expect(signal.aborted).toBe(true);
+      expect(Exit.hasInterrupts(await pending)).toBe(true);
     },
   );
 });

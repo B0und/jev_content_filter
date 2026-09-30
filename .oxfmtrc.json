@@ -9,6 +9,7 @@
     "node_modules/**",
     "test-results/**",
     "playwright-report/**",
+    "tests/fixtures/x/**/*.html",
     "package-lock.json"
   ]
 }
