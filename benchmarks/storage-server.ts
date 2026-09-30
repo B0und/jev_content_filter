@@ -162,8 +162,10 @@ export function createBenchmarkStoragePlugin(filePath = DEFAULT_DATABASE_PATH): 
         }
         runtime.runCallback(handleRequest(request, response), {
           onExit: (exit) => {
-            if (Exit.isFailure(exit) && !response.writableEnded && !response.destroyed)
-              sendJson(response, 400, { error: Cause.pretty(exit.cause) });
+            if (!Exit.isFailure(exit)) return;
+            console.error('Benchmark storage request failed:', Cause.pretty(exit.cause));
+            if (!response.writableEnded && !response.destroyed)
+              sendJson(response, 500, { error: 'Internal server error.' });
           },
         });
       });

@@ -1,10 +1,12 @@
+// @vitest-environment node
 import { Effect } from 'effect';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { http, HttpResponse } from 'msw/http';
+import { setupServer } from 'msw/node';
 
-const { createGatewayMock, evaluateMock, fetchMock } = vi.hoisted(() => ({
+const { createGatewayMock, evaluateMock } = vi.hoisted(() => ({
   createGatewayMock: vi.fn(),
   evaluateMock: vi.fn(),
-  fetchMock: vi.fn(),
 }));
 
 vi.mock('ai', () => ({ experimental_evaluate: evaluateMock }));
@@ -15,27 +17,28 @@ vi.mock('@ai-sdk/gateway', () => ({
 import { evaluateText } from '../../src/background/text-provider';
 
 const API_KEY = 'provider-secret-token';
+const server = setupServer();
+beforeAll(() => server.listen({ onUnhandledFrame: 'error' }));
+afterAll(() => server.close());
 
 beforeEach(() => {
   createGatewayMock.mockReset();
   evaluateMock.mockReset();
-  fetchMock.mockReset();
+  server.resetHandlers();
   createGatewayMock.mockImplementation(() => ({ evaluationModel: (id: string) => ({ id }) }));
-  vi.stubGlobal('fetch', fetchMock);
 });
 
 afterEach(() => {
-  vi.unstubAllGlobals();
+  server.resetHandlers();
 });
 
 describe('text provider effects', () => {
   it('returns a typed status error without exposing the provider key', async () => {
-    fetchMock.mockResolvedValue({
-      ok: false,
-      status: 401,
-      statusText: 'Unauthorized',
-      json: async () => ({ error: { message: `Invalid key ${API_KEY}` } }),
-    });
+    server.use(
+      http.post('https://api.typesafe.ai/v1/systemone', () =>
+        HttpResponse.json({ error: { message: `Invalid key ${API_KEY}` } }, { status: 401 }),
+      ),
+    );
 
     const result = await Effect.runPromise(
       Effect.result(evaluateText({ provider: 'typesafe', apiKey: API_KEY, text: 'hello' })),
@@ -50,6 +53,67 @@ describe('text provider effects', () => {
       });
       expect(JSON.stringify(result.failure)).not.toContain(API_KEY);
       expect(result.failure).not.toHaveProperty('cause');
+    }
+  });
+
+  it.each([
+    ['typesafe', 'https://api.typesafe.ai/v1/systemone'],
+    ['openrouter', 'https://openrouter.ai/api/alpha/decisions'],
+  ] as const)('decodes HTTP probability responses from %s', async (provider, endpoint) => {
+    server.use(
+      http.post(endpoint, () =>
+        HttpResponse.json({
+          answers: { sexual: { noul: 0.9 }, ai: { probability: 0.01 } },
+        }),
+      ),
+    );
+    expect(
+      await Effect.runPromise(
+        evaluateText({
+          provider,
+          apiKey: API_KEY,
+          text: 'test input',
+        }),
+      ),
+    ).toEqual({ sexual: 0.9, ai: 0.01 });
+  });
+
+  it('rejects malformed probabilities received over HTTP', async () => {
+    server.use(
+      http.post('https://api.typesafe.ai/v1/systemone', () =>
+        HttpResponse.json({ answers: { sexual: { noul: 1.1 }, ai: { noul: 0.01 } } }),
+      ),
+    );
+    const result = await Effect.runPromise(
+      Effect.result(
+        evaluateText({
+          provider: 'typesafe',
+          apiKey: API_KEY,
+          text: 'test input',
+        }),
+      ),
+    );
+    expect(result._tag).toBe('Failure');
+    if (result._tag === 'Failure') expect(result.failure.message).toContain('invalid probability');
+  });
+
+  it('reports a network failure as a typed provider error', async () => {
+    server.use(http.post('https://api.typesafe.ai/v1/systemone', () => HttpResponse.error()));
+    const result = await Effect.runPromise(
+      Effect.result(
+        evaluateText({
+          provider: 'typesafe',
+          apiKey: API_KEY,
+          text: 'test input',
+        }),
+      ),
+    );
+    expect(result._tag).toBe('Failure');
+    if (result._tag === 'Failure') {
+      expect(result.failure._tag).toBe('TextProviderError');
+      expect(result.failure.provider).toBe('typesafe');
+      expect(result.failure.statusCode).toBeUndefined();
+      expect(JSON.stringify(result.failure)).not.toContain(API_KEY);
     }
   });
 
@@ -69,10 +133,11 @@ describe('text provider effects', () => {
           rejectOnAbort(options.abortSignal),
         );
       } else {
-        fetchMock.mockImplementation((_url: string, options: RequestInit) => {
-          if (!(options.signal instanceof AbortSignal)) throw new Error('request signal missing');
-          return rejectOnAbort(options.signal);
-        });
+        server.use(
+          http.post('https://api.typesafe.ai/v1/systemone', ({ request }) =>
+            rejectOnAbort(request.signal),
+          ),
+        );
       }
 
       const controller = new AbortController();

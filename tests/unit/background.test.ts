@@ -510,6 +510,62 @@ describe('per-tab badge counts', () => {
       expect(stored[`jevTabBlocked:${tab.id}`]).toBeUndefined();
     });
   });
+  it.each(['navigation', 'removal'] as const)(
+    'clears persisted tab counts after worker restart on %s before repaint',
+    async (event) => {
+      await fakeBrowser.storage.local.set({ settings: SETTINGS });
+      const tab = await fakeBrowser.tabs.create({});
+      const otherTab = await fakeBrowser.tabs.create({});
+      const tabKey = `jevTabBlocked:${tab.id}`;
+      const otherKey = `jevTabBlocked:${otherTab.id}`;
+      await fakeBrowser.storage.session.set({ [tabKey]: 3, [otherKey]: 5 });
+      await fakeBrowser.action.setBadgeText({ tabId: tab.id!, text: '3' });
+      await fakeBrowser.action.setBadgeText({ tabId: otherTab.id!, text: 'waiting' });
+      // Keep the fresh worker's tab-count map empty until the stale key is cleared.
+      const settingsLoad = Promise.withResolvers<{ settings: typeof SETTINGS }>();
+      const getSettings = vi
+        .spyOn(fakeBrowser.storage.local, 'get')
+        .mockImplementationOnce(() => settingsLoad.promise);
+      await startWorker();
+
+      if (event === 'navigation') {
+        await fakeBrowser.webNavigation.onCommitted.trigger({
+          documentId: 'after-restart',
+          documentLifecycle: 'active',
+          frameId: 0,
+          frameType: 'outermost_frame',
+          parentFrameId: -1,
+          processId: 1,
+          tabId: tab.id!,
+          timeStamp: 1,
+          transitionType: 'link',
+          transitionQualifiers: [],
+          url: 'https://example.com/',
+        });
+      } else {
+        await fakeBrowser.tabs.onRemoved.trigger(tab.id!, {
+          isWindowClosing: false,
+          windowId: tab.windowId,
+        });
+      }
+
+      await vi.waitFor(async () => {
+        expect(await fakeBrowser.action.getBadgeText({ tabId: tab.id! })).toBe('');
+      });
+
+      settingsLoad.resolve({ settings: SETTINGS });
+      await fakeBrowser.runtime.sendMessage({ type: 'get-status' });
+      getSettings.mockRestore();
+      // Startup's settings write triggers a repaint in the fake browser.
+      await vi.waitFor(async () => {
+        expect(await fakeBrowser.action.getBadgeText({ tabId: otherTab.id! })).toBe('5');
+      });
+
+      const stored = await fakeBrowser.storage.session.get(null);
+      expect(stored[tabKey]).toBeUndefined();
+      expect(await fakeBrowser.action.getBadgeText({ tabId: tab.id! })).toBe('');
+    },
+  );
 });
 
 describe('configuration transitions', () => {

@@ -11,6 +11,7 @@ import {
   blocked,
   bindings,
   hits,
+  isAttached,
   posts,
   previewBlocked,
   previewHits,
@@ -173,6 +174,7 @@ export function renderPost(post: Post): Array<Effect.Effect<void>> {
  * so discovery dispatches these on every pass.
  */
 export function logEffects(post: Post): Array<Effect.Effect<void>> {
+  if (!isAttached(post)) return [];
   const effects: Array<Effect.Effect<void>> = [];
   if (blocked(post) && !post.logged) {
     post.logged = true;

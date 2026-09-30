@@ -530,9 +530,16 @@ class ContentSession extends Context.Service<ContentSession, ContentSessionApi>(
               scheduled = true;
               ctx.requestAnimationFrame(() => {
                 scheduled = false;
-                if (activeCtx === ctx && !ctx.isInvalid) dispatch(discover());
+                if (activeCtx === ctx && !ctx.isInvalid)
+                  dispatch(discover().pipe(Effect.andThen(reportStats())));
               });
             };
+            const navigation = window.navigation;
+            navigation?.addEventListener('currententrychange', schedule);
+            const removeNavigationListener = () =>
+              navigation?.removeEventListener('currententrychange', schedule);
+            yield* Scope.addFinalizer(scope, Effect.sync(removeNavigationListener));
+            ctx.onInvalidated(removeNavigationListener);
             const currentObserver = yield* Effect.sync(() => {
               const current = new MutationObserver((mutations) => {
                 if (activeCtx !== ctx || ctx.isInvalid) return;

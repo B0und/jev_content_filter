@@ -82,10 +82,9 @@ export const overrides = new Map<string, 'allow'>();
 export const settings: { current: Settings } = { current: defaultSettings() };
 
 /**
- * Post the URL addresses directly — its status permalink, or the detail view X
- * opens over the timeline. Read from the live path at render time, so a
- * same-document navigation needs no listener of its own: X mutates the DOM
- * when the route changes, and every mutation triggers a render pass.
+ * Post the URL addresses directly: its status permalink, or the detail view X
+ * opens over the timeline. Read from the live path at render time. The runtime
+ * schedules a render on navigation even when X makes no DOM changes.
  */
 export function openedPostId(): string {
   return /\/status\/(\d+)/.exec(location.pathname)?.[1] ?? '';

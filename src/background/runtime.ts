@@ -265,12 +265,11 @@ function BackgroundWorkerLive() {
         yield* tabCountLock.withPermits(1)(
           Effect.gen(function* () {
             const counts = yield* Ref.get(tabCounts);
-            if (counts.delete(tabId)) {
-              yield* browserEffect('remove tab count', () =>
-                browser.storage.session.remove(TAB_COUNT_PREFIX + tabId),
-              ).pipe(Effect.catchTag('BrowserError', () => Effect.void));
-              yield* Ref.set(tabCounts, counts);
-            }
+            counts.delete(tabId);
+            yield* Ref.set(tabCounts, counts);
+            yield* browserEffect('remove tab count', () =>
+              browser.storage.session.remove(TAB_COUNT_PREFIX + tabId),
+            ).pipe(Effect.catchTag('BrowserError', () => Effect.void));
             yield* setTabBadge(tabId, '');
           }),
         );

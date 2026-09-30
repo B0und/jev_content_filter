@@ -3,6 +3,7 @@
 // normal policy, and the exemption follows the live path, not the page the
 // document was first loaded with.
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { posts } from '../../src/content/state';
 import {
   aria,
   buildTweetArticle,
@@ -75,6 +76,26 @@ describe('opened post', () => {
     expect(test.bg.blockedEntries).toEqual([]);
     expect(test.handle.report().blocked).toBe(0);
     expect(test.handle.report().pageBlocked).toBe(0);
+    stopRuntime(test);
+  });
+
+  it('does not log a scan completed while detached, but logs on reattachment', async () => {
+    const test = await startRuntime();
+    const response = Promise.withResolvers<{ ok: true; sexual: number; ai: number }>();
+    test.bg.respond = () => response.promise;
+    const article = buildTweetArticle({ id: '2023', text: 'explicit detached post' });
+    test.handle.discover();
+    await until(() => test.bg.jevCalls.length === 1);
+    const post = posts.get('2023')!;
+    article.remove();
+    response.resolve(explicit());
+    await until(() => !post.pending && post.textDone);
+    expect(test.bg.blockedEntries).toEqual([]);
+    document.body.append(article);
+    test.handle.discover();
+    await until(() => test.bg.blockedEntries.length === 1);
+    expect(article.hasAttribute('data-jev-hidden')).toBe(true);
+    expect(test.bg.blockedEntries[0]?.tweetId).toBe('2023');
     stopRuntime(test);
   });
 });

@@ -57,7 +57,7 @@ Promises remain at framework callbacks and native SDK adapters. Pure filtering p
 - The AI-written score is a classifier estimate, not proof of authorship.
 - Drawings includes ordinary anime and illustrations, not only sexual content. Disable that category if you want nonsexual illustrations to remain visible.
 - Link previews have separate scores and can be hidden without hiding the post.
-- The post the URL addresses is never filtered: a status permalink, or the detail view X opens over the timeline. Everything else on that page is filtered normally, and the exemption follows the URL across same-document navigation.
+- The post the URL addresses is never filtered: a status permalink, or the detail view X opens over the timeline. Everything else on that page is filtered normally. Navigation triggers a render even for URL-only `pushState`, `replaceState`, and back/forward changes.
 - Pause restores hidden posts and previews. Unblocking a post persists an allow override.
 - The toolbar badge and popup totals count unique posts analyzed or blocked since page load. A post and its blocked preview count once. Timeline recycling, tab switches, unblocking, and log clearing do not subtract past blocks. Pause hides the badge without erasing the count; reloading or navigating to a new document resets it.
 - Badge resets use top-frame `webNavigation.onCommitted` events. Same-document history updates and iframe navigation preserve totals. The extension requests `webNavigation` permission for this distinction.
@@ -65,7 +65,7 @@ Promises remain at framework callbacks and native SDK adapters. Pure filtering p
 - Videos are checked through thumbnails/posters, not every frame. Thumbnail-size changes reuse the same scores; new thumbnail assets and late or replaced posters trigger another scan.
 - Quoted-post content is included in filtering, but quoted timestamps and links do not replace the parent post's identity or its blocked-log link.
 
-Use a post's filter control to inspect scores and change thresholds. The popup opens blocked-post and error logs. Links from the blocked log point at the post permalink, where the post stays visible on its own. The blocked log records hidden content only, so an opened or allowed post never adds a row to it.
+Use a post's filter control to inspect scores and change thresholds. The popup opens blocked-post and error logs. Links from the blocked log point at the post permalink, where the post stays visible on its own. The blocked log records hidden, attached content only. An opened or allowed post, or a scan completed after detachment, does not add a row.
 
 ## Privacy and request consistency
 
@@ -119,6 +119,10 @@ npm run test:e2e
 ```
 
 `npm run check` runs these checks together. Browser tests load the real built extension and bundled image model, but intercept provider and media requests. Unit tests substitute external inference while exercising filtering decisions, storage, and lifecycle transitions.
+
+Provider HTTP tests use [MSW v3](https://mswjs.io/docs/quick-start) in the Node environment, with strict unhandled-request errors and per-test handler resets. These exercise real `fetch`, HTTP error redaction, probability decoding, network failure, and cancellation rather than replacing `fetch` with a stub. The Vercel SDK cancellation test retains its SDK mock.
+
+Chromium tests still use synthetic feed HTML and Playwright routing. MSW's Node interceptor does not intercept the extension's separate Chromium process, and a page service worker cannot control the MV3 background worker's requests. These are controlled policy regressions, not replay tests against real X. Authentic X coverage needs sanitized captured DOM, or X's renderer and recorded internal responses; public Twitter API examples alone do not exercise this DOM-reading extension.
 
 The scrolling regression sends native wheel events through a virtualized feed, reuses article nodes, changes the URL with `history.replaceState`, and returns to earlier posts after exceeding detached-post retention. Separate navigation coverage checks iframe and top-frame commits.
 

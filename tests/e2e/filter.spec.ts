@@ -60,14 +60,18 @@ test('never filters the post opened directly and follows a same-document route c
   // preview still scores and hides.
   await expect(page.locator('[data-post="103"] [data-testid="card.wrapper"]')).toBeHidden();
 
-  // Going back to the timeline moves the exemption with the URL. X re-renders
-  // on that route change; editing a post stands in for that DOM work here.
-  await page.locator('[data-post="101"] [data-testid="tweetText"]').evaluate((node) => {
-    history.pushState({}, '', '/home');
-    node.textContent = 'A calmer afternoon in the garden.';
-  });
+  // URL-only navigation must update visibility without a DOM mutation.
+  await page.evaluate(() => history.pushState({}, '', '/home'));
   await expect(opened).toBeHidden();
   await expect(page.locator('[data-post="101"]')).toBeVisible();
+  await page.evaluate(() => history.replaceState({}, '', '/test/status/102'));
+  await expect(opened).toBeVisible();
+  await expect(opened.getByRole('button', { name: 'Opened post', exact: true })).toBeVisible();
+  await page.evaluate(() => history.pushState({}, '', '/home'));
+  await expect(opened).toBeHidden();
+  await page.evaluate(() => history.back());
+  await expect(page).toHaveURL('https://x.com/test/status/102');
+  await expect(opened).toBeVisible();
 });
 
 test('collapses blocked timeline cells and restores their space on pause', async ({
