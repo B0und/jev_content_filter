@@ -230,6 +230,51 @@ describe('logs state', () => {
     stop();
   });
 
+  it.each(['clear-log', 'clear-errors'] as const)(
+    'removes confirmed %s rows when the following storage read fails',
+    async (action) => {
+      let cleared = false;
+      const state = createLogsState(
+        logsDependencies({
+          loadLog: Effect.suspend(() =>
+            cleared
+              ? Effect.fail(
+                  new BrowserError({ operation: 'read log', cause: 'storage unavailable' }),
+                )
+              : Effect.succeed([blockedEntry]),
+          ),
+          loadStatus: Effect.succeed<FilterStatus>({
+            state: 'failing',
+            reason: 'text provider unavailable',
+            updatedAt: 3,
+          }),
+          clear: () =>
+            Effect.sync(() => {
+              cleared = true;
+            }),
+        }),
+      );
+      const stop = state.start();
+      try {
+        await whenSnapshot(state, () => state.getSnapshot().errors.length === 2);
+        const before = state.getSnapshot();
+        state.clear(action);
+        await whenSnapshot(state, () => state.getSnapshot().busyAction === null);
+        const after = state.getSnapshot();
+        expect(after.log).toEqual(action === 'clear-log' ? [] : before.log);
+        expect(after.errors).toEqual(
+          action === 'clear-errors'
+            ? [{ source: 'Text API', ts: 3, message: 'text provider unavailable' }]
+            : before.errors,
+        );
+        expect(after.actionError).toBe('');
+        expect(after.loadError).toContain('storage unavailable');
+      } finally {
+        stop();
+      }
+    },
+  );
+
   it('finishes a clear after view disposal and retains text-provider errors', async () => {
     const clearStarted = deferred<void>();
     const clearResult = deferred<void>();

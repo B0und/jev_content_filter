@@ -220,6 +220,17 @@ export function createLogsState(dependencies: LogsStateDependencies): LogsState 
 
     browserRuntime.runFork(
       dependencies.clear(type).pipe(
+        Effect.andThen(
+          storageLock.withPermits(1)(
+            Effect.sync(() =>
+              publish(
+                type === 'clear-log'
+                  ? { log: [] }
+                  : { errors: snapshot.errors.filter((row) => row.source === 'Text API') },
+              ),
+            ),
+          ),
+        ),
         Effect.andThen(refresh),
         Effect.andThen(Effect.sync(() => publish({ busyAction: null }))),
         Effect.catch((cause) => {
