@@ -33,7 +33,7 @@ test('filters posts and previews, restores them on pause, and persists an unbloc
   await row.getByRole('link').click();
   const review = await reviewPromise;
   await review.waitForLoadState();
-  await expect(review).toHaveURL('https://x.com/test/status/102?jev=review');
+  await expect(review).toHaveURL('https://x.com/test/status/102');
   await expect(review.locator('[data-post="102"]')).toBeVisible();
   await review.close();
   await row.getByRole('button', { name: 'Unblock', exact: true }).click();
@@ -42,6 +42,34 @@ test('filters posts and previews, restores them on pause, and persists an unbloc
   await expect(blocked).toBeVisible();
   await expect(blocked.getByRole('button', { name: 'Allowed by you', exact: true })).toBeVisible();
 });
+test('never filters the post opened directly and follows a same-document route change', async ({
+  page,
+  setSettings,
+}) => {
+  const settings = defaultSettings();
+  settings.providerKeys.vercel = 'test-only-not-a-real-key';
+  for (const category of ['porn', 'hentai', 'sexy', 'drawings'] as const)
+    settings.enabled[category] = false;
+  await setSettings(settings);
+
+  await page.goto('https://x.com/test/status/102');
+  const opened = page.locator('[data-post="102"]');
+  await expect(opened).toBeVisible();
+  await expect(opened.getByRole('button', { name: 'Opened post', exact: true })).toBeVisible();
+  // Everything else on the page keeps the normal policy: the neighboring
+  // preview still scores and hides.
+  await expect(page.locator('[data-post="103"] [data-testid="card.wrapper"]')).toBeHidden();
+
+  // Going back to the timeline moves the exemption with the URL. X re-renders
+  // on that route change; editing a post stands in for that DOM work here.
+  await page.locator('[data-post="101"] [data-testid="tweetText"]').evaluate((node) => {
+    history.pushState({}, '', '/home');
+    node.textContent = 'A calmer afternoon in the garden.';
+  });
+  await expect(opened).toBeHidden();
+  await expect(page.locator('[data-post="101"]')).toBeVisible();
+});
+
 test('collapses blocked timeline cells and restores their space on pause', async ({
   page,
   context,
@@ -247,7 +275,7 @@ test('hides disabled categories from the timeline inspector', async ({ page, set
   await expect(panel.getByRole('cell', { name: 'Sexual text', exact: true })).toHaveCount(1);
   await expect(panel.getByRole('cell', { name: 'AI-written text', exact: true })).toHaveCount(0);
 });
-test('opens blocked image posts in review mode from logs', async ({
+test('opens blocked image posts from the logs without hiding them', async ({
   page,
   context,
   extensionId,
@@ -282,7 +310,7 @@ test('opens blocked image posts in review mode from logs', async ({
   await row.getByRole('link').click();
   const review = await reviewPromise;
   await review.waitForLoadState();
-  await expect(review).toHaveURL('https://x.com/gardener/status/101?jev=review');
+  await expect(review).toHaveURL('https://x.com/gardener/status/101');
   await expect(review.locator('[data-post="101"]')).toBeVisible();
   await review.close();
   await logs.close();

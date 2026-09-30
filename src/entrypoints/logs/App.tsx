@@ -31,13 +31,12 @@ const REASON_OPTIONS: Array<{ value: ReasonFilter; label: string }> = [
   })),
 ];
 
-/** Every entry with an ID opens in review mode so the linked post stays visible. */
+/** Every entry with an ID links to its permalink, which is never hidden. */
 function postUrl(entry: { tweetId?: string; handle?: string }): string | null {
   if (!entry.tweetId) return null;
-  const base = entry.handle
+  return entry.handle
     ? `https://x.com/${entry.handle}/status/${entry.tweetId}`
     : `https://x.com/i/status/${entry.tweetId}`;
-  return `${base}?jev=review`;
 }
 
 // The virtualizer manages its own refs/effects and is incompatible with React

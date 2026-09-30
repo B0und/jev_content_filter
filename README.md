@@ -57,6 +57,7 @@ Promises remain at framework callbacks and native SDK adapters. Pure filtering p
 - The AI-written score is a classifier estimate, not proof of authorship.
 - Drawings includes ordinary anime and illustrations, not only sexual content. Disable that category if you want nonsexual illustrations to remain visible.
 - Link previews have separate scores and can be hidden without hiding the post.
+- The post the URL addresses is never filtered: a status permalink, or the detail view X opens over the timeline. Everything else on that page is filtered normally, and the exemption follows the URL across same-document navigation.
 - Pause restores hidden posts and previews. Unblocking a post persists an allow override.
 - The toolbar badge and popup totals count unique posts analyzed or blocked since page load. A post and its blocked preview count once. Timeline recycling, tab switches, unblocking, and log clearing do not subtract past blocks. Pause hides the badge without erasing the count; reloading or navigating to a new document resets it.
 - Badge resets use top-frame `webNavigation.onCommitted` events. Same-document history updates and iframe navigation preserve totals. The extension requests `webNavigation` permission for this distinction.
@@ -64,7 +65,7 @@ Promises remain at framework callbacks and native SDK adapters. Pure filtering p
 - Videos are checked through thumbnails/posters, not every frame. Thumbnail-size changes reuse the same scores; new thumbnail assets and late or replaced posters trigger another scan.
 - Quoted-post content is included in filtering, but quoted timestamps and links do not replace the parent post's identity or its blocked-log link.
 
-Use a post's filter control to inspect scores and change thresholds. The popup opens blocked-post and error logs. Links from the blocked log use review mode so the selected post remains visible.
+Use a post's filter control to inspect scores and change thresholds. The popup opens blocked-post and error logs. Links from the blocked log point at the post permalink, where the post stays visible on its own. The blocked log records hidden content only, so an opened or allowed post never adds a row to it.
 
 ## Privacy and request consistency
 

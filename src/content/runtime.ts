@@ -18,6 +18,7 @@ import {
   createBinding,
   injectGlobalStyle,
   installActivation,
+  logEffects,
   panelOpenFor,
   removeAllUI,
   render,
@@ -35,7 +36,6 @@ import {
   posts,
   report,
   resetPageStats,
-  reviewMode,
   settings,
   trackBinding,
   untrackBinding,
@@ -412,6 +412,9 @@ class ContentSession extends Context.Service<ContentSession, ContentSessionApi>(
               bindingsChanged = true;
             }
             render(article, binding);
+            // Visibility can flip without a scan, so blocked content is
+            // reported here too, not only when a scan finishes.
+            for (const logging of logEffects(post)) yield* Effect.forkIn(logging, scope);
             yield* startScan(post);
           }
           yield* evictDetachedPosts();
@@ -572,7 +575,6 @@ class ContentSession extends Context.Service<ContentSession, ContentSessionApi>(
 }
 
 export async function startContentFilter(ctx: ContentScriptContext): Promise<ContentHandle> {
-  reviewMode.current = new URLSearchParams(location.search).get('jev') === 'review';
   activeCtx = ctx;
   const contentRuntime = ManagedRuntime.make(ContentSession.layer(ctx));
   const dispose = () => {
@@ -637,7 +639,6 @@ function teardown(ctx: ContentScriptContext): void {
   observer?.disconnect();
   observer = null;
   activeCtx = null;
-  reviewMode.current = false;
   posts.clear();
   resetPageStats();
   overrides.clear();

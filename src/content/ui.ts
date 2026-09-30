@@ -15,7 +15,6 @@ import {
   previewBlocked,
   previewHits,
   recordPageStats,
-  reviewMode,
   settings,
   stateOf,
   type Binding,
@@ -163,18 +162,25 @@ export function renderPost(post: Post): Array<Effect.Effect<void>> {
   if (posts.get(post.id) !== post) return [];
   for (const [article, binding] of bindings) if (binding.post === post) render(article, binding);
   if (openPostId === post.id) renderPanel(post);
+  return logEffects(post);
+}
+
+/**
+ * Log effects for content this moment counts as blocked. Only hidden content is
+ * logged: an opened or allowed post is not a block, and its row would have
+ * nothing to unblock. Visibility can change without a scan — the URL starts or
+ * stops addressing the post, or a threshold change re-blocks existing scores —
+ * so discovery dispatches these on every pass.
+ */
+export function logEffects(post: Post): Array<Effect.Effect<void>> {
   const effects: Array<Effect.Effect<void>> = [];
-  if (settings.current.masterEnabled && !reviewMode.current) {
-    const postHits = hits(post);
-    if (postHits.length && !post.logged) {
-      post.logged = true;
-      effects.push(logBlocked(post, postHits, post.text, 'post'));
-    }
-    const previewReasons = previewHits(post);
-    if (previewBlocked(post) && previewReasons.length && !post.previewLogged) {
-      post.previewLogged = true;
-      effects.push(logBlocked(post, previewReasons, post.previewText || post.text, 'preview'));
-    }
+  if (blocked(post) && !post.logged) {
+    post.logged = true;
+    effects.push(logBlocked(post, hits(post), post.text, 'post'));
+  }
+  if (previewBlocked(post) && !post.previewLogged) {
+    post.previewLogged = true;
+    effects.push(logBlocked(post, previewHits(post), post.previewText || post.text, 'preview'));
   }
   return effects;
 }

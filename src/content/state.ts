@@ -81,8 +81,15 @@ export const overrides = new Map<string, 'allow'>();
 /** Replaced wholesale whenever settings are loaded; readers always see the latest. */
 export const settings: { current: Settings } = { current: defaultSettings() };
 
-/** Direct log links opt into review mode so the linked post stays visible. */
-export const reviewMode = { current: false };
+/**
+ * Post the URL addresses directly — its status permalink, or the detail view X
+ * opens over the timeline. Read from the live path at render time, so a
+ * same-document navigation needs no listener of its own: X mutates the DOM
+ * when the route changes, and every mutation triggers a render pass.
+ */
+export function openedPostId(): string {
+  return /\/status\/(\d+)/.exec(location.pathname)?.[1] ?? '';
+}
 
 export function newPost(
   id: string,
@@ -143,7 +150,7 @@ export function previewHits(post: Post): Array<{ key: CategoryKey; score: number
 }
 
 export function blocked(post: Post): boolean {
-  if (!settings.current.masterEnabled || reviewMode.current) return false;
+  if (!settings.current.masterEnabled || post.id === openedPostId()) return false;
   if (overrides.has(post.id)) return false;
   return hits(post).length > 0;
 }
@@ -152,7 +159,7 @@ export function previewBlocked(post: Post): boolean {
   // Fail open: only hide the preview when its own scan finished cleanly.
   if (
     !settings.current.masterEnabled ||
-    reviewMode.current ||
+    post.id === openedPostId() ||
     overrides.has(post.id) ||
     post.partErrors.preview.length
   )
@@ -163,6 +170,7 @@ export function previewBlocked(post: Post): boolean {
 export function stateOf(post: Post): string {
   if (!settings.current.masterEnabled) return 'Paused';
   if (post.pending) return 'Scanning';
+  if (post.id === openedPostId()) return 'Opened post';
   if (blocked(post)) return 'Blocked';
   if (overrides.get(post.id) === 'allow') return 'Allowed by you';
   if (post.errors.length > 0)
