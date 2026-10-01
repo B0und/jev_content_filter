@@ -515,7 +515,7 @@ const comparisonCases = cases.map((item) => ({
   modality: 'image',
   title: item.title,
   imageUrl: item.assetFile.startsWith('existing/')
-    ? `/benchmarks/images/${path.basename(item.assetFile)}`
+    ? `/images/${path.basename(item.assetFile)}`
     : item.source,
   labels: {
     sexualContent: item.labels.sexualContent,

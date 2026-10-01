@@ -336,7 +336,7 @@
       "id": "reported-false-positive-trails-sky",
       "modality": "image",
       "title": "Trails in the Sky reported NSFW false positive",
-      "imageUrl": "/benchmarks/images/false-positive-hentai-trails-sky-2nd.webp",
+      "imageUrl": "/images/false-positive-hentai-trails-sky-2nd.webp",
       "labels": {
         "sexualContent": "no",
         "aiGenerated": "unknown"
