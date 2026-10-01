@@ -533,7 +533,7 @@ const comparisonCases = cases.map((item) => ({
     item.provenance === 'user-reported' ? manifest.sources.existingFalsePositive.caveat : null,
   ]
     .filter(Boolean)
-    .join('\\n'),
+    .join('\n'),
   createdAt: manifest.createdAt,
 }));
 const comparisonExport = {

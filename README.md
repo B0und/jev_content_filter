@@ -150,7 +150,7 @@ npm test
 npm run test:e2e
 ```
 
-`npm run check` runs these checks together. `npm run test:e2e` first caches the real pinned model files under ignored `.cache/models`, builds the extension, and runs Chromium scenarios. Browser tests serve those genuine weights and intercept provider/media requests; they do not substitute classifier graphs. Offline coverage closes the offscreen document, recreates its inference worker and graph, and classifies uncached text with Hugging Face requests aborted. Unit tests substitute external inference while exercising policy, storage, and lifecycle transitions.
+`npm run check` runs these checks together. `npm run test:e2e` builds the extension and runs Chromium scenarios. Browser tests download the pinned model weights from their real origins on a cold browser profile and reuse them from the profile's caches afterwards, so the suite needs network access for its first model load. Playwright routing intercepts provider and media requests, but not requests made by the offscreen inference document or its module worker, so it cannot substitute or block model downloads. Offline coverage closes the offscreen document, recreates its inference worker and graph from the persistent cache, and classifies again. Unit tests substitute external inference while exercising policy, storage, and lifecycle transitions.
 
 [React Doctor](https://www.react.doctor/) is installed as a development dependency. `npm run doctor` runs a full scan and fails on warnings or errors; `npm run check` includes it. Generated `.output`, `.wxt`, `playwright-report`, and `test-results` files are excluded. Source rules remain enabled. The command disables the remote score API and crash reporting with `--no-score`.
 

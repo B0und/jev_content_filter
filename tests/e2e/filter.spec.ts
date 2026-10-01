@@ -331,8 +331,10 @@ test('classifies AI-written text locally without credentials and reuses weights 
   await page.keyboard.press('Escape');
   await popup.close();
 
-  // Closing the offscreen document disposes the inference worker and graph.
-  // A new graph must use only cached weights; Hugging Face requests fail closed.
+  // Closing the offscreen document disposes the inference worker and graph, so
+  // the replacement must rebuild them from the persistent model cache. The
+  // route abort only covers page-context requests; the offscreen worker's own
+  // fetches are covered by the reopened model and classification below.
   await context.route('https://huggingface.co/**', (route) => route.abort());
   await worker.evaluate(() => chrome.offscreen.closeDocument());
   await page.reload();

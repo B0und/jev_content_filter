@@ -17,8 +17,7 @@
     "format:check": "oxfmt --check",
     "test": "vitest run",
     "test:watch": "vitest",
-    "cache:models": "node --experimental-strip-types benchmarks/cache-models.mjs",
-    "test:e2e": "npm run cache:models && npm run build && playwright test",
+    "test:e2e": "npm run build && playwright test",
     "check": "npm run compile && npm run lint && npm run doctor && npm run format:check && npm test && npm run test:e2e"
   },
   "dependencies": {

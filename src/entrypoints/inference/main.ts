@@ -10,6 +10,7 @@ import {
   type InferenceRequest,
   type InferenceReply,
 } from '../../shared/inference';
+import { createWorkerSupervisor } from './worker-supervisor';
 
 const WorkerReplySchema = Schema.Union([
   Schema.Struct({ type: Schema.Literal('result'), id: Schema.Int, reply: InferenceReplySchema }),
@@ -20,11 +21,7 @@ const pending = new Map<
   number,
   { resolve: (reply: InferenceReply) => void; reject: (error: Error) => void }
 >();
-const worker = new Worker(new URL('../../inference/worker.ts', import.meta.url), {
-  type: 'module',
-});
 let nextId = 0;
-let workerFailure: Error | undefined;
 let statuses = initialModelStatuses();
 let persistScheduled = false;
 const persistStatus = () => {
@@ -42,31 +39,41 @@ const persistStatus = () => {
     ),
   );
 };
-worker.onmessage = (event: MessageEvent<unknown>) => {
-  if (!Schema.is(WorkerReplySchema)(event.data)) return;
-  if (event.data.type === 'status') {
-    statuses = event.data.models;
-    persistStatus();
-  } else {
+const supervisor = createWorkerSupervisor({
+  start: (handlers) => {
+    const instance = new Worker(new URL('../../inference/worker.ts', import.meta.url), {
+      type: 'module',
+    });
+    instance.onmessage = handlers.onMessage;
+    instance.onerror = handlers.onError;
+    return {
+      postMessage: (message) => instance.postMessage(message),
+      terminate: () => instance.terminate(),
+    };
+  },
+  onMessage: (event) => {
+    if (!Schema.is(WorkerReplySchema)(event.data)) return;
+    if (event.data.type === 'status') {
+      statuses = event.data.models;
+      persistStatus();
+      return;
+    }
     const reply = pending.get(event.data.id);
     pending.delete(event.data.id);
     reply?.resolve(event.data.reply);
-  }
-};
-worker.onerror = (event) => {
-  const error = new Error(
-    event.message || 'Local inference worker stopped. Reload the extension to retry.',
-  );
-  workerFailure = error;
-  for (const request of pending.values()) request.reject(error);
-  pending.clear();
-  for (const kind of ['image', 'aiText'] as const)
-    statuses[kind] = { ...statuses[kind], state: 'error', error: error.message };
-  persistStatus();
-};
+  },
+  // A crashed graph (WASM abort, failed worker setup) must not disable local
+  // filtering for the session: the supervisor drops the worker and the next
+  // request starts a replacement.
+  onFailure: (error) => {
+    for (const request of pending.values()) request.reject(error);
+    pending.clear();
+    for (const kind of ['image', 'aiText'] as const)
+      statuses[kind] = { ...statuses[kind], state: 'error', error: error.message };
+    persistStatus();
+  },
+});
 const run = Effect.fn('InferenceWorker.run')(function* (request: InferenceRequest) {
-  if (workerFailure)
-    return yield* new BrowserError({ operation: 'run local inference', cause: workerFailure });
   const id = ++nextId;
   return yield* Effect.tryPromise({
     try: (signal) =>
@@ -87,7 +94,7 @@ const run = Effect.fn('InferenceWorker.run')(function* (request: InferenceReques
             reject(error);
           },
         });
-        worker.postMessage({ id, request });
+        supervisor.send({ id, request });
       }),
     catch: (cause) => new BrowserError({ operation: 'run local inference', cause }),
   });
@@ -108,7 +115,7 @@ browser.runtime.onMessage.addListener((request: unknown, sender, sendResponse) =
 window.addEventListener(
   'pagehide',
   () => {
-    worker.terminate();
+    supervisor.terminate();
     for (const request of pending.values())
       request.reject(new Error('Local inference document closed.'));
     pending.clear();

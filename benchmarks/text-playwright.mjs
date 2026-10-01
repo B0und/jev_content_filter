@@ -52,7 +52,9 @@ try {
         aiProbability: Number.isFinite(source?.score) ? source.score : null,
         rawOutput: null,
         inferenceMs: Number.isFinite(source?.latencyMs) ? source.latencyMs : null,
-        error: source ? null : 'No matched Jev result for case ID.',
+        error: !source
+          ? 'No matched Jev result for case ID.'
+          : (source.error ?? (Number.isFinite(source.score) ? null : 'Jev returned no score.')),
       };
     });
     result.jevBaseline = {

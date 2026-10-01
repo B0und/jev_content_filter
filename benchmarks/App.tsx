@@ -593,7 +593,7 @@ export function App() {
                     <span>{selectedCase.id}</span>
                   </div>
                   <h2>{selectedCase.title}</h2>
-                  <p>{selectedCase.notes || 'No notes yet.'}</p>
+                  <p className="case-notes">{selectedCase.notes || 'No notes yet.'}</p>
                 </div>
                 <div className="label-progress">
                   <strong>{labeledCount}/2</strong>

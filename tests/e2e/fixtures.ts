@@ -10,7 +10,6 @@ import { readFile } from 'node:fs/promises';
 import * as Schema from 'effect/Schema';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
-import { SELECTED_MODELS } from '../../src/shared/model-catalog';
 import { defaultSettings, type Settings } from '../../src/shared/types';
 
 const isEvaluationRequest = Schema.is(
@@ -76,46 +75,6 @@ export const test = base.extend<{
               sexual: { type: 'boolean', probability: text.includes('BLOCK_TEXT') ? 0.99 : 0.01 },
             },
           },
-        });
-      }
-      if (url.hostname === 'huggingface.co' || url.hostname === 'raw.githubusercontent.com') {
-        const pathname = decodeURIComponent(url.pathname);
-        for (const model of Object.values(SELECTED_MODELS)) {
-          const baseUrl = new URL(model.baseUrl);
-          const prefix = `${baseUrl.pathname.replace(/\/$/, '')}/`;
-          if (url.hostname !== baseUrl.hostname || !pathname.startsWith(prefix)) continue;
-          const file = pathname.slice(prefix.length);
-          if (!model.files.includes(file))
-            return route.fulfill({
-              status: 404,
-              body: 'Model artifact is not in the pinned catalog.',
-            });
-          let body: Buffer;
-          try {
-            body = await readFile(path.join('.cache/models', model.id, model.revision, file));
-          } catch {
-            return route.fulfill({ status: 404, body: 'Cached model artifact not found.' });
-          }
-          const headers = {
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
-            'Access-Control-Allow-Headers': 'Range',
-            'Access-Control-Expose-Headers': 'Accept-Ranges, Content-Length, Content-Range',
-            'Accept-Ranges': 'bytes',
-            'Content-Length': String(body.byteLength),
-            'Content-Type': file.endsWith('.json')
-              ? 'application/json'
-              : 'application/octet-stream',
-          };
-          return route.fulfill({
-            status: 200,
-            headers,
-            ...(route.request().method() === 'HEAD' ? {} : { body }),
-          });
-        }
-        return route.fulfill({
-          status: 404,
-          body: 'Model artifact is not in the pinned catalog.',
         });
       }
       if (url.hostname === 'x.com' || url.hostname === 'twitter.com') {
