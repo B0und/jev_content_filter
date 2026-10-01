@@ -4,7 +4,7 @@ A Chromium MV3 extension that filters posts and link previews on X and Twitter. 
 
 ## Development and installation
 
-Use Node.js 22.12.0 or newer and npm. A current LTS release, preferably Node 24 or newer, is recommended. MSW v3 requires at least Node 22.12.0.
+Use Node.js 22.13.0 or newer and npm. A current LTS release, preferably Node 24 or newer, is recommended. React Doctor requires Node 22.13.0 or newer on the Node 22 release line; MSW v3 requires at least Node 22.12.0.
 
 ```sh
 npm ci
@@ -96,7 +96,7 @@ npm run benchmark
 
 The lab stores its state in `benchmarks/.data/benchmark.sqlite`. Keep that directory to preserve cases, labels, solutions, predictions, and reviews. Export state before making destructive changes to your corpus.
 
-If the initial storage read fails, the lab shows the error without overwriting the database. Subsequent user edits save the displayed dataset, so reload to recover the stored dataset before editing if the failure was transient.
+If the initial storage read fails, the lab shows the error and a Retry button. Editing and saving remain disabled until the saved dataset loads successfully.
 
 New databases start with ten cases: two images and eight synthetic AI-authored texts covering solicitation, innuendo, arousal bait, factual health/news/relationship discussion, and ambiguous examples. Synthetic text AI-origin labels record known provenance; they are not inferred from style. Unknown labels are excluded from that task's metrics. No model predictions are prefilled.
 

@@ -367,7 +367,16 @@ export function App() {
       <main className="storage-loading" data-testid="benchmark-storage-loading">
         <p className="eyebrow">Local evaluation workbench</p>
         <h1>Benchmark Lab</h1>
-        <p>Connecting to the SQLite database…</p>
+        {storageError ? (
+          <>
+            <p role="alert">Could not load the saved dataset: {storageError}</p>
+            <button type="button" onClick={() => location.reload()}>
+              Retry
+            </button>
+          </>
+        ) : (
+          <p>Connecting to the SQLite database…</p>
+        )}
       </main>
     );
   }

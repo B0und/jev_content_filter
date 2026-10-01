@@ -36,7 +36,7 @@ export function createBenchmarkState(
       loadBenchmarkState.pipe(
         Effect.match({
           onSuccess: (state) => publish({ state, storageReady: true, storageError: '' }),
-          onFailure: (error) => publish({ storageReady: true, storageError: error.message }),
+          onFailure: (error) => publish({ storageReady: false, storageError: error.message }),
         }),
       ),
     );
