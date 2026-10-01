@@ -64,6 +64,20 @@ export const ScanErrorEntrySchema = Schema.Struct({
   handle: Schema.optionalKey(Schema.String),
 });
 
+export const ClearReplySchema = Schema.Union([
+  Schema.Struct({
+    ok: Schema.Literal(true),
+    type: Schema.Literal('clear-log'),
+    cleared: Schema.mutable(Schema.Array(BlockedEntrySchema)),
+  }),
+  Schema.Struct({
+    ok: Schema.Literal(true),
+    type: Schema.Literal('clear-errors'),
+    cleared: Schema.mutable(Schema.Array(ScanErrorEntrySchema)),
+  }),
+]);
+export type ClearReply = typeof ClearReplySchema.Type;
+
 export const TabReportSchema = Schema.Struct({
   analyzed: nonNegativeInt,
   blocked: nonNegativeInt,

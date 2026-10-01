@@ -427,11 +427,9 @@ function BackgroundWorkerLive() {
             );
             return { ok: true };
           case 'clear-log':
-            yield* logOperation(clearLog);
-            return { ok: true };
+            return { ok: true, type: request.type, cleared: yield* logOperation(clearLog) };
           case 'clear-errors':
-            yield* logOperation(clearScanErrors);
-            return { ok: true };
+            return { ok: true, type: request.type, cleared: yield* logOperation(clearScanErrors) };
           case 'open-logs': {
             // Page contexts cannot navigate to chrome-extension:// URLs; open the
             // log from the privileged worker instead. Keep the existing immediate reply.

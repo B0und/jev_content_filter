@@ -3,10 +3,12 @@ import { BrowserError, browserEffect } from '../../src/shared/browser';
 import { describe, expect, it } from 'vitest';
 import { STORAGE_KEYS, type BlockedEntry, type FilterStatus } from '../../src/shared/types';
 import type { ScanErrorEntry } from '../../src/shared/log';
+import type { ClearReply } from '../../src/shared/schemas';
 import {
   createLogsState,
   type LogsState,
   type LogsStateDependencies,
+  type ClearAction,
 } from '../../src/entrypoints/logs/state';
 
 interface Deferred<A> {
@@ -41,6 +43,12 @@ const blockedEntry: BlockedEntry = {
 };
 const scanError: ScanErrorEntry = { ts: 2, message: 'image scan failed' };
 
+function clearReply(type: ClearAction): ClearReply {
+  return type === 'clear-log'
+    ? { ok: true, type, cleared: [blockedEntry] }
+    : { ok: true, type, cleared: [scanError] };
+}
+
 function logsDependencies(overrides: Partial<LogsStateDependencies> = {}): LogsStateDependencies {
   return {
     loadLog: Effect.succeed([blockedEntry]),
@@ -49,7 +57,7 @@ function logsDependencies(overrides: Partial<LogsStateDependencies> = {}): LogsS
     loadOverrides: () => Effect.succeed({}),
     subscribeStorage: () => () => {},
     unblock: () => Effect.void,
-    clear: () => Effect.void,
+    clear: (type) => Effect.succeed(clearReply(type)),
     ...overrides,
   };
 }
@@ -142,6 +150,7 @@ describe('logs state', () => {
           Effect.sync(() => {
             storedLog = [];
             persistedClear.resolve();
+            return clearReply('clear-log');
           }),
       }),
     );
@@ -248,9 +257,10 @@ describe('logs state', () => {
             reason: 'text provider unavailable',
             updatedAt: 3,
           }),
-          clear: () =>
+          clear: (type) =>
             Effect.sync(() => {
               cleared = true;
+              return clearReply(type);
             }),
         }),
       );
@@ -275,6 +285,71 @@ describe('logs state', () => {
     },
   );
 
+  it.each(['clear-log', 'clear-errors'] as const)(
+    'retains rows added after %s when acknowledgement is delayed and refresh fails',
+    async (action) => {
+      let storedLog = [blockedEntry];
+      let storedErrors = [scanError];
+      let failReads = false;
+      let notifyStorage: Parameters<LogsStateDependencies['subscribeStorage']>[0] | undefined;
+      const submitted = deferred<void>();
+      const acknowledgement = deferred<void>();
+      const newerPost = { ...blockedEntry, snippet: 'new content after clear' };
+      const newerError = { ...scanError, handle: 'new-handle-after-clear' };
+      const state = createLogsState(
+        logsDependencies({
+          loadLog: Effect.suspend(() =>
+            failReads
+              ? Effect.fail(
+                  new BrowserError({ operation: 'read log', cause: 'storage unavailable' }),
+                )
+              : Effect.succeed(storedLog),
+          ),
+          loadScanErrors: Effect.sync(() => storedErrors),
+          subscribeStorage: (listener) => {
+            notifyStorage = listener;
+            return () => {
+              notifyStorage = undefined;
+            };
+          },
+          clear: () =>
+            browserEffect('delayed clear acknowledgement', () => {
+              const reply: ClearReply =
+                action === 'clear-log'
+                  ? { ok: true, type: action, cleared: storedLog }
+                  : { ok: true, type: action, cleared: storedErrors };
+              if (action === 'clear-log') storedLog = [];
+              else storedErrors = [];
+              submitted.resolve();
+              return acknowledgement.promise.then(() => reply);
+            }),
+        }),
+      );
+      const stop = state.start();
+      try {
+        await whenSnapshot(state, () => state.getSnapshot().log.length === 1);
+        state.clear(action);
+        await submitted.promise;
+        storedLog = [newerPost];
+        storedErrors = [newerError];
+        if (!notifyStorage) throw new Error('Missing storage listener');
+        notifyStorage('local', {
+          [STORAGE_KEYS.log]: { newValue: storedLog },
+          [STORAGE_KEYS.scanErrors]: { newValue: storedErrors },
+        });
+        await whenSnapshot(state, () => state.getSnapshot().log[0]?.snippet === newerPost.snippet);
+        failReads = true;
+        acknowledgement.resolve();
+        await whenSnapshot(state, () => state.getSnapshot().busyAction === null);
+        expect(state.getSnapshot().log).toEqual([newerPost]);
+        expect(state.getSnapshot().errors).toEqual([{ ...newerError, source: 'Scan' }]);
+        expect(state.getSnapshot().loadError).toContain('storage unavailable');
+      } finally {
+        stop();
+      }
+    },
+  );
+
   it('finishes a clear after view disposal and retains text-provider errors', async () => {
     const clearStarted = deferred<void>();
     const clearResult = deferred<void>();
@@ -293,6 +368,7 @@ describe('logs state', () => {
             clearStarted.resolve();
             return clearResult.promise.then(() => {
               scanErrors = [];
+              return clearReply('clear-errors');
             });
           }),
       }),

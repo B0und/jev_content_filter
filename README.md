@@ -69,7 +69,7 @@ Promises remain at framework callbacks and native SDK adapters. Pure filtering p
 
 Use a post's filter control to inspect scores and change thresholds. The popup opens blocked-post and error logs. Links from the blocked log point at the post permalink, where the post stays visible on its own. The blocked log records hidden, attached content only. An opened or allowed post, or a scan completed after detachment, does not add a row.
 
-Confirmed log clears remove the displayed rows even if the subsequent storage read fails. The page reports the read failure separately. Clearing scan errors does not clear the provider-health error.
+The background worker acknowledges a clear with the rows it deleted under the log mutation lock. The page removes only those row versions, retaining posts and errors added afterward even if its next storage read fails. The page reports the read failure separately. Clearing scan errors does not clear the provider-health error.
 
 ## Privacy and request consistency
 

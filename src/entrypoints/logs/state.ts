@@ -4,6 +4,12 @@ import { browser } from 'wxt/browser';
 import { BrowserError, browserEffect, browserRuntime } from '../../shared/browser';
 import { loadLog, loadScanErrors, type ScanErrorEntry } from '../../shared/log';
 import { loadStatus } from '../../shared/settings';
+import {
+  BlockedEntrySchema,
+  ClearReplySchema,
+  ScanErrorEntrySchema,
+  type ClearReply,
+} from '../../shared/schemas';
 import { STORAGE_KEYS, type BlockedEntry, type FilterStatus } from '../../shared/types';
 
 export type ClearAction = 'clear-log' | 'clear-errors';
@@ -36,7 +42,7 @@ export interface LogsStateDependencies {
     listener: (area: string, changes: Readonly<Record<string, { newValue?: unknown }>>) => void,
   ) => () => void;
   unblock: (tweetId: string) => Effect.Effect<void, BrowserError>;
-  clear: (type: ClearAction) => Effect.Effect<void, BrowserError>;
+  clear: (type: ClearAction) => Effect.Effect<ClearReply, BrowserError>;
 }
 
 interface OverrideState {
@@ -50,7 +56,9 @@ const LOG_STORAGE_KEYS: Record<string, true> = {
   [STORAGE_KEYS.scanErrors]: true,
   [STORAGE_KEYS.status]: true,
 };
-const ClearSuccessSchema = Schema.Struct({ ok: Schema.Literal(true) });
+const isClearReply = Schema.is(ClearReplySchema);
+const sameBlockedEntry = Schema.toEquivalence(BlockedEntrySchema);
+const sameScanErrorEntry = Schema.toEquivalence(ScanErrorEntrySchema);
 
 export function createLogsState(dependencies: LogsStateDependencies): LogsState {
   const subscribers = new Set<() => void>();
@@ -220,15 +228,27 @@ export function createLogsState(dependencies: LogsStateDependencies): LogsState 
 
     browserRuntime.runFork(
       dependencies.clear(type).pipe(
-        Effect.andThen(
+        Effect.flatMap((reply) =>
           storageLock.withPermits(1)(
-            Effect.sync(() =>
-              publish(
-                type === 'clear-log'
-                  ? { log: [] }
-                  : { errors: snapshot.errors.filter((row) => row.source === 'Text API') },
-              ),
-            ),
+            Effect.sync(() => {
+              if (reply.type === 'clear-log') {
+                const cleared = new Map(reply.cleared.map((entry) => [entry.tweetId, entry]));
+                publish({
+                  log: snapshot.log.filter((entry) => {
+                    const removed = cleared.get(entry.tweetId);
+                    return !removed || !sameBlockedEntry(entry, removed);
+                  }),
+                });
+              } else {
+                publish({
+                  errors: snapshot.errors.filter(
+                    (row) =>
+                      row.source === 'Text API' ||
+                      !reply.cleared.some((entry) => sameScanErrorEntry(row, entry)),
+                  ),
+                });
+              }
+            }),
           ),
         ),
         Effect.andThen(refresh),
@@ -278,12 +298,9 @@ const browserDependencies: LogsStateDependencies = {
     ),
   clear: (type) =>
     browserEffect(type, () => browser.runtime.sendMessage({ type })).pipe(
-      Effect.flatMap((reply) =>
-        Schema.is(ClearSuccessSchema)(reply)
-          ? Effect.void
-          : Effect.fail(
-              new BrowserError({ operation: type, cause: 'background did not confirm the clear' }),
-            ),
+      Effect.filterOrFail(
+        (reply): reply is ClearReply => isClearReply(reply) && reply.type === type,
+        () => new BrowserError({ operation: type, cause: 'background did not confirm the clear' }),
       ),
     ),
 };

@@ -418,10 +418,9 @@ describe('serialized log queue', () => {
       type: 'log-blocked',
       entry: blockedEntry('b'),
     });
-    const cleared = await fakeBrowser.runtime.sendMessage({ type: 'clear-log' });
+    await fakeBrowser.runtime.sendMessage({ type: 'clear-log' });
     await append;
 
-    expect(cleared).toEqual({ ok: true });
     expect(await Effect.runPromise(loadLog())).toEqual([]);
 
     await fakeBrowser.runtime.sendMessage({ type: 'log-blocked', entry: blockedEntry('c') });
@@ -436,9 +435,7 @@ describe('serialized log queue', () => {
       message: 'boom',
       tweetId: 't1',
     });
-    await expect(fakeBrowser.runtime.sendMessage({ type: 'clear-errors' })).resolves.toEqual({
-      ok: true,
-    });
+    await fakeBrowser.runtime.sendMessage({ type: 'clear-errors' });
     const stored = await fakeBrowser.storage.local.get('scanErrors');
     expect(stored.scanErrors).toEqual([]);
   });

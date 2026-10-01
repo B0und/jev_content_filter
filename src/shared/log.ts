@@ -32,9 +32,13 @@ export const appendBlocked = Effect.fn('appendBlocked')(function* (entry: Blocke
   );
 });
 
-export const clearLog = browserEffect('clear blocked log', () =>
-  browser.storage.local.set({ [STORAGE_KEYS.log]: [] }),
-);
+export const clearLog = Effect.gen(function* () {
+  const cleared = yield* loadLog();
+  yield* browserEffect('clear blocked log', () =>
+    browser.storage.local.set({ [STORAGE_KEYS.log]: [] }),
+  );
+  return cleared;
+});
 
 export interface ScanErrorEntry {
   ts: number;
@@ -82,6 +86,10 @@ export const appendScanError = Effect.fn('appendScanError')(function* (
   );
 });
 
-export const clearScanErrors = browserEffect('clear scan errors', () =>
-  browser.storage.local.set({ [STORAGE_KEYS.scanErrors]: [] }),
-);
+export const clearScanErrors = Effect.gen(function* () {
+  const cleared = yield* loadScanErrors();
+  yield* browserEffect('clear scan errors', () =>
+    browser.storage.local.set({ [STORAGE_KEYS.scanErrors]: [] }),
+  );
+  return cleared;
+});
