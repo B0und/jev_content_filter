@@ -73,7 +73,7 @@ describe('inference worker supervisor', () => {
     supervisor.send({ id: 2 });
 
     crash(factory.handlers[0]!, 'stale failure');
-    expect(failures).toHaveLength(2);
+    expect(failures.map((error) => error.message)).toEqual(['first failure']);
     expect(factory.created[1]!.terminated).toBe(false);
 
     supervisor.send({ id: 3 });

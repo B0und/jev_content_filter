@@ -281,7 +281,7 @@ test('classifies an image with the downloaded local model and applies its measur
   await pornThreshold.press('Tab');
   await expect(post).toBeVisible();
 });
-test('classifies AI-written text locally without credentials and reuses weights after an offline reopen', async ({
+test('classifies AI-written text locally without credentials and rebuilds its worker after the offscreen document closes', async ({
   page,
   context,
   extensionId,
@@ -332,10 +332,8 @@ test('classifies AI-written text locally without credentials and reuses weights 
   await popup.close();
 
   // Closing the offscreen document disposes the inference worker and graph, so
-  // the replacement must rebuild them from the persistent model cache. The
-  // route abort only covers page-context requests; the offscreen worker's own
-  // fetches are covered by the reopened model and classification below.
-  await context.route('https://huggingface.co/**', (route) => route.abort());
+  // the replacement has to recreate both. The profile's model caches supply the
+  // weights; Playwright routing cannot block the offscreen worker's own fetches.
   await worker.evaluate(() => chrome.offscreen.closeDocument());
   await page.reload();
 

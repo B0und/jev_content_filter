@@ -28,9 +28,10 @@ export function createWorkerSupervisor(options: {
     const created = options.start({
       onMessage: options.onMessage,
       onError: (event) => {
-        // A late error from an already-replaced worker must not drop the
-        // replacement that is serving current requests.
-        if (worker === created) worker = undefined;
+        // A late error from an already-replaced worker must not reject requests
+        // pending on the replacement or mark the models as failed.
+        if (worker !== created) return;
+        worker = undefined;
         created.terminate();
         options.onFailure(
           new Error(event.message || 'Local inference worker stopped. Retry to restart it.'),
