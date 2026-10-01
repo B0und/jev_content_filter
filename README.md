@@ -71,6 +71,8 @@ Use a post's filter control to inspect scores and change thresholds. The popup o
 
 The background worker acknowledges a clear with the rows it deleted under the log mutation lock. The page removes only those row versions, retaining posts and errors added afterward even if its next storage read fails. The page reports the read failure separately. Clearing scan errors does not clear the provider-health error.
 
+Clearing requires the worker to read the stored rows first so its deletion receipt is accurate. If that read fails, the action reports a failure and leaves the saved rows unchanged.
+
 ## Privacy and request consistency
 
 Text and link-preview text are sent to the selected provider. Images are downloaded without credentials from X's media hosts and processed locally. The image model is loaded from the extension package only when an uncached image needs inference; it is not remote executable code.
