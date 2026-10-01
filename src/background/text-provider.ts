@@ -6,7 +6,6 @@ import type { TextProvider } from '../shared/types';
 
 export interface TextScores {
   sexual: number;
-  ai: number;
 }
 
 interface TextEvaluationRequest {
@@ -46,15 +45,6 @@ const DECISION_QUESTIONS = {
         'Ordinary non-sexual content, even if it discusses news, health, or relationships factually',
     },
   },
-  ai: {
-    type: 'noul',
-    instructions:
-      'Was this tweet most likely written by an AI or LLM, e.g. generic AI phrasing, engagement-farming templates, or machine-generated summaries?',
-    criteria: {
-      true: 'Tell-tale LLM phrasing, over-structured lists, hollow engagement bait, synthetic voice',
-      false: 'Natural human writing, including slang, typos, or short fragments',
-    },
-  },
 } as const;
 
 const GATEWAY_QUESTIONS = {
@@ -66,15 +56,6 @@ const GATEWAY_QUESTIONS = {
       true: 'Lewd imagery descriptions, sexual innuendo, thirst traps, or gooner-bait phrasing',
       false:
         'Ordinary non-sexual content, even if it discusses news, health, or relationships factually',
-    },
-  },
-  ai: {
-    type: 'boolean',
-    instructions:
-      'Was this tweet most likely written by an AI or LLM, e.g. generic AI phrasing, engagement-farming templates, or machine-generated summaries?',
-    criteria: {
-      true: 'Tell-tale LLM phrasing, over-structured lists, hollow engagement bait, synthetic voice',
-      false: 'Natural human writing, including slang, typos, or short fragments',
     },
   },
 } as const;
@@ -112,13 +93,10 @@ function scoresFromAnswers(rawAnswers: unknown): TextScores {
   const input = rawAnswers ?? {};
   const answers = Schema.is(AnswersSchema)(input) ? input : {};
   const sexual = probabilityOf(answers.sexual);
-  const ai = probabilityOf(answers.ai);
-  if (sexual === undefined || ai === undefined) {
-    throw new Error(
-      `Jev returned invalid probability (sexual: ${JSON.stringify(answers.sexual)}, ai: ${JSON.stringify(answers.ai)})`,
-    );
+  if (sexual === undefined) {
+    throw new Error(`Jev returned invalid probability (sexual: ${JSON.stringify(answers.sexual)})`);
   }
-  return { sexual, ai };
+  return { sexual };
 }
 
 class ProviderResponseError extends Error {

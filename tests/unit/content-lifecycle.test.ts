@@ -4,17 +4,18 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   aria,
   buildTweetArticle,
-  browser,
   clearFeed,
   iconButton,
-  nsfwProbe,
+  baseSettings,
   startRuntime,
   stopRuntime,
   until,
 } from './support';
+import { browser } from 'wxt/browser';
 import { STORAGE_KEYS } from '../../src/shared/types';
+import { MODEL_STATUS_KEY, initialModelStatuses } from '../../src/shared/inference';
 
-type FakeJevReply = { ok: true; sexual: number; ai: number } | { ok: false; error: string };
+type FakeJevReply = { ok: true; sexual: number } | { ok: false; error: string };
 
 describe('content lifecycle', () => {
   afterEach(() => {
@@ -24,7 +25,7 @@ describe('content lifecycle', () => {
 
   it('invalidation unhides posts, removes UI and stops reacting to storage', async () => {
     const test = await startRuntime();
-    test.bg.respond = () => ({ ok: true, sexual: 0.9, ai: 0.01 });
+    test.bg.respond = () => ({ ok: true, sexual: 0.9 });
     const article = buildTweetArticle({ id: '2001', text: 'explicit text' });
     test.handle.discover();
     await until(() => article.hasAttribute('data-jev-hidden'));
@@ -67,7 +68,7 @@ describe('content lifecycle', () => {
 
   it('reattached DOM gets a fresh binding and keeps its classified state', async () => {
     const test = await startRuntime();
-    test.bg.respond = () => ({ ok: true, sexual: 0.9, ai: 0.01 });
+    test.bg.respond = () => ({ ok: true, sexual: 0.9 });
     const article = buildTweetArticle({ id: '2002', text: 'explicit text' });
     test.handle.discover();
     await until(() => article.hasAttribute('data-jev-hidden'), 'post not classified');
@@ -92,8 +93,21 @@ describe('content lifecycle', () => {
   });
 
   it('observes a video poster assigned late and replaced', async () => {
-    const test = await startRuntime();
-    nsfwProbe.predictions = [{ className: 'Porn', probability: 0.99 }];
+    const configured = baseSettings();
+    configured.enabled = {
+      ...configured.enabled,
+      porn: true,
+      hentai: false,
+      sexy: false,
+      drawings: false,
+      sexualText: false,
+      aiGenerated: false,
+    };
+    const test = await startRuntime({ enabled: configured.enabled });
+    test.bg.imageRespond = ({ url }) => ({
+      ok: true,
+      scores: { porn: new URL(url).pathname.endsWith('/late') ? 0.99 : 0.01 },
+    });
     const article = buildTweetArticle({ id: '2010' });
     const card = document.createElement('div');
     card.setAttribute('data-testid', 'card.wrapper');
@@ -109,7 +123,6 @@ describe('content lifecycle', () => {
       'late poster was not classified',
     );
 
-    nsfwProbe.predictions = [{ className: 'Porn', probability: 0.01 }];
     video.setAttribute(
       'poster',
       'https://pbs.twimg.com/ext_tw_video_thumb/2010/pu/img/replaced.jpg',
@@ -124,11 +137,74 @@ describe('content lifecycle', () => {
     stopRuntime(test);
   });
 
+  it('retries failed AI text classification when the local model becomes ready', async () => {
+    const configured = baseSettings();
+    configured.enabled = {
+      ...configured.enabled,
+      porn: false,
+      hentai: false,
+      sexy: false,
+      drawings: false,
+      sexualText: false,
+      aiGenerated: true,
+    };
+    const test = await startRuntime({ enabled: configured.enabled });
+    try {
+      const loading = initialModelStatuses();
+      loading.aiText = { ...loading.aiText, state: 'loading', total: 1 };
+      await browser.storage.local.set({ [MODEL_STATUS_KEY]: loading });
+      test.bg.aiRespond = () => ({
+        ok: false,
+        error: 'Model download failed (403)',
+      });
+
+      const article = buildTweetArticle({
+        id: '2012',
+        text: 'A generated response that needs its local model to be ready.',
+      });
+      test.handle.discover();
+      await until(
+        () => test.handle.report().pending === 0 && test.handle.report().failed === 1,
+        'failed local model check was not reported',
+      );
+      expect(article.hasAttribute('data-jev-hidden')).toBe(false);
+      expect(test.handle.report().errors.some((error) => error.includes('403'))).toBe(true);
+
+      test.bg.aiRespond = () => ({ ok: true, scores: { aiGenerated: 0.99 } });
+      const ready = initialModelStatuses();
+      ready.aiText = { ...loading.aiText, state: 'ready', loaded: 1, total: 1 };
+      await browser.storage.local.set({ [MODEL_STATUS_KEY]: ready });
+
+      await until(
+        () =>
+          article.hasAttribute('data-jev-hidden') &&
+          test.handle.report().pending === 0 &&
+          test.handle.report().failed === 0,
+        'ready local model did not recover the failed AI check',
+      );
+      expect(test.handle.report()).toMatchObject({
+        blocked: 1,
+        failed: 0,
+        errors: [],
+      });
+      expect(test.bg.aiCalls).toHaveLength(2);
+      expect(test.bg.jevCalls).toHaveLength(0);
+    } finally {
+      stopRuntime(test);
+    }
+  });
+
   it('counts duplicate bindings once and follows recycled articles through detach and return', async () => {
     const test = await startRuntime();
-    test.bg.respond = () => ({ ok: true, sexual: 0.99, ai: 0.01 });
-    const first = buildTweetArticle({ id: '2011', text: 'shared explicit text' });
-    const second = buildTweetArticle({ id: '2011', text: 'shared explicit text' });
+    test.bg.respond = () => ({ ok: true, sexual: 0.99 });
+    const first = buildTweetArticle({
+      id: '2011',
+      text: 'shared explicit text',
+    });
+    const second = buildTweetArticle({
+      id: '2011',
+      text: 'shared explicit text',
+    });
     test.handle.discover();
     await until(
       () =>
@@ -191,7 +267,7 @@ describe('content lifecycle', () => {
     let calls = 0;
     test.bg.respond = () => {
       calls += 1;
-      return calls === 1 ? first.promise : Promise.resolve({ ok: true, sexual: 0.99, ai: 0.01 });
+      return calls === 1 ? first.promise : Promise.resolve({ ok: true, sexual: 0.99 });
     };
     test.handle.discover();
     await until(() => aria(iconButton(article)).includes('Scanning'), 'scan did not start');
@@ -204,7 +280,7 @@ describe('content lifecycle', () => {
 
     // The in-flight reply is for the superseded text — it must not settle
     // the post; the re-scan answers with its own blocking reply.
-    first.resolve({ ok: true, sexual: 0.01, ai: 0.01 });
+    first.resolve({ ok: true, sexual: 0.01 });
     await until(
       () => article.hasAttribute('data-jev-hidden'),
       'stale result superseded by a blocking re-scan failed',
@@ -217,12 +293,18 @@ describe('content lifecycle', () => {
 
   it('keeps attached posts beyond the detached retention limit and retains recent returns', async () => {
     const test = await startRuntime();
-    test.bg.respond = () => ({ ok: true, sexual: 0.99, ai: 0.01 });
-    const oldest = buildTweetArticle({ id: '2020', text: 'oldest retained marker' });
+    test.bg.respond = () => ({ ok: true, sexual: 0.99 });
+    const oldest = buildTweetArticle({
+      id: '2020',
+      text: 'oldest retained marker',
+    });
     const detached = Array.from({ length: 200 }, (_, index) =>
       buildTweetArticle({ id: String(3000 + index) }),
     );
-    const recent = buildTweetArticle({ id: '4000', text: 'recent retained marker' });
+    const recent = buildTweetArticle({
+      id: '4000',
+      text: 'recent retained marker',
+    });
     test.handle.discover();
     await until(
       () => oldest.hasAttribute('data-jev-hidden') && recent.hasAttribute('data-jev-hidden'),
@@ -273,9 +355,12 @@ describe('content lifecycle', () => {
     let calls = 0;
     test.bg.respond = () => {
       calls += 1;
-      return calls === 1 ? first.promise : Promise.resolve({ ok: true, sexual: 0.99, ai: 0.01 });
+      return calls === 1 ? first.promise : Promise.resolve({ ok: true, sexual: 0.99 });
     };
-    const article = buildTweetArticle({ id: '2021', text: 'pending eviction marker' });
+    const article = buildTweetArticle({
+      id: '2021',
+      text: 'pending eviction marker',
+    });
     test.handle.discover();
     await until(() => aria(iconButton(article)).includes('Scanning'), 'scan did not start');
 
@@ -296,7 +381,7 @@ describe('content lifecycle', () => {
         aria(iconButton(article)).includes('Blocked'),
       'evicted post did not receive a fresh scan on return',
     );
-    first.resolve({ ok: true, sexual: 0.01, ai: 0.01 });
+    first.resolve({ ok: true, sexual: 0.01 });
     await Promise.resolve();
 
     expect(article.hasAttribute('data-jev-hidden')).toBe(true);
@@ -311,7 +396,7 @@ describe('content lifecycle', () => {
     // same image, so they must never invalidate scores, unhide a blocked
     // post, or trigger a re-scan — that is the visible flapping bug.
     const test = await startRuntime();
-    test.bg.respond = () => ({ ok: true, sexual: 0.99, ai: 0.01 });
+    test.bg.respond = () => ({ ok: true, sexual: 0.99 });
     const article = buildTweetArticle({
       id: '2006',
       text: 'text with media',
@@ -341,12 +426,18 @@ describe('content lifecycle', () => {
 
   it('a failed scan leaves the post visible and other posts untouched', async () => {
     const test = await startRuntime();
-    const failing = buildTweetArticle({ id: '2003', text: 'maybe explicit text' });
-    const healthy = buildTweetArticle({ id: '2004', text: 'perfectly normal text' });
+    const failing = buildTweetArticle({
+      id: '2003',
+      text: 'maybe explicit text',
+    });
+    const healthy = buildTweetArticle({
+      id: '2004',
+      text: 'perfectly normal text',
+    });
     test.bg.respond = (request) =>
       request.tweetId === '2003'
         ? { ok: false, error: 'Server 500 blew up' }
-        : { ok: true, sexual: 0.01, ai: 0.01 };
+        : { ok: true, sexual: 0.01 };
     test.handle.discover();
 
     await until(

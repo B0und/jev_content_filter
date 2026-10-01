@@ -129,7 +129,8 @@ describe('inspector panel', () => {
     }
   });
   it('shows text categories before image categories', async () => {
-    const test = await startRuntime();
+    const configured = baseSettings();
+    const test = await startRuntime({ enabled: configured.enabled });
     try {
       const article = buildTweetArticle({
         id: '5004',

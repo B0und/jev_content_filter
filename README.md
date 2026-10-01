@@ -1,6 +1,6 @@
 # Jev Feed Filter
 
-A Chromium MV3 extension that filters posts and link previews on X and Twitter. Text is evaluated by TypeSafe Jev through Vercel AI Gateway, TypeSafe AI, or OpenRouter. Images and video posters are classified locally with bundled NSFWJS MobileNetV2 weights.
+A Chromium MV3 extension that filters posts and link previews on X and Twitter. Images use local NSFWJS MobileNetV2; AI-written text uses local E5-small q8. Sexual-text checks use TypeSafe Jev through Vercel AI Gateway, TypeSafe AI, or OpenRouter. Model weights are downloaded after startup, not bundled.
 
 ## Development and installation
 
@@ -17,9 +17,22 @@ For a production build:
 npm run build
 ```
 
-Open `chrome://extensions`, enable Developer mode, choose **Load unpacked**, and select `.output/chrome-mv3`. Reload existing X tabs after installing or updating the extension. `npm run zip` creates a distributable archive.
+Chromium 116 or newer is required for the offscreen inference document. Open `chrome://extensions`, enable Developer mode, choose **Load unpacked**, and select `.output/chrome-mv3`. Reload existing X tabs after installing or updating the extension. `npm run zip` creates a distributable archive.
 
-Open the extension popup, select a text provider, and enter that provider's API key. Credentials come from extension settings, not build-time environment variables. Each provider has its own key slot; changing providers never transfers another provider's key. An unconfigured provider cannot make text requests. Image filtering needs no API key.
+The popup separates **Text** and **Images** controls. Local image and AI-text filtering need no API key. Under Text, open the sexual-text provider settings and enter that provider's key if you want Jev checks. Each provider has its own key slot; changing providers never transfers another provider's key. Credentials come from extension settings, not build-time environment variables.
+
+## Model selection and downloads
+
+Enabled local models warm after background startup and settings changes while filtering is active. The popup shows download progress, readiness, errors, and retry actions. Downloads use pinned revisions and persistent browser caches; cached weights work when their origin is unavailable. First use requires network access and sufficient browser storage.
+
+| Task            | Selected model     | Remote assets | Selection evidence                                                                                                                                                                                                   |
+| --------------- | ------------------ | ------------: | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Images          | NSFWJS MobileNetV2 |        2.7 MB | Retained after a 25-image comparison. Both NSFWJS and binary Falconsai q4 scored 25/25; the smaller MobileNetV4 candidate scored 13/25. Falconsai required 56.8 MB and could not preserve separate image categories. |
+| AI-written text | E5-small LoRA q8   |       34.9 MB | On 120 balanced short English posts at threshold 0.50: accuracy 70.8%, F1 0.724, AUC 0.759, versus Jev accuracy 52.5%, F1 0.095, AUC 0.703. E5 was smaller and faster than the tested TMR q8 model.                  |
+
+These are diagnostic corpora, not general accuracy claims. At the preserved AI threshold of 0.65, E5 falsely flags 10/60 human examples and misses 29/60 generated examples. Scores are uncalibrated estimates, not authorship evidence. See the [text report](benchmarks/text-report.md) and [image report](benchmarks/image-model-report.md) for pinned sources, provenance, preprocessing, per-case results, and limitations.
+
+Inference JavaScript and the ONNX WASM engine remain packaged; only model data comes from remote origins. No remote executable code is loaded. The catalog in `src/shared/model-catalog.ts` pins the NSFWJS repository commit and Hugging Face model revision.
 
 ## Effect tooling
 
@@ -44,8 +57,10 @@ Prefer installed documentation and source when references differ. `AGENTS.md` co
 Effect owns asynchronous work; React and the DOM modules own rendering.
 
 - `src/background/runtime.ts` builds one `BackgroundWorker` Layer and `ManagedRuntime`. Three scoped consumers process classification jobs; admission is capped at three active requests plus 64 waiting. Semaphores serialize settings, log, status, icon, and tab-count mutations. Browser listeners still register synchronously for MV3 worker wake-up.
+- `src/background/local-inference.ts` owns single-flight offscreen-document creation. The offscreen page hosts `src/inference/worker.ts`, an ES module worker with an Effect runtime and serialized inference. Image and AI graphs load independently and persist their downloaded assets through browser caches.
+- The offscreen page publishes model status through authenticated runtime messages; only the background writes extension storage. Offscreen documents have runtime access, not `chrome.storage`. A model-ready transition retries affected failed content checks without requiring a settings edit.
 - `src/content/runtime.ts` builds a `ContentSession` Layer per WXT context. Scans and retry fibers belong to its Scope. Context invalidation restores the DOM and disposes the runtime, interrupting pending work.
-- `src/content/classify.ts` composes cache reads, schema-decoded replies, scoring, and cache writes as Effects. A semaphore serializes local image inference. Provider revisions prevent obsolete replies from reaching the cache.
+- `src/content/classify.ts` composes cache reads, schema-decoded replies, independent sexual/AI checks, scoring, and cache writes as Effects. Provider revisions and local-model identities prevent obsolete replies from reaching the cache.
 - `src/shared/browser.ts` adapts native Promise APIs into interruptible Effects with `BrowserError`. Provider failures have a separate typed error; provider keys are redacted before errors leave the adapter.
 - `src/entrypoints/popup/state.ts` and `src/entrypoints/logs/state.ts` expose snapshots through `useSyncExternalStore`. They own optimistic settings edits, pending log actions, storage reconciliation, and errors. React handlers call domain operations.
 - Each open view scopes its reads and polling to a disposable runtime. Submitted writes run separately so closing the view does not cancel them. The background worker serializes settings changes and log clearing; unblock actions write persistent allow overrides.
@@ -70,6 +85,7 @@ React follows [You Might Not Need an Effect](https://react.dev/learn/you-might-n
 - Badge resets use top-frame `webNavigation.onCommitted` events. Same-document history updates and iframe navigation preserve totals. The extension requests `webNavigation` permission for this distinction.
 - Failed checks do not produce a blocking score. Successfully checked parts can still block a post; previews with scan errors remain visible. Transient failures have bounded retries.
 - Videos are checked through thumbnails/posters, not every frame. Thumbnail-size changes reuse the same scores; new thumbnail assets and late or replaced posters trigger another scan.
+- Local image inference rejects images above 16,777,216 decoded pixels before canvas/tensor copies. The compressed download limit alone cannot bound those allocations; rejected images produce a scan error rather than a blocking score.
 - Quoted-post content is included in filtering, but quoted timestamps and links do not replace the parent post's identity or its blocked-log link.
 
 Use a post's filter control to inspect scores and change thresholds. The popup opens blocked-post and error logs. Links from the blocked log point at the post permalink, where the post stays visible on its own. The blocked log records hidden, attached content only. An opened or allowed post, or a scan completed after detachment, does not add a row.
@@ -80,13 +96,13 @@ Clearing requires the worker to read the stored rows first so its deletion recei
 
 ## Privacy and request consistency
 
-Text and link-preview text are sent to the selected provider. Images are downloaded without credentials from X's media hosts and processed locally. The image model is loaded from the extension package only when an uncached image needs inference; it is not remote executable code.
+Post and link-preview text go to the selected provider only when sexual-text checks are enabled and configured. AI-written-text checks run locally. Images are downloaded without credentials from X's media hosts and processed locally. NSFWJS weights come from the pinned NSFWJS GitHub revision; E5 weights and tokenizer/config files come from the pinned Hugging Face revision. Model downloads do not include post text or images.
 
 API keys, allow overrides, score caches, and logs are stored in extension-local browser storage. Keys are not encrypted by this application. Blocked logs contain short post snippets, so treat them as browsing data.
 
-The background worker serializes field-level settings changes from popups and inspectors. Concurrent edits to different settings preserve each other. Classification requests carry a provider and text-configuration revision. Obsolete queued requests are rejected, and obsolete in-flight responses cannot update the score cache or provider health state.
+The background worker serializes field-level settings changes from popups and inspectors. Concurrent edits to different settings preserve each other. Classification admission and dispatch wait for earlier settings writes before reading provider credentials. Requests carry a provider and text-configuration revision: obsolete queued requests are rejected, and obsolete in-flight responses cannot update the score cache or provider health. Already-started external requests are not retroactively revoked.
 
-Historical single-key settings migrate into the selected provider's key slot only. The worker rewrites the normalized settings without the old shared-key field. Score-cache version 6 ignores earlier entries, including results that may have been cached under the wrong provider.
+Historical single-key settings migrate into the selected provider's key slot only. The worker rewrites normalized settings without the old shared-key field. Score-cache version 7 ignores earlier entries and includes local model identity/revision and text-check type.
 
 ## Benchmark lab
 
@@ -101,6 +117,8 @@ If the initial storage read fails, the lab shows the error and a Retry button. E
 New databases start with ten cases: two images and eight synthetic AI-authored texts covering solicitation, innuendo, arousal bait, factual health/news/relationship discussion, and ambiguous examples. Synthetic text AI-origin labels record known provenance; they are not inferred from style. Unknown labels are excluded from that task's metrics. No model predictions are prefilled.
 
 This is a small diagnostic corpus, not evidence of production accuracy. Add representative real posts with reviewed labels and known or unknown authorship before tuning thresholds. Precision, recall, and coverage are reported separately.
+
+**Import measured comparisons** adds the 120 text cases, 25 image cases, and seven recorded runs. It appends missing IDs without overwriting existing cases, labels, reviews, scores, or thresholds; repeated imports are idempotent. The measured corpora remain separate from the initial synthetic examples. Sexual image comparison uses `porn + hentai + sexy`, never `drawings`.
 
 The current broad task is `sexualContent`, not the former narrow `explicit` task. During migration:
 
@@ -132,9 +150,9 @@ npm test
 npm run test:e2e
 ```
 
-`npm run check` runs these checks together. Browser tests load the real built extension and bundled image model, but intercept provider and media requests. Unit tests substitute external inference while exercising filtering decisions, storage, and lifecycle transitions.
+`npm run check` runs these checks together. `npm run test:e2e` first caches the real pinned model files under ignored `.cache/models`, builds the extension, and runs Chromium scenarios. Browser tests serve those genuine weights and intercept provider/media requests; they do not substitute classifier graphs. Offline coverage closes the offscreen document, recreates its inference worker and graph, and classifies uncached text with Hugging Face requests aborted. Unit tests substitute external inference while exercising policy, storage, and lifecycle transitions.
 
-[React Doctor](https://www.react.doctor/) is installed as a development dependency. `npm run doctor` runs a full scan and fails on warnings or errors; `npm run check` includes it. Only generated `.output` and `.wxt` files are excluded. Source rules remain enabled. The command disables the remote score API and crash reporting with `--no-score`.
+[React Doctor](https://www.react.doctor/) is installed as a development dependency. `npm run doctor` runs a full scan and fails on warnings or errors; `npm run check` includes it. Generated `.output`, `.wxt`, `playwright-report`, and `test-results` files are excluded. Source rules remain enabled. The command disables the remote score API and crash reporting with `--no-score`.
 
 Provider HTTP tests use [MSW v3](https://mswjs.io/docs/quick-start) in the Node environment, with strict unhandled-request errors and per-test handler resets. These exercise real `fetch`, HTTP error redaction, probability decoding, network failure, and cancellation rather than replacing `fetch` with a stub. The Vercel SDK cancellation test retains its SDK mock.
 
@@ -153,10 +171,11 @@ The report records the loaded path and SHA256 hashes of the manifest, background
 
 ## Code layout
 
-- `src/entrypoints`: WXT wiring, popup, logs, and the on-demand image-inference script.
-- `src/background`: classification queue, provider requests, serialized settings/log mutations, image fetch proxy, and toolbar state.
+- `src/entrypoints`: WXT wiring, popup, logs, and the offscreen inference page.
+- `src/inference`: model downloads, browser caches, graph adapters, readiness, and the module worker.
+- `src/background`: classification queue, local-inference transport, provider requests, serialized settings/log mutations, image fetch proxy, and toolbar state.
 - `src/content`: DOM discovery, post lifecycle, filtering policy, score cache, classification orchestration, and inspector UI.
-- `src/shared`: settings normalization, request/data contracts, and persistent logs.
+- `src/shared`: settings normalization, request/data contracts, pinned model catalog, and persistent logs.
 - `benchmarks`: local evaluation UI, metrics, import/export normalization, and SQLite persistence.
 - `tests/unit` and `tests/e2e`: deterministic regressions and Chromium scenarios.
 

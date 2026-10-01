@@ -1,6 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import { test, expect } from './fixtures';
-import { defaultSettings } from '../../src/shared/types';
+import { test, expect, remoteSettings } from './fixtures';
 import captured from '../fixtures/x/orca-public-thread/tweets.json' with { type: 'json' };
 
 // Replays captured X article markup. No replacement Twitter renderer is used.
@@ -9,7 +8,7 @@ test('filters captured X replies and link cards while keeping the addressed note
   context,
   setSettings,
 }) => {
-  const settings = defaultSettings();
+  const settings = remoteSettings();
   settings.providerKeys.vercel = 'test-only-not-a-real-key';
   for (const category of ['porn', 'hentai', 'sexy', 'drawings'] as const)
     settings.enabled[category] = false;
@@ -31,7 +30,6 @@ test('filters captured X replies and link cards while keeping the addressed note
       json: {
         answers: {
           sexual: { type: 'boolean', probability: 0.99 },
-          ai: { type: 'boolean', probability: 0.01 },
         },
       },
     }),

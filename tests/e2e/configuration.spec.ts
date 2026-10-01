@@ -1,5 +1,4 @@
-import { test, expect } from './fixtures';
-import { defaultSettings } from '../../src/shared/types';
+import { test, expect, remoteSettings } from './fixtures';
 
 test('provider switches isolate credentials and restore each providers own key', async ({
   page,
@@ -12,7 +11,7 @@ test('provider switches isolate credentials and restore each providers own key',
       correctCredential: route.request().headers().authorization === 'Bearer synthetic-typesafe',
     });
     await route.fulfill({
-      json: { answers: { sexual: { probability: 0.01 }, ai: { probability: 0.01 } } },
+      json: { answers: { sexual: { probability: 0.01 } } },
     });
   });
   await page.goto('https://x.com/home');
@@ -20,10 +19,8 @@ test('provider switches isolate credentials and restore each providers own key',
   await expect(post.getByRole('button', { name: 'Allowed', exact: true })).toBeVisible();
   const popup = await context.newPage();
   await popup.goto(`chrome-extension://${extensionId}/popup.html`);
-  await popup.locator('details').evaluate((element) => {
-    if (!(element instanceof HTMLDetailsElement)) throw new Error('Expected provider details.');
-    element.open = true;
-  });
+  await popup.getByRole('tab', { name: 'Text', exact: true }).click();
+  await popup.getByText('Jev provider and scan details', { exact: true }).click();
   await popup.locator('#text-provider').selectOption('typesafe');
   await expect(popup.locator('#gateway-key')).toHaveValue('');
   await expect(post.getByRole('button', { name: 'Not fully checked', exact: true })).toBeVisible();
@@ -46,7 +43,7 @@ test('late and replaced video posters update the filtering decision without unre
   setSettings,
 }) => {
   test.setTimeout(90_000);
-  const settings = defaultSettings();
+  const settings = remoteSettings();
   settings.enabled.sexualText = false;
   settings.enabled.aiGenerated = false;
   for (const category of ['porn', 'hentai', 'sexy', 'drawings'] as const)
@@ -84,10 +81,8 @@ test('rapid credential edits survive popup close and independent windows preserv
   worker,
 }) => {
   await page.goto(`chrome-extension://${extensionId}/popup.html`);
-  await page.locator('details').evaluate((element) => {
-    if (!(element instanceof HTMLDetailsElement)) throw new Error('Expected provider details.');
-    element.open = true;
-  });
+  await page.getByRole('tab', { name: 'Text', exact: true }).click();
+  await page.getByText('Jev provider and scan details', { exact: true }).click();
   const input = page.locator('#gateway-key');
   await input.fill('');
   await input.pressSequentially('synthetic-fast-key', { delay: 0 });
@@ -113,6 +108,14 @@ test('rapid credential edits survive popup close and independent windows preserv
     first.goto(`chrome-extension://${extensionId}/popup.html`),
     second.goto(`chrome-extension://${extensionId}/popup.html`),
   ]);
+  await Promise.all([
+    first.getByRole('tab', { name: 'Text', exact: true }).click(),
+    second.getByRole('tab', { name: 'Text', exact: true }).click(),
+  ]);
+  await second.getByRole('switch', { name: 'Enable AI-written text', exact: true }).click();
+  await expect(
+    second.getByRole('spinbutton', { name: 'AI-written text threshold percent', exact: true }),
+  ).toBeEnabled();
   await Promise.all([
     first
       .getByRole('spinbutton', { name: 'Sexual text threshold percent', exact: true })

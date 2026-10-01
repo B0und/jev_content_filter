@@ -1,7 +1,7 @@
 import {
+  baseSettings,
   buildTweetArticle,
   clearFeed,
-  nsfwProbe,
   startRuntime,
   stopRuntime,
   until,
@@ -11,8 +11,18 @@ import { afterEach, expect, it } from 'vitest';
 afterEach(clearFeed);
 
 it('keeps a blocked video stable when X changes only its thumbnail size', async () => {
-  const runtime = await startRuntime();
-  nsfwProbe.predictions = [{ className: 'Porn', probability: 0.99 }];
+  const configured = baseSettings();
+  configured.enabled = {
+    ...configured.enabled,
+    porn: true,
+    hentai: false,
+    sexy: false,
+    drawings: false,
+    sexualText: false,
+    aiGenerated: false,
+  };
+  const runtime = await startRuntime({ enabled: configured.enabled });
+  runtime.bg.imageRespond = () => ({ ok: true, scores: { porn: 0.99 } });
   const article = buildTweetArticle({
     id: '2105016474192515573',
     handle: 'personakoto',
@@ -46,7 +56,7 @@ it('keeps a blocked video stable when X changes only its thumbnail size', async 
 
 it('keeps the parent post blocked when quoted-post metadata mounts before its timestamp', async () => {
   const runtime = await startRuntime();
-  runtime.bg.respond = () => ({ ok: true, sexual: 0.99, ai: 0.01 });
+  runtime.bg.respond = () => ({ ok: true, sexual: 0.99 });
   const article = buildTweetArticle({
     id: '2105016474192515573',
     text: 'The parent post stays unchanged while its quote hydrates.',

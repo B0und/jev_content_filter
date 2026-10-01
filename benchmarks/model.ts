@@ -486,10 +486,7 @@ export function metricsFor(
   const accuracy = ratio(truePositive + trueNegative, scored);
   const precision = ratio(truePositive, truePositive + falsePositive);
   const recall = ratio(truePositive, truePositive + falseNegative);
-  const f1 =
-    precision === null || recall === null || precision + recall === 0
-      ? null
-      : (2 * precision * recall) / (precision + recall);
+  const f1 = ratio(2 * truePositive, 2 * truePositive + falsePositive + falseNegative);
   return {
     labeled,
     scored,

@@ -1,3 +1,5 @@
+import type { ModelStatuses } from './inference';
+
 export type CategoryKey = 'porn' | 'hentai' | 'sexy' | 'drawings' | 'sexualText' | 'aiGenerated';
 export type TextProvider = 'vercel' | 'typesafe' | 'openrouter';
 export const TEXT_PROVIDER_LABELS: Record<TextProvider, string> = {
@@ -62,7 +64,10 @@ export interface TabReport {
 export type BgRequest =
   | { type: 'jev'; tweetId: string; text: string; provider: TextProvider; revision: number }
   | { type: 'update-settings'; change: SettingsChange }
-  | { type: 'fetch-image'; url: string }
+  | { type: 'classify-image'; url: string }
+  | { type: 'classify-ai'; text: string }
+  | { type: 'load-model'; kind: 'image' | 'aiText' }
+  | { type: 'local-model-status'; models: ModelStatuses }
   | { type: 'get-status' }
   | { type: 'log-blocked'; entry: BlockedEntry }
   | { type: 'log-error'; message: string; tweetId: string; handle?: string }
@@ -71,10 +76,9 @@ export type BgRequest =
   | { type: 'open-logs'; errors: boolean }
   | { type: 'tab-stats'; blocked: number };
 export type JevReply =
-  | { ok: true; sexual: number; ai: number; provider: TextProvider; revision: number }
+  | { ok: true; sexual: number; provider: TextProvider; revision: number }
   | { ok: false; error: string; stale?: boolean };
 export type SettingsReply = { ok: true; settings: Settings } | { ok: false; error: string };
-export type ImageReply = { ok: true; dataUrl: string } | { ok: false; error: string };
 export const STORAGE_KEYS = {
   settings: 'settings',
   log: 'blockedLog',

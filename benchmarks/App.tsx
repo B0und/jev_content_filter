@@ -34,6 +34,7 @@ import {
   type SolutionKind,
   type TruthValue,
 } from './model';
+import { measuredComparisons } from './comparisons';
 import { benchmarkRuntime } from './storage';
 import { benchmarkState } from './state';
 import './styles.css';
@@ -295,6 +296,22 @@ export function App() {
     );
   }
 
+  function importMeasuredComparisons() {
+    const measured = measuredComparisons();
+    const existingCases = new Set(state.cases.map((item) => item.id));
+    const existingSolutions = new Set(state.solutions.map((solution) => solution.id));
+    const cases = measured.cases.filter((item) => !existingCases.has(item.id));
+    const solutions = measured.solutions.filter((solution) => !existingSolutions.has(solution.id));
+    benchmarkState.update((current) => ({
+      ...current,
+      cases: [...current.cases, ...cases],
+      solutions: [...current.solutions, ...solutions],
+    }));
+    setNotice(
+      `Imported ${cases.length} measured cases and ${solutions.length} solutions. Existing labels, scores, and reviews were preserved.`,
+    );
+  }
+
   function exportDataset() {
     const blob = new Blob([exportBenchmarkState(state)], { type: 'application/json' });
     const link = document.createElement('a');
@@ -399,6 +416,9 @@ export function App() {
           </output>
         </div>
         <div className="header-actions">
+          <button type="button" className="quiet-button" onClick={importMeasuredComparisons}>
+            Import measured comparisons
+          </button>
           <button type="button" className="quiet-button" onClick={exportDataset}>
             Export state
           </button>

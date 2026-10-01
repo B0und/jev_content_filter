@@ -39,7 +39,7 @@ describe('category enable transitions', () => {
 
     // Assign the classifier reply before the settings write: the runtime
     // scans immediately when the change lands.
-    test.bg.respond = () => ({ ok: true, sexual: 0.9, ai: 0.01 });
+    test.bg.respond = () => ({ ok: true, sexual: 0.9 });
     const enabled: Settings = baseSettings({
       providerKeys: { vercel: 'test-key', typesafe: '', openrouter: '' },
     });
@@ -62,8 +62,8 @@ describe('category enable transitions', () => {
     const test = await startRuntime({ enabled: { ...baseSettings().enabled, aiGenerated: false } });
     test.bg.respond = (request) =>
       request.text === 'preview page about explicit things'
-        ? { ok: true, sexual: 0.9, ai: 0.01 }
-        : { ok: true, sexual: 0.01, ai: 0.01 };
+        ? { ok: true, sexual: 0.9 }
+        : { ok: true, sexual: 0.01 };
     const article = buildTweetArticle({
       id: '3002',
       text: 'clean text',

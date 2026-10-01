@@ -27,13 +27,14 @@ import {
   formatCount,
   type BgRequest,
   type FilterStatus,
-  type ImageReply,
   type JevReply,
   type Settings,
   type SettingsChange,
   type TextProvider,
 } from '../shared/types';
 import { evaluateText, type TextScores } from './text-provider';
+import { runLocalInference, warmLocalModels } from './local-inference';
+import { MODEL_STATUS_KEY, initialModelStatuses, type ModelKind } from '../shared/inference';
 
 const QUEUE_CONCURRENCY = 3;
 // The admission semaphore bounds all work to three active plus 64 waiting.
@@ -45,7 +46,10 @@ const IMAGE_FETCH_TIMEOUT_MS = 10_000;
 const BG_REQUEST_TYPES: Record<string, true> = {
   jev: true,
   'update-settings': true,
-  'fetch-image': true,
+  'classify-image': true,
+  'classify-ai': true,
+  'load-model': true,
+  'local-model-status': true,
   'get-status': true,
   'log-blocked': true,
   'log-error': true,
@@ -57,6 +61,8 @@ const BG_REQUEST_TYPES: Record<string, true> = {
 
 interface MessageSender {
   tab?: { id?: number | undefined } | undefined;
+  id?: string | undefined;
+  url?: string | undefined;
 }
 
 interface ClassificationJob {
@@ -122,6 +128,7 @@ function BackgroundWorkerLive() {
   return Layer.effect(
     BackgroundWorker,
     Effect.gen(function* () {
+      const scope = yield* Effect.scope;
       const settingsState = yield* Ref.make<Settings | null>(null);
       const settingsLock = yield* Semaphore.make(1);
       const settingsReady = yield* Deferred.make<void, BrowserError>();
@@ -279,11 +286,36 @@ function BackgroundWorkerLive() {
           }),
         );
       });
+      const warmEnabledModels = Effect.gen(function* () {
+        const settings = yield* Ref.get(settingsState);
+        if (!settings?.masterEnabled) return;
+        const kinds: ModelKind[] = [];
+        if (
+          settings.enabled.porn ||
+          settings.enabled.hentai ||
+          settings.enabled.sexy ||
+          settings.enabled.drawings
+        )
+          kinds.push('image');
+        if (settings.enabled.aiGenerated) kinds.push('aiText');
+        yield* warmLocalModels(kinds).pipe(
+          Effect.catch((error) => {
+            if (error.operation === 'load local models') return Effect.void;
+            return browserEffect('save local model initialization error', () => {
+              const statuses = initialModelStatuses();
+              for (const kind of kinds)
+                statuses[kind] = { ...statuses[kind], state: 'error', error: error.message };
+              return browser.storage.local.set({ [MODEL_STATUS_KEY]: statuses });
+            }).pipe(Effect.ignore);
+          }),
+        );
+      });
 
       const updateSettingsAfterStorageChange = Effect.fnUntraced(function* () {
         yield* synchronizeSettings();
         yield* updateIcon();
         yield* repaintTabBadges();
+        yield* Effect.forkIn(warmEnabledModels, scope);
       });
 
       const logOperation = <A>(operation: Effect.Effect<A, BrowserError>) =>
@@ -292,7 +324,7 @@ function BackgroundWorkerLive() {
       const classifyRequest = Effect.fnUntraced(function* (
         request: Extract<BgRequest, { type: 'jev' }>,
       ): Effect.fn.Return<JevReply, BrowserError> {
-        const settings = yield* Ref.get(settingsState);
+        const settings = yield* settingsLock.withPermits(1)(Ref.get(settingsState));
         if (isStaleSettings(settings, request.provider, request.revision)) {
           return { ok: false, stale: true, error: 'Text configuration changed.' };
         }
@@ -331,7 +363,7 @@ function BackgroundWorkerLive() {
         request: Extract<BgRequest, { type: 'jev' }>,
       ): Effect.fn.Return<JevReply, BrowserError> {
         yield* Deferred.await(settingsReady);
-        const settings = yield* Ref.get(settingsState);
+        const settings = yield* settingsLock.withPermits(1)(Ref.get(settingsState));
         if (isStaleSettings(settings, request.provider, request.revision)) {
           return { ok: false, stale: true, error: 'Text configuration changed.' };
         }
@@ -395,6 +427,7 @@ function BackgroundWorkerLive() {
         );
         yield* updateIcon();
         yield* Deferred.succeed(settingsReady, undefined);
+        yield* Effect.forkIn(warmEnabledModels, scope);
       }).pipe(Effect.tapError((error) => Deferred.fail(settingsReady, error)));
 
       const handleRequest = Effect.fnUntraced(function* (
@@ -403,14 +436,47 @@ function BackgroundWorkerLive() {
       ): Effect.fn.Return<unknown, BrowserError> {
         yield* Deferred.await(settingsReady);
         switch (request.type) {
+          case 'local-model-status':
+            if (
+              sender.id !== browser.runtime.id ||
+              sender.tab ||
+              sender.url !== browser.runtime.getURL('/inference.html')
+            )
+              return {
+                ok: false,
+                error: 'Local model status must come from the inference document.',
+              };
+            yield* browserEffect('save local model status', () =>
+              browser.storage.local.set({ [MODEL_STATUS_KEY]: request.models }),
+            );
+            return { ok: true };
           case 'jev':
             return yield* classify(request);
+          case 'classify-image': {
+            const image = yield* fetchImageDataUrl(request.url);
+            if (!image.ok) return image;
+            return yield* runLocalInference({
+              target: 'local-inference',
+              operation: 'image',
+              dataUrl: image.dataUrl,
+            });
+          }
+          case 'classify-ai':
+            return yield* runLocalInference({
+              target: 'local-inference',
+              operation: 'aiText',
+              text: request.text,
+            });
+          case 'load-model':
+            return yield* runLocalInference({
+              target: 'local-inference',
+              operation: 'warmup',
+              models: [request.kind],
+            });
           case 'update-settings': {
             const settings = yield* changeSettings(request.change);
             return { ok: true, settings };
           }
-          case 'fetch-image':
-            return yield* fetchImageDataUrl(request.url);
           case 'get-status':
             return yield* statusLock.withPermits(1)(loadStatus());
           case 'log-blocked':
@@ -541,7 +607,9 @@ export function startBackground(): void {
   );
 }
 
-function fetchImageDataUrl(url: string): Effect.Effect<ImageReply> {
+function fetchImageDataUrl(
+  url: string,
+): Effect.Effect<{ ok: true; dataUrl: string } | { ok: false; error: string }> {
   if (!isAllowedImageUrl(url)) {
     return Effect.succeed({ ok: false, error: `image proxy: host not allowed for ${url}` });
   }

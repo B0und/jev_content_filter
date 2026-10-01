@@ -1,7 +1,7 @@
 // Shared harness for content runtime unit tests. Tests drive the real
 // runtime (startContentFilter + ContentScriptContext) over WXT fake storage
 // and a fake background listening on real runtime.onMessage. External
-// compute (Jev gateway, NSFWJS/tfjs) is mocked here; decisions and storage
+// compute is controlled at its browser-message seam; decisions and storage
 // stay real.
 import { Effect } from 'effect';
 import * as Schema from 'effect/Schema';
@@ -16,9 +16,11 @@ import {
   type Settings,
   type TabReport,
 } from '../../src/shared/types';
+import type { InferenceReply } from '../../src/shared/inference';
 import { newPost, type Post } from '../../src/content/state';
 import { applySettingsChange, loadSettings } from '../../src/shared/settings';
 import { BgRequestSchema } from '../../src/shared/schemas';
+import { startContentFilter } from '../../src/content/runtime';
 
 const isBgRequest = Schema.is(BgRequestSchema);
 
@@ -26,34 +28,6 @@ const isBgRequest = Schema.is(BgRequestSchema);
 export function newPostStub(id: string, text = `text ${id}`): Post {
   return newPost(id, `user${id}`, text, [], '', '');
 }
-
-// Image downloads and inference are external; policy/cache behavior stays real.
-const nsfw = vi.hoisted(() => {
-  const predictions: Array<{ className: string; probability: number }> = [];
-  return { predictions, loadCount: 0 };
-});
-vi.mock('../../src/content/image-loader', () => ({
-  loadImageClassifier: () => {
-    if (!nsfw.loadCount) nsfw.loadCount++;
-    return Effect.succeed({
-      classify: () => Effect.succeed(nsfw.predictions),
-    });
-  },
-}));
-// No network in unit tests: image downloads and bitmap decode are stubbed;
-// inference itself comes from the NSFWJS stub above.
-vi.stubGlobal(
-  'fetch',
-  vi.fn(async () => ({ ok: true, blob: async () => ({}) })),
-);
-vi.stubGlobal(
-  'createImageBitmap',
-  vi.fn(async () => ({ close: () => {} })),
-);
-
-export { browser, fakeBrowser, ContentScriptContext };
-/** Read/write view on the NSFWJS stub (same object the mock returns). */
-export const nsfwProbe = nsfw;
 
 export function baseSettings(overrides: Partial<Settings> = {}): Settings {
   const base = defaultSettings();
@@ -72,10 +46,20 @@ export interface FakeBackground {
     tweetId: string;
     text: string;
   }) =>
-    | { ok: true; sexual: number; ai: number }
+    | { ok: true; sexual: number }
     | { ok: false; error: string }
-    | Promise<{ ok: true; sexual: number; ai: number } | { ok: false; error: string }>;
+    | Promise<{ ok: true; sexual: number } | { ok: false; error: string }>;
+  aiRespond: (request: {
+    type: 'classify-ai';
+    text: string;
+  }) => InferenceReply | Promise<InferenceReply>;
+  imageRespond: (request: {
+    type: 'classify-image';
+    url: string;
+  }) => InferenceReply | Promise<InferenceReply>;
   jevCalls: Array<{ tweetId: string; text: string }>;
+  aiCalls: Array<{ type: 'classify-ai'; text: string }>;
+  imageCalls: Array<{ type: 'classify-image'; url: string }>;
   blockedEntries: BlockedEntry[];
   loggedErrors: string[];
   openLogs: Array<{ errors: boolean }>;
@@ -84,8 +68,15 @@ export interface FakeBackground {
 
 export function installFakeBackground(): FakeBackground {
   const bg: FakeBackground = {
-    respond: () => ({ ok: true, sexual: 0.01, ai: 0.01 }),
+    respond: () => ({ ok: true, sexual: 0.01 }),
+    aiRespond: () => ({ ok: true, scores: { aiGenerated: 0.01 } }),
+    imageRespond: () => ({
+      ok: true,
+      scores: { porn: 0.01, hentai: 0.01, sexy: 0.01, drawings: 0.01 },
+    }),
     jevCalls: [],
+    aiCalls: [],
+    imageCalls: [],
     blockedEntries: [],
     loggedErrors: [],
     openLogs: [],
@@ -104,6 +95,16 @@ export function installFakeBackground(): FakeBackground {
             reply.ok ? { ...reply, provider: request.provider, revision: request.revision } : reply,
           );
         })();
+        return true;
+      }
+      if (request.type === 'classify-ai') {
+        bg.aiCalls.push(request);
+        void (async () => sendResponse(await bg.aiRespond(request)))();
+        return true;
+      }
+      if (request.type === 'classify-image') {
+        bg.imageCalls.push(request);
+        void (async () => sendResponse(await bg.imageRespond(request)))();
         return true;
       }
       if (request.type === 'update-settings') {
@@ -155,18 +156,22 @@ export async function startRuntime(
   settingsOverrides: Partial<Settings> = {},
 ): Promise<RuntimeTest> {
   fakeBrowser.reset();
-  // Text tests use synthetic credentials only.
-  await browser.storage.local.set({
-    [STORAGE_KEYS.settings]: baseSettings({
-      providerKeys: { vercel: 'test-key', typesafe: 'test-key', openrouter: 'test-key' },
-      ...settingsOverrides,
-    }),
+  const runtimeSettings = baseSettings({
+    providerKeys: { vercel: 'test-key', typesafe: 'test-key', openrouter: 'test-key' },
+    ...settingsOverrides,
   });
+  // Default runtime tests exercise remote sexual-text only. Other classifiers
+  // must be explicitly enabled by the scenario that uses them.
+  if (settingsOverrides.enabled === undefined) {
+    runtimeSettings.enabled.porn = false;
+    runtimeSettings.enabled.hentai = false;
+    runtimeSettings.enabled.sexy = false;
+    runtimeSettings.enabled.drawings = false;
+    runtimeSettings.enabled.aiGenerated = false;
+  }
+  await browser.storage.local.set({ [STORAGE_KEYS.settings]: runtimeSettings });
   const bg = installFakeBackground();
   const ctx = new ContentScriptContext('test');
-  // Imported here so the vi.mock registrations above mock the NSFWJS/TF
-  // modules before the runtime (and its heavy deps) is ever loaded.
-  const { startContentFilter } = await import('../../src/content/runtime');
   const handle = await startContentFilter(ctx);
   return { ctx, handle, bg };
 }

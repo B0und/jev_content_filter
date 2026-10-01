@@ -1,7 +1,7 @@
 import { Effect, Layer, ManagedRuntime, Semaphore } from 'effect';
 import * as Schema from 'effect/Schema';
 import { browser } from 'wxt/browser';
-import { browserEffect, browserRuntime, type BrowserError } from '../../shared/browser';
+import { browserEffect, browserRuntime, BrowserError } from '../../shared/browser';
 import {
   applySettingsChange,
   loadSettings,
@@ -10,6 +10,14 @@ import {
 } from '../../shared/settings';
 import { TabReportSchema } from '../../shared/schemas';
 import type { FilterStatus, Settings, SettingsChange, TabReport } from '../../shared/types';
+import {
+  MODEL_STATUS_KEY,
+  ModelStatusesSchema,
+  InferenceReplySchema,
+  initialModelStatuses,
+  type ModelStatuses,
+  type ModelKind,
+} from '../../shared/inference';
 
 export interface PopupSnapshot {
   settings: Settings | null;
@@ -19,6 +27,7 @@ export interface PopupSnapshot {
   missingScript: boolean;
   error: string;
   saving: boolean;
+  models: ModelStatuses;
 }
 
 export interface PopupState {
@@ -27,11 +36,14 @@ export interface PopupState {
   start: () => () => void;
   update: (change: SettingsChange) => void;
   openLogs: () => void;
+  retryModel: (kind: ModelKind) => void;
 }
 
 export interface PopupStateDependencies {
   loadSettings: Effect.Effect<Settings, BrowserError>;
   loadStatus: Effect.Effect<FilterStatus, BrowserError>;
+  loadModels: Effect.Effect<ModelStatuses, BrowserError>;
+  retryModel: (kind: ModelKind) => Effect.Effect<unknown, BrowserError>;
   updateSettings: (change: SettingsChange) => Effect.Effect<Settings, BrowserError>;
   findActiveTab: Effect.Effect<number | undefined, BrowserError>;
   loadTabReport: (tabId: number) => Effect.Effect<unknown, BrowserError>;
@@ -49,6 +61,7 @@ export function createPopupState(dependencies: PopupStateDependencies): PopupSta
   const optimisticEdits: OptimisticEdit[] = [];
   const settingsReadLock = Semaphore.makeUnsafe(1);
   const statusReadLock = Semaphore.makeUnsafe(1);
+  const modelReadLock = Semaphore.makeUnsafe(1);
   const reportReadLock = Semaphore.makeUnsafe(1);
   // Confirmed settings are the latest completed storage read. Edits stay layered
   // over that base until a read started after their worker acknowledgement lands.
@@ -61,6 +74,7 @@ export function createPopupState(dependencies: PopupStateDependencies): PopupSta
     missingScript: false,
     error: '',
     saving: false,
+    models: initialModelStatuses(),
   };
   let viewScopeDisposer: (() => void) | undefined;
   let refreshSettingsWhileMounted: (() => void) | undefined;
@@ -112,6 +126,14 @@ export function createPopupState(dependencies: PopupStateDependencies): PopupSta
       yield* Effect.sync(() => publish({ status }));
     }).pipe(Effect.ignore),
   );
+  const refreshModels = modelReadLock
+    .withPermits(1)(
+      Effect.gen(function* () {
+        const models = yield* dependencies.loadModels;
+        yield* Effect.sync(() => publish({ models }));
+      }),
+    )
+    .pipe(Effect.ignore);
   function start(): () => void {
     if (viewScopeDisposer) return viewScopeDisposer;
 
@@ -147,6 +169,8 @@ export function createPopupState(dependencies: PopupStateDependencies): PopupSta
       if (area !== 'local') return;
       if (keys.has('settings')) runtime.runFork(refreshSettings);
       if (keys.has('filterStatus')) runtime.runFork(refreshStatus);
+      if (keys.has(MODEL_STATUS_KEY)) runtime.runFork(refreshModels);
+      if (keys.size === 1 && keys.has(MODEL_STATUS_KEY)) return;
       runtime.runFork(refreshReport(activeTabId));
     };
 
@@ -157,6 +181,7 @@ export function createPopupState(dependencies: PopupStateDependencies): PopupSta
       );
       yield* Effect.forkScoped(refreshSettings);
       yield* Effect.forkScoped(refreshStatus);
+      yield* Effect.forkScoped(refreshModels);
       activeTabId = yield* dependencies.findActiveTab.pipe(
         Effect.catch((cause) =>
           Effect.sync(() => {
@@ -221,6 +246,28 @@ export function createPopupState(dependencies: PopupStateDependencies): PopupSta
       ),
     );
   }
+  function retryModel(kind: ModelKind): void {
+    publish({
+      models: {
+        ...snapshot.models,
+        [kind]: { ...snapshot.models[kind], state: 'loading', loaded: 0, error: '' },
+      },
+    });
+    browserRuntime.runFork(
+      dependencies.retryModel(kind).pipe(
+        Effect.catch((cause) =>
+          Effect.sync(() =>
+            publish({
+              models: {
+                ...snapshot.models,
+                [kind]: { ...snapshot.models[kind], state: 'error', error: String(cause) },
+              },
+            }),
+          ),
+        ),
+      ),
+    );
+  }
 
   return {
     getSnapshot: () => snapshot,
@@ -231,12 +278,43 @@ export function createPopupState(dependencies: PopupStateDependencies): PopupSta
     start,
     update,
     openLogs,
+    retryModel,
   };
 }
 
 const browserDependencies: PopupStateDependencies = {
   loadSettings: loadSettings(),
   loadStatus: loadStatus(),
+  loadModels: browserEffect('read local model status', () =>
+    browser.storage.local.get(MODEL_STATUS_KEY),
+  ).pipe(
+    Effect.map((stored) =>
+      Schema.is(ModelStatusesSchema)(stored[MODEL_STATUS_KEY])
+        ? stored[MODEL_STATUS_KEY]
+        : initialModelStatuses(),
+    ),
+  ),
+  retryModel: (kind) =>
+    browserEffect('retry local model download', () =>
+      browser.runtime.sendMessage({ type: 'load-model', kind }),
+    ).pipe(
+      Effect.flatMap((reply) =>
+        Schema.decodeUnknownEffect(InferenceReplySchema)(reply).pipe(
+          Effect.mapError(
+            (cause) =>
+              new BrowserError({ operation: 'decode model download acknowledgement', cause }),
+          ),
+        ),
+      ),
+      Effect.filterOrFail(
+        (reply) => reply.ok,
+        (reply) =>
+          new BrowserError({
+            operation: 'retry local model download',
+            cause: reply.ok ? 'Model download was not acknowledged.' : reply.error,
+          }),
+      ),
+    ),
   updateSettings,
   findActiveTab: browserEffect('find active tab', () =>
     browser.tabs.query({ active: true, currentWindow: true }).then((tabs) => tabs[0]?.id),

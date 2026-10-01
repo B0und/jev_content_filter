@@ -10,11 +10,18 @@ import { readFile } from 'node:fs/promises';
 import * as Schema from 'effect/Schema';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
+import { SELECTED_MODELS } from '../../src/shared/model-catalog';
 import { defaultSettings, type Settings } from '../../src/shared/types';
 
 const isEvaluationRequest = Schema.is(
   Schema.Struct({ state: Schema.Struct({ tweet_text: Schema.String }) }),
 );
+
+export function remoteSettings(): Settings {
+  const settings = defaultSettings();
+  settings.enabled.aiGenerated = false;
+  return settings;
+}
 
 export const test = base.extend<{
   context: BrowserContext;
@@ -67,9 +74,48 @@ export const test = base.extend<{
           json: {
             answers: {
               sexual: { type: 'boolean', probability: text.includes('BLOCK_TEXT') ? 0.99 : 0.01 },
-              ai: { type: 'boolean', probability: 0.02 },
             },
           },
+        });
+      }
+      if (url.hostname === 'huggingface.co' || url.hostname === 'raw.githubusercontent.com') {
+        const pathname = decodeURIComponent(url.pathname);
+        for (const model of Object.values(SELECTED_MODELS)) {
+          const baseUrl = new URL(model.baseUrl);
+          const prefix = `${baseUrl.pathname.replace(/\/$/, '')}/`;
+          if (url.hostname !== baseUrl.hostname || !pathname.startsWith(prefix)) continue;
+          const file = pathname.slice(prefix.length);
+          if (!model.files.includes(file))
+            return route.fulfill({
+              status: 404,
+              body: 'Model artifact is not in the pinned catalog.',
+            });
+          let body: Buffer;
+          try {
+            body = await readFile(path.join('.cache/models', model.id, model.revision, file));
+          } catch {
+            return route.fulfill({ status: 404, body: 'Cached model artifact not found.' });
+          }
+          const headers = {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+            'Access-Control-Allow-Headers': 'Range',
+            'Access-Control-Expose-Headers': 'Accept-Ranges, Content-Length, Content-Range',
+            'Accept-Ranges': 'bytes',
+            'Content-Length': String(body.byteLength),
+            'Content-Type': file.endsWith('.json')
+              ? 'application/json'
+              : 'application/octet-stream',
+          };
+          return route.fulfill({
+            status: 200,
+            headers,
+            ...(route.request().method() === 'HEAD' ? {} : { body }),
+          });
+        }
+        return route.fulfill({
+          status: 404,
+          body: 'Model artifact is not in the pinned catalog.',
         });
       }
       if (url.hostname === 'x.com' || url.hostname === 'twitter.com') {
@@ -91,7 +137,7 @@ export const test = base.extend<{
   },
   worker: async ({ context }, provide) => {
     const worker = context.serviceWorkers()[0] ?? (await context.waitForEvent('serviceworker'));
-    const settings = defaultSettings();
+    const settings = remoteSettings();
     settings.providerKeys.vercel = 'test-only-not-a-real-key';
     for (const key of ['porn', 'hentai', 'sexy', 'drawings'] as const)
       settings.enabled[key] = false;

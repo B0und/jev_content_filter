@@ -1,27 +1,22 @@
 // Classification owns cache access, provider-revision checks, and cancellable
 // text/image scoring. DOM and block policy stay in their dedicated modules.
-import { Clock, Duration, Effect, Option, Semaphore } from 'effect';
+import { Clock, Effect, Semaphore } from 'effect';
 import * as Schema from 'effect/Schema';
 import { browser } from 'wxt/browser';
 import { browserEffect, BrowserError } from '../shared/browser';
-import { CATEGORY_KEYS, IMAGE_KEYS, STORAGE_KEYS, type CategoryKey } from '../shared/types';
+import { CATEGORY_KEYS, STORAGE_KEYS, type CategoryKey } from '../shared/types';
 import { CategoryKeySchema } from '../shared/schemas';
 import { settings, type Post } from './state';
 import { canonicalMediaUrl } from './dom';
-import { loadImageClassifier } from './image-loader';
+import { InferenceReplySchema } from '../shared/inference';
+import { SELECTED_MODELS } from '../shared/model-catalog';
 const JevReplySchema = Schema.Union([
   Schema.Struct({
     ok: Schema.Literal(true),
     sexual: Schema.Finite,
-    ai: Schema.Finite,
     provider: Schema.String,
     revision: Schema.Finite,
   }),
-  Schema.Struct({ ok: Schema.Literal(false), error: Schema.String }),
-]);
-
-const ImageReplySchema = Schema.Union([
-  Schema.Struct({ ok: Schema.Literal(true), dataUrl: Schema.String }),
   Schema.Struct({ ok: Schema.Literal(false), error: Schema.String }),
 ]);
 
@@ -35,7 +30,7 @@ class ClassificationError extends Schema.TaggedError<ClassificationError>()('Cla
  * Bump when cache shape/read rules change so stale entries are ignored by
  * construction (keys carry the version).
  */
-const CACHE_VERSION = 6;
+const CACHE_VERSION = 7;
 const CACHE_PREFIX = `${STORAGE_KEYS.scores}:v${CACHE_VERSION}:`;
 /** Legacy prefixes are only ever evicted, never read. */
 const ALL_CACHE_PREFIX = `${STORAGE_KEYS.scores}:`;
@@ -136,77 +131,102 @@ export const MAX_RETRIES = 5;
 export const textScores = Effect.fnUntraced(function* (
   post: Post,
   text: string,
-): Effect.fn.Return<Partial<Record<CategoryKey, number>>, BrowserError | ClassificationError> {
+): Effect.fn.Return<
+  { scores: Partial<Record<CategoryKey, number>>; errors: string[] },
+  BrowserError | ClassificationError
+> {
   const current = settings.current;
   const provider = current.textProvider;
   const revision = current.textConfigRevision;
-  const key = `${CACHE_PREFIX}t:${provider}:${hash64(text)}`;
-  const cached = yield* readCache(key);
+  const jobs: Array<
+    Effect.Effect<Partial<Record<CategoryKey, number>>, BrowserError | ClassificationError>
+  > = [];
+  if (current.enabled.sexualText)
+    jobs.push(
+      Effect.gen(function* () {
+        const key = `${CACHE_PREFIX}t:${provider}:${hash64(text)}`;
+        const cached = yield* readCache(key);
+        if (cached?.scores.sexualText !== undefined)
+          return { sexualText: cached.scores.sexualText };
+        if (!current.providerKeys[provider])
+          return yield* new ClassificationError({
+            message:
+              'Add an API key in the Text tab to check sexual text. Local AI-written-text detection does not need a key.',
+          });
+        const rawReply: unknown = yield* browserEffect('classify sexual text', () =>
+          browser.runtime.sendMessage({ type: 'jev', tweetId: post.id, text, provider, revision }),
+        );
+        const reply = yield* Schema.decodeUnknownEffect(JevReplySchema)(rawReply).pipe(
+          Effect.mapError(
+            () => new ClassificationError({ message: 'Invalid text classification response.' }),
+          ),
+        );
+        if (!reply.ok) return yield* new ClassificationError({ message: reply.error });
+        if (reply.provider !== provider || reply.revision !== revision)
+          return yield* new ClassificationError({ message: 'Text configuration changed.' });
+        if (!Number.isFinite(reply.sexual) || reply.sexual < 0 || reply.sexual > 1)
+          return yield* new ClassificationError({ message: 'Invalid text scores.' });
+        const scores = { sexualText: reply.sexual };
+        if (
+          settings.current.textProvider === provider &&
+          settings.current.textConfigRevision === revision
+        )
+          yield* writeCache(key, scores);
+        return scores;
+      }),
+    );
+  if (current.enabled.aiGenerated)
+    jobs.push(
+      Effect.gen(function* () {
+        const descriptor = SELECTED_MODELS.aiText;
+        const key = `${CACHE_PREFIX}a:${descriptor.id}:${descriptor.revision}:${hash64(text)}`;
+        const cached = yield* readCache(key);
+        if (cached?.scores.aiGenerated !== undefined)
+          return { aiGenerated: cached.scores.aiGenerated };
+        const rawReply: unknown = yield* browserEffect('classify AI-written text locally', () =>
+          browser.runtime.sendMessage({ type: 'classify-ai', text }),
+        );
+        const reply = yield* Schema.decodeUnknownEffect(InferenceReplySchema)(rawReply).pipe(
+          Effect.mapError(
+            () => new ClassificationError({ message: 'Invalid local AI-text response.' }),
+          ),
+        );
+        if (!reply.ok) return yield* new ClassificationError({ message: reply.error });
+        if (reply.scores.aiGenerated === undefined)
+          return yield* new ClassificationError({
+            message: 'Local AI-text model returned no score.',
+          });
+        const scores = { aiGenerated: reply.scores.aiGenerated };
+        yield* writeCache(key, scores);
+        return scores;
+      }),
+    );
+  const outcomes = yield* Effect.forEach(jobs, (job) => Effect.result(job), {
+    concurrency: 'unbounded',
+  });
   if (
     settings.current.textProvider !== provider ||
     settings.current.textConfigRevision !== revision
   )
     return yield* new ClassificationError({ message: 'Text configuration changed.' });
-  if (cached) return cached.scores;
-  if (!current.providerKeys[provider])
-    return yield* new ClassificationError({
-      message: 'Add an API key in the extension popup to check text.',
-    });
-  const rawReply: unknown = yield* browserEffect('classify text', () =>
-    browser.runtime.sendMessage({
-      type: 'jev',
-      tweetId: post.id,
-      text,
-      provider,
-      revision,
-    }),
-  );
-  const reply = yield* Schema.decodeUnknownEffect(JevReplySchema)(rawReply).pipe(
-    Effect.mapError(
-      () => new ClassificationError({ message: 'Invalid text classification response.' }),
-    ),
-  );
-  if (!reply.ok) return yield* new ClassificationError({ message: reply.error });
-  if (
-    reply.provider !== provider ||
-    reply.revision !== revision ||
-    settings.current.textProvider !== provider ||
-    settings.current.textConfigRevision !== revision
-  )
-    return yield* new ClassificationError({ message: 'Text configuration changed.' });
-  if (
-    ![reply.sexual, reply.ai].every((score) => Number.isFinite(score) && score >= 0 && score <= 1)
-  )
-    return yield* new ClassificationError({ message: 'Invalid text scores' });
-  const scores = { sexualText: reply.sexual, aiGenerated: reply.ai };
-  yield* writeCache(key, scores);
-  return scores;
+  const scores: Partial<Record<CategoryKey, number>> = {};
+  const errors: string[] = [];
+  for (const outcome of outcomes) {
+    if (outcome._tag === 'Failure') errors.push(message(outcome.failure));
+    else Object.assign(scores, outcome.success);
+  }
+  return { scores, errors };
 });
 
 // --- Image scores -----------------------------------------------------------
 
-// TF models must not classify in parallel or memory blows up. Semaphore
-// acquisition is interruptible, so queued scans disappear with their scope.
+// Serialize image batches per page; the shared inference worker also serializes
+// execution across tabs.
 const imageInference = Semaphore.makeUnsafe(1);
 
 export const imageScores = Effect.fnUntraced(function* (urls: string[]) {
   return yield* Semaphore.withPermit(imageInference, classifyImages(urls));
 });
-
-/**
- * NSFWJS model class names are singular ('Drawing') while our category key
- * is 'drawings'; map explicitly instead of matching the enum by accident.
- */
-type NsfwClassName = 'drawing' | 'drawings' | 'hentai' | 'porn' | 'sexy';
-const NsfwClassNameSchema = Schema.Literals(['drawing', 'drawings', 'hentai', 'porn', 'sexy']);
-const isNsfwClassName = Schema.is(NsfwClassNameSchema);
-const NSFW_CLASS_TO_CATEGORY: Record<NsfwClassName, CategoryKey> = {
-  drawing: 'drawings',
-  drawings: 'drawings',
-  hentai: 'hentai',
-  porn: 'porn',
-  sexy: 'sexy',
-};
 
 const classifyImages = Effect.fnUntraced(function* (
   urls: string[],
@@ -219,7 +239,10 @@ const classifyImages = Effect.fnUntraced(function* (
   const misses: Array<{ url: string; index: number }> = [];
   for (let index = 0; index < urls.length; index++) {
     const url = urls[index] ?? '';
-    const cached = yield* readCache(`${CACHE_PREFIX}i:${hash64(canonicalMediaUrl(url))}`);
+    const descriptor = SELECTED_MODELS.image;
+    const cached = yield* readCache(
+      `${CACHE_PREFIX}i:${descriptor.id}:${descriptor.revision}:${hash64(canonicalMediaUrl(url))}`,
+    );
     if (cached) {
       for (const category of CATEGORY_KEYS) {
         const value = cached.scores[category];
@@ -230,66 +253,37 @@ const classifyImages = Effect.fnUntraced(function* (
     }
   }
   if (!misses.length) return { scores, errors };
-  const model = yield* loadImageClassifier();
   for (const miss of misses) {
-    const outcome = yield* Effect.acquireUseRelease(
-      fetchBitmap(miss.url),
-      (bitmap) => model.classify(bitmap),
-      (bitmap) => Effect.sync(() => bitmap.close()),
+    const outcome = yield* browserEffect('classify image locally', () =>
+      browser.runtime.sendMessage({ type: 'classify-image', url: miss.url }),
     ).pipe(
-      Effect.map((predictions) => ({ predictions }) as const),
+      Effect.flatMap((reply) => Schema.decodeUnknownEffect(InferenceReplySchema)(reply)),
+      Effect.mapError((cause) => new ClassificationError({ message: message(cause) })),
+      Effect.flatMap((reply) =>
+        reply.ok
+          ? Effect.succeed({ predictions: reply.scores })
+          : Effect.fail(new ClassificationError({ message: reply.error })),
+      ),
       Effect.catch((error) => Effect.succeed({ error } as const)),
     );
     if ('error' in outcome) {
       errors.push(`Image ${miss.index + 1}: ${message(outcome.error)}`);
       continue;
     }
-    const imageScores: Partial<Record<CategoryKey, number>> = {};
-    for (const prediction of outcome.predictions) {
-      const className = prediction.className.toLowerCase().replace(/s$/, '');
-      if (!isNsfwClassName(className)) continue;
-      const category = NSFW_CLASS_TO_CATEGORY[className];
-      if (IMAGE_KEYS.includes(category)) {
-        imageScores[category] = Math.max(imageScores[category] ?? 0, prediction.probability);
-        scores[category] = Math.max(scores[category] ?? 0, prediction.probability);
-      }
+    const imageScores = outcome.predictions;
+    for (const category of CATEGORY_KEYS) {
+      const probability = imageScores[category];
+      if (probability !== undefined)
+        scores[category] = Math.max(scores[category] ?? 0, probability);
     }
-    yield* writeCache(`${CACHE_PREFIX}i:${hash64(canonicalMediaUrl(miss.url))}`, imageScores);
+    const descriptor = SELECTED_MODELS.image;
+    yield* writeCache(
+      `${CACHE_PREFIX}i:${descriptor.id}:${descriptor.revision}:${hash64(canonicalMediaUrl(miss.url))}`,
+      imageScores,
+    );
   }
   return { scores, errors };
 });
-
-function fetchBitmap(url: string): Effect.Effect<ImageBitmap, BrowserError | ClassificationError> {
-  if (!url) return Effect.fail(new ClassificationError({ message: 'No image URL found.' }));
-  const direct = Effect.gen(function* () {
-    const response = yield* browserEffect('download image', (signal) =>
-      fetch(url, {
-        credentials: 'omit',
-        signal: AbortSignal.any([signal, AbortSignal.timeout(8_000)]),
-      }),
-    );
-    if (!response.ok) return yield* new ClassificationError({ message: `HTTP ${response.status}` });
-    const blob = yield* browserEffect('read downloaded image', () => response.blob());
-    return yield* browserEffect('decode image', () => createImageBitmap(blob));
-  });
-  const fallback = Effect.gen(function* () {
-    const rawReply = yield* browserEffect('request image from background', () =>
-      browser.runtime.sendMessage({ type: 'fetch-image', url }),
-    ).pipe(Effect.timeoutOption(Duration.millis(10_000)));
-    if (Option.isNone(rawReply))
-      return yield* new ClassificationError({ message: 'Image download timed out.' });
-    const reply = yield* Schema.decodeUnknownEffect(ImageReplySchema)(rawReply.value).pipe(
-      Effect.mapError(
-        () => new ClassificationError({ message: 'Invalid image download response.' }),
-      ),
-    );
-    if (!reply.ok) return yield* new ClassificationError({ message: reply.error });
-    const response = yield* browserEffect('read background image data', () => fetch(reply.dataUrl));
-    const blob = yield* browserEffect('read background image body', () => response.blob());
-    return yield* browserEffect('decode background image', () => createImageBitmap(blob));
-  });
-  return direct.pipe(Effect.catch(() => fallback));
-}
 
 export function message(error: unknown): string {
   if (error instanceof BrowserError) {

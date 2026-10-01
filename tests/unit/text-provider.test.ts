@@ -63,7 +63,7 @@ describe('text provider effects', () => {
     server.use(
       http.post(endpoint, () =>
         HttpResponse.json({
-          answers: { sexual: { noul: 0.9 }, ai: { probability: 0.01 } },
+          answers: { sexual: { noul: 0.9 } },
         }),
       ),
     );
@@ -75,13 +75,13 @@ describe('text provider effects', () => {
           text: 'test input',
         }),
       ),
-    ).toEqual({ sexual: 0.9, ai: 0.01 });
+    ).toEqual({ sexual: 0.9 });
   });
 
   it('rejects malformed probabilities received over HTTP', async () => {
     server.use(
       http.post('https://api.typesafe.ai/v1/systemone', () =>
-        HttpResponse.json({ answers: { sexual: { noul: 1.1 }, ai: { noul: 0.01 } } }),
+        HttpResponse.json({ answers: { sexual: { noul: 1.1 } } }),
       ),
     );
     const result = await Effect.runPromise(

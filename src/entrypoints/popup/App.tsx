@@ -1,9 +1,9 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { Switch } from '@base-ui/react/switch';
+import { Tabs } from '@base-ui/react/tabs';
 import {
   CATEGORY_LABELS,
   IMAGE_KEYS,
-  TEXT_KEYS,
   TEXT_PROVIDER_LABELS,
   TEXT_PROVIDERS,
   isTextProvider,
@@ -13,6 +13,8 @@ import {
   type TextProvider,
   type TabReport,
 } from '../../shared/types';
+import { SELECTED_MODELS } from '../../shared/model-catalog';
+import type { ModelKind, ModelStatus } from '../../shared/inference';
 import { popupState } from './state';
 import './popup.css';
 
@@ -23,99 +25,194 @@ const PROVIDER_DETAILS: Record<
   vercel: {
     keyLabel: 'Vercel AI Gateway API key',
     placeholder: 'vck_…',
-    description: 'Text goes to TypeSafe Jev through Vercel AI Gateway.',
+    description: 'Post text is sent to Jev through Vercel AI Gateway for sexual-content checks.',
   },
   typesafe: {
     keyLabel: 'TypeSafe API key',
     placeholder: 'Paste your TypeSafe key',
-    description: "Text goes directly to TypeSafe's Jev Decisions API.",
+    description: "Post text is sent to Jev's Decisions API for sexual-content checks.",
   },
   openrouter: {
     keyLabel: 'OpenRouter API key',
     placeholder: 'Paste your OpenRouter key',
-    description: "Text goes to TypeSafe Jev through OpenRouter's Decisions API.",
+    description:
+      "Post text is sent to Jev through OpenRouter's Decisions API for sexual-content checks.",
   },
 };
+
 export function App() {
   const state = useSyncExternalStore(
     popupState.subscribe,
     popupState.getSnapshot,
     popupState.getSnapshot,
   );
-  const { settings, loadFailed, status, report, missingScript, error, saving } = state;
+  const { settings, loadFailed, status, report, missingScript, error, saving, models } = state;
+
   useEffect(() => popupState.start(), []);
-  const update = popupState.update;
-  if (!settings && loadFailed)
+
+  if (!settings && loadFailed) {
     return (
-      <main className="popup">
-        <p role="alert" className="warning">
-          Could not load settings. Check that storage is available, then retry.
-        </p>
-        <button className="log-button" onClick={() => location.reload()}>
-          Retry
-        </button>
+      <main className="popup popup-message-view">
+        <header className="popup-header">
+          <h1>Jev feed filter</h1>
+        </header>
+        <section className="popup-message">
+          <p role="alert" className="warning">
+            Could not load settings. Check that storage is available, then retry.
+          </p>
+          <button type="button" onClick={() => location.reload()}>
+            Retry
+          </button>
+        </section>
+        <footer className="popup-footer popup-message-footer">
+          <button type="button" className="log-button" onClick={popupState.openLogs}>
+            Open logs
+          </button>
+        </footer>
       </main>
     );
-  if (!settings) return <main className="popup">Loading settings…</main>;
+  }
+
+  if (!settings) {
+    return (
+      <main className="popup popup-message-view">
+        <header className="popup-header">
+          <h1>Jev feed filter</h1>
+        </header>
+        <output className="popup-message">Loading settings…</output>
+      </main>
+    );
+  }
+
   const health = scanHealth(settings.masterEnabled, missingScript, report);
+  const scanFailed = missingScript || Boolean(report?.failed) || status?.state === 'failing';
 
   return (
     <main className="popup">
       <header className="popup-header">
-        <h1>Jev Feed Filter</h1>
-        <Switch.Root
-          className="switch"
-          aria-label="Enable filtering"
-          checked={settings.masterEnabled}
-          onCheckedChange={(checked) => update({ field: 'masterEnabled', value: checked })}
-        >
-          <Switch.Thumb className="thumb" />
-        </Switch.Root>
+        <h1>Jev feed filter</h1>
+        <div className="master-control">
+          <span>Filtering</span>
+          <Switch.Root
+            className="switch"
+            aria-label="Enable filtering"
+            checked={settings.masterEnabled}
+            onCheckedChange={(checked) =>
+              popupState.update({ field: 'masterEnabled', value: checked })
+            }
+          >
+            <Switch.Thumb className="thumb" />
+          </Switch.Root>
+        </div>
       </header>
-      <div className="popup-body">
-        <output
-          className={`status ${missingScript || report?.failed || status?.state === 'failing' ? 'warning' : ''}`}
-        >
-          {health}
-        </output>
-        {status?.state === 'failing' && (
-          <p className="warning" role="alert">
-            Text checks are failing. Details in the error log. Local image filtering runs
-            separately.
-          </p>
+
+      <section
+        className={`scan-strip${scanFailed ? ' is-warning' : ''}`}
+        aria-label="Current tab status"
+      >
+        <span className="scan-mark" aria-hidden="true" />
+        <div className="scan-copy">
+          <span className="scan-label">Current tab</span>
+          <output aria-live="polite">{health}</output>
+          {status?.state === 'failing' && (
+            <p className="warning" role="alert">
+              Sexual-text checks are failing. See Open logs for details. Local AI-text and image
+              checks run separately.
+            </p>
+          )}
+        </div>
+      </section>
+
+      <Tabs.Root defaultValue="text" className="filter-tabs">
+        <Tabs.List className="popup-tabs" aria-label="Filter type" activateOnFocus>
+          <Tabs.Tab value="text">Text</Tabs.Tab>
+          <Tabs.Tab value="images">Images</Tabs.Tab>
+        </Tabs.List>
+
+        <Tabs.Panel value="text" className="tab-panel" keepMounted>
+          <section className="filter-section" aria-labelledby="ai-text-heading">
+            <div className="section-heading">
+              <h2 id="ai-text-heading">AI-written text</h2>
+              <p>Model files come from Hugging Face; AI checks do not upload post text.</p>
+            </div>
+            <ModelCard kind="aiText" status={models.aiText} />
+            <div className="category-list">
+              <Category category="aiGenerated" settings={settings} update={popupState.update} />
+            </div>
+            <p className="notice">
+              Short text can be falsely flagged. AI scores are estimates, not proof of authorship.
+            </p>
+          </section>
+
+          <section
+            className="filter-section sexual-text-section"
+            aria-labelledby="sexual-text-heading"
+          >
+            <div className="section-heading">
+              <h2 id="sexual-text-heading">Sexual-text checks</h2>
+              <p>
+                These checks use Jev and the provider key below. They do not control AI-written-text
+                checks.
+              </p>
+            </div>
+            <div className="category-list">
+              <Category category="sexualText" settings={settings} update={popupState.update} />
+            </div>
+            <ProviderSettings settings={settings} report={report} />
+          </section>
+        </Tabs.Panel>
+
+        <Tabs.Panel value="images" className="tab-panel" keepMounted>
+          <section className="filter-section" aria-labelledby="images-heading">
+            <div className="section-heading">
+              <h2 id="images-heading">Images</h2>
+              <p>Model files come from the NSFWJS repository. Images are checked on this device.</p>
+            </div>
+            <ModelCard kind="image" status={models.image} />
+            <p className="notice">
+              An illustration is not automatically sexual. Set each image category separately.
+            </p>
+            <div className="threshold-intro">Lower thresholds block more.</div>
+            <div className="category-list">
+              {IMAGE_KEYS.map((key) => (
+                <Category key={key} category={key} settings={settings} update={popupState.update} />
+              ))}
+            </div>
+          </section>
+        </Tabs.Panel>
+      </Tabs.Root>
+
+      <footer className="popup-footer">
+        <div className="footer-main">
+          <div className="counters" aria-live="polite">
+            <div className="count-line">
+              <strong>{report?.pageAnalyzed ?? '—'}</strong> analyzed
+              <span className="count-separator" aria-hidden="true">
+                /
+              </span>
+              <strong>{report?.pageBlocked ?? '—'}</strong> blocked
+            </div>
+            <p>This tab, since page load</p>
+          </div>
+          <button type="button" className="log-button" onClick={popupState.openLogs}>
+            Open logs
+          </button>
+        </div>
+        {saving && (
+          <output className="footer-message" aria-live="polite">
+            Saving changes…
+          </output>
         )}
-        {saving && <output className="hint">Saving…</output>}
-        <section aria-label="Image filters" className="categories">
-          <h2 className="category-group-label">Images</h2>
-          {IMAGE_KEYS.map((key) => (
-            <Category key={key} category={key} settings={settings} update={update} />
-          ))}
-        </section>
-        <section aria-label="Text filters" className="categories">
-          <h2 className="category-group-label">Text</h2>
-          {TEXT_KEYS.map((key) => (
-            <Category key={key} category={key} settings={settings} update={update} />
-          ))}
-        </section>
-        <p className="hint">
-          Drawings includes ordinary anime and illustrations, not just sexual content.
-        </p>
-        <ProviderSettings settings={settings} report={report} />
         {error && (
-          <p role="alert" className="warning">
+          <p className="footer-message warning" role="alert">
             {error}
           </p>
         )}
-        <button className="log-button" onClick={popupState.openLogs}>
-          Open logs
-        </button>
-      </div>
-      <footer className="counters" aria-live="polite">
-        <div>
-          <strong>{report?.pageAnalyzed ?? '—'}</strong> analyzed <span>/</span>{' '}
-          <strong>{report?.pageBlocked ?? '—'}</strong> blocked
-        </div>
-        <div>This tab, since page load</div>
+        {!saving && !error && (
+          <output className="footer-message" aria-live="polite">
+            Changes save automatically
+          </output>
+        )}
       </footer>
     </main>
   );
@@ -140,9 +237,12 @@ function ProviderSettings({ settings, report }: { settings: Settings; report: Ta
   const update = popupState.update;
   return (
     <details className="diagnostics">
-      <summary>API key &amp; scan details</summary>
+      <summary>Jev provider and scan details</summary>
+      <p className="provider-scope">
+        Only sexual-text checks use this provider and key. AI-written-text checks run locally.
+      </p>
       {report && (
-        <p>
+        <p className="scan-details">
           {report.pending} pending · {report.failed} incomplete
           <br />
           Last scan:{' '}
@@ -150,7 +250,7 @@ function ProviderSettings({ settings, report }: { settings: Settings; report: Ta
         </p>
       )}
       <div className="provider-field">
-        <label htmlFor="text-provider">Text provider</label>
+        <label htmlFor="text-provider">Provider for sexual-text checks</label>
         <select
           id="text-provider"
           value={settings.textProvider}
@@ -167,13 +267,8 @@ function ProviderSettings({ settings, report }: { settings: Settings; report: Ta
         </select>
       </div>
       <ProviderKey key={settings.textProvider} settings={settings} />
-      <p>
-        {providerDetails.description} Images are classified locally. No key means text is not
-        checked.
-      </p>
-      <p className="hint">
-        OpenCode Zen is not listed because its current catalog does not expose Jev&apos;s Decisions
-        API.
+      <p className="provider-description">
+        {providerDetails.description} Without a key, sexual text is not checked.
       </p>
     </details>
   );
@@ -235,6 +330,72 @@ function EyeIcon({ hidden }: { hidden: boolean }) {
   );
 }
 
+function ModelCard({ kind, status }: { kind: ModelKind; status: ModelStatus }) {
+  const model = SELECTED_MODELS[kind];
+  const totalBytes = status.total > 0 ? status.total : model.downloadBytes;
+  const loadedBytes =
+    totalBytes > 0 ? Math.min(Math.max(status.loaded, 0), totalBytes) : Math.max(status.loaded, 0);
+  const statusLabel = {
+    ready: 'Ready on this device',
+    loading: 'Downloading and preparing',
+    error: 'Could not load model',
+    idle: 'Not loaded yet',
+  }[status.state];
+
+  return (
+    <article className={`model-card model-${status.state}`} aria-labelledby={`model-${kind}-title`}>
+      <div className="model-card-heading">
+        <div className="model-identity">
+          <a
+            className="model-title"
+            id={`model-${kind}-title`}
+            href={model.sourceUrl}
+            target="_blank"
+            rel="noreferrer"
+          >
+            {model.title}
+          </a>
+          <span className="model-revision">
+            {model.id} · {model.revision}
+          </span>
+        </div>
+        <span className="model-state">{statusLabel}</span>
+      </div>
+      <p className="model-description">{model.description}</p>
+      {status.state === 'loading' && (
+        <div className="model-loading">
+          <progress
+            aria-label={`${model.title} loading progress`}
+            value={totalBytes > 0 ? loadedBytes : undefined}
+            max={totalBytes > 0 ? totalBytes : undefined}
+          />
+          <span>
+            {formatMegabytes(loadedBytes)}
+            {totalBytes > 0 ? ` / ${formatMegabytes(totalBytes)}` : ' loaded'}
+          </span>
+        </div>
+      )}
+      {status.state === 'error' && (
+        <div className="model-error" role="alert">
+          <p>{status.error || 'The model could not be loaded.'}</p>
+          <button type="button" onClick={() => popupState.retryModel(kind)}>
+            Retry
+          </button>
+        </div>
+      )}
+      {status.state === 'idle' && (
+        <p className="model-idle">
+          Models download after startup when their filters are enabled, then stay cached locally.
+        </p>
+      )}
+    </article>
+  );
+}
+
+function formatMegabytes(bytes: number): string {
+  return `${(bytes / 1_000_000).toFixed(1)} MB`;
+}
+
 function Category({
   category: key,
   settings,
@@ -246,8 +407,6 @@ function Category({
 }) {
   const percent = Number((settings.thresholds[key] * 100).toFixed(1));
   const [draft, setDraft] = useState(String(percent));
-  // Keep the free-typing draft in sync with external settings changes without
-  // an effect (React Compiler rule: no set-state-in-effect).
   const [lastSyncedPercent, setLastSyncedPercent] = useState(percent);
   if (lastSyncedPercent !== percent) {
     setLastSyncedPercent(percent);

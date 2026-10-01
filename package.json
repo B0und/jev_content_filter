@@ -1,7 +1,7 @@
 {
   "name": "jev-content-filter",
   "version": "0.1.0",
-  "description": "AI feed filter for X using TypeSafe Jev + NSFWJS",
+  "description": "Local image and AI-text filtering for X, with TypeSafe Jev sexual-text checks",
   "type": "module",
   "scripts": {
     "dev": "wxt",
@@ -17,12 +17,14 @@
     "format:check": "oxfmt --check",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "npm run build && playwright test",
+    "cache:models": "node --experimental-strip-types benchmarks/cache-models.mjs",
+    "test:e2e": "npm run cache:models && npm run build && playwright test",
     "check": "npm run compile && npm run lint && npm run doctor && npm run format:check && npm test && npm run test:e2e"
   },
   "dependencies": {
     "@ai-sdk/gateway": "^4.0.86",
     "@base-ui/react": "^1.8.0",
+    "@huggingface/transformers": "4.3.0",
     "@tanstack/react-virtual": "^3.14.13",
     "@tensorflow/tfjs": "^4.22.0",
     "ai": "^7.0.105",
@@ -61,7 +63,9 @@
     "ignore": {
       "files": [
         ".output/**",
-        ".wxt/**"
+        ".wxt/**",
+        "playwright-report/**",
+        "test-results/**"
       ]
     }
   }

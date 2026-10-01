@@ -6,6 +6,7 @@ import { browser } from 'wxt/browser';
 import type { ContentScriptContext } from 'wxt/utils/content-script-context';
 import { browserEffect, type BrowserError } from '../shared/browser';
 import { loadSettings } from '../shared/settings';
+import { MODEL_STATUS_KEY, ModelStatusesSchema } from '../shared/inference';
 import {
   IMAGE_KEYS,
   STORAGE_KEYS,
@@ -74,7 +75,7 @@ interface ContentSessionApi {
   initialize(dispatch: Dispatch): Effect.Effect<void, BrowserError>;
   readonly discover: Effect.Effect<void>;
   handleStorageChanges(
-    changes: Record<string, { newValue?: unknown }>,
+    changes: Record<string, { newValue?: unknown; oldValue?: unknown }>,
     area: string,
   ): Effect.Effect<void, BrowserError>;
 }
@@ -260,13 +261,7 @@ class ContentSession extends Context.Service<ContentSession, ContentSessionApi>(
               );
 
             const jobs: Array<Effect.Effect<unknown>> = [];
-            if (textNeeded)
-              jobs.push(
-                part(
-                  'text',
-                  textScores(post, text).pipe(Effect.map((scores) => ({ scores, errors: [] }))),
-                ),
-              );
+            if (textNeeded) jobs.push(part('text', textScores(post, text)));
             if (imagesNeeded) jobs.push(part('images', imageScores(urls)));
             if (previewNeeded) {
               const previewImage =
@@ -275,11 +270,7 @@ class ContentSession extends Context.Service<ContentSession, ContentSessionApi>(
                   : Effect.succeed({ value: { scores: {}, errors: [] } } as const);
               const previewTextResult =
                 previewText && textEnabled
-                  ? capture(
-                      textScores(post, previewText).pipe(
-                        Effect.map((scores): PartResult => ({ scores, errors: [] })),
-                      ),
-                    )
+                  ? capture(textScores(post, previewText))
                   : Effect.succeed({ value: { scores: {}, errors: [] } } as const);
               const previewWork = Effect.gen(function* () {
                 const [image, textResult] = yield* Effect.all([previewImage, previewTextResult], {
@@ -474,6 +465,54 @@ class ContentSession extends Context.Service<ContentSession, ContentSessionApi>(
               }
               changed = true;
             }
+            const modelChange = changes[MODEL_STATUS_KEY];
+            if (modelChange && Schema.is(ModelStatusesSchema)(modelChange.newValue)) {
+              const current = modelChange.newValue;
+              const before = Schema.is(ModelStatusesSchema)(modelChange.oldValue)
+                ? modelChange.oldValue
+                : undefined;
+              const aiReady = current.aiText.state === 'ready' && before?.aiText.state !== 'ready';
+              const imageReady = current.image.state === 'ready' && before?.image.state !== 'ready';
+              const aiEnabled = settings.current.enabled.aiGenerated;
+              const imageEnabled = IMAGE_KEYS.some((key) => settings.current.enabled[key]);
+              if (aiReady || imageReady) {
+                for (const post of posts.values()) {
+                  if (post.pending) continue;
+                  const retryText =
+                    aiReady &&
+                    aiEnabled &&
+                    post.partErrors.text.length > 0 &&
+                    post.scores.aiGenerated === undefined;
+                  const retryImages =
+                    imageReady && imageEnabled && post.partErrors.images.length > 0;
+                  const retryPreview =
+                    post.partErrors.preview.length > 0 &&
+                    ((aiReady &&
+                      aiEnabled &&
+                      Boolean(post.previewText) &&
+                      post.previewScores.aiGenerated === undefined) ||
+                      (imageReady && imageEnabled && Boolean(post.previewUrl)));
+                  if (!retryText && !retryImages && !retryPreview) continue;
+                  yield* cancelRetry(post);
+                  post.version++;
+                  post.retryCount = 0;
+                  if (retryText) {
+                    post.textDone = false;
+                    post.partErrors.text = [];
+                  }
+                  if (retryImages) {
+                    post.imagesDone = false;
+                    post.partErrors.images = [];
+                  }
+                  if (retryPreview) {
+                    post.previewDone = false;
+                    post.partErrors.preview = [];
+                  }
+                  post.errors = Object.values(post.partErrors).flat();
+                  changed = true;
+                }
+              }
+            }
             for (const [key, change] of Object.entries(changes)) {
               if (!key.startsWith(overridePrefix)) continue;
               const id = key.slice(overridePrefix.length);
@@ -519,7 +558,7 @@ class ContentSession extends Context.Service<ContentSession, ContentSessionApi>(
             );
 
             const onStorageChanged = (
-              changes: Record<string, { newValue?: unknown }>,
+              changes: Record<string, { newValue?: unknown; oldValue?: unknown }>,
               area: string,
             ) => {
               dispatch(handleStorageChanges(changes, area));

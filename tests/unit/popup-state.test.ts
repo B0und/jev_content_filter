@@ -12,6 +12,7 @@ import {
   type PopupState,
   type PopupStateDependencies,
 } from '../../src/entrypoints/popup/state';
+import { initialModelStatuses } from '../../src/shared/inference';
 
 interface Deferred<A> {
   promise: Promise<A>;
@@ -41,6 +42,8 @@ function popupDependencies(
   return {
     loadSettings: Effect.succeed(defaultSettings()),
     loadStatus: Effect.succeed<FilterStatus>({ state: 'ok', updatedAt: 0 }),
+    loadModels: Effect.sync(initialModelStatuses),
+    retryModel: () => Effect.void,
     updateSettings: () => Effect.succeed(defaultSettings()),
     findActiveTab: browserEffect('find active tab', async () => undefined),
     loadTabReport: () => Effect.void,

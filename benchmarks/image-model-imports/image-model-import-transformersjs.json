@@ -1,0 +1,458 @@
+{
+  "id": "image-onnx-community-falconsai-nsfw-q4",
+  "name": "Falconsai NSFW image detector (q4 ONNX)",
+  "description": "Image benchmark run jev-image-candidate-2026-10-v1; revision 1ceb3c7fe1e9f3f2507e6df577437f23a9149fd5; q4 ONNX; predictions for 25 fixed cases. Full timings and per-case errors are in image-model-results.json.",
+  "kind": "other",
+  "predictions": {
+    "civitai-x-6453": {
+      "sexualContent": 0.9997883439064026,
+      "aiGenerated": null,
+      "nsfwjs": {
+        "porn": null,
+        "hentai": null,
+        "sexy": null,
+        "drawings": null
+      },
+      "review": {
+        "sexualContent": "unreviewed",
+        "aiGenerated": "unreviewed",
+        "porn": "unreviewed",
+        "hentai": "unreviewed",
+        "sexy": "unreviewed",
+        "drawings": "unreviewed"
+      }
+    },
+    "civitai-x-6041": {
+      "sexualContent": 0.9992531538009644,
+      "aiGenerated": null,
+      "nsfwjs": {
+        "porn": null,
+        "hentai": null,
+        "sexy": null,
+        "drawings": null
+      },
+      "review": {
+        "sexualContent": "unreviewed",
+        "aiGenerated": "unreviewed",
+        "porn": "unreviewed",
+        "hentai": "unreviewed",
+        "sexy": "unreviewed",
+        "drawings": "unreviewed"
+      }
+    },
+    "civitai-x-4187": {
+      "sexualContent": 0.9998348951339722,
+      "aiGenerated": null,
+      "nsfwjs": {
+        "porn": null,
+        "hentai": null,
+        "sexy": null,
+        "drawings": null
+      },
+      "review": {
+        "sexualContent": "unreviewed",
+        "aiGenerated": "unreviewed",
+        "porn": "unreviewed",
+        "hentai": "unreviewed",
+        "sexy": "unreviewed",
+        "drawings": "unreviewed"
+      }
+    },
+    "civitai-x-2681": {
+      "sexualContent": 0.9997773766517639,
+      "aiGenerated": null,
+      "nsfwjs": {
+        "porn": null,
+        "hentai": null,
+        "sexy": null,
+        "drawings": null
+      },
+      "review": {
+        "sexualContent": "unreviewed",
+        "aiGenerated": "unreviewed",
+        "porn": "unreviewed",
+        "hentai": "unreviewed",
+        "sexy": "unreviewed",
+        "drawings": "unreviewed"
+      }
+    },
+    "civitai-x-7": {
+      "sexualContent": 0.9998495578765869,
+      "aiGenerated": null,
+      "nsfwjs": {
+        "porn": null,
+        "hentai": null,
+        "sexy": null,
+        "drawings": null
+      },
+      "review": {
+        "sexualContent": "unreviewed",
+        "aiGenerated": "unreviewed",
+        "porn": "unreviewed",
+        "hentai": "unreviewed",
+        "sexy": "unreviewed",
+        "drawings": "unreviewed"
+      }
+    },
+    "civitai-x-5964": {
+      "sexualContent": 0.9998700022697449,
+      "aiGenerated": null,
+      "nsfwjs": {
+        "porn": null,
+        "hentai": null,
+        "sexy": null,
+        "drawings": null
+      },
+      "review": {
+        "sexualContent": "unreviewed",
+        "aiGenerated": "unreviewed",
+        "porn": "unreviewed",
+        "hentai": "unreviewed",
+        "sexy": "unreviewed",
+        "drawings": "unreviewed"
+      }
+    },
+    "civitai-x-2950": {
+      "sexualContent": 0.9998752474784851,
+      "aiGenerated": null,
+      "nsfwjs": {
+        "porn": null,
+        "hentai": null,
+        "sexy": null,
+        "drawings": null
+      },
+      "review": {
+        "sexualContent": "unreviewed",
+        "aiGenerated": "unreviewed",
+        "porn": "unreviewed",
+        "hentai": "unreviewed",
+        "sexy": "unreviewed",
+        "drawings": "unreviewed"
+      }
+    },
+    "civitai-x-159": {
+      "sexualContent": 0.9998565912246704,
+      "aiGenerated": null,
+      "nsfwjs": {
+        "porn": null,
+        "hentai": null,
+        "sexy": null,
+        "drawings": null
+      },
+      "review": {
+        "sexualContent": "unreviewed",
+        "aiGenerated": "unreviewed",
+        "porn": "unreviewed",
+        "hentai": "unreviewed",
+        "sexy": "unreviewed",
+        "drawings": "unreviewed"
+      }
+    },
+    "civitai-x-5920": {
+      "sexualContent": 0.9998493194580078,
+      "aiGenerated": null,
+      "nsfwjs": {
+        "porn": null,
+        "hentai": null,
+        "sexy": null,
+        "drawings": null
+      },
+      "review": {
+        "sexualContent": "unreviewed",
+        "aiGenerated": "unreviewed",
+        "porn": "unreviewed",
+        "hentai": "unreviewed",
+        "sexy": "unreviewed",
+        "drawings": "unreviewed"
+      }
+    },
+    "civitai-x-2825": {
+      "sexualContent": 0.9989689588546753,
+      "aiGenerated": null,
+      "nsfwjs": {
+        "porn": null,
+        "hentai": null,
+        "sexy": null,
+        "drawings": null
+      },
+      "review": {
+        "sexualContent": "unreviewed",
+        "aiGenerated": "unreviewed",
+        "porn": "unreviewed",
+        "hentai": "unreviewed",
+        "sexy": "unreviewed",
+        "drawings": "unreviewed"
+      }
+    },
+    "civitai-x-2601": {
+      "sexualContent": 0.9998815059661865,
+      "aiGenerated": null,
+      "nsfwjs": {
+        "porn": null,
+        "hentai": null,
+        "sexy": null,
+        "drawings": null
+      },
+      "review": {
+        "sexualContent": "unreviewed",
+        "aiGenerated": "unreviewed",
+        "porn": "unreviewed",
+        "hentai": "unreviewed",
+        "sexy": "unreviewed",
+        "drawings": "unreviewed"
+      }
+    },
+    "civitai-x-5600": {
+      "sexualContent": 0.9998793005943298,
+      "aiGenerated": null,
+      "nsfwjs": {
+        "porn": null,
+        "hentai": null,
+        "sexy": null,
+        "drawings": null
+      },
+      "review": {
+        "sexualContent": "unreviewed",
+        "aiGenerated": "unreviewed",
+        "porn": "unreviewed",
+        "hentai": "unreviewed",
+        "sexy": "unreviewed",
+        "drawings": "unreviewed"
+      }
+    },
+    "commons-malamute-photo": {
+      "sexualContent": 0.00011030487803509459,
+      "aiGenerated": null,
+      "nsfwjs": {
+        "porn": null,
+        "hentai": null,
+        "sexy": null,
+        "drawings": null
+      },
+      "review": {
+        "sexualContent": "unreviewed",
+        "aiGenerated": "unreviewed",
+        "porn": "unreviewed",
+        "hentai": "unreviewed",
+        "sexy": "unreviewed",
+        "drawings": "unreviewed"
+      }
+    },
+    "commons-whippets-photo": {
+      "sexualContent": 0.0001467998808948323,
+      "aiGenerated": null,
+      "nsfwjs": {
+        "porn": null,
+        "hentai": null,
+        "sexy": null,
+        "drawings": null
+      },
+      "review": {
+        "sexualContent": "unreviewed",
+        "aiGenerated": "unreviewed",
+        "porn": "unreviewed",
+        "hentai": "unreviewed",
+        "sexy": "unreviewed",
+        "drawings": "unreviewed"
+      }
+    },
+    "commons-castle-mountain-photo": {
+      "sexualContent": 0.00015155639266595244,
+      "aiGenerated": null,
+      "nsfwjs": {
+        "porn": null,
+        "hentai": null,
+        "sexy": null,
+        "drawings": null
+      },
+      "review": {
+        "sexualContent": "unreviewed",
+        "aiGenerated": "unreviewed",
+        "porn": "unreviewed",
+        "hentai": "unreviewed",
+        "sexy": "unreviewed",
+        "drawings": "unreviewed"
+      }
+    },
+    "commons-domestic-cat-photo": {
+      "sexualContent": 0.00013024426880292594,
+      "aiGenerated": null,
+      "nsfwjs": {
+        "porn": null,
+        "hentai": null,
+        "sexy": null,
+        "drawings": null
+      },
+      "review": {
+        "sexualContent": "unreviewed",
+        "aiGenerated": "unreviewed",
+        "porn": "unreviewed",
+        "hentai": "unreviewed",
+        "sexy": "unreviewed",
+        "drawings": "unreviewed"
+      }
+    },
+    "commons-narcissus-photo": {
+      "sexualContent": 0.0003098930756095797,
+      "aiGenerated": null,
+      "nsfwjs": {
+        "porn": null,
+        "hentai": null,
+        "sexy": null,
+        "drawings": null
+      },
+      "review": {
+        "sexualContent": "unreviewed",
+        "aiGenerated": "unreviewed",
+        "porn": "unreviewed",
+        "hentai": "unreviewed",
+        "sexy": "unreviewed",
+        "drawings": "unreviewed"
+      }
+    },
+    "commons-gateway-arch-photo": {
+      "sexualContent": 0.0002333277661819011,
+      "aiGenerated": null,
+      "nsfwjs": {
+        "porn": null,
+        "hentai": null,
+        "sexy": null,
+        "drawings": null
+      },
+      "review": {
+        "sexualContent": "unreviewed",
+        "aiGenerated": "unreviewed",
+        "porn": "unreviewed",
+        "hentai": "unreviewed",
+        "sexy": "unreviewed",
+        "drawings": "unreviewed"
+      }
+    },
+    "commons-cartoon-dog": {
+      "sexualContent": 0.005981731694191694,
+      "aiGenerated": null,
+      "nsfwjs": {
+        "porn": null,
+        "hentai": null,
+        "sexy": null,
+        "drawings": null
+      },
+      "review": {
+        "sexualContent": "unreviewed",
+        "aiGenerated": "unreviewed",
+        "porn": "unreviewed",
+        "hentai": "unreviewed",
+        "sexy": "unreviewed",
+        "drawings": "unreviewed"
+      }
+    },
+    "commons-cartoon-cat": {
+      "sexualContent": 0.0005605384358204901,
+      "aiGenerated": null,
+      "nsfwjs": {
+        "porn": null,
+        "hentai": null,
+        "sexy": null,
+        "drawings": null
+      },
+      "review": {
+        "sexualContent": "unreviewed",
+        "aiGenerated": "unreviewed",
+        "porn": "unreviewed",
+        "hentai": "unreviewed",
+        "sexy": "unreviewed",
+        "drawings": "unreviewed"
+      }
+    },
+    "commons-cartoon-rabbit": {
+      "sexualContent": 0.0004186801961623132,
+      "aiGenerated": null,
+      "nsfwjs": {
+        "porn": null,
+        "hentai": null,
+        "sexy": null,
+        "drawings": null
+      },
+      "review": {
+        "sexualContent": "unreviewed",
+        "aiGenerated": "unreviewed",
+        "porn": "unreviewed",
+        "hentai": "unreviewed",
+        "sexy": "unreviewed",
+        "drawings": "unreviewed"
+      }
+    },
+    "commons-cartoon-owl": {
+      "sexualContent": 0.0005047465674579144,
+      "aiGenerated": null,
+      "nsfwjs": {
+        "porn": null,
+        "hentai": null,
+        "sexy": null,
+        "drawings": null
+      },
+      "review": {
+        "sexualContent": "unreviewed",
+        "aiGenerated": "unreviewed",
+        "porn": "unreviewed",
+        "hentai": "unreviewed",
+        "sexy": "unreviewed",
+        "drawings": "unreviewed"
+      }
+    },
+    "commons-cartoon-toucan": {
+      "sexualContent": 0.0005235827993601561,
+      "aiGenerated": null,
+      "nsfwjs": {
+        "porn": null,
+        "hentai": null,
+        "sexy": null,
+        "drawings": null
+      },
+      "review": {
+        "sexualContent": "unreviewed",
+        "aiGenerated": "unreviewed",
+        "porn": "unreviewed",
+        "hentai": "unreviewed",
+        "sexy": "unreviewed",
+        "drawings": "unreviewed"
+      }
+    },
+    "commons-cartoon-cow": {
+      "sexualContent": 0.00019712101493496448,
+      "aiGenerated": null,
+      "nsfwjs": {
+        "porn": null,
+        "hentai": null,
+        "sexy": null,
+        "drawings": null
+      },
+      "review": {
+        "sexualContent": "unreviewed",
+        "aiGenerated": "unreviewed",
+        "porn": "unreviewed",
+        "hentai": "unreviewed",
+        "sexy": "unreviewed",
+        "drawings": "unreviewed"
+      }
+    },
+    "reported-false-positive-trails-sky": {
+      "sexualContent": 0.00015268642164301127,
+      "aiGenerated": null,
+      "nsfwjs": {
+        "porn": null,
+        "hentai": null,
+        "sexy": null,
+        "drawings": null
+      },
+      "review": {
+        "sexualContent": "unreviewed",
+        "aiGenerated": "unreviewed",
+        "porn": "unreviewed",
+        "hentai": "unreviewed",
+        "sexy": "unreviewed",
+        "drawings": "unreviewed"
+      }
+    }
+  }
+}
