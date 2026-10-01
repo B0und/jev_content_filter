@@ -11,6 +11,7 @@ import {
   type Settings,
   type SettingsChange,
   type TextProvider,
+  type TabReport,
 } from '../../shared/types';
 import { popupState } from './state';
 import './popup.css';
@@ -36,7 +37,6 @@ const PROVIDER_DETAILS: Record<
   },
 };
 export function App() {
-  const [showGatewayKey, setShowGatewayKey] = useState(false);
   const state = useSyncExternalStore(
     popupState.subscribe,
     popupState.getSnapshot,
@@ -57,22 +57,7 @@ export function App() {
       </main>
     );
   if (!settings) return <main className="popup">Loading settings…</main>;
-  const health = !settings.masterEnabled
-    ? 'Paused. Posts are not being filtered.'
-    : missingScript
-      ? 'No filter connected to this tab. Open X, or reload your X tab after updating the extension.'
-      : !report
-        ? 'Checking this tab…'
-        : report.retrying
-          ? `Retrying ${report.retrying} post${report.retrying === 1 ? '' : 's'}…`
-          : report.failed
-            ? `${report.failed} posts were not fully checked. See the error log.`
-            : report.pending
-              ? `Scanning ${report.pending} posts…`
-              : report.analyzed
-                ? 'Filtering this tab. Use the icon under any post to inspect it.'
-                : 'Waiting for posts. No completed analysis yet.';
-  const providerDetails = PROVIDER_DETAILS[settings.textProvider];
+  const health = scanHealth(settings.masterEnabled, missingScript, report);
 
   return (
     <main className="popup">
@@ -115,75 +100,7 @@ export function App() {
         <p className="hint">
           Drawings includes ordinary anime and illustrations, not just sexual content.
         </p>
-        <details className="diagnostics">
-          <summary>API key &amp; scan details</summary>
-          {report && (
-            <p>
-              {report.pending} pending · {report.failed} incomplete
-              <br />
-              Last scan:{' '}
-              {report.lastScannedAt
-                ? new Date(report.lastScannedAt).toLocaleTimeString()
-                : 'Not yet'}
-            </p>
-          )}
-          <div className="provider-field">
-            <label htmlFor="text-provider">Text provider</label>
-            <select
-              id="text-provider"
-              value={settings.textProvider}
-              onChange={(event) => {
-                const provider = event.currentTarget.value;
-                if (!isTextProvider(provider)) return;
-                setShowGatewayKey(false);
-                update({ field: 'textProvider', value: provider });
-              }}
-            >
-              {TEXT_PROVIDERS.map((provider) => (
-                <option key={provider} value={provider}>
-                  {TEXT_PROVIDER_LABELS[provider]}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="key-field">
-            <label htmlFor="gateway-key">{providerDetails.keyLabel}</label>
-            <div className="key-input">
-              <input
-                id="gateway-key"
-                type={showGatewayKey ? 'text' : 'password'}
-                value={settings.providerKeys[settings.textProvider]}
-                autoComplete="off"
-                placeholder={providerDetails.placeholder}
-                onChange={(event) =>
-                  update({
-                    field: 'providerKey',
-                    provider: settings.textProvider,
-                    value: event.target.value,
-                  })
-                }
-              />
-              <button
-                type="button"
-                className="key-visibility"
-                aria-label={showGatewayKey ? 'Hide API key' : 'Show API key'}
-                aria-pressed={showGatewayKey}
-                title={showGatewayKey ? 'Hide API key' : 'Show API key'}
-                onClick={() => setShowGatewayKey((visible) => !visible)}
-              >
-                <EyeIcon hidden={!showGatewayKey} />
-              </button>
-            </div>
-          </div>
-          <p>
-            {providerDetails.description} Images are classified locally. No key means text is not
-            checked.
-          </p>
-          <p className="hint">
-            OpenCode Zen is not listed because its current catalog does not expose Jev&apos;s
-            Decisions API.
-          </p>
-        </details>
+        <ProviderSettings settings={settings} report={report} />
         {error && (
           <p role="alert" className="warning">
             {error}
@@ -203,6 +120,102 @@ export function App() {
     </main>
   );
 }
+
+function scanHealth(enabled: boolean, missingScript: boolean, report: TabReport | null): string {
+  if (!enabled) return 'Paused. Posts are not being filtered.';
+  if (missingScript)
+    return 'No filter connected to this tab. Open X, or reload your X tab after updating the extension.';
+  if (!report) return 'Checking this tab…';
+  if (report.retrying)
+    return `Retrying ${report.retrying} post${report.retrying === 1 ? '' : 's'}…`;
+  if (report.failed) return `${report.failed} posts were not fully checked. See the error log.`;
+  if (report.pending) return `Scanning ${report.pending} posts…`;
+  return report.analyzed
+    ? 'Filtering this tab. Use the icon under any post to inspect it.'
+    : 'Waiting for posts. No completed analysis yet.';
+}
+
+function ProviderSettings({ settings, report }: { settings: Settings; report: TabReport | null }) {
+  const providerDetails = PROVIDER_DETAILS[settings.textProvider];
+  const update = popupState.update;
+  return (
+    <details className="diagnostics">
+      <summary>API key &amp; scan details</summary>
+      {report && (
+        <p>
+          {report.pending} pending · {report.failed} incomplete
+          <br />
+          Last scan:{' '}
+          {report.lastScannedAt ? new Date(report.lastScannedAt).toLocaleTimeString() : 'Not yet'}
+        </p>
+      )}
+      <div className="provider-field">
+        <label htmlFor="text-provider">Text provider</label>
+        <select
+          id="text-provider"
+          value={settings.textProvider}
+          onChange={(event) => {
+            const provider = event.currentTarget.value;
+            if (isTextProvider(provider)) update({ field: 'textProvider', value: provider });
+          }}
+        >
+          {TEXT_PROVIDERS.map((provider) => (
+            <option key={provider} value={provider}>
+              {TEXT_PROVIDER_LABELS[provider]}
+            </option>
+          ))}
+        </select>
+      </div>
+      <ProviderKey key={settings.textProvider} settings={settings} />
+      <p>
+        {providerDetails.description} Images are classified locally. No key means text is not
+        checked.
+      </p>
+      <p className="hint">
+        OpenCode Zen is not listed because its current catalog does not expose Jev&apos;s Decisions
+        API.
+      </p>
+    </details>
+  );
+}
+
+function ProviderKey({ settings }: { settings: Settings }) {
+  const [showGatewayKey, setShowGatewayKey] = useState(false);
+  const providerDetails = PROVIDER_DETAILS[settings.textProvider];
+  const update = popupState.update;
+  return (
+    <div className="key-field">
+      <label htmlFor="gateway-key">{providerDetails.keyLabel}</label>
+      <div className="key-input">
+        <input
+          id="gateway-key"
+          type={showGatewayKey ? 'text' : 'password'}
+          value={settings.providerKeys[settings.textProvider]}
+          autoComplete="off"
+          placeholder={providerDetails.placeholder}
+          onChange={(event) =>
+            update({
+              field: 'providerKey',
+              provider: settings.textProvider,
+              value: event.target.value,
+            })
+          }
+        />
+        <button
+          type="button"
+          className="key-visibility"
+          aria-label={showGatewayKey ? 'Hide API key' : 'Show API key'}
+          aria-pressed={showGatewayKey}
+          title={showGatewayKey ? 'Hide API key' : 'Show API key'}
+          onClick={() => setShowGatewayKey((visible) => !visible)}
+        >
+          <EyeIcon hidden={!showGatewayKey} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function EyeIcon({ hidden }: { hidden: boolean }) {
   return (
     <svg

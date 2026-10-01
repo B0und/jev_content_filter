@@ -344,13 +344,12 @@ function normalizeCase(value: unknown): BenchmarkCase | null {
   const item = value;
   if (typeof item.id !== 'string' || typeof item.title !== 'string') return null;
   const labels = Predicate.isObject(item.labels) ? item.labels : null;
-  const sexualContent = labels
-    ? Object.prototype.hasOwnProperty.call(labels, 'sexualContent')
-      ? truthValue(labels.sexualContent)
-      : labels.explicit === 'yes'
-        ? 'yes'
-        : 'unknown'
-    : 'unknown';
+  let sexualContent: TruthValue = 'unknown';
+  if (labels) {
+    if (Object.prototype.hasOwnProperty.call(labels, 'sexualContent'))
+      sexualContent = truthValue(labels.sexualContent);
+    else if (labels.explicit === 'yes') sexualContent = 'yes';
+  }
   const modality = item.modality === 'text' ? 'text' : 'image';
   const normalized: BenchmarkCase = {
     id: item.id,

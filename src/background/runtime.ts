@@ -564,12 +564,11 @@ function fetchImageDataUrl(url: string): Effect.Effect<ImageReply> {
       return `data:${mime};base64,${btoa(binary)}`;
     },
     catch: (cause) => {
-      const message =
-        cause instanceof DOMException && cause.name === 'TimeoutError'
-          ? `image fetch timed out after ${IMAGE_FETCH_TIMEOUT_MS}ms`
-          : cause instanceof Error
-            ? cause.message
-            : String(cause);
+      let message: string;
+      if (cause instanceof DOMException && cause.name === 'TimeoutError')
+        message = `image fetch timed out after ${IMAGE_FETCH_TIMEOUT_MS}ms`;
+      else if (cause instanceof Error) message = cause.message;
+      else message = String(cause);
       return new ImageProxyError({ message });
     },
   });

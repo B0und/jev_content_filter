@@ -29,6 +29,8 @@ The project uses Effect v4 release candidates with TypeScript 7 and `@effect/tsg
 
 Run both `npm run compile` for TypeScript types and `npm run lint` for lint rules and Effect diagnostics. `.oxlintrc.json` extends the recommended Effect preset. The tsconfig plugin sets `diagnostics: false` to avoid duplicate reports while retaining editor refactors.
 
+Oxlint rejects nested ternary expressions with `no-nested-ternary: error`. Use explicit branches for decisions and typed lookup records for static labels.
+
 VS Code and Cursor settings enable the native TypeScript server at `node_modules/typescript/bin`. Enable TypeScript 7 editor support and select the workspace compiler as the sole TypeScript language server.
 
 TypeScript configuration inherits WXT's bundled-app settings. The incremental cache lives in `.wxt/tsconfig.tsbuildinfo`; remove it after compiler upgrades if diagnostics are stale. The Effect integration uses the `@effect/language-service` plugin key and the installed `@effect/tsgo` schema.
@@ -49,8 +51,11 @@ Effect owns asynchronous work; React and the DOM modules own rendering.
 - Each open view scopes its reads and polling to a disposable runtime. Submitted writes run separately so closing the view does not cancel them. The background worker serializes settings changes and log clearing; unblock actions write persistent allow overrides.
 - `src/shared/schemas.ts` validates browser messages, stored log rows, status, settings acknowledgements, and tab reports before they enter application state.
 - `benchmarks/storage.ts` owns the lab's serialized saves in a `BenchmarkStorage` Layer. The Vite storage plugin scopes the SQLite connection to the server lifetime and consumes request bodies through an Effect Stream.
+- `benchmarks/state.ts` exposes the lab's snapshot through `useSyncExternalStore`. User edits submit serialized saves directly; hydration does not write the loaded or fallback dataset back to storage.
 
 Promises remain at framework callbacks and native SDK adapters. Pure filtering policy, DOM discovery helpers, and benchmark metrics do not need an Effect runtime.
+
+React follows [You Might Not Need an Effect](https://react.dev/learn/you-might-not-need-an-effect): derived values are calculated during rendering, mutations run from user actions, and external stores use `useSyncExternalStore`. The remaining React Effects start and stop view-owned storage reads and polling. Logs tabs read the URL hash through an external-store subscription. A keyed API-key field resets visibility on provider changes without resetting the open diagnostics section.
 
 ## Filtering behavior
 
@@ -91,6 +96,8 @@ npm run benchmark
 
 The lab stores its state in `benchmarks/.data/benchmark.sqlite`. Keep that directory to preserve cases, labels, solutions, predictions, and reviews. Export state before making destructive changes to your corpus.
 
+If the initial storage read fails, the lab shows the error without overwriting the database. Subsequent user edits save the displayed dataset, so reload to recover the stored dataset before editing if the failure was transient.
+
 New databases start with ten cases: two images and eight synthetic AI-authored texts covering solicitation, innuendo, arousal bait, factual health/news/relationship discussion, and ambiguous examples. Synthetic text AI-origin labels record known provenance; they are not inferred from style. Unknown labels are excluded from that task's metrics. No model predictions are prefilled.
 
 This is a small diagnostic corpus, not evidence of production accuracy. Add representative real posts with reviewed labels and known or unknown authorship before tuning thresholds. Precision, recall, and coverage are reported separately.
@@ -119,12 +126,15 @@ Existing databases keep their cases; the expanded initial corpus is not merged i
 ```sh
 npm run compile
 npm run lint
+npm run doctor
 npm run format:check
 npm test
 npm run test:e2e
 ```
 
 `npm run check` runs these checks together. Browser tests load the real built extension and bundled image model, but intercept provider and media requests. Unit tests substitute external inference while exercising filtering decisions, storage, and lifecycle transitions.
+
+[React Doctor](https://www.react.doctor/) is installed as a development dependency. `npm run doctor` runs a full scan and fails on warnings or errors; `npm run check` includes it. Only generated `.output` and `.wxt` files are excluded. Source rules remain enabled. The command disables the remote score API and crash reporting with `--no-score`.
 
 Provider HTTP tests use [MSW v3](https://mswjs.io/docs/quick-start) in the Node environment, with strict unhandled-request errors and per-test handler resets. These exercise real `fetch`, HTTP error redaction, probability decoding, network failure, and cancellation rather than replacing `fetch` with a stub. The Vercel SDK cancellation test retains its SDK mock.
 

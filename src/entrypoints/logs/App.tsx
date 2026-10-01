@@ -30,6 +30,23 @@ function isReasonFilter(value: string): value is ReasonFilter {
   return value === 'all' || CATEGORY_KEYS.some((key) => key === value);
 }
 
+function subscribeHash(listener: () => void) {
+  window.addEventListener('hashchange', listener);
+  return () => window.removeEventListener('hashchange', listener);
+}
+
+function currentTab(): Tab {
+  return location.hash === '#errors' ? 'errors' : 'blocked';
+}
+
+function switchTab(next: Tab) {
+  const hash = `#${next}`;
+  if (location.hash === hash) return;
+  const oldURL = location.href;
+  history.replaceState(null, '', hash);
+  window.dispatchEvent(new HashChangeEvent('hashchange', { oldURL, newURL: location.href }));
+}
+
 /** Every entry with an ID links to its permalink, which is never hidden. */
 function postUrl(entry: { tweetId?: string; handle?: string }): string | null {
   if (!entry.tweetId) return null;
@@ -55,6 +72,20 @@ function BlockedRow(props: {
   const preview = entry.target === 'preview';
   const isUnblocked = unblocked.has(entry.tweetId);
   const isUnblocking = unblocking.has(entry.tweetId);
+  let action: React.ReactNode;
+  if (isUnblocking)
+    action = (
+      <button className="unblock-btn" disabled>
+        Unblocking…
+      </button>
+    );
+  else if (isUnblocked) action = <span className="unblocked-badge">Unblocked</span>;
+  else
+    action = (
+      <button className="unblock-btn" onClick={() => onUnblock(entry.tweetId)}>
+        Unblock
+      </button>
+    );
   return (
     <div
       className={preview ? 'row preview-row' : 'row'}
@@ -88,19 +119,7 @@ function BlockedRow(props: {
           .join(', ')}
       </span>
       <span className="col-snippet">{entry.snippet}</span>
-      <span className="col-action">
-        {isUnblocking ? (
-          <button className="unblock-btn" disabled>
-            Unblocking…
-          </button>
-        ) : isUnblocked ? (
-          <span className="unblocked-badge">Unblocked</span>
-        ) : (
-          <button className="unblock-btn" onClick={() => onUnblock(entry.tweetId)}>
-            Unblock
-          </button>
-        )}
-      </span>
+      <span className="col-action">{action}</span>
     </div>
   );
 }
@@ -178,7 +197,7 @@ function VirtualList(props: {
 }
 
 export function App() {
-  const [tab, setTab] = useState<Tab>(() => (location.hash === '#errors' ? 'errors' : 'blocked'));
+  const tab = useSyncExternalStore(subscribeHash, currentTab, currentTab);
   const [filter, setFilter] = useState<ReasonFilter>('all');
   const snapshot = useSyncExternalStore(
     logsState.subscribe,
@@ -187,20 +206,6 @@ export function App() {
   );
   const { log, errors, unblocked, unblocking, loadError, actionError, busyAction } = snapshot;
   useEffect(() => logsState.start(), []);
-
-  /** Tab clicks and hash edits stay in sync without polluting session history. */
-  function switchTab(next: Tab) {
-    setTab(next);
-    const hash = `#${next}`;
-    if (location.hash !== hash) history.replaceState(null, '', hash);
-  }
-
-  // Sync hash for direct open-logs links.
-  useEffect(() => {
-    const handler = () => setTab(location.hash === '#errors' ? 'errors' : 'blocked');
-    window.addEventListener('hashchange', handler);
-    return () => window.removeEventListener('hashchange', handler);
-  }, []);
 
   const filtered =
     filter === 'all' ? log : log.filter((entry) => entry.reasons.some((r) => r.key === filter));

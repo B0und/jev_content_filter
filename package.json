@@ -12,12 +12,13 @@
     "postinstall": "wxt prepare",
     "prepare": "effect-tsgo patch --typescript --oxlint",
     "lint": "oxlint --deny-warnings",
+    "doctor": "react-doctor . --no-score --blocking warning -y",
     "format": "oxfmt",
     "format:check": "oxfmt --check",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "npm run build && playwright test",
-    "check": "npm run compile && npm run lint && npm run format:check && npm test && npm run test:e2e"
+    "check": "npm run compile && npm run lint && npm run doctor && npm run format:check && npm test && npm run test:e2e"
   },
   "dependencies": {
     "@ai-sdk/gateway": "^4.0.86",
@@ -48,11 +49,20 @@
     "oxfmt": "^0.68.0",
     "oxlint": "1.83.0",
     "oxlint-tsgolint": "7.0.2003",
+    "react-doctor": "^0.9.14",
     "typescript": "7.0.2",
     "vitest": "^5.0.1",
     "wxt": "^0.21.4"
   },
   "engines": {
     "node": ">=22.12.0"
+  },
+  "reactDoctor": {
+    "ignore": {
+      "files": [
+        ".output/**",
+        ".wxt/**"
+      ]
+    }
   }
 }

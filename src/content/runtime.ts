@@ -54,6 +54,11 @@ let observer: MutationObserver | null = null;
 let activeCtx: ContentScriptContext | null = null;
 
 type ScanPart = 'text' | 'images' | 'preview';
+const SCAN_PART_LABELS: Record<ScanPart, string> = {
+  text: 'Text',
+  images: 'Images',
+  preview: 'Link preview',
+};
 type Scores = Partial<Record<CategoryKey, number>>;
 type PartResult = { scores: Scores; errors: string[] };
 type Dispatch = (effect: Effect.Effect<void, BrowserError>) => void;
@@ -238,8 +243,7 @@ class ContentSession extends Context.Service<ContentSession, ContentSessionApi>(
                     )
                       return;
                     post.partErrors[name] = result.errors.map(
-                      (error) =>
-                        `${name === 'text' ? 'Text' : name === 'images' ? 'Images' : 'Link preview'}: ${error}`,
+                      (error) => `${SCAN_PART_LABELS[name]}: ${error}`,
                     );
                     if (name === 'preview') {
                       post.previewScores = result.scores;

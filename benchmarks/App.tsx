@@ -1,12 +1,18 @@
-import { Effect, Fiber } from 'effect';
+import { Effect } from 'effect';
 import { BrowserError, browserEffect } from '../src/shared/browser';
-import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+  type ChangeEvent,
+  type FormEvent,
+} from 'react';
 import {
   createId,
   createSolution,
   exportBenchmarkState,
   formatMetric,
-  initialBenchmarkState,
   manualReviewFor,
   metricsFor,
   NSFWJS_LABELS,
@@ -28,10 +34,17 @@ import {
   type SolutionKind,
   type TruthValue,
 } from './model';
-import { benchmarkRuntime, loadBenchmarkState, saveBenchmarkState } from './storage';
+import { benchmarkRuntime } from './storage';
+import { benchmarkState } from './state';
 import './styles.css';
 
 type CaseFilter = 'all' | BenchmarkModality;
+
+const FILTER_LABELS: Record<CaseFilter, string> = {
+  all: 'All',
+  image: 'Images',
+  text: 'Text',
+};
 
 const TASKS: BenchmarkTask[] = ['sexualContent', 'aiGenerated'];
 const NSFWJS_TASKS: NsfwjsTask[] = ['porn', 'hentai', 'sexy', 'drawings'];
@@ -85,9 +98,11 @@ function MetricCell({ value }: { value: number | null }) {
 }
 
 export function App() {
-  const [state, setState] = useState<BenchmarkState>(() => initialBenchmarkState());
-  const [storageReady, setStorageReady] = useState(false);
-  const [storageError, setStorageError] = useState('');
+  const { state, storageReady, storageError } = useSyncExternalStore(
+    benchmarkState.subscribe,
+    benchmarkState.getSnapshot,
+    benchmarkState.getSnapshot,
+  );
   const [filter, setFilter] = useState<CaseFilter>('all');
   const [solutionDraft, setSolutionDraft] = useState('');
   const [solutionKind, setSolutionKind] = useState<SolutionKind>('llm');
@@ -98,46 +113,7 @@ export function App() {
   const [sampleFileName, setSampleFileName] = useState('');
   const [notice, setNotice] = useState('');
 
-  useEffect(() => {
-    const fiber = benchmarkRuntime.runFork(
-      loadBenchmarkState.pipe(
-        Effect.match({
-          onSuccess: (loaded) => {
-            setState(loaded);
-            setStorageError('');
-            setStorageReady(true);
-          },
-          onFailure: (error) => {
-            setStorageError(error.message);
-            setStorageReady(true);
-          },
-        }),
-      ),
-    );
-    return () => {
-      benchmarkRuntime.runFork(Fiber.interrupt(fiber));
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!storageReady) return;
-    let alive = true;
-    benchmarkRuntime.runFork(
-      saveBenchmarkState(state).pipe(
-        Effect.match({
-          onSuccess: () => {
-            if (alive) setStorageError('');
-          },
-          onFailure: (error) => {
-            if (alive) setStorageError(error.message);
-          },
-        }),
-      ),
-    );
-    return () => {
-      alive = false;
-    };
-  }, [state, storageReady]);
+  useEffect(() => benchmarkState.start(), []);
 
   const selectedCase =
     state.cases.find((item) => item.id === state.selectedCaseId) ?? state.cases[0];
@@ -150,12 +126,12 @@ export function App() {
     : 0;
 
   function selectCase(id: string) {
-    setState((current) => ({ ...current, selectedCaseId: id }));
+    benchmarkState.update((current) => ({ ...current, selectedCaseId: id }));
   }
 
   function updateCaseLabels(task: BenchmarkTask, value: TruthValue) {
     if (!selectedCase) return;
-    setState((current) => ({
+    benchmarkState.update((current) => ({
       ...current,
       cases: current.cases.map((item) =>
         item.id === selectedCase.id ? { ...item, labels: { ...item.labels, [task]: value } } : item,
@@ -166,7 +142,7 @@ export function App() {
   function updateThreshold(task: BenchmarkTask | 'nsfwjs', value: string) {
     const numeric = Number(value);
     if (!Number.isFinite(numeric)) return;
-    setState((current) => ({
+    benchmarkState.update((current) => ({
       ...current,
       thresholds: { ...current.thresholds, [task]: Math.min(1, Math.max(0, numeric)) },
     }));
@@ -176,7 +152,7 @@ export function App() {
     const numeric = value === '' ? null : Number(value);
     if (numeric !== null && (!Number.isFinite(numeric) || numeric < 0 || numeric > 1)) return;
     const caseId = selectedCase?.id ?? '';
-    setState((current) => ({
+    benchmarkState.update((current) => ({
       ...current,
       solutions: current.solutions.map((solution) => {
         if (solution.id !== solutionId) return solution;
@@ -198,7 +174,7 @@ export function App() {
 
   function updateReview(solutionId: string, task: ScoreKey, verdict: ReviewVerdict) {
     const caseId = selectedCase?.id ?? '';
-    setState((current) => ({
+    benchmarkState.update((current) => ({
       ...current,
       solutions: current.solutions.map((solution) => {
         if (solution.id !== solutionId) return solution;
@@ -283,7 +259,7 @@ export function App() {
     event.preventDefault();
     const name = solutionDraft.trim();
     if (!name) return;
-    setState((current) => ({
+    benchmarkState.update((current) => ({
       ...current,
       solutions: [...current.solutions, createSolution(name, '', solutionKind)],
     }));
@@ -292,7 +268,7 @@ export function App() {
   }
 
   function removeSolution(solutionId: string) {
-    setState((current) => ({
+    benchmarkState.update((current) => ({
       ...current,
       solutions: current.solutions.filter((solution) => solution.id !== solutionId),
     }));
@@ -310,7 +286,10 @@ export function App() {
           try: () => parseSolutionImport(text),
           catch: (cause) => new BrowserError({ operation: 'import solution', cause }),
         });
-        setState((current) => ({ ...current, solutions: [...current.solutions, solution] }));
+        benchmarkState.update((current) => ({
+          ...current,
+          solutions: [...current.solutions, solution],
+        }));
         setNotice(`Imported ${solution.name}.`);
       }).pipe(Effect.catch((error) => Effect.sync(() => setNotice(error.message)))),
     );
@@ -354,7 +333,7 @@ export function App() {
     };
     if (sampleType === 'image') item.imageUrl = sampleImage;
     else item.text = sampleText.trim();
-    setState((current) => ({
+    benchmarkState.update((current) => ({
       ...current,
       cases: [item, ...current.cases],
       selectedCaseId: item.id,
@@ -499,7 +478,7 @@ export function App() {
                 className={filter === value ? 'active' : ''}
                 onClick={() => setFilter(value)}
               >
-                {value === 'all' ? 'All' : value === 'image' ? 'Images' : 'Text'}
+                {FILTER_LABELS[value]}
               </button>
             ))}
           </div>
