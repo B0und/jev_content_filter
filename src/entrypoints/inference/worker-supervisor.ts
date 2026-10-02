@@ -57,7 +57,14 @@ export function createWorkerSupervisor(options: {
   };
   return {
     send(message) {
-      const instance = worker ?? start();
+      let instance: SupervisedWorker;
+      try {
+        instance = worker ?? start();
+      } catch (cause) {
+        clearDeadlines();
+        options.onFailure(cause instanceof Error ? cause : new Error(String(cause)));
+        return;
+      }
       // Bound queueing, model loading and inference together. Terminating the
       // worker also releases a permit held by a non-settling model operation.
       deadlines.set(

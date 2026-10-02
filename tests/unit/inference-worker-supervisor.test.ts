@@ -40,6 +40,32 @@ function crash(handlers: WorkerHandlers, message: string) {
 describe('inference worker supervisor', () => {
   afterEach(() => vi.useRealTimers());
 
+  it('reports synchronous startup failures and recovers on the next request', () => {
+    vi.useFakeTimers();
+    const factory = fakeWorkerFactory();
+    const failures: Error[] = [];
+    let attempts = 0;
+    const supervisor = createWorkerSupervisor({
+      start: (handlers) => {
+        if (++attempts === 1) throw new Error('Worker constructor failed');
+        return factory.start(handlers);
+      },
+      onMessage: () => {},
+      onFailure: (error) => failures.push(error),
+      requestTimeoutMs: 100,
+    });
+    expect(() => supervisor.send({ id: 1 })).not.toThrow();
+    expect(failures.map((error) => error.message)).toEqual(['Worker constructor failed']);
+    expect(vi.getTimerCount()).toBe(0);
+    supervisor.send({ id: 2 });
+    expect(factory.created[0]!.sent).toEqual([{ id: 2 }]);
+    supervisor.complete(2);
+    vi.advanceTimersByTime(100);
+    expect(failures).toHaveLength(1);
+    expect(factory.created[0]!.terminated).toBe(false);
+    supervisor.terminate();
+  });
+
   it('terminates stalled execution and permits recovery without accepting stale replies', () => {
     vi.useFakeTimers();
     const factory = fakeWorkerFactory();
