@@ -366,7 +366,10 @@ export class ExtensionSession {
   }
 
   async page(surface) {
-    if (surface === 'feed') return this.feed;
+    if (surface === 'feed') {
+      await this.feed.bringToFront();
+      return this.feed;
+    }
     if (surface === 'popup') return this.popup();
     if (surface === 'logs') {
       if (!this.logPage || this.logPage.isClosed()) {
@@ -374,6 +377,7 @@ export class ExtensionSession {
         await this.attach(this.logPage.target());
         await this.logPage.goto(`chrome-extension://${this.extensionId}/logs.html`);
       }
+      await this.logPage.bringToFront();
       return this.logPage;
     }
     throw new Error('Surface must be popup, feed, or logs');
