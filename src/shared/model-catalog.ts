@@ -11,6 +11,21 @@ interface ModelDescriptor {
   readonly files: readonly string[];
 }
 
+export const ANIME_RATING_MODEL = {
+  id: 'deepghs/anime_dbrating/mobilenetv3_large_100_v0_ls0.2',
+  revision: '7af21db648acdeb74f5c334abda9dd7403407b3c',
+  title: 'Anime DBRating MobileNetV3',
+  description:
+    '16.8 MB ONNX model with general, sensitive, questionable, and explicit anime ratings.',
+  baseUrl:
+    'https://huggingface.co/deepghs/anime_dbrating/resolve/7af21db648acdeb74f5c334abda9dd7407b3c/mobilenetv3_large_100_v0_ls0.2',
+  sourceUrl:
+    'https://huggingface.co/deepghs/anime_dbrating/tree/7af21db648acdeb74f5c334abda9dd7403407b3c/mobilenetv3_large_100_v0_ls0.2',
+  downloadBytes: 16_832_684,
+  file: 'model.onnx',
+  labels: ['general', 'sensitive', 'questionable', 'explicit'] as const,
+};
+
 export const SELECTED_MODELS: Record<ModelKind, ModelDescriptor> = {
   image: {
     id: 'nsfwjs/mobilenet_v2',

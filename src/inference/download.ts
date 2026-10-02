@@ -13,6 +13,21 @@ export async function downloadModelFile(
   url: string,
   onProgress: (loaded: number, total: number) => void,
 ): Promise<ArrayBuffer> {
+  // CacheStorage rejects extension-scheme requests in Chromium. Bundled model
+  // assets are already durable on disk, so fetch them directly.
+  if (url.startsWith('chrome-extension:')) {
+    const response = await fetch(url, {
+      credentials: 'omit',
+      signal: AbortSignal.timeout(180_000),
+    });
+    if (!response.ok)
+      throw new Error(
+        `Model download failed (${response.status}). Check your connection and retry.`,
+      );
+    const buffer = await response.arrayBuffer();
+    onProgress(buffer.byteLength, buffer.byteLength);
+    return buffer;
+  }
   const cache = await caches.open('jev-local-models');
   const cached = await cache.match(url);
   if (cached) {

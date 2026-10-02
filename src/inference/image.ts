@@ -1,10 +1,12 @@
 import * as tf from '@tensorflow/tfjs';
+import * as ort from 'onnxruntime-web/wasm';
 import { NSFWJS } from 'nsfwjs/core';
-import { SELECTED_MODELS } from '../shared/model-catalog';
+import { ANIME_RATING_MODEL, SELECTED_MODELS } from '../shared/model-catalog';
 import { IMAGE_KEYS, type CategoryKey } from '../shared/types';
 import { downloadModelFile } from './download';
 
 const MODEL_SIZE = 224;
+const ANIME_SIZE = 384;
 const MODEL_JSON_FILE = 'model.json';
 // Bound canvas and tensor copies without changing NSFWJS's resize semantics.
 const MAX_IMAGE_PIXELS = 4096 * 4096;
@@ -77,10 +79,52 @@ async function loadNsfwModel(onProgress: (loaded: number, total: number) => void
   return model;
 }
 
+async function loadAnimeRatingModel(
+  onProgress: (loaded: number, total: number) => void,
+): Promise<ort.InferenceSession> {
+  // The pinned ONNX artifact is shipped with the extension. This avoids
+  // relying on Hugging Face's redirect/CDN CORS behavior at runtime.
+  const url = new URL('/models/anime-dbrating.onnx', self.location.href).href;
+  const data = await downloadModelFile(url, (loaded) =>
+    onProgress(
+      SELECTED_MODELS.image.downloadBytes + loaded,
+      SELECTED_MODELS.image.downloadBytes + ANIME_RATING_MODEL.downloadBytes,
+    ),
+  );
+  if (data.byteLength !== ANIME_RATING_MODEL.downloadBytes) {
+    throw new Error(
+      `The anime rating model download was incomplete (${data.byteLength} of ${ANIME_RATING_MODEL.downloadBytes} bytes).`,
+    );
+  }
+  return ort.InferenceSession.create(data, { executionProviders: ['wasm'] });
+}
+
+function animeInput(bitmap: ImageBitmap): ort.Tensor {
+  const canvas = new OffscreenCanvas(ANIME_SIZE, ANIME_SIZE);
+  const context = canvas.getContext('2d', { willReadFrequently: true });
+  if (!context) throw new Error('Anime image preprocessing is unavailable.');
+  context.fillStyle = 'white';
+  context.fillRect(0, 0, ANIME_SIZE, ANIME_SIZE);
+  context.drawImage(bitmap, 0, 0, ANIME_SIZE, ANIME_SIZE);
+  const pixels = context.getImageData(0, 0, ANIME_SIZE, ANIME_SIZE).data;
+  const plane = ANIME_SIZE * ANIME_SIZE;
+  const data = new Float32Array(plane * 3);
+  for (let index = 0; index < plane; index += 1) {
+    const offset = index * 4;
+    data[index] = (pixels[offset]! / 255) * 2 - 1;
+    data[plane + index] = (pixels[offset + 1]! / 255) * 2 - 1;
+    data[plane * 2 + index] = (pixels[offset + 2]! / 255) * 2 - 1;
+  }
+  return new ort.Tensor('float32', data, [1, 3, ANIME_SIZE, ANIME_SIZE]);
+}
+
 export async function loadImageModel(
   onProgress: (loaded: number, total: number) => void,
 ): Promise<(dataUrl: string) => Promise<Partial<Record<CategoryKey, number>>>> {
-  const model = await loadNsfwModel(onProgress);
+  const model = await loadNsfwModel((loaded) =>
+    onProgress(loaded, SELECTED_MODELS.image.downloadBytes + ANIME_RATING_MODEL.downloadBytes),
+  );
+  const animeModel = await loadAnimeRatingModel(onProgress);
   const canvas = new OffscreenCanvas(1, 1);
   const context = canvas.getContext('2d', { willReadFrequently: true });
   if (!context) throw new Error('Image decoding is unavailable in this browser.');
@@ -107,6 +151,20 @@ export async function loadImageModel(
         if (typeof scores[key] !== 'number' || !Number.isFinite(scores[key])) {
           throw new Error(`The image model omitted its '${key}' score.`);
         }
+      }
+      const inputName = animeModel.inputNames[0];
+      const outputName = animeModel.outputNames[0];
+      if (!inputName || !outputName)
+        throw new Error('The anime rating model omitted input or output metadata.');
+      const animeResult = await animeModel.run({ [inputName]: animeInput(bitmap) });
+      const animeValues = animeResult[outputName]?.data;
+      if (!animeValues || animeValues.length !== 4)
+        throw new Error('The anime rating model returned an unexpected output.');
+      if (scores.drawings! >= 0.5) {
+        scores.sexy = Math.max(
+          scores.sexy!,
+          Number(animeValues[1]) + Number(animeValues[2]) + Number(animeValues[3]),
+        );
       }
       return scores;
     } finally {
