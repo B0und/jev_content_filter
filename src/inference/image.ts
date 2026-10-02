@@ -17,6 +17,11 @@ const MODEL_LABEL_TO_CATEGORY: Partial<Record<string, CategoryKey>> = {
   Sexy: 'sexy',
 };
 
+export interface ImageClassification {
+  scores: Partial<Record<CategoryKey, number>>;
+  warning?: string;
+}
+
 function releaseMemoryHandlerAfterLoad(handler: tf.io.IOHandler): tf.io.IOHandler {
   let pendingHandler: tf.io.IOHandler | undefined = handler;
   return {
@@ -120,11 +125,11 @@ function animeInput(bitmap: ImageBitmap): ort.Tensor {
 
 export async function loadImageModel(
   onProgress: (loaded: number, total: number) => void,
-): Promise<(dataUrl: string) => Promise<Partial<Record<CategoryKey, number>>>> {
+): Promise<(dataUrl: string) => Promise<ImageClassification>> {
   const model = await loadNsfwModel((loaded) =>
     onProgress(loaded, SELECTED_MODELS.image.downloadBytes + ANIME_RATING_MODEL.downloadBytes),
   );
-  const animeModel = await loadAnimeRatingModel(onProgress);
+  let animeModel: ort.InferenceSession | undefined;
   const canvas = new OffscreenCanvas(1, 1);
   const context = canvas.getContext('2d', { willReadFrequently: true });
   if (!context) throw new Error('Image decoding is unavailable in this browser.');
@@ -152,21 +157,36 @@ export async function loadImageModel(
           throw new Error(`The image model omitted its '${key}' score.`);
         }
       }
-      const inputName = animeModel.inputNames[0];
-      const outputName = animeModel.outputNames[0];
-      if (!inputName || !outputName)
-        throw new Error('The anime rating model omitted input or output metadata.');
-      const animeResult = await animeModel.run({ [inputName]: animeInput(bitmap) });
-      const animeValues = animeResult[outputName]?.data;
-      if (!animeValues || animeValues.length !== 4)
-        throw new Error('The anime rating model returned an unexpected output.');
-      if (scores.drawings! >= 0.5) {
-        scores.sexy = Math.max(
-          scores.sexy!,
-          Number(animeValues[1]) + Number(animeValues[2]) + Number(animeValues[3]),
-        );
+      if (scores.drawings! < 0.5) return { scores };
+      try {
+        animeModel ??= await loadAnimeRatingModel(onProgress);
+        const inputName = animeModel.inputNames[0];
+        const outputName = animeModel.outputNames[0];
+        if (!inputName || !outputName)
+          throw new Error('The anime rating model omitted input or output metadata.');
+        const animeResult = await animeModel.run({ [inputName]: animeInput(bitmap) });
+        const animeValues = animeResult[outputName]?.data;
+        if (!animeValues || animeValues.length !== 4)
+          throw new Error('The anime rating model returned an unexpected output.');
+        const values = Array.from(animeValues, Number);
+        if (values.some((value) => !Number.isFinite(value) || value < 0 || value > 1))
+          throw new Error('The anime rating model returned invalid probabilities.');
+        if (scores.drawings! >= 0.5) {
+          scores.sexy = Math.max(
+            scores.sexy!,
+            Math.min(1, Number(animeValues[1]) + Number(animeValues[2]) + Number(animeValues[3])),
+          );
+        }
+        return { scores };
+      } catch (error) {
+        const failed = animeModel;
+        animeModel = undefined;
+        await failed?.release().catch(() => {});
+        return {
+          scores,
+          warning: `Anime sensitivity check failed: ${error instanceof Error ? error.message : String(error)}. Retry to complete it.`,
+        };
       }
-      return scores;
     } finally {
       bitmap.close();
     }

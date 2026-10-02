@@ -3,7 +3,7 @@ import * as ort from 'onnxruntime-web/wasm';
 import * as tf from '@tensorflow/tfjs';
 import { load as loadNsfwCore } from 'nsfwjs/core';
 import { MobileNetV2Model } from 'nsfwjs/models/mobilenet_v2';
-import { SELECTED_MODELS } from '../src/shared/model-catalog';
+import { ANIME_RATING_MODEL, SELECTED_MODELS } from '../src/shared/model-catalog';
 import { loadImageModel } from '../src/inference/image';
 
 const FIXTURES_URL = '/image-model-fixtures.json';
@@ -483,7 +483,10 @@ async function runStaticNsfwjs(
     progressBytes = loaded;
     progressTotal = total;
   });
-  if (progressBytes !== selected.downloadBytes || progressTotal !== selected.downloadBytes) {
+  if (
+    progressBytes !== selected.downloadBytes ||
+    progressTotal !== selected.downloadBytes + ANIME_RATING_MODEL.downloadBytes
+  ) {
     throw new Error(
       'The deferred image adapter did not report completion for its pinned model files.',
     );
@@ -495,7 +498,9 @@ async function runStaticNsfwjs(
     if (!image) throw new Error(`Missing loaded image '${item.id}'.`);
     const dataUrl = canvasInput(image).toDataURL('image/png');
     const started = performance.now();
-    const scores = readFourImageScores(await classify(dataUrl));
+    const result = await classify(dataUrl);
+    if (result.warning) throw new Error(result.warning);
+    const scores = readFourImageScores(result.scores);
     return {
       score: scores.porn + scores.hentai + scores.sexy,
       rawScores: scores,

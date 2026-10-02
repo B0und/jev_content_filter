@@ -9,7 +9,7 @@ import { CategoryKeySchema } from '../shared/schemas';
 import { settings, type Post } from './state';
 import { canonicalMediaUrl } from './dom';
 import { InferenceReplySchema } from '../shared/inference';
-import { SELECTED_MODELS } from '../shared/model-catalog';
+import { IMAGE_PIPELINE_REVISION, SELECTED_MODELS } from '../shared/model-catalog';
 const JevReplySchema = Schema.Union([
   Schema.Struct({
     ok: Schema.Literal(true),
@@ -239,9 +239,8 @@ const classifyImages = Effect.fnUntraced(function* (
   const misses: Array<{ url: string; index: number }> = [];
   for (let index = 0; index < urls.length; index++) {
     const url = urls[index] ?? '';
-    const descriptor = SELECTED_MODELS.image;
     const cached = yield* readCache(
-      `${CACHE_PREFIX}i:${descriptor.id}:${descriptor.revision}:${hash64(canonicalMediaUrl(url))}`,
+      `${CACHE_PREFIX}i:${IMAGE_PIPELINE_REVISION}:${hash64(canonicalMediaUrl(url))}`,
     );
     if (cached) {
       for (const category of CATEGORY_KEYS) {
@@ -261,7 +260,7 @@ const classifyImages = Effect.fnUntraced(function* (
       Effect.mapError((cause) => new ClassificationError({ message: message(cause) })),
       Effect.flatMap((reply) =>
         reply.ok
-          ? Effect.succeed({ predictions: reply.scores })
+          ? Effect.succeed({ predictions: reply.scores, warning: reply.warning })
           : Effect.fail(new ClassificationError({ message: reply.error })),
       ),
       Effect.catch((error) => Effect.succeed({ error } as const)),
@@ -276,9 +275,12 @@ const classifyImages = Effect.fnUntraced(function* (
       if (probability !== undefined)
         scores[category] = Math.max(scores[category] ?? 0, probability);
     }
-    const descriptor = SELECTED_MODELS.image;
+    if (outcome.warning) {
+      errors.push(`Image ${miss.index + 1}: ${outcome.warning}`);
+      continue; // Preserve available scores, but retry the incomplete check instead of caching it.
+    }
     yield* writeCache(
-      `${CACHE_PREFIX}i:${descriptor.id}:${descriptor.revision}:${hash64(canonicalMediaUrl(miss.url))}`,
+      `${CACHE_PREFIX}i:${IMAGE_PIPELINE_REVISION}:${hash64(canonicalMediaUrl(miss.url))}`,
       imageScores,
     );
   }

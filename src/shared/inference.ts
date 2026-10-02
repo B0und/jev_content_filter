@@ -51,6 +51,7 @@ export const InferenceReplySchema = Schema.Union([
   Schema.Struct({
     ok: Schema.Literal(true),
     scores: Schema.Record(Schema.Literals(CATEGORY_KEYS), Schema.optionalKey(probability)),
+    warning: Schema.optionalKey(Schema.String),
   }),
   Schema.Struct({ ok: Schema.Literal(false), error: Schema.String }),
 ]);

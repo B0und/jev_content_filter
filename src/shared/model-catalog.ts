@@ -18,7 +18,7 @@ export const ANIME_RATING_MODEL = {
   description:
     '16.8 MB ONNX model with general, sensitive, questionable, and explicit anime ratings.',
   baseUrl:
-    'https://huggingface.co/deepghs/anime_dbrating/resolve/7af21db648acdeb74f5c334abda9dd7407b3c/mobilenetv3_large_100_v0_ls0.2',
+    'https://huggingface.co/deepghs/anime_dbrating/resolve/7af21db648acdeb74f5c334abda9dd7403407b3c/mobilenetv3_large_100_v0_ls0.2',
   sourceUrl:
     'https://huggingface.co/deepghs/anime_dbrating/tree/7af21db648acdeb74f5c334abda9dd7403407b3c/mobilenetv3_large_100_v0_ls0.2',
   downloadBytes: 16_832_684,
@@ -54,3 +54,6 @@ export const SELECTED_MODELS: Record<ModelKind, ModelDescriptor> = {
     files: ['config.json', 'tokenizer.json', 'tokenizer_config.json', 'onnx/model_quantized.onnx'],
   },
 };
+
+/** Version the whole image pipeline, including routing and score aggregation. */
+export const IMAGE_PIPELINE_REVISION = `${SELECTED_MODELS.image.id}:${SELECTED_MODELS.image.revision}:${ANIME_RATING_MODEL.id}:${ANIME_RATING_MODEL.revision}:routing-v1`;

@@ -1,12 +1,11 @@
 import { env } from '@huggingface/transformers';
-import { loadImageModel } from './image';
+import { loadImageModel, type ImageClassification } from './image';
 import { loadAiTextModel } from './ai-text';
 import { initialModelStatuses, type ModelKind, type ModelStatuses } from '../shared/inference';
-import type { CategoryKey } from '../shared/types';
 
 export interface LocalModels {
   load(kind: ModelKind): Promise<void>;
-  classifyImage(dataUrl: string): Promise<Partial<Record<CategoryKey, number>>>;
+  classifyImage(dataUrl: string): Promise<ImageClassification>;
   classifyAiText(text: string): Promise<{ aiGenerated: number }>;
 }
 
@@ -92,7 +91,9 @@ export function createLocalModels(onStatus: (status: ModelStatuses) => void): Lo
       update(kind, 'ready');
     },
     async classifyImage(dataUrl) {
-      return (await getImage())(dataUrl);
+      const result = await (await getImage())(dataUrl);
+      update('image', result.warning ? 'error' : 'ready', result.warning);
+      return result;
     },
     async classifyAiText(text) {
       return (await getAiText())(text);

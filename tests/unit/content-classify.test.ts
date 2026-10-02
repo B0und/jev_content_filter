@@ -158,6 +158,49 @@ describe('score cache', () => {
     expect(bg.imageCalls).toHaveLength(1);
   });
 
+  it('ignores legacy model scores after the anime pipeline is installed', async () => {
+    fakeBrowser.reset();
+    settings.current = baseSettings();
+    const bg = installFakeBackground();
+    bg.imageRespond = () => ({ ok: true, scores: { sexy: 0.93 } });
+    const url = 'https://pbs.twimg.com/media/CacheKey?format=jpg';
+    await Effect.runPromise(imageScores([url]));
+    const stored = await browser.storage.local.get(null);
+    const entry = Object.entries(stored).find(([key]) => key.includes(':i:'))!;
+    const suffix = entry[0].slice(entry[0].lastIndexOf(':'));
+    await browser.storage.local.clear();
+    await browser.storage.local.set({
+      [`${STORAGE_KEYS.scores}:v7:i:nsfwjs/mobilenet_v2:d55a54c51f14380670064cc129b2ea51029c5e46${suffix}`]:
+        { scores: { sexy: 0.001 }, ts: Date.now() },
+    });
+    expect(await Effect.runPromise(imageScores([url]))).toEqual({
+      scores: { sexy: 0.93 },
+      errors: [],
+    });
+    expect(bg.imageCalls).toHaveLength(2);
+  });
+
+  it('preserves partial scores and retries an incomplete anime check without caching it', async () => {
+    fakeBrowser.reset();
+    settings.current = baseSettings();
+    const bg = installFakeBackground();
+    bg.imageRespond = () => ({
+      ok: true,
+      scores: { porn: 0.9 },
+      warning: 'Anime sensitivity check failed. Retry to complete it.',
+    });
+    const url = 'https://pbs.twimg.com/media/Partial?format=jpg';
+    expect(await Effect.runPromise(imageScores([url]))).toEqual({
+      scores: { porn: 0.9 },
+      errors: ['Image 1: Anime sensitivity check failed. Retry to complete it.'],
+    });
+    bg.imageRespond = () => ({ ok: true, scores: { porn: 0.9, sexy: 0.93 } });
+    const recovered = await Effect.runPromise(imageScores([url]));
+    expect(recovered).toEqual({ scores: { porn: 0.9, sexy: 0.93 }, errors: [] });
+    expect(await Effect.runPromise(imageScores([url]))).toEqual(recovered);
+    expect(bg.imageCalls).toHaveLength(2);
+  });
+
   it('reuses cached sexual and local-AI scores across posts with identical text', async () => {
     fakeBrowser.reset();
     settings.current = textTaskSettings();

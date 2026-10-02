@@ -19,10 +19,9 @@ self.addEventListener('message', (event: MessageEvent<unknown>) => {
         await Promise.all(request.models.map((kind) => models.load(kind)));
         return { ok: true, scores: {} };
       }
-      const scores =
-        request.operation === 'image'
-          ? await models.classifyImage(request.dataUrl)
-          : await models.classifyAiText(request.text);
+      if (request.operation === 'image')
+        return { ok: true, ...(await models.classifyImage(request.dataUrl)) };
+      const scores = await models.classifyAiText(request.text);
       return { ok: true, scores };
     },
     catch: (error) =>
