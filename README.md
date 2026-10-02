@@ -1,6 +1,6 @@
 # Jev Feed Filter
 
-A Chromium MV3 extension that filters posts and link previews on X and Twitter. Images use local NSFWJS MobileNetV2; AI-written text uses local E5-small q8. Sexual-text checks use TypeSafe Jev through Vercel AI Gateway, TypeSafe AI, or OpenRouter. Model weights are downloaded after startup, not bundled.
+A Chromium MV3 extension that filters posts and link previews on X and Twitter. Images use local NSFWJS MobileNetV2 and an Anime DBRating companion for sensitivity in drawings; AI-written text uses local E5-small q8. Sexual-text checks use TypeSafe Jev through Vercel AI Gateway, TypeSafe AI, or OpenRouter. NSFWJS and E5 weights are downloaded and cached after startup; Anime DBRating weights are bundled with the extension.
 
 ## Development and installation
 
@@ -25,14 +25,15 @@ The popup separates **Text** and **Images** controls. Local image and AI-text fi
 
 Enabled local models warm after background startup and settings changes while filtering is active. The popup shows download progress, readiness, errors, and retry actions. Downloads use pinned revisions and persistent browser caches; cached weights work when their origin is unavailable. First use requires network access and sufficient browser storage.
 
-| Task            | Selected model     | Remote assets | Selection evidence                                                                                                                                                                                                   |
-| --------------- | ------------------ | ------------: | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Images          | NSFWJS MobileNetV2 |        2.7 MB | Retained after a 25-image comparison. Both NSFWJS and binary Falconsai q4 scored 25/25; the smaller MobileNetV4 candidate scored 13/25. Falconsai required 56.8 MB and could not preserve separate image categories. |
-| AI-written text | E5-small LoRA q8   |       34.9 MB | On 120 balanced short English posts at threshold 0.50: accuracy 70.8%, F1 0.724, AUC 0.759, versus Jev accuracy 52.5%, F1 0.095, AUC 0.703. E5 was smaller and faster than the tested TMR q8 model.                  |
+| Task              | Selected model             |    Model assets | Selection evidence                                                                                                                                                                                                                                                      |
+| ----------------- | -------------------------- | --------------: | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Images            | NSFWJS MobileNetV2         |          2.7 MB | Retained after a 25-image comparison. Both NSFWJS and binary Falconsai q4 scored 25/25; the smaller MobileNetV4 candidate scored 13/25. Falconsai required 56.8 MB and could not preserve separate image categories.                                                    |
+| Anime sensitivity | Anime DBRating MobileNetV3 | 16.8 MB bundled | Reports general, sensitive, questionable, and explicit ratings. Tested on two user-reported posts; sensitive-or-higher scores were 93.0% and 93.5% for the first post's images and 95.3% for the second. These selected examples do not establish false-positive rates. |
+| AI-written text   | E5-small LoRA q8           |         34.9 MB | On 120 balanced short English posts at threshold 0.50: accuracy 70.8%, F1 0.724, AUC 0.759, versus Jev accuracy 52.5%, F1 0.095, AUC 0.703. E5 was smaller and faster than the tested TMR q8 model.                                                                     |
 
 These are diagnostic corpora, not general accuracy claims. At the preserved AI threshold of 0.65, E5 falsely flags 10/60 human examples and misses 29/60 generated examples. Scores are uncalibrated estimates, not authorship evidence. See the [text report](benchmarks/text-report.md) and [image report](benchmarks/image-model-report.md) for pinned sources, provenance, preprocessing, per-case results, and limitations.
 
-Inference JavaScript and the ONNX WASM engine remain packaged; only model data comes from remote origins. No remote executable code is loaded. The catalog in `src/shared/model-catalog.ts` pins the NSFWJS repository commit and Hugging Face model revision.
+Inference JavaScript, the ONNX WASM engine, and the Anime DBRating model are packaged. NSFWJS and E5 model data come from remote origins. No remote executable code is loaded. The catalog in `src/shared/model-catalog.ts` pins the model revisions. Total image weights are 19.6 MB, including the 16.8 MB bundled anime model.
 
 ## Effect tooling
 

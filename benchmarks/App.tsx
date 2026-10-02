@@ -298,17 +298,26 @@ export function App() {
 
   function importMeasuredComparisons() {
     const measured = measuredComparisons();
-    const existingCases = new Set(state.cases.map((item) => item.id));
-    const existingSolutions = new Set(state.solutions.map((solution) => solution.id));
-    const cases = measured.cases.filter((item) => !existingCases.has(item.id));
-    const solutions = measured.solutions.filter((solution) => !existingSolutions.has(solution.id));
-    benchmarkState.update((current) => ({
-      ...current,
-      cases: [...current.cases, ...cases],
-      solutions: [...current.solutions, ...solutions],
-    }));
+    let addedCases = 0;
+    let addedSolutions = 0;
+    benchmarkState.update((current) => {
+      const existingCases = new Set(current.cases.map((item) => item.id));
+      const existingSolutions = new Set(current.solutions.map((solution) => solution.id));
+      const cases = measured.cases.filter((item) => !existingCases.has(item.id));
+      const solutions = measured.solutions.filter(
+        (solution) => !existingSolutions.has(solution.id),
+      );
+      addedCases = cases.length;
+      addedSolutions = solutions.length;
+      if (!addedCases && !addedSolutions) return current;
+      return {
+        ...current,
+        cases: [...current.cases, ...cases],
+        solutions: [...current.solutions, ...solutions],
+      };
+    });
     setNotice(
-      `Imported ${cases.length} measured cases and ${solutions.length} solutions. Existing labels, scores, and reviews were preserved.`,
+      `Imported ${addedCases} measured cases and ${addedSolutions} solutions. Existing labels, scores, and reviews were preserved.`,
     );
   }
 

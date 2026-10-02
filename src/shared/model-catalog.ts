@@ -30,9 +30,9 @@ export const SELECTED_MODELS: Record<ModelKind, ModelDescriptor> = {
   image: {
     id: 'nsfwjs/mobilenet_v2',
     revision: 'd55a54c51f14380670064cc129b2ea51029c5e46',
-    title: 'NSFWJS MobileNetV2',
+    title: 'NSFWJS + Anime DBRating',
     description:
-      '2.7 MB model download. Retained after a 25-image comparison; preserves separate image categories.',
+      '19.6 MB of image weights: a 2.7 MB cached NSFWJS download and 16.8 MB of bundled Anime DBRating weights. Anime sensitivity uses a separate rating model.',
     baseUrl:
       'https://raw.githubusercontent.com/infinitered/nsfwjs/d55a54c51f14380670064cc129b2ea51029c5e46/models/mobilenet_v2',
     sourceUrl:
