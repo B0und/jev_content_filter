@@ -81,6 +81,7 @@ const run = Effect.fn('InferenceWorker.run')(function* (request: InferenceReques
       new Promise<InferenceReply>((resolve, reject) => {
         const onAbort = () => {
           pending.delete(id);
+          supervisor.cancel(id);
           reject(new Error('Local inference request cancelled.'));
         };
         signal.addEventListener('abort', onAbort, { once: true });

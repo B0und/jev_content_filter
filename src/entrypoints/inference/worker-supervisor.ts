@@ -16,6 +16,7 @@ export interface SupervisedWorker {
 export interface WorkerSupervisor {
   send(message: { id: number; request?: unknown }): Error | undefined;
   complete(id: number): void;
+  cancel(id: number): void;
   terminate(): void;
 }
 
@@ -100,6 +101,12 @@ export function createWorkerSupervisor(options: {
         activeId = undefined;
         dispatch();
       }
+    },
+    cancel(id) {
+      const index = queued.findIndex((message) => message.id === id);
+      if (index !== -1) queued.splice(index, 1);
+      // Already-dispatched execution keeps its deadline and completion path;
+      // cancelling a caller must not release the worker for concurrent work.
     },
     terminate() {
       const instance = worker;

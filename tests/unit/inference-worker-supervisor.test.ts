@@ -40,6 +40,31 @@ function crash(handlers: WorkerHandlers, message: string) {
 describe('inference worker supervisor', () => {
   afterEach(() => vi.useRealTimers());
 
+  it('frees cancelled waiting slots without interrupting active execution', () => {
+    vi.useFakeTimers();
+    const factory = fakeWorkerFactory();
+    const failures: Error[] = [];
+    const supervisor = createWorkerSupervisor({
+      start: factory.start,
+      onMessage: () => {},
+      onFailure: (error) => failures.push(error),
+      requestTimeoutMs: 100,
+    });
+    for (let id = 1; id <= 9; id++) supervisor.send({ id });
+    for (let id = 2; id <= 9; id++) supervisor.cancel(id);
+    supervisor.cancel(1);
+    supervisor.cancel(999);
+    expect(supervisor.send({ id: 10 })).toBeUndefined();
+    expect(factory.created[0]!.sent).toEqual([{ id: 1 }]);
+    expect(factory.created[0]!.terminated).toBe(false);
+    supervisor.complete(1);
+    expect(factory.created[0]!.sent).toEqual([{ id: 1 }, { id: 10 }]);
+    supervisor.complete(10);
+    vi.advanceTimersByTime(100);
+    expect(failures).toEqual([]);
+    supervisor.terminate();
+  });
+
   it('bounds waiting payloads and gives queued requests a fresh execution deadline', () => {
     vi.useFakeTimers();
     const factory = fakeWorkerFactory();
