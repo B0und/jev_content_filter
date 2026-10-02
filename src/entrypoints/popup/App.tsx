@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import { Switch } from '@base-ui/react/switch';
 import { Tabs } from '@base-ui/react/tabs';
 import {
@@ -410,6 +417,13 @@ function Category({
   const [lastSyncedPercent, setLastSyncedPercent] = useState(percent);
   const pendingPercent = useRef<number | undefined>(undefined);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  // A newer saved threshold wins over an unsaved local edit. Cancel before
+  // painting it so blur/pagehide cannot flush the previous displayed value.
+  useLayoutEffect(() => {
+    clearTimeout(timer.current);
+    timer.current = undefined;
+    pendingPercent.current = undefined;
+  }, [percent]);
   const flush = useCallback(() => {
     clearTimeout(timer.current);
     timer.current = undefined;
