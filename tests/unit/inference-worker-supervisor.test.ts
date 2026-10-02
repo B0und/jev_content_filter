@@ -40,6 +40,34 @@ function crash(handlers: WorkerHandlers, message: string) {
 describe('inference worker supervisor', () => {
   afterEach(() => vi.useRealTimers());
 
+  it('bounds waiting payloads and gives queued requests a fresh execution deadline', () => {
+    vi.useFakeTimers();
+    const factory = fakeWorkerFactory();
+    const failures: Error[] = [];
+    const supervisor = createWorkerSupervisor({
+      start: factory.start,
+      onMessage: () => {},
+      onFailure: (error) => failures.push(error),
+      requestTimeoutMs: 100,
+    });
+    for (let id = 1; id <= 9; id++) expect(supervisor.send({ id })).toBeUndefined();
+    expect(supervisor.send({ id: 10 })?.message).toContain('queue full');
+    expect(factory.created[0]!.sent).toEqual([{ id: 1 }]);
+    expect(failures).toEqual([]);
+    vi.advanceTimersByTime(90);
+    supervisor.complete(1);
+    expect(factory.created[0]!.sent).toEqual([{ id: 1 }, { id: 2 }]);
+    vi.advanceTimersByTime(90);
+    expect(failures).toEqual([]);
+    supervisor.complete(2);
+    for (let id = 3; id <= 9; id++) supervisor.complete(id);
+    vi.advanceTimersByTime(100);
+    expect(failures).toEqual([]);
+    expect(factory.created[0]!.sent).toHaveLength(9);
+    expect(supervisor.send({ id: 11 })).toBeUndefined();
+    supervisor.terminate();
+  });
+
   it('reports synchronous startup failures and recovers on the next request', () => {
     vi.useFakeTimers();
     const factory = fakeWorkerFactory();
@@ -153,6 +181,7 @@ describe('inference worker supervisor', () => {
 
     supervisor.send({ id: 3 });
     expect(factory.created).toHaveLength(2);
+    supervisor.complete(2);
     expect(factory.created[1]!.sent).toEqual([{ id: 2 }, { id: 3 }]);
   });
 

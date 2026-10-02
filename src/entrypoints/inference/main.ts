@@ -59,9 +59,9 @@ const supervisor = createWorkerSupervisor({
       return;
     }
     const reply = pending.get(event.data.id);
-    supervisor.complete(event.data.id);
     pending.delete(event.data.id);
     reply?.resolve(event.data.reply);
+    supervisor.complete(event.data.id);
   },
   // A crashed graph (WASM abort, failed worker setup) must not disable local
   // filtering for the session: the supervisor drops the worker and the next
@@ -95,7 +95,12 @@ const run = Effect.fn('InferenceWorker.run')(function* (request: InferenceReques
             reject(error);
           },
         });
-        supervisor.send({ id, request });
+        const admissionError = supervisor.send({ id, request });
+        if (admissionError) {
+          pending.delete(id);
+          cleanup();
+          reject(admissionError);
+        }
       }),
     catch: (cause) => new BrowserError({ operation: 'run local inference', cause }),
   });

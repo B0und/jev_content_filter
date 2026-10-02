@@ -14,7 +14,7 @@ export interface SupervisedWorker {
 }
 
 export interface WorkerSupervisor {
-  send(message: { id: number; request?: unknown }): void;
+  send(message: { id: number; request?: unknown }): Error | undefined;
   complete(id: number): void;
   terminate(): void;
 }
@@ -26,10 +26,14 @@ export function createWorkerSupervisor(options: {
   requestTimeoutMs?: number;
 }): WorkerSupervisor {
   let worker: SupervisedWorker | undefined;
+  const queued: Array<{ id: number; request?: unknown }> = [];
+  let activeId: number | undefined;
   const deadlines = new Map<number, ReturnType<typeof setTimeout>>();
   const clearDeadlines = () => {
     for (const timer of deadlines.values()) clearTimeout(timer);
     deadlines.clear();
+    queued.length = 0;
+    activeId = undefined;
   };
   const fail = (instance: SupervisedWorker, error: Error) => {
     if (worker !== instance) return;
@@ -55,33 +59,47 @@ export function createWorkerSupervisor(options: {
     worker = created;
     return created;
   };
+  const dispatch = () => {
+    if (activeId !== undefined) return;
+    const message = queued.shift();
+    if (!message) return;
+    let instance: SupervisedWorker;
+    try {
+      instance = worker ?? start();
+    } catch (cause) {
+      clearDeadlines();
+      options.onFailure(cause instanceof Error ? cause : new Error(String(cause)));
+      return;
+    }
+    activeId = message.id;
+    deadlines.set(
+      message.id,
+      setTimeout(() => {
+        fail(instance, new Error('Local inference timed out. Retry to restart it.'));
+      }, options.requestTimeoutMs ?? 300_000),
+    );
+    try {
+      instance.postMessage(message);
+    } catch (cause) {
+      fail(instance, cause instanceof Error ? cause : new Error(String(cause)));
+    }
+  };
   return {
     send(message) {
-      let instance: SupervisedWorker;
-      try {
-        instance = worker ?? start();
-      } catch (cause) {
-        clearDeadlines();
-        options.onFailure(cause instanceof Error ? cause : new Error(String(cause)));
-        return;
-      }
-      // Bound queueing, model loading and inference together. Terminating the
-      // worker also releases a permit held by a non-settling model operation.
-      deadlines.set(
-        message.id,
-        setTimeout(() => {
-          fail(instance, new Error('Local inference timed out. Retry to restart it.'));
-        }, options.requestTimeoutMs ?? 300_000),
-      );
-      try {
-        instance.postMessage(message);
-      } catch (cause) {
-        fail(instance, cause instanceof Error ? cause : new Error(String(cause)));
-      }
+      // Keep at most one active request and eight waiting payloads. Queue time
+      // cannot expire the active worker's execution deadline.
+      if (queued.length >= 8) return new Error('Local inference queue full. Retry shortly.');
+      queued.push(message);
+      dispatch();
+      return undefined;
     },
     complete(id) {
       clearTimeout(deadlines.get(id));
       deadlines.delete(id);
+      if (activeId === id) {
+        activeId = undefined;
+        dispatch();
+      }
     },
     terminate() {
       const instance = worker;
