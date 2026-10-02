@@ -141,6 +141,40 @@ Existing databases keep their cases; the expanded initial corpus is not merged i
 
 ## Verification
 
+The agent browser keeps a Chromium session open and watches extension source files. It opens the real toolbar popup, collects console messages and uncaught exceptions from the popup, content script, and background worker, and automatically rebuilds and reloads after changes. Reload also refreshes the target tab so it receives the new content script.
+
+```sh
+npm run agent:browser -- start
+npm run agent:browser -- doctor
+npm run agent:browser -- inspect popup
+npm run agent:browser -- logs background
+npm run agent:browser -- verify
+```
+
+The default session serves the local X fixture with synthetic provider responses. It uses its own persistent profile and needs no login or API key. `start --headless` runs without a display. Install the bundled browser with `npx playwright install chromium` if it is missing; `EXTENSION_BROWSER_PATH` can select another Chrome/Chromium executable.
+
+Changes under `src/` and `public/`, or to `wxt.config.ts` and package files, trigger build, reload, and smoke verification. `status` reports the latest generation, build output, and verification result. Failed builds preserve the running extension. `reload` explicitly rebuilds and reloads; `reload --no-build` loads an already-built extension. `verify` exits unsuccessfully for broken popup content or captured runtime errors.
+
+`inspect feed` and `inspect logs` capture the target page and the extension's application log page. `logs` returns all collected console contexts; use `logs --since=N` to read entries after a previous sequence number. Screenshots, DOM snapshots, `console.jsonl`, and `verification.json` are saved under `.wxt/extension-agent/artifacts/`. Popup screenshots mask the API-key input.
+
+The agent can also interact with the running extension:
+
+```sh
+npm run agent:browser -- click popup '[aria-label="Enable filtering"]'
+npm run agent:browser -- eval background 'chrome.runtime.getManifest().version'
+```
+
+`fill <surface> <selector> <value>` edits a form control. `eval <surface> <expression>` evaluates JavaScript in `popup`, `feed`, `logs`, or `background`. `doctor` emits known messages in the actual popup, content script, and worker and requires all three collectors to receive them.
+
+For real X browsing, stop the fixture session and start a live session:
+
+```sh
+npm run agent:browser -- stop
+npm run agent:browser -- start --live
+```
+
+Sign in and configure the extension in that browser. The live profile is separate from the fixture profile. Its verification checks the popup and runtime errors; the fixture-specific injection assertion runs only in fixture mode. This debugger session keeps worker inspection attached, so use the existing lifecycle tests separately when checking idle-worker behavior. `stop` closes the browser and watcher; `start --no-watch` disables automatic rebuilds.
+
 ```sh
 npm run compile
 npm run lint
@@ -168,6 +202,8 @@ JEV_EXTENSION_PATH=/absolute/path/to/the/loaded/chrome-mv3 \
 ```
 
 The report records the loaded path and SHA256 hashes of the manifest, background bundle, and content bundle. This launches an isolated Chromium profile; it does not attach to your logged-in X session. Reloading a different checkout's extension does not install this worktree's fixes.
+
+The browser-loop regressions exercise the actual toolbar popup, active-tab filtering, log collection after reload, watched build changes, background exceptions, and build-failure recovery. After a build, they can also be run alone with `npm run test:agent-browser`.
 
 ## Code layout
 
