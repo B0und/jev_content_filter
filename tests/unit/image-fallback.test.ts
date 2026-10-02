@@ -53,7 +53,10 @@ beforeEach(() => {
     { className: 'Sexy', probability: 0.03 },
   ]);
   vi.stubGlobal('self', { location: { href: 'chrome-extension://test/worker.js' } });
-  vi.stubGlobal('fetch', vi.fn(async () => new Response(new Blob(['image']))));
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => new Response(new Blob(['image']))),
+  );
   vi.stubGlobal(
     'createImageBitmap',
     vi.fn().mockResolvedValue({ width: 2, height: 2, close: vi.fn() }),
@@ -100,4 +103,13 @@ it('keeps NSFWJS scores after anime inference fails and recreates the session', 
   expect(mocks.release).toHaveBeenCalledOnce();
   expect((await classify('data:image/png;base64,AA==')).warning).toBeUndefined();
   expect(mocks.create).toHaveBeenCalledTimes(2);
+});
+
+it('explicit warmup retries the anime model without classifying another image', async () => {
+  mocks.create.mockRejectedValueOnce(new Error('model unavailable'));
+  const classify = await loadImageModel(() => {});
+  await expect(classify.warmup()).rejects.toThrow('model unavailable');
+  await expect(classify.warmup()).resolves.toBeUndefined();
+  expect(mocks.create).toHaveBeenCalledTimes(2);
+  expect(mocks.classify).not.toHaveBeenCalled();
 });

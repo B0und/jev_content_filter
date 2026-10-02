@@ -22,6 +22,11 @@ export interface ImageClassification {
   warning?: string;
 }
 
+export interface ImageClassifier {
+  (dataUrl: string): Promise<ImageClassification>;
+  warmup(): Promise<void>;
+}
+
 function releaseMemoryHandlerAfterLoad(handler: tf.io.IOHandler): tf.io.IOHandler {
   let pendingHandler: tf.io.IOHandler | undefined = handler;
   return {
@@ -125,15 +130,18 @@ function animeInput(bitmap: ImageBitmap): ort.Tensor {
 
 export async function loadImageModel(
   onProgress: (loaded: number, total: number) => void,
-): Promise<(dataUrl: string) => Promise<ImageClassification>> {
+): Promise<ImageClassifier> {
   const model = await loadNsfwModel((loaded) =>
     onProgress(loaded, SELECTED_MODELS.image.downloadBytes + ANIME_RATING_MODEL.downloadBytes),
   );
   let animeModel: ort.InferenceSession | undefined;
+  const warmup = async () => {
+    animeModel ??= await loadAnimeRatingModel(onProgress);
+  };
   const canvas = new OffscreenCanvas(1, 1);
   const context = canvas.getContext('2d', { willReadFrequently: true });
   if (!context) throw new Error('Image decoding is unavailable in this browser.');
-  return async (dataUrl) => {
+  const classify = async (dataUrl: string): Promise<ImageClassification> => {
     const response = await fetch(dataUrl);
     if (!response.ok) throw new Error(`Image decoding failed (${response.status}).`);
     const bitmap = await createImageBitmap(await response.blob());
@@ -157,9 +165,10 @@ export async function loadImageModel(
           throw new Error(`The image model omitted its '${key}' score.`);
         }
       }
-      if (scores.drawings! < 0.5) return { scores };
       try {
-        animeModel ??= await loadAnimeRatingModel(onProgress);
+        await warmup();
+        if (scores.drawings! < 0.5) return { scores };
+        if (!animeModel) throw new Error('The anime rating model is unavailable.');
         const inputName = animeModel.inputNames[0];
         const outputName = animeModel.outputNames[0];
         if (!inputName || !outputName)
@@ -191,4 +200,5 @@ export async function loadImageModel(
       bitmap.close();
     }
   };
+  return Object.assign(classify, { warmup });
 }

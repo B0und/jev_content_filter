@@ -51,7 +51,6 @@ export function createLocalModels(onStatus: (status: ModelStatuses) => void): Lo
       imageLoading = loadImageModel(progress('image'))
         .then((classifier) => {
           image = classifier;
-          update('image', 'ready');
           return classifier;
         })
         .catch((error: unknown) => {
@@ -86,9 +85,15 @@ export function createLocalModels(onStatus: (status: ModelStatuses) => void): Lo
   };
   return {
     async load(kind) {
-      if (kind === 'image') await getImage();
-      else await getAiText();
-      update(kind, 'ready');
+      update(kind, 'loading');
+      try {
+        if (kind === 'image') await (await getImage()).warmup();
+        else await getAiText();
+        update(kind, 'ready');
+      } catch (error) {
+        update(kind, 'error', error instanceof Error ? error.message : String(error));
+        throw error;
+      }
     },
     async classifyImage(dataUrl) {
       const result = await (await getImage())(dataUrl);
