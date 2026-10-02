@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Switch } from '@base-ui/react/switch';
 import { Tabs } from '@base-ui/react/tabs';
 import {
@@ -408,12 +408,33 @@ function Category({
   const percent = Number((settings.thresholds[key] * 100).toFixed(1));
   const [draft, setDraft] = useState(String(percent));
   const [lastSyncedPercent, setLastSyncedPercent] = useState(percent);
+  const pendingPercent = useRef<number | undefined>(undefined);
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const flush = useCallback(() => {
+    clearTimeout(timer.current);
+    timer.current = undefined;
+    const value = pendingPercent.current;
+    pendingPercent.current = undefined;
+    if (value !== undefined) update({ field: 'threshold', category: key, value: value / 100 });
+  }, [key, update]);
+  useEffect(() => {
+    window.addEventListener('pagehide', flush);
+    return () => {
+      window.removeEventListener('pagehide', flush);
+      flush();
+    };
+  }, [flush]);
   if (lastSyncedPercent !== percent) {
     setLastSyncedPercent(percent);
     setDraft(String(percent));
   }
-  const setPercent = (value: number) =>
-    update({ field: 'threshold', category: key, value: value / 100 });
+  const setPercent = (value: number) => {
+    setDraft(String(value));
+    pendingPercent.current = value;
+    clearTimeout(timer.current);
+    timer.current = setTimeout(flush, 400);
+  };
+  const displayedPercent = draft !== '' && Number.isFinite(Number(draft)) ? Number(draft) : percent;
   return (
     <div className={`category ${settings.enabled[key] ? '' : 'disabled'}`}>
       <div className="category-label">
@@ -433,7 +454,7 @@ function Category({
           min="0"
           max="100"
           step="0.1"
-          value={percent}
+          value={displayedPercent}
           disabled={!settings.enabled[key]}
           aria-label={`${CATEGORY_LABELS[key]} threshold`}
           onChange={(event) => setPercent(event.target.valueAsNumber)}
@@ -450,8 +471,16 @@ function Category({
             setDraft(event.target.value);
             if (event.target.validity.valid && event.target.value !== '')
               setPercent(event.target.valueAsNumber);
+            else {
+              clearTimeout(timer.current);
+              pendingPercent.current = undefined;
+            }
           }}
-          onBlur={() => setDraft(String(percent))}
+          onBlur={() => {
+            const value = pendingPercent.current ?? percent;
+            flush();
+            setDraft(String(value));
+          }}
         />
         <span>%</span>
       </div>
