@@ -1,6 +1,15 @@
 {
+  "$schema": "./node_modules/@effect/tsgo/schema.json",
   "extends": "./.wxt/tsconfig.json",
   "compilerOptions": {
-    "jsx": "react-jsx"
+    "jsx": "react-jsx",
+    "types": ["chrome", "node"],
+    "incremental": true,
+    "tsBuildInfoFile": "./.wxt/tsconfig.tsbuildinfo",
+    "exactOptionalPropertyTypes": true,
+    "noUnusedLocals": true,
+    "rewriteRelativeImportExtensions": true,
+    "sourceMap": true,
+    "plugins": [{ "name": "@effect/language-service", "diagnostics": false }]
   }
 }

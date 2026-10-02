@@ -1,280 +1,95 @@
-// Background service worker runtime: single rate-limited Jev classification
-// queue, image fetch proxy, status broadcasting, and toolbar icon state.
+// Background worker runtime: bounded classification, storage coordination,
+// image fetch proxy, status broadcasting, and toolbar state.
 //
-// MV3 wake contract: startBackground() must register every browser listener
-// synchronously, before its first await, so events arriving while the worker
-// spins up are never missed. Async work (settings load, status restore) runs
-// after registration; message handlers await the readiness chain instead.
-import { evaluateText } from './text-provider';
+// MV3 wake contract: startBackground() registers every browser listener
+// synchronously. The single ManagedRuntime then owns the worker services and
+// their scoped classification fibers.
+import {
+  Clock,
+  Context,
+  Deferred,
+  Effect,
+  Layer,
+  ManagedRuntime,
+  Option,
+  Queue,
+  Ref,
+  Semaphore,
+} from 'effect';
+import * as Schema from 'effect/Schema';
 import { browser } from 'wxt/browser';
+import { BrowserError, browserEffect } from '../shared/browser';
 import { appendBlocked, appendScanError, clearLog, clearScanErrors } from '../shared/log';
-import { applySettingsChange, loadSettings, saveStatus } from '../shared/settings';
+import { BgRequestSchema } from '../shared/schemas';
+import { applySettingsChange, loadSettings, loadStatus, saveStatus } from '../shared/settings';
 import {
   STORAGE_KEYS,
   formatCount,
   type BgRequest,
   type FilterStatus,
-  type ImageReply,
   type JevReply,
   type Settings,
   type SettingsChange,
   type TextProvider,
 } from '../shared/types';
+import { evaluateText, type TextScores } from './text-provider';
+import { runLocalInference, warmLocalModels } from './local-inference';
+import { MODEL_STATUS_KEY, initialModelStatuses, type ModelKind } from '../shared/inference';
 
 const QUEUE_CONCURRENCY = 3;
-// Cap on requests waiting for a classification slot: past this the gateway is
-// hopelessly saturated and callers fail open instead of piling up.
+// The admission semaphore bounds all work to three active plus 64 waiting.
 const MAX_WAITING = 64;
-
-let settings: Settings | null = null;
-let active = 0;
-const waiting: Array<() => void> = [];
-
-let failingReason: string | null = null;
-
-// Serialized read-modify-write queue for blocked-log/scan-error appends and
-// clears: concurrent content tabs (and log clears) would otherwise clobber
-// each other over storage.local.
-let logQueue: Promise<void> = Promise.resolve();
-
-// Settings are loaded once before any request is served, then reloaded
-// through this serialized chain on storage changes.
-let settingsSync: Promise<void> = Promise.resolve();
-
-// Full worker readiness (settings + persisted status restored). Message
-// handlers wait on this so an early success cannot miss a stored failing
-// status and leave a stale banner behind.
-let ready: Promise<void> = Promise.resolve();
-
-function syncSettings(): Promise<void> {
-  settingsSync = settingsSync
-    .catch(() => undefined)
-    .then(async () => {
-      settings = await loadSettings();
-    })
-    .catch((error) => {
-      // Keep the chain alive; a later storage change or restart retries.
-      console.error('[jev-filter] failed to load settings', error);
-    });
-  return settingsSync;
-}
-
-function changeSettings(change: SettingsChange): Promise<Settings> {
-  const run = settingsSync
-    .catch(() => undefined)
-    .then(async () => {
-      const next = applySettingsChange(await loadSettings(), change);
-      await browser.storage.local.set({ [STORAGE_KEYS.settings]: next });
-      settings = next;
-      return next;
-    });
-  settingsSync = run.then(
-    () => undefined,
-    () => undefined,
-  );
-  return run;
-}
-
-// Slot ownership is transferred explicitly: releaseSlot hands the permit
-// directly to the next waiter (keeping `active` as the count of held
-// permits) instead of decrementing and re-incrementing, which let requests
-// arriving between the two steps push concurrency past the limit.
-async function acquireSlot(): Promise<() => void> {
-  if (waiting.length >= MAX_WAITING) {
-    throw new Error(`classification queue full (${MAX_WAITING} waiting)`);
-  }
-  if (active < QUEUE_CONCURRENCY) {
-    active++;
-    return releaseSlot;
-  }
-  await new Promise<void>((resolve) => waiting.push(resolve));
-  return releaseSlot;
-}
-
-function releaseSlot(): void {
-  const next = waiting.shift();
-  if (next) next();
-  else active--;
-}
-
-// Single API attempt: visible retry handling (countdowns, backoff) is owned
-// by the content script, which re-sends 'jev' requests for failed posts.
-async function classify(text: string, provider: TextProvider, revision: number): Promise<JevReply> {
-  const stale = (): boolean =>
-    settings?.textProvider !== provider || settings.textConfigRevision !== revision;
-  const staleReply = { ok: false, stale: true, error: 'Text configuration changed.' } as const;
-  let release: (() => void) | undefined;
-  try {
-    await settingsSync;
-    if (stale()) return staleReply;
-    release = await acquireSlot();
-    await settingsSync;
-    if (stale()) return staleReply;
-    const apiKey = settings?.providerKeys[provider];
-    if (!apiKey) throw new Error('no API key configured');
-    const result = await evaluateText({ provider, apiKey, text });
-    if (stale()) return staleReply;
-    if (failingReason) await setFailing(null);
-    return { ok: true, provider, revision, ...result };
-  } catch (error) {
-    if (stale()) return staleReply;
-    let message = error instanceof Error ? error.message : String(error);
-    const statusCode = (error as { statusCode?: unknown } | null)?.statusCode;
-    if (typeof statusCode === 'number' && !message.includes(String(statusCode))) {
-      message = `${statusCode}: ${message}`;
-    }
-    await setFailing(message);
-    return { ok: false, error: message };
-  } finally {
-    release?.();
-  }
-}
-
-async function setFailing(reason: string | null): Promise<void> {
-  failingReason = reason;
-  const status: FilterStatus = {
-    state: reason ? 'failing' : 'ok',
-    reason: reason ?? undefined,
-    updatedAt: Date.now(),
-  };
-  await saveStatus(status);
-  await updateIcon();
-}
-
-/**
- * Toolbar icon: paused (gray) when filtering is off, normal otherwise. The
- * failing state keeps the normal icon — the badge-less, neutral look — and
- * the tooltip explains what is wrong instead of an alarm color.
- * Serialized so concurrent callers can't apply stale icon state.
- */
-let iconSync: Promise<void> = Promise.resolve();
-
-function updateIcon(): Promise<void> {
-  const run = iconSync
-    .catch(() => undefined)
-    .then(async () => {
-      const paused = !settings?.masterEnabled;
-      const name = paused ? 'paused' : 'normal';
-      // Icon/title failures are cosmetic: they must never poison the
-      // classification status (a rejected setIcon would otherwise flip the
-      // worker into a failing state and fail open unrelated posts).
-      await browser.action
-        .setIcon({
-          path: {
-            16: `/icons/${name}-16.png`,
-            32: `/icons/${name}-32.png`,
-            48: `/icons/${name}-48.png`,
-            128: `/icons/${name}-128.png`,
-          },
-        })
-        .catch((error) => console.warn('[jev-filter] setIcon failed', error));
-      const reason = failingReason ? ` — failing: ${failingReason.slice(0, 120)}` : '';
-      await browser.action
-        .setTitle({
-          title: `Jev Feed Filter${paused ? ' (paused)' : reason}`,
-        })
-        .catch((error) => console.warn('[jev-filter] setTitle failed', error));
-    });
-  iconSync = run;
-  return run;
-}
-
-// Per-tab blocked counts for the toolbar badge, uBlock-style: each tab's
-// badge is set with an explicit tabId so counts never bleed across tabs.
-// Counts live in storage.session (covered by the existing 'storage'
-// permission) so they survive MV3 worker suspension; the browser clears
-// session storage only when the browser itself closes.
 const TAB_COUNT_PREFIX = 'jevTabBlocked:';
-let tabCounts = new Map<number, number>();
-let tabCountsLoaded = false;
-let tabCountSync: Promise<void> = Promise.resolve();
-
-async function loadTabCounts(): Promise<void> {
-  if (tabCountsLoaded) return;
-  const stored = await browser.storage.session.get(null);
-  tabCounts = new Map<number, number>();
-  for (const [key, value] of Object.entries(stored)) {
-    if (
-      key.startsWith(TAB_COUNT_PREFIX) &&
-      typeof value === 'number' &&
-      Number.isFinite(value) &&
-      value >= 0
-    ) {
-      tabCounts.set(Number(key.slice(TAB_COUNT_PREFIX.length)), value);
-    }
-  }
-  tabCountsLoaded = true;
-}
-
-// Paused hides every badge; a zero count shows nothing.
-function badgeTextFor(count: number): string {
-  return !settings?.masterEnabled || count <= 0 ? '' : formatCount(count);
-}
-
-function setTabBadge(tabId: number, text: string): void {
-  // The tab can close between tracking and the call: badge errors are benign.
-  void browser.action.setBadgeText({ text, tabId }).catch(() => undefined);
-}
-
-function updateTabCount(tabId: number, blocked: number): Promise<void> {
-  const run = tabCountSync
-    .catch(() => undefined)
-    .then(async () => {
-      await loadTabCounts();
-      tabCounts.set(tabId, blocked);
-      await browser.storage.session.set({ [TAB_COUNT_PREFIX + tabId]: blocked });
-      setTabBadge(tabId, badgeTextFor(blocked));
-    });
-  tabCountSync = run;
-  return run;
-}
-
-function clearTabCount(tabId: number): Promise<void> {
-  const run = tabCountSync
-    .catch(() => undefined)
-    .then(async () => {
-      if (tabCounts.delete(tabId)) {
-        await browser.storage.session.remove(TAB_COUNT_PREFIX + tabId).catch(() => undefined);
-      }
-      setTabBadge(tabId, '');
-    });
-  tabCountSync = run;
-  return run;
-}
-
-// Pause hides every tab's badge but keeps the counts; resume repaints them
-// from storage, so a worker restart mid-pause still restores correctly.
-function repaintTabBadges(): Promise<void> {
-  const run = tabCountSync
-    .catch(() => undefined)
-    .then(async () => {
-      await loadTabCounts();
-      for (const [tabId, count] of tabCounts) setTabBadge(tabId, badgeTextFor(count));
-    });
-  tabCountSync = run;
-  return run;
-}
-
-// Convert Blob to a data URL without FileReader, which is unavailable in
-// some non-Chromium MV3 runtimes: decode via arrayBuffer + bounded btoa
-// chunks. Bytes stay function-local so nothing is retained afterwards.
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
-const BTOA_CHUNK = 0x8000; // String.fromCharCode spread limit headroom
+const BTOA_CHUNK = 0x8000;
+const IMAGE_FETCH_TIMEOUT_MS = 10_000;
+const BG_REQUEST_TYPES: Record<string, true> = {
+  jev: true,
+  'update-settings': true,
+  'classify-image': true,
+  'classify-ai': true,
+  'load-model': true,
+  'local-model-status': true,
+  'get-status': true,
+  'log-blocked': true,
+  'log-error': true,
+  'clear-log': true,
+  'clear-errors': true,
+  'open-logs': true,
+  'tab-stats': true,
+};
 
-async function blobToDataUrl(blob: Blob): Promise<string> {
-  if (blob.size > MAX_IMAGE_BYTES) {
-    throw new Error(`image too large: ${blob.size} bytes (limit ${MAX_IMAGE_BYTES})`);
-  }
-  const bytes = new Uint8Array(await blob.arrayBuffer());
-  const mime = blob.type || 'application/octet-stream';
-  let binary = '';
-  for (let offset = 0; offset < bytes.length; offset += BTOA_CHUNK) {
-    binary += String.fromCharCode(...bytes.subarray(offset, offset + BTOA_CHUNK));
-  }
-  return `data:${mime};base64,${btoa(binary)}`;
+interface MessageSender {
+  tab?: { id?: number | undefined } | undefined;
+  id?: string | undefined;
+  url?: string | undefined;
 }
 
-const IMAGE_FETCH_TIMEOUT_MS = 10_000;
+interface ClassificationJob {
+  request: Extract<BgRequest, { type: 'jev' }>;
+  reply: Deferred.Deferred<JevReply, BrowserError>;
+}
+
+interface BackgroundWorkerApi {
+  initialize: Effect.Effect<void, BrowserError>;
+  handleRequest: (
+    request: BgRequest,
+    sender: MessageSender,
+  ) => Effect.Effect<unknown, BrowserError>;
+  settingsChanged: Effect.Effect<void, BrowserError>;
+  tabRemoved: (tabId: number) => Effect.Effect<void, BrowserError>;
+  tabNavigated: (tabId: number) => Effect.Effect<void, BrowserError>;
+}
+
+class BackgroundWorker extends Context.Service<BackgroundWorker, BackgroundWorkerApi>()(
+  'jev/background/BackgroundWorker',
+) {}
+
+class ImageProxyError extends Schema.TaggedError<ImageProxyError>()('ImageProxyError', {
+  message: Schema.String,
+}) {}
+
+const isBgRequest = Schema.is(BgRequestSchema);
 
 function isAllowedImageUrl(url: string): boolean {
   let parsed: URL;
@@ -293,169 +108,544 @@ function isAllowedImageUrl(url: string): boolean {
   return false;
 }
 
-async function fetchImageDataUrl(url: string): Promise<ImageReply> {
-  if (!isAllowedImageUrl(url)) {
-    return { ok: false, error: `image proxy: host not allowed for ${url}` };
-  }
-  try {
-    const response = await fetch(url, {
-      credentials: 'omit',
-      signal: AbortSignal.timeout(IMAGE_FETCH_TIMEOUT_MS),
-    });
-    if (!response.ok) throw new Error(`image fetch HTTP ${response.status}`);
-    const dataUrl = await blobToDataUrl(await response.blob());
-    return { ok: true, dataUrl };
-  } catch (error) {
-    const message =
-      error instanceof DOMException && error.name === 'TimeoutError'
-        ? `image fetch timed out after ${IMAGE_FETCH_TIMEOUT_MS}ms`
-        : error instanceof Error
-          ? error.message
-          : String(error);
-    return { ok: false, error: `image proxy failed for ${url}: ${message}` };
-  }
+function badgeTextFor(count: number, settings: Settings | null): string {
+  return !settings?.masterEnabled || count <= 0 ? '' : formatCount(count);
 }
 
-// Serialized log mutation: every append/clear of the blocked log and the
-// scan-error log joins the same queue, so a clear racing an in-flight append
-// can never be overwritten by the append's pre-clear read.
-function enqueueLogOperation(operation: () => Promise<void>): Promise<{ ok: true }> {
-  const run = logQueue.catch(() => undefined).then(operation);
-  logQueue = run;
-  return run.then(() => ({ ok: true }) as const);
-}
-
-const BG_REQUEST_TYPES = [
-  'jev',
-  'update-settings',
-  'fetch-image',
-  'get-status',
-  'log-blocked',
-  'log-error',
-  'clear-log',
-  'clear-errors',
-  'open-logs',
-  'tab-stats',
-] as const;
-
-function isBgRequest(value: unknown): value is BgRequest {
+function isStaleSettings(
+  settings: Settings | null,
+  provider: TextProvider,
+  revision: number,
+): boolean {
   return (
-    typeof value === 'object' &&
-    value !== null &&
-    'type' in value &&
-    typeof (value as { type: unknown }).type === 'string' &&
-    (BG_REQUEST_TYPES as readonly string[]).includes((value as { type: string }).type)
+    settings === null ||
+    settings.textProvider !== provider ||
+    settings.textConfigRevision !== revision
   );
 }
 
-async function handleRequest(
-  request: BgRequest,
-  sender: { tab?: { id?: number } },
-): Promise<unknown> {
-  switch (request.type) {
-    case 'jev':
-      return classify(request.text, request.provider, request.revision);
-    case 'update-settings':
-      return { ok: true, settings: await changeSettings(request.change) };
-    case 'fetch-image':
-      return fetchImageDataUrl(request.url);
-    case 'get-status': {
-      const stored = await browser.storage.local.get(STORAGE_KEYS.status);
-      return stored[STORAGE_KEYS.status] ?? { state: 'ok', updatedAt: 0 };
-    }
-    case 'log-blocked':
-      return enqueueLogOperation(() => appendBlocked(request.entry));
-    case 'log-error':
-      return enqueueLogOperation(() =>
-        appendScanError(
-          request.message,
-          request.tweetId ? { tweetId: request.tweetId, handle: request.handle } : undefined,
-        ),
+function BackgroundWorkerLive() {
+  return Layer.effect(
+    BackgroundWorker,
+    Effect.gen(function* () {
+      const scope = yield* Effect.scope;
+      const settingsState = yield* Ref.make<Settings | null>(null);
+      const settingsLock = yield* Semaphore.make(1);
+      const settingsReady = yield* Deferred.make<void, BrowserError>();
+      const failingReason = yield* Ref.make<string | null>(null);
+      const statusLock = yield* Semaphore.make(1);
+      const iconLock = yield* Semaphore.make(1);
+      const logLock = yield* Semaphore.make(1);
+      const tabCountLock = yield* Semaphore.make(1);
+      const tabCounts = yield* Ref.make(new Map<number, number>());
+      const tabCountsLoaded = yield* Ref.make(false);
+      // Extra queue room covers initial worker handoff; admission remains the
+      // authoritative limit across both queued and active requests.
+      const classificationAdmission = yield* Semaphore.make(QUEUE_CONCURRENCY + MAX_WAITING);
+      const classificationQueue = yield* Queue.dropping<ClassificationJob>(
+        QUEUE_CONCURRENCY + MAX_WAITING,
       );
-    case 'clear-log':
-      return enqueueLogOperation(() => clearLog());
-    case 'clear-errors':
-      return enqueueLogOperation(() => clearScanErrors());
-    case 'open-logs': {
-      // Page contexts cannot navigate to chrome-extension:// URLs; open the
-      // log from the privileged worker instead.
-      const url = browser.runtime.getURL('/logs.html') + (request.errors ? '#errors' : '');
-      void browser.tabs.create({ url });
-      return { ok: true };
-    }
-    case 'tab-stats': {
-      // uBlock-style per-tab badge; only content scripts have a sender tab.
-      // Awaited so the reply confirms the badge state was applied.
-      const tabId = sender.tab?.id;
-      if (typeof tabId !== 'number') return { ok: false };
-      if (!Number.isFinite(request.blocked) || request.blocked < 0) return { ok: false };
-      await updateTabCount(tabId, Math.floor(request.blocked));
-      return { ok: true };
-    }
-  }
+
+      const updateIcon = Effect.fnUntraced(function* () {
+        yield* iconLock.withPermits(1)(
+          Effect.gen(function* () {
+            const settings = yield* Ref.get(settingsState);
+            const paused = !settings?.masterEnabled;
+            const name = paused ? 'paused' : 'normal';
+            yield* browserEffect('set toolbar icon', () =>
+              browser.action.setIcon({
+                path: {
+                  16: `/icons/${name}-16.png`,
+                  32: `/icons/${name}-32.png`,
+                  48: `/icons/${name}-48.png`,
+                  128: `/icons/${name}-128.png`,
+                },
+              }),
+            ).pipe(
+              Effect.catchTag('BrowserError', (error) =>
+                Effect.sync(() => console.warn('[jev-filter] setIcon failed', error)),
+              ),
+            );
+            const failure = yield* Ref.get(failingReason);
+            const reason = failure ? ` — failing: ${failure.slice(0, 120)}` : '';
+            yield* browserEffect('set toolbar title', () =>
+              browser.action.setTitle({
+                title: `Jev Feed Filter${paused ? ' (paused)' : reason}`,
+              }),
+            ).pipe(
+              Effect.catchTag('BrowserError', (error) =>
+                Effect.sync(() => console.warn('[jev-filter] setTitle failed', error)),
+              ),
+            );
+          }),
+        );
+      });
+
+      const setFailing = Effect.fnUntraced(function* (reason: string | null) {
+        yield* statusLock.withPermits(1)(
+          Effect.gen(function* () {
+            yield* Ref.set(failingReason, reason);
+            const status: FilterStatus = {
+              state: reason ? 'failing' : 'ok',
+              updatedAt: yield* Clock.currentTimeMillis,
+            };
+            if (reason !== null) status.reason = reason;
+            yield* saveStatus(status);
+          }),
+        );
+        yield* updateIcon();
+      });
+
+      const synchronizeSettings = Effect.fnUntraced(function* () {
+        yield* settingsLock.withPermits(1)(
+          Effect.gen(function* () {
+            yield* Ref.set(settingsState, yield* loadSettings());
+          }).pipe(
+            Effect.catchTag('BrowserError', (error) =>
+              Effect.sync(() => console.error('[jev-filter] failed to load settings', error)),
+            ),
+          ),
+        );
+      });
+
+      const changeSettings = Effect.fnUntraced(function* (change: SettingsChange) {
+        return yield* settingsLock.withPermits(1)(
+          Effect.gen(function* () {
+            const next = applySettingsChange(yield* loadSettings(), change);
+            yield* browserEffect('save settings', () =>
+              browser.storage.local.set({ [STORAGE_KEYS.settings]: next }),
+            );
+            yield* Ref.set(settingsState, next);
+            return next;
+          }),
+        );
+      });
+
+      const setTabBadge = (tabId: number, text: string) =>
+        browserEffect('set tab badge', () => browser.action.setBadgeText({ text, tabId })).pipe(
+          Effect.catchTag('BrowserError', () => Effect.void),
+        );
+
+      const loadTabCounts = Effect.fnUntraced(function* () {
+        if (yield* Ref.get(tabCountsLoaded)) return;
+        const stored = yield* browserEffect('load tab counts', () =>
+          browser.storage.session.get(null),
+        );
+        const next = new Map<number, number>();
+        for (const [key, value] of Object.entries(stored)) {
+          if (
+            key.startsWith(TAB_COUNT_PREFIX) &&
+            typeof value === 'number' &&
+            Number.isFinite(value) &&
+            value >= 0
+          ) {
+            next.set(Number(key.slice(TAB_COUNT_PREFIX.length)), value);
+          }
+        }
+        yield* Ref.set(tabCounts, next);
+        yield* Ref.set(tabCountsLoaded, true);
+      });
+
+      const updateTabCount = Effect.fnUntraced(function* (tabId: number, blocked: number) {
+        yield* tabCountLock.withPermits(1)(
+          Effect.gen(function* () {
+            yield* loadTabCounts();
+            const counts = yield* Ref.get(tabCounts);
+            counts.set(tabId, blocked);
+            yield* Ref.set(tabCounts, counts);
+            yield* browserEffect('save tab count', () =>
+              browser.storage.session.set({ [TAB_COUNT_PREFIX + tabId]: blocked }),
+            );
+            yield* setTabBadge(tabId, badgeTextFor(blocked, yield* Ref.get(settingsState)));
+          }),
+        );
+      });
+
+      const clearTabCount = Effect.fnUntraced(function* (tabId: number) {
+        yield* tabCountLock.withPermits(1)(
+          Effect.gen(function* () {
+            const counts = yield* Ref.get(tabCounts);
+            counts.delete(tabId);
+            yield* Ref.set(tabCounts, counts);
+            yield* browserEffect('remove tab count', () =>
+              browser.storage.session.remove(TAB_COUNT_PREFIX + tabId),
+            ).pipe(Effect.catchTag('BrowserError', () => Effect.void));
+            yield* setTabBadge(tabId, '');
+          }),
+        );
+      });
+
+      const repaintTabBadges = Effect.fnUntraced(function* () {
+        yield* tabCountLock.withPermits(1)(
+          Effect.gen(function* () {
+            yield* loadTabCounts();
+            const settings = yield* Ref.get(settingsState);
+            for (const [tabId, count] of yield* Ref.get(tabCounts)) {
+              yield* setTabBadge(tabId, badgeTextFor(count, settings));
+            }
+          }),
+        );
+      });
+      const warmEnabledModels = Effect.gen(function* () {
+        const settings = yield* Ref.get(settingsState);
+        if (!settings?.masterEnabled) return;
+        const kinds: ModelKind[] = [];
+        if (
+          settings.enabled.porn ||
+          settings.enabled.hentai ||
+          settings.enabled.sexy ||
+          settings.enabled.drawings
+        )
+          kinds.push('image');
+        if (settings.enabled.aiGenerated) kinds.push('aiText');
+        yield* warmLocalModels(kinds).pipe(
+          Effect.catch((error) => {
+            if (error.operation === 'load local models') return Effect.void;
+            return browserEffect('save local model initialization error', () => {
+              const statuses = initialModelStatuses();
+              for (const kind of kinds)
+                statuses[kind] = { ...statuses[kind], state: 'error', error: error.message };
+              return browser.storage.local.set({ [MODEL_STATUS_KEY]: statuses });
+            }).pipe(Effect.ignore);
+          }),
+        );
+      });
+
+      const updateSettingsAfterStorageChange = Effect.fnUntraced(function* () {
+        yield* synchronizeSettings();
+        yield* updateIcon();
+        yield* repaintTabBadges();
+        yield* Effect.forkIn(warmEnabledModels, scope);
+      });
+
+      const logOperation = <A>(operation: Effect.Effect<A, BrowserError>) =>
+        logLock.withPermits(1)(operation);
+
+      const classifyRequest = Effect.fnUntraced(function* (
+        request: Extract<BgRequest, { type: 'jev' }>,
+      ): Effect.fn.Return<JevReply, BrowserError> {
+        const settings = yield* settingsLock.withPermits(1)(Ref.get(settingsState));
+        if (isStaleSettings(settings, request.provider, request.revision)) {
+          return { ok: false, stale: true, error: 'Text configuration changed.' };
+        }
+
+        const apiKey = settings?.providerKeys[request.provider];
+        if (!apiKey) {
+          const message = 'no API key configured';
+          yield* setFailing(message);
+          return { ok: false, error: message };
+        }
+
+        const outcome = yield* Effect.result(
+          evaluateText({ provider: request.provider, apiKey, text: request.text }),
+        );
+        const current = yield* Ref.get(settingsState);
+        if (isStaleSettings(current, request.provider, request.revision)) {
+          return { ok: false, stale: true, error: 'Text configuration changed.' };
+        }
+
+        if (outcome._tag === 'Failure') {
+          let message = outcome.failure.message;
+          const statusCode = outcome.failure.statusCode;
+          if (typeof statusCode === 'number' && !message.includes(String(statusCode))) {
+            message = `${statusCode}: ${message}`;
+          }
+          yield* setFailing(message);
+          return { ok: false, error: message };
+        }
+
+        if (yield* Ref.get(failingReason)) yield* setFailing(null);
+        const scores: TextScores = outcome.success;
+        return { ok: true, provider: request.provider, revision: request.revision, ...scores };
+      });
+
+      const classify = Effect.fnUntraced(function* (
+        request: Extract<BgRequest, { type: 'jev' }>,
+      ): Effect.fn.Return<JevReply, BrowserError> {
+        yield* Deferred.await(settingsReady);
+        const settings = yield* settingsLock.withPermits(1)(Ref.get(settingsState));
+        if (isStaleSettings(settings, request.provider, request.revision)) {
+          return { ok: false, stale: true, error: 'Text configuration changed.' };
+        }
+
+        const admitted = yield* classificationAdmission.withPermitsIfAvailable(1)(
+          Effect.gen(function* () {
+            const reply = yield* Deferred.make<JevReply, BrowserError>();
+            const offered = yield* Queue.offer(classificationQueue, { request, reply });
+            if (!offered) return undefined;
+            return yield* Deferred.await(reply);
+          }),
+        );
+        if (Option.isNone(admitted) || admitted.value === undefined) {
+          const current = yield* Ref.get(settingsState);
+          if (isStaleSettings(current, request.provider, request.revision)) {
+            return { ok: false, stale: true, error: 'Text configuration changed.' };
+          }
+          const message = `classification queue full (${MAX_WAITING} waiting)`;
+          yield* setFailing(message);
+          return { ok: false, error: message };
+        }
+        return admitted.value;
+      });
+
+      const workerLoop = Effect.forever(
+        Effect.gen(function* () {
+          const job = yield* Queue.take(classificationQueue);
+          const exit = yield* Effect.exit(classifyRequest(job.request));
+          yield* Deferred.done(job.reply, exit);
+        }),
+      );
+
+      for (let index = 0; index < QUEUE_CONCURRENCY; index++) {
+        yield* Effect.forkScoped(workerLoop);
+      }
+
+      const initialize = Effect.gen(function* () {
+        yield* Effect.forkDetach(
+          browserEffect('set badge background color', () =>
+            browser.action.setBadgeBackgroundColor({ color: '#1d9bf0' }),
+          ).pipe(Effect.catchTag('BrowserError', () => Effect.void)),
+        );
+        yield* Effect.forkDetach(
+          browserEffect('set badge text color', () =>
+            browser.action.setBadgeTextColor({ color: '#ffffff' }),
+          ).pipe(Effect.catchTag('BrowserError', () => Effect.void)),
+        );
+
+        yield* synchronizeSettings();
+        const settings = yield* Ref.get(settingsState);
+        // Rewrite normalized historical settings once, removing the old shared key.
+        if (settings) {
+          yield* browserEffect('normalize settings', () =>
+            browser.storage.local.set({ [STORAGE_KEYS.settings]: settings }),
+          );
+        }
+        const status = yield* loadStatus();
+        yield* Ref.set(
+          failingReason,
+          status.state === 'failing' ? (status.reason ?? 'unknown') : null,
+        );
+        yield* updateIcon();
+        yield* Deferred.succeed(settingsReady, undefined);
+        yield* Effect.forkIn(warmEnabledModels, scope);
+      }).pipe(Effect.tapError((error) => Deferred.fail(settingsReady, error)));
+
+      const handleRequest = Effect.fnUntraced(function* (
+        request: BgRequest,
+        sender: MessageSender,
+      ): Effect.fn.Return<unknown, BrowserError> {
+        yield* Deferred.await(settingsReady);
+        switch (request.type) {
+          case 'local-model-status':
+            if (
+              sender.id !== browser.runtime.id ||
+              sender.tab ||
+              sender.url !== browser.runtime.getURL('/inference.html')
+            )
+              return {
+                ok: false,
+                error: 'Local model status must come from the inference document.',
+              };
+            yield* browserEffect('save local model status', () =>
+              browser.storage.local.set({ [MODEL_STATUS_KEY]: request.models }),
+            );
+            return { ok: true };
+          case 'jev':
+            return yield* classify(request);
+          case 'classify-image': {
+            const image = yield* fetchImageDataUrl(request.url);
+            if (!image.ok) return image;
+            return yield* runLocalInference({
+              target: 'local-inference',
+              operation: 'image',
+              dataUrl: image.dataUrl,
+            });
+          }
+          case 'classify-ai':
+            return yield* runLocalInference({
+              target: 'local-inference',
+              operation: 'aiText',
+              text: request.text,
+            });
+          case 'load-model':
+            return yield* runLocalInference({
+              target: 'local-inference',
+              operation: 'warmup',
+              models: [request.kind],
+            });
+          case 'update-settings': {
+            const settings = yield* changeSettings(request.change);
+            return { ok: true, settings };
+          }
+          case 'get-status':
+            return yield* statusLock.withPermits(1)(loadStatus());
+          case 'log-blocked':
+            yield* logOperation(appendBlocked(request.entry));
+            return { ok: true };
+          case 'log-error':
+            yield* logOperation(
+              !request.tweetId
+                ? appendScanError(request.message)
+                : appendScanError(request.message, {
+                    tweetId: request.tweetId,
+                    ...(request.handle === undefined ? {} : { handle: request.handle }),
+                  }),
+            );
+            return { ok: true };
+          case 'clear-log':
+            return { ok: true, type: request.type, cleared: yield* logOperation(clearLog) };
+          case 'clear-errors':
+            return { ok: true, type: request.type, cleared: yield* logOperation(clearScanErrors) };
+          case 'open-logs': {
+            // Page contexts cannot navigate to chrome-extension:// URLs; open the
+            // log from the privileged worker instead. Keep the existing immediate reply.
+            const url = browser.runtime.getURL('/logs.html') + (request.errors ? '#errors' : '');
+            yield* Effect.forkDetach(
+              browserEffect('open logs page', () => browser.tabs.create({ url })).pipe(
+                Effect.catchTag('BrowserError', () => Effect.void),
+              ),
+            );
+            return { ok: true };
+          }
+          case 'tab-stats': {
+            const tabId = sender.tab?.id;
+            if (typeof tabId !== 'number') return { ok: false };
+            if (!Number.isFinite(request.blocked) || request.blocked < 0) return { ok: false };
+            yield* updateTabCount(tabId, Math.floor(request.blocked));
+            return { ok: true };
+          }
+        }
+      });
+
+      return BackgroundWorker.of({
+        initialize,
+        handleRequest,
+        settingsChanged: updateSettingsAfterStorageChange(),
+        tabRemoved: clearTabCount,
+        tabNavigated: clearTabCount,
+      });
+    }),
+  );
 }
 
-// Return `true` and reply via sendResponse: the canonical MV3 pattern that
-// keeps the message channel open for the async reply in every runtime
-// (returning only a Promise silently yields `undefined` in some hosts).
+const backgroundRuntime = ManagedRuntime.make(BackgroundWorkerLive());
+
+function runBackgroundEffect(
+  effect: Effect.Effect<unknown, BrowserError, BackgroundWorker>,
+  operation: string,
+): void {
+  void backgroundRuntime
+    .runPromise(effect)
+    .catch((error: unknown) => console.error(`[jev-filter] ${operation}`, error));
+}
+
 function onMessageListener(
   request: unknown,
-  sender: { tab?: { id?: number } },
+  sender: MessageSender,
   sendResponse: (reply: unknown) => void,
 ): true | undefined {
-  if (!isBgRequest(request)) return;
-  void ready
-    .then(() => handleRequest(request, sender))
+  if (
+    typeof request !== 'object' ||
+    request === null ||
+    !('type' in request) ||
+    typeof request.type !== 'string' ||
+    !Object.hasOwn(BG_REQUEST_TYPES, request.type)
+  ) {
+    return;
+  }
+  if (!isBgRequest(request)) {
+    sendResponse({ ok: false, error: 'Invalid request.' });
+    return true;
+  }
+  const effect = Effect.flatMap(BackgroundWorker, (worker) =>
+    worker.handleRequest(request, sender),
+  );
+  void backgroundRuntime
+    .runPromise(effect)
     .then((reply) => sendResponse(reply))
-    .catch((error) =>
-      sendResponse({ ok: false, error: error instanceof Error ? error.message : String(error) }),
+    .catch((error: unknown) =>
+      sendResponse({
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
+      }),
     );
   return true;
 }
 
-async function init(): Promise<void> {
-  await syncSettings();
-  // Rewrite normalized historical settings once, removing the old shared key.
-  if (settings) await browser.storage.local.set({ [STORAGE_KEYS.settings]: settings });
-  // Restore the failing banner persisted by a previous worker run before any
-  // classification can report success: otherwise a request served before
-  // this line could "succeed" while the stored status stays stale-failing.
-  const stored = await browser.storage.local.get(STORAGE_KEYS.status);
-  const status = stored[STORAGE_KEYS.status] as FilterStatus | undefined;
-  failingReason = status?.state === 'failing' ? (status.reason ?? 'unknown') : null;
-  await updateIcon();
-}
-
 /**
- * Register all browser listeners and start worker initialization. Every
- * listener attaches synchronously, before this function's first await —
- * required for the MV3 worker to wake on these events.
+ * Register every listener before starting asynchronous initialization. MV3 can
+ * wake this worker for an event as soon as listener registration returns.
  */
 export function startBackground(): void {
   browser.runtime.onMessage.addListener(onMessageListener);
 
   browser.storage.onChanged.addListener((changes, area) => {
-    if (area !== 'local') return;
-    if (changes[STORAGE_KEYS.settings]) {
-      void syncSettings().then(() => {
-        void updateIcon();
-        // Pause hides every badge but keeps counts; resume repaints them.
-        void repaintTabBadges();
-      });
-    }
+    if (area !== 'local' || !changes[STORAGE_KEYS.settings]) return;
+    runBackgroundEffect(
+      Effect.flatMap(BackgroundWorker, (worker) => worker.settingsChanged),
+      'failed to synchronize settings',
+    );
   });
 
-  // Navigation or tab close wipes that tab's count: the content script
-  // re-reports on load, so no stale badge survives onto the next page.
   browser.tabs.onRemoved.addListener((tabId) => {
-    void clearTabCount(tabId);
+    runBackgroundEffect(
+      Effect.flatMap(BackgroundWorker, (worker) => worker.tabRemoved(tabId)),
+      'failed to clear removed tab count',
+    );
   });
-  browser.tabs.onUpdated.addListener((tabId, changeInfo) => {
-    if (changeInfo.status === 'loading') void clearTabCount(tabId);
+  browser.webNavigation.onCommitted.addListener(({ tabId, frameId }) => {
+    if (frameId !== 0) return;
+    runBackgroundEffect(
+      Effect.flatMap(BackgroundWorker, (worker) => worker.tabNavigated(tabId)),
+      'failed to clear navigating tab count',
+    );
   });
 
-  void browser.action.setBadgeBackgroundColor({ color: '#1d9bf0' });
-  void browser.action.setBadgeTextColor({ color: '#ffffff' });
+  runBackgroundEffect(
+    Effect.flatMap(BackgroundWorker, (worker) => worker.initialize),
+    'failed to initialize worker',
+  );
+}
 
-  ready = init();
+function fetchImageDataUrl(
+  url: string,
+): Effect.Effect<{ ok: true; dataUrl: string } | { ok: false; error: string }> {
+  if (!isAllowedImageUrl(url)) {
+    return Effect.succeed({ ok: false, error: `image proxy: host not allowed for ${url}` });
+  }
+
+  const fetchData = Effect.tryPromise({
+    try: async (signal) => {
+      const timeoutSignal = AbortSignal.any([signal, AbortSignal.timeout(IMAGE_FETCH_TIMEOUT_MS)]);
+      const response = await fetch(url, { credentials: 'omit', signal: timeoutSignal });
+      if (!response.ok) throw new Error(`image fetch HTTP ${response.status}`);
+      const blob = await response.blob();
+      if (blob.size > MAX_IMAGE_BYTES) {
+        throw new Error(`image too large: ${blob.size} bytes (limit ${MAX_IMAGE_BYTES})`);
+      }
+      const bytes = new Uint8Array(await blob.arrayBuffer());
+      const mime = blob.type || 'application/octet-stream';
+      let binary = '';
+      for (let offset = 0; offset < bytes.length; offset += BTOA_CHUNK) {
+        binary += String.fromCharCode(...bytes.subarray(offset, offset + BTOA_CHUNK));
+      }
+      return `data:${mime};base64,${btoa(binary)}`;
+    },
+    catch: (cause) => {
+      let message: string;
+      if (cause instanceof DOMException && cause.name === 'TimeoutError')
+        message = `image fetch timed out after ${IMAGE_FETCH_TIMEOUT_MS}ms`;
+      else if (cause instanceof Error) message = cause.message;
+      else message = String(cause);
+      return new ImageProxyError({ message });
+    },
+  });
+
+  return Effect.result(fetchData).pipe(
+    Effect.map((result) =>
+      result._tag === 'Failure'
+        ? { ok: false, error: `image proxy failed for ${url}: ${result.failure.message}` }
+        : { ok: true, dataUrl: result.success },
+    ),
+  );
 }

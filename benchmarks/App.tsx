@@ -1,10 +1,18 @@
-import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react';
+import { Effect } from 'effect';
+import { BrowserError, browserEffect } from '../src/shared/browser';
+import {
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+  type ChangeEvent,
+  type FormEvent,
+} from 'react';
 import {
   createId,
   createSolution,
   exportBenchmarkState,
   formatMetric,
-  initialBenchmarkState,
   manualReviewFor,
   metricsFor,
   NSFWJS_LABELS,
@@ -26,10 +34,18 @@ import {
   type SolutionKind,
   type TruthValue,
 } from './model';
-import { loadBenchmarkState, saveBenchmarkState } from './storage';
+import { measuredComparisons } from './comparisons';
+import { benchmarkRuntime } from './storage';
+import { benchmarkState } from './state';
 import './styles.css';
 
 type CaseFilter = 'all' | BenchmarkModality;
+
+const FILTER_LABELS: Record<CaseFilter, string> = {
+  all: 'All',
+  image: 'Images',
+  text: 'Text',
+};
 
 const TASKS: BenchmarkTask[] = ['sexualContent', 'aiGenerated'];
 const NSFWJS_TASKS: NsfwjsTask[] = ['porn', 'hentai', 'sexy', 'drawings'];
@@ -40,20 +56,39 @@ const TRUTH_OPTIONS: Array<{ value: TruthValue; label: string }> = [
   { value: 'unknown', label: 'Unknown' },
 ];
 function isNsfwjsTask(task: ScoreKey): task is NsfwjsTask {
-  return NSFWJS_TASKS.includes(task as NsfwjsTask);
+  return Object.prototype.hasOwnProperty.call(NSFWJS_LABELS, task);
 }
 
-function readFileAsDataUrl(file: File): Promise<string> {
-  const { promise, resolve, reject } = Promise.withResolvers<string>();
-  const reader = new FileReader();
-  reader.onload = () => {
-    if (typeof reader.result === 'string') resolve(reader.result);
-    else reject(new Error('Could not read the image file.'));
-  };
-  reader.onerror = () => reject(new Error('Could not read the image file.'));
-  reader.readAsDataURL(file);
-  return promise;
-}
+const readFileAsDataUrl = (file: File) =>
+  Effect.callback<string, BrowserError>((resume) => {
+    const reader = new FileReader();
+    reader.onload = () =>
+      resume(
+        typeof reader.result === 'string'
+          ? Effect.succeed(reader.result)
+          : Effect.fail(
+              new BrowserError({
+                operation: 'read image',
+                cause: 'Could not read the image file.',
+              }),
+            ),
+      );
+    reader.onerror = () =>
+      resume(
+        Effect.fail(
+          new BrowserError({
+            operation: 'read image',
+            cause: reader.error ?? 'Could not read the image file.',
+          }),
+        ),
+      );
+    reader.readAsDataURL(file);
+    return Effect.sync(() => {
+      reader.onload = null;
+      reader.onerror = null;
+      if (reader.readyState === FileReader.LOADING) reader.abort();
+    });
+  });
 
 function formatCaseLabel(item: BenchmarkCase): string {
   return `Sexual content: ${item.labels.sexualContent} · AI origin: ${item.labels.aiGenerated}`;
@@ -64,9 +99,11 @@ function MetricCell({ value }: { value: number | null }) {
 }
 
 export function App() {
-  const [state, setState] = useState<BenchmarkState>(() => initialBenchmarkState());
-  const [storageReady, setStorageReady] = useState(false);
-  const [storageError, setStorageError] = useState('');
+  const { state, storageReady, storageError } = useSyncExternalStore(
+    benchmarkState.subscribe,
+    benchmarkState.getSnapshot,
+    benchmarkState.getSnapshot,
+  );
   const [filter, setFilter] = useState<CaseFilter>('all');
   const [solutionDraft, setSolutionDraft] = useState('');
   const [solutionKind, setSolutionKind] = useState<SolutionKind>('llm');
@@ -77,33 +114,7 @@ export function App() {
   const [sampleFileName, setSampleFileName] = useState('');
   const [notice, setNotice] = useState('');
 
-  useEffect(() => {
-    let cancelled = false;
-    void loadBenchmarkState()
-      .then((loaded) => {
-        if (cancelled) return;
-        setState(loaded);
-        setStorageError('');
-        setStorageReady(true);
-      })
-      .catch((error: unknown) => {
-        if (cancelled) return;
-        setStorageError(error instanceof Error ? error.message : 'SQLite storage is unavailable.');
-        setStorageReady(true);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!storageReady) return;
-    void saveBenchmarkState(state)
-      .then(() => setStorageError(''))
-      .catch((error: unknown) => {
-        setStorageError(error instanceof Error ? error.message : 'SQLite storage is unavailable.');
-      });
-  }, [state, storageReady]);
+  useEffect(() => benchmarkState.start(), []);
 
   const selectedCase =
     state.cases.find((item) => item.id === state.selectedCaseId) ?? state.cases[0];
@@ -116,12 +127,12 @@ export function App() {
     : 0;
 
   function selectCase(id: string) {
-    setState((current) => ({ ...current, selectedCaseId: id }));
+    benchmarkState.update((current) => ({ ...current, selectedCaseId: id }));
   }
 
   function updateCaseLabels(task: BenchmarkTask, value: TruthValue) {
     if (!selectedCase) return;
-    setState((current) => ({
+    benchmarkState.update((current) => ({
       ...current,
       cases: current.cases.map((item) =>
         item.id === selectedCase.id ? { ...item, labels: { ...item.labels, [task]: value } } : item,
@@ -132,7 +143,7 @@ export function App() {
   function updateThreshold(task: BenchmarkTask | 'nsfwjs', value: string) {
     const numeric = Number(value);
     if (!Number.isFinite(numeric)) return;
-    setState((current) => ({
+    benchmarkState.update((current) => ({
       ...current,
       thresholds: { ...current.thresholds, [task]: Math.min(1, Math.max(0, numeric)) },
     }));
@@ -142,7 +153,7 @@ export function App() {
     const numeric = value === '' ? null : Number(value);
     if (numeric !== null && (!Number.isFinite(numeric) || numeric < 0 || numeric > 1)) return;
     const caseId = selectedCase?.id ?? '';
-    setState((current) => ({
+    benchmarkState.update((current) => ({
       ...current,
       solutions: current.solutions.map((solution) => {
         if (solution.id !== solutionId) return solution;
@@ -164,7 +175,7 @@ export function App() {
 
   function updateReview(solutionId: string, task: ScoreKey, verdict: ReviewVerdict) {
     const caseId = selectedCase?.id ?? '';
-    setState((current) => ({
+    benchmarkState.update((current) => ({
       ...current,
       solutions: current.solutions.map((solution) => {
         if (solution.id !== solutionId) return solution;
@@ -249,7 +260,7 @@ export function App() {
     event.preventDefault();
     const name = solutionDraft.trim();
     if (!name) return;
-    setState((current) => ({
+    benchmarkState.update((current) => ({
       ...current,
       solutions: [...current.solutions, createSolution(name, '', solutionKind)],
     }));
@@ -258,24 +269,56 @@ export function App() {
   }
 
   function removeSolution(solutionId: string) {
-    setState((current) => ({
+    benchmarkState.update((current) => ({
       ...current,
       solutions: current.solutions.filter((solution) => solution.id !== solutionId),
     }));
     setNotice('Solution removed from this local benchmark.');
   }
 
-  async function importSolution(event: ChangeEvent<HTMLInputElement>) {
+  function importSolution(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     event.target.value = '';
     if (!file) return;
-    try {
-      const solution = parseSolutionImport(await file.text());
-      setState((current) => ({ ...current, solutions: [...current.solutions, solution] }));
-      setNotice(`Imported ${solution.name}.`);
-    } catch (error) {
-      setNotice(error instanceof Error ? error.message : 'Could not import that solution.');
-    }
+    benchmarkRuntime.runFork(
+      Effect.gen(function* () {
+        const text = yield* browserEffect('read solution', () => file.text());
+        const solution = yield* Effect.try({
+          try: () => parseSolutionImport(text),
+          catch: (cause) => new BrowserError({ operation: 'import solution', cause }),
+        });
+        benchmarkState.update((current) => ({
+          ...current,
+          solutions: [...current.solutions, solution],
+        }));
+        setNotice(`Imported ${solution.name}.`);
+      }).pipe(Effect.catch((error) => Effect.sync(() => setNotice(error.message)))),
+    );
+  }
+
+  function importMeasuredComparisons() {
+    const measured = measuredComparisons();
+    let addedCases = 0;
+    let addedSolutions = 0;
+    benchmarkState.update((current) => {
+      const existingCases = new Set(current.cases.map((item) => item.id));
+      const existingSolutions = new Set(current.solutions.map((solution) => solution.id));
+      const cases = measured.cases.filter((item) => !existingCases.has(item.id));
+      const solutions = measured.solutions.filter(
+        (solution) => !existingSolutions.has(solution.id),
+      );
+      addedCases = cases.length;
+      addedSolutions = solutions.length;
+      if (!addedCases && !addedSolutions) return current;
+      return {
+        ...current,
+        cases: [...current.cases, ...cases],
+        solutions: [...current.solutions, ...solutions],
+      };
+    });
+    setNotice(
+      `Imported ${addedCases} measured cases and ${addedSolutions} solutions. Existing labels, scores, and reviews were preserved.`,
+    );
   }
 
   function exportDataset() {
@@ -288,7 +331,7 @@ export function App() {
     setNotice('Benchmark state exported.');
   }
 
-  async function addSample(event: FormEvent<HTMLFormElement>) {
+  function addSample(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const title = sampleTitle.trim();
     if (!title) {
@@ -307,8 +350,6 @@ export function App() {
       id: createId('case'),
       modality: sampleType,
       title,
-      imageUrl: sampleType === 'image' ? sampleImage : undefined,
-      text: sampleType === 'text' ? sampleText.trim() : undefined,
       labels: { sexualContent: 'unknown', aiGenerated: 'unknown' },
       provenance: 'user-provided',
       notes: sampleFileName
@@ -316,7 +357,9 @@ export function App() {
         : 'User-provided sample; original author/source is unverified.',
       createdAt: new Date().toISOString(),
     };
-    setState((current) => ({
+    if (sampleType === 'image') item.imageUrl = sampleImage;
+    else item.text = sampleText.trim();
+    benchmarkState.update((current) => ({
       ...current,
       cases: [item, ...current.cases],
       selectedCaseId: item.id,
@@ -328,16 +371,21 @@ export function App() {
     setNotice(`Added ${title}. Mark the human labels before comparing models.`);
   }
 
-  async function chooseSampleImage(event: ChangeEvent<HTMLInputElement>) {
+  function chooseSampleImage(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
-    try {
-      setSampleImage(await readFileAsDataUrl(file));
-      setSampleFileName(file.name);
-      setNotice(`${file.name} ready to add.`);
-    } catch (error) {
-      setNotice(error instanceof Error ? error.message : 'Could not read the image.');
-    }
+    benchmarkRuntime.runFork(
+      readFileAsDataUrl(file).pipe(
+        Effect.match({
+          onSuccess: (dataUrl) => {
+            setSampleImage(dataUrl);
+            setSampleFileName(file.name);
+            setNotice(`${file.name} ready to add.`);
+          },
+          onFailure: (error) => setNotice(error.message),
+        }),
+      ),
+    );
   }
 
   if (!storageReady) {
@@ -345,7 +393,16 @@ export function App() {
       <main className="storage-loading" data-testid="benchmark-storage-loading">
         <p className="eyebrow">Local evaluation workbench</p>
         <h1>Benchmark Lab</h1>
-        <p>Connecting to the SQLite database…</p>
+        {storageError ? (
+          <>
+            <p role="alert">Could not load the saved dataset: {storageError}</p>
+            <button type="button" onClick={() => location.reload()}>
+              Retry
+            </button>
+          </>
+        ) : (
+          <p>Connecting to the SQLite database…</p>
+        )}
       </main>
     );
   }
@@ -368,6 +425,9 @@ export function App() {
           </output>
         </div>
         <div className="header-actions">
+          <button type="button" className="quiet-button" onClick={importMeasuredComparisons}>
+            Import measured comparisons
+          </button>
           <button type="button" className="quiet-button" onClick={exportDataset}>
             Export state
           </button>
@@ -456,7 +516,7 @@ export function App() {
                 className={filter === value ? 'active' : ''}
                 onClick={() => setFilter(value)}
               >
-                {value === 'all' ? 'All' : value === 'image' ? 'Images' : 'Text'}
+                {FILTER_LABELS[value]}
               </button>
             ))}
           </div>
@@ -486,7 +546,10 @@ export function App() {
                 Type
                 <select
                   value={sampleType}
-                  onChange={(event) => setSampleType(event.target.value as BenchmarkModality)}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    if (value === 'text' || value === 'image') setSampleType(value);
+                  }}
                 >
                   <option value="text">Text</option>
                   <option value="image">Image</option>
@@ -539,7 +602,7 @@ export function App() {
                     <span>{selectedCase.id}</span>
                   </div>
                   <h2>{selectedCase.title}</h2>
-                  <p>{selectedCase.notes || 'No notes yet.'}</p>
+                  <p className="case-notes">{selectedCase.notes || 'No notes yet.'}</p>
                 </div>
                 <div className="label-progress">
                   <strong>{labeledCount}/2</strong>
@@ -603,7 +666,11 @@ export function App() {
                     <select
                       aria-label="Solution type"
                       value={solutionKind}
-                      onChange={(event) => setSolutionKind(event.target.value as SolutionKind)}
+                      onChange={(event) => {
+                        const value = event.target.value;
+                        if (value === 'llm' || value === 'nsfwjs' || value === 'other')
+                          setSolutionKind(value);
+                      }}
                     >
                       {SOLUTION_KINDS.map((kind) => (
                         <option key={kind} value={kind}>

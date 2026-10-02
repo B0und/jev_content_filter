@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { applySettingsChange, loadSettings } from '../../src/shared/settings';
@@ -11,7 +12,7 @@ afterEach(() => vi.unstubAllEnvs());
 
 describe('settings storage normalization', () => {
   it('does not obtain credentials from build-time environment values', async () => {
-    const loaded = await loadSettings();
+    const loaded = await Effect.runPromise(loadSettings());
     expect(Object.values(loaded.providerKeys)).toEqual(['', '', '']);
   });
 
@@ -19,7 +20,7 @@ describe('settings storage normalization', () => {
     await fakeBrowser.storage.local.set({
       settings: { textProvider: 'typesafe', gatewayKey: 'synthetic-typesafe-key' },
     });
-    const loaded = await loadSettings();
+    const loaded = await Effect.runPromise(loadSettings());
     expect(loaded.providerKeys).toEqual({
       vercel: '',
       typesafe: 'synthetic-typesafe-key',
@@ -32,7 +33,11 @@ describe('settings storage normalization', () => {
     await fakeBrowser.storage.local.set({
       settings: { gatewayKey: 'revoked-key', providerKeys: { vercel: '', typesafe: 123 } },
     });
-    expect(Object.values((await loadSettings()).providerKeys)).toEqual(['', '', '']);
+    expect(Object.values((await Effect.runPromise(loadSettings())).providerKeys)).toEqual([
+      '',
+      '',
+      '',
+    ]);
   });
 
   it('normalizes corrupt credentials, revisions and category settings', async () => {
@@ -46,7 +51,7 @@ describe('settings storage normalization', () => {
         thresholds: { porn: '0.2', hentai: Number.NaN },
       },
     });
-    const loaded = await loadSettings();
+    const loaded = await Effect.runPromise(loadSettings());
     expect(Object.values(loaded.providerKeys)).toEqual(['', '', '']);
     expect(loaded.textConfigRevision).toBe(0);
     expect(typeof loaded.masterEnabled).toBe('boolean');
@@ -61,7 +66,7 @@ describe('settings storage normalization', () => {
         sliders: { sexy: 0, drawings: 100 },
       },
     });
-    const loaded = await loadSettings();
+    const loaded = await Effect.runPromise(loadSettings());
     expect(loaded.thresholds.porn).toBe(1);
     expect(loaded.thresholds.hentai).toBe(0);
     expect(loaded.thresholds.sexy).toBe(0.7);

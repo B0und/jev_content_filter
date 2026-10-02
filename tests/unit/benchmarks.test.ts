@@ -85,6 +85,29 @@ describe('benchmark metrics', () => {
     });
   });
 
+  it('reports zero F1 when every positive prediction is wrong', () => {
+    const metrics = metricsFor(
+      cases,
+      {
+        ...solution,
+        predictions: {
+          nonsexual: { ...solution.predictions.nonsexual!, sexualContent: 0.9 },
+          sexual: { ...solution.predictions.sexual!, sexualContent: 0.1 },
+        },
+      },
+      'sexualContent',
+      0.5,
+    );
+    expect(metrics).toMatchObject({
+      truePositive: 0,
+      falsePositive: 1,
+      falseNegative: 1,
+      precision: 0,
+      recall: 0,
+      f1: 0,
+    });
+  });
+
   it('keeps missing predictions visible as incomplete coverage', () => {
     const metrics = metricsFor(cases, solution, 'aiGenerated', 0.5);
     expect(metrics.labeled).toBe(2);

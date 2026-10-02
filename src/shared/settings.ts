@@ -1,4 +1,8 @@
+import { Effect } from 'effect';
+import * as Schema from 'effect/Schema';
+import { BrowserError, browserEffect } from './browser';
 import { browser } from 'wxt/browser';
+import { FilterStatusSchema, SettingsReplySchema } from './schemas';
 import {
   STORAGE_KEYS,
   defaultSettings,
@@ -6,10 +10,8 @@ import {
   CATEGORY_KEYS,
   isTextProvider,
   TEXT_PROVIDERS,
-  type CategoryKey,
   type Settings,
   type SettingsChange,
-  type SettingsReply,
 } from './types';
 
 /**
@@ -29,27 +31,35 @@ function thresholdFromLegacySlider(slider: unknown): number | undefined {
  * only place untrusted values are read, so every field is validated here —
  * never fall back to build-time env data (a gateway key is a user secret).
  */
-export async function loadSettings(): Promise<Settings> {
-  const stored = await browser.storage.local.get(STORAGE_KEYS.settings);
-  const value: unknown = stored[STORAGE_KEYS.settings];
-  const raw = (typeof value === 'object' && value !== null ? value : {}) as Partial<Settings> & {
-    gatewayKey?: unknown;
-    sliders?: Partial<Record<CategoryKey, number>>;
-  };
+const storedRecord = Schema.Record(Schema.String, Schema.Unknown);
+const isStoredRecord = Schema.is(storedRecord);
+const isSettingsReply = Schema.is(SettingsReplySchema);
+const isFilterStatus = Schema.is(FilterStatusSchema);
+const asRecord = (value: unknown): Record<string, unknown> => (isStoredRecord(value) ? value : {});
+
+export const loadSettings = Effect.fn('loadSettings')(function* () {
+  const stored = yield* browserEffect('load settings', () =>
+    browser.storage.local.get(STORAGE_KEYS.settings),
+  );
+  const raw = asRecord(stored[STORAGE_KEYS.settings]);
+  const storedEnabledMap = asRecord(raw.enabled);
+  const storedThresholds = asRecord(raw.thresholds);
+  const storedSliders = asRecord(raw.sliders);
+  const storedProviderKeys = asRecord(raw.providerKeys);
   const defaults = defaultSettings();
 
-  const enabled = {} as Record<CategoryKey, boolean>;
-  const thresholds = {} as Record<CategoryKey, number>;
+  const enabled = defaults.enabled;
+  const thresholds = defaults.thresholds;
   for (const key of CATEGORY_KEYS) {
-    const storedEnabled = raw.enabled?.[key];
+    const storedEnabled = storedEnabledMap[key];
     enabled[key] = typeof storedEnabled === 'boolean' ? storedEnabled : defaults.enabled[key];
     // A non-finite stored threshold (corrupt or wrong type) falls back to the
     // legacy slider when one exists, then to the default; every value is
     // clamped to 0..1.
-    const storedThreshold = raw.thresholds?.[key];
+    const storedThreshold = storedThresholds[key];
     const candidate =
       storedThreshold === undefined
-        ? thresholdFromLegacySlider(raw.sliders?.[key])
+        ? thresholdFromLegacySlider(storedSliders[key])
         : storedThreshold;
     thresholds[key] =
       typeof candidate === 'number' && Number.isFinite(candidate)
@@ -59,7 +69,7 @@ export async function loadSettings(): Promise<Settings> {
   const textProvider = isTextProvider(raw.textProvider) ? raw.textProvider : defaults.textProvider;
   const providerKeys = { ...defaults.providerKeys };
   for (const provider of TEXT_PROVIDERS) {
-    const key = raw.providerKeys?.[provider];
+    const key = storedProviderKeys[provider];
     if (typeof key === 'string') providerKeys[provider] = key;
   }
   // Historical storage had one key associated with the selected provider.
@@ -82,7 +92,7 @@ export async function loadSettings(): Promise<Settings> {
     enabled,
     thresholds,
   };
-}
+});
 
 export function applySettingsChange(current: Settings, change: SettingsChange): Settings {
   const next = { ...current };
@@ -127,25 +137,33 @@ export function applySettingsChange(current: Settings, change: SettingsChange): 
 }
 
 /** The worker owns read-modify-write, even when the originating popup closes. */
-export async function updateSettings(change: SettingsChange): Promise<Settings> {
-  const reply = (await browser.runtime.sendMessage({
-    type: 'update-settings',
-    change,
-  })) as SettingsReply;
-  if (!reply?.ok) throw new Error(reply?.error ?? 'No settings response.');
-  return reply.settings;
-}
-
-export async function loadStatus(): Promise<FilterStatus> {
-  const stored = await browser.storage.local.get(STORAGE_KEYS.status);
-  return (
-    (stored[STORAGE_KEYS.status] as FilterStatus | undefined) ?? {
-      state: 'ok',
-      updatedAt: 0,
-    }
+export const updateSettings = Effect.fn('updateSettings')(function* (change: SettingsChange) {
+  const reply: unknown = yield* browserEffect('update settings', () =>
+    browser.runtime.sendMessage({ type: 'update-settings', change }),
   );
-}
+  if (!isSettingsReply(reply))
+    return yield* new BrowserError({
+      operation: 'update settings',
+      cause: 'Invalid settings response.',
+    });
+  if (!reply.ok)
+    return yield* new BrowserError({
+      operation: 'update settings',
+      cause: reply.error,
+    });
+  return reply.settings;
+});
 
-export async function saveStatus(status: FilterStatus): Promise<void> {
-  await browser.storage.local.set({ [STORAGE_KEYS.status]: status });
-}
+export const loadStatus = Effect.fn('loadStatus')(function* (): Effect.fn.Return<
+  FilterStatus,
+  BrowserError
+> {
+  const stored = yield* browserEffect('load status', () =>
+    browser.storage.local.get(STORAGE_KEYS.status),
+  );
+  const status: unknown = stored[STORAGE_KEYS.status];
+  return isFilterStatus(status) ? status : { state: 'ok', updatedAt: 0 };
+});
+
+export const saveStatus = (status: FilterStatus) =>
+  browserEffect('save status', () => browser.storage.local.set({ [STORAGE_KEYS.status]: status }));

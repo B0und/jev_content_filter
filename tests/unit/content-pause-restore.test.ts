@@ -21,7 +21,7 @@ describe('pause restore', () => {
   it('unhides a classified post and its blocked link preview when filtering is paused', async () => {
     const test = await startRuntime();
     try {
-      test.bg.respond = () => ({ ok: true, sexual: 0.9, ai: 0.01 });
+      test.bg.respond = () => ({ ok: true, sexual: 0.9 });
       const article = buildTweetArticle({
         id: '1001',
         text: 'explicit text content',
@@ -33,7 +33,8 @@ describe('pause restore', () => {
         () => article.hasAttribute('data-jev-hidden'),
         'post was not hidden after classification',
       );
-      const card = article.querySelector('[data-testid="card.wrapper"]') as HTMLElement;
+      const card = article.querySelector('[data-testid="card.wrapper"]');
+      if (!(card instanceof HTMLElement)) throw new Error('card wrapper missing');
       await until(() => card.hasAttribute('data-jev-card-hidden'), 'link preview was not hidden');
       await until(
         () => article.querySelector('[data-jev-card-link]') != null,

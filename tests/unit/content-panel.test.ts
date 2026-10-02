@@ -31,7 +31,7 @@ describe('inspector panel', () => {
       () => document.querySelector<HTMLElement>('[data-jev-panel]'),
       'panel did not open',
     );
-    const panelRoot = panelHost.shadowRoot as ShadowRoot;
+    const panelRoot = shadowRoot(panelHost);
     const logsLink = panelRoot.querySelector('a');
     expect(logsLink?.textContent).toBe('Open logs');
 
@@ -88,10 +88,10 @@ describe('inspector panel', () => {
       'panel did not open',
     );
     await until(
-      () => (panelHost.shadowRoot as ShadowRoot).querySelectorAll('.errors li').length > 0,
+      () => shadowRoot(panelHost).querySelectorAll('.errors li').length > 0,
       'scan errors missing from panel',
     );
-    const panelText = (panelHost.shadowRoot as ShadowRoot).textContent ?? '';
+    const panelText = shadowRoot(panelHost).textContent ?? '';
     expect(panelText).toContain('gateway unreachable');
     expect(panelText).toContain('Text');
 
@@ -117,7 +117,7 @@ describe('inspector panel', () => {
         () => document.querySelector<HTMLElement>('[data-jev-panel]'),
         'panel did not open',
       );
-      const rows = [...(panelHost.shadowRoot as ShadowRoot).querySelectorAll('tr')].map(
+      const rows = [...shadowRoot(panelHost).querySelectorAll('tr')].map(
         (row) => row.textContent?.trim() ?? '',
       );
       expect(rows.some((row) => row.includes('Porn'))).toBe(true);
@@ -129,7 +129,8 @@ describe('inspector panel', () => {
     }
   });
   it('shows text categories before image categories', async () => {
-    const test = await startRuntime();
+    const configured = baseSettings();
+    const test = await startRuntime({ enabled: configured.enabled });
     try {
       const article = buildTweetArticle({
         id: '5004',
@@ -144,8 +145,8 @@ describe('inspector panel', () => {
         () => document.querySelector<HTMLElement>('[data-jev-panel]'),
         'panel did not open',
       );
-      const groups = [...(panelHost.shadowRoot as ShadowRoot).querySelectorAll('.group-label')].map(
-        (group) => group.textContent?.trim(),
+      const groups = [...shadowRoot(panelHost).querySelectorAll('.group-label')].map((group) =>
+        group.textContent?.trim(),
       );
       expect(groups).toEqual(['Text', 'Images']);
     } finally {
@@ -154,8 +155,20 @@ describe('inspector panel', () => {
   });
 });
 
+function shadowRoot(host: HTMLElement): ShadowRoot {
+  const root = host.shadowRoot;
+  if (!root) throw new Error('panel shadow root missing');
+  return root;
+}
+
 async function untilValue<T>(read: () => T | null, message: string): Promise<T> {
   let value: T | null = null;
-  await until(() => (value = read()) != null, message);
-  return value as T;
+  await until(() => {
+    const current = read();
+    if (current === null) return false;
+    value = current;
+    return true;
+  }, message);
+  if (value === null) throw new Error(message);
+  return value;
 }

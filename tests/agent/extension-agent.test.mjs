@@ -75,6 +75,28 @@ void test(
       },
     );
 
+    await t.test('inspection activates log and feed tabs behind the toolbar popup', async () => {
+      await session.popup();
+      const logs = await session.page('logs');
+      assert.equal(await logs.evaluate(() => document.visibilityState), 'visible');
+      await logs.waitForSelector('button[role="tab"]');
+      const errorTabId = await logs.evaluate(
+        () =>
+          Array.from(document.querySelectorAll('button[role="tab"]')).find((button) =>
+            button.textContent.startsWith('Errors'),
+          ).id,
+      );
+      await logs.locator(`[id="${errorTabId}"]`).click();
+      assert.equal(
+        await logs.$eval('button[role="tab"][aria-selected="true"]', (button) =>
+          button.textContent.startsWith('Errors'),
+        ),
+        true,
+      );
+      const feed = await session.page('feed');
+      assert.equal(await feed.evaluate(() => document.visibilityState), 'visible');
+    });
+
     await t.test('popup changes reach the active content-script tab', async () => {
       const popup = await session.popup();
       await session.feed.waitForFunction(

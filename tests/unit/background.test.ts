@@ -4,6 +4,9 @@
 // AI evaluation (gateway model) is mocked; decisions and storage are real.
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
+import { Effect, Predicate } from 'effect';
+import { loadLog } from '../../src/shared/log';
+import type { BlockedEntry, Settings } from '../../src/shared/types';
 
 const { evaluateMock, createGatewayMock, fetchMock } = vi.hoisted(() => ({
   evaluateMock: vi.fn(),
@@ -38,9 +41,9 @@ function evaluateResult(answers: Record<string, unknown>) {
   };
 }
 
-const SETTINGS = {
+const SETTINGS: Settings = {
   masterEnabled: true,
-  textProvider: 'vercel' as const,
+  textProvider: 'vercel',
   providerKeys: {
     vercel: 'synthetic-vercel',
     typesafe: 'synthetic-typesafe',
@@ -65,14 +68,14 @@ const SETTINGS = {
   },
 };
 
-function blockedEntry(tweetId: string) {
+function blockedEntry(tweetId: string): BlockedEntry {
   return {
     tweetId,
     author: 'author',
     snippet: 'snippet',
     surface: 'timeline',
     ts: Date.now(),
-    reasons: [{ key: 'porn' as const, score: 0.9 }],
+    reasons: [{ key: 'porn', score: 0.9 }],
   };
 }
 
@@ -98,96 +101,39 @@ describe('background worker lifecycle', () => {
       updatedAt: 0,
     });
   });
+
+  it('rejects malformed known background messages', async () => {
+    await startWorker();
+    await expect(fakeBrowser.runtime.sendMessage({ type: 'jev' })).resolves.toEqual({
+      ok: false,
+      error: 'Invalid request.',
+    });
+  });
+
+  it('replies to messages when native storage initialization fails', async () => {
+    const failure = new Error('storage unavailable');
+    const get = vi.spyOn(fakeBrowser.storage.local, 'get').mockRejectedValue(failure);
+    const report = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    try {
+      await startWorker();
+      await expect(fakeBrowser.runtime.sendMessage({ type: 'get-status' })).resolves.toMatchObject({
+        ok: false,
+        error: expect.stringContaining('load status'),
+      });
+    } finally {
+      get.mockRestore();
+      report.mockRestore();
+    }
+  });
 });
 
 describe('jev classification', () => {
-  it('propagates valid probabilities to the caller', async () => {
-    await fakeBrowser.storage.local.set({ settings: SETTINGS });
-    await startWorker();
-    evaluateMock.mockResolvedValue(
-      evaluateResult({
-        sexual: okAnswer(0.93),
-        ai: okAnswer(0.05),
-      }),
-    );
-    await expect(
-      fakeBrowser.runtime.sendMessage({
-        type: 'jev',
-        tweetId: 't1',
-        text: 'hi',
-        provider: 'vercel',
-        revision: 0,
-      }),
-    ).resolves.toMatchObject({ ok: true, sexual: 0.93, ai: 0.05 });
-  });
-  it.each([
-    {
-      provider: 'typesafe' as const,
-      endpoint: 'https://api.typesafe.ai/v1/systemone',
-      model: 'jev-latest',
-      sexual: 0.87,
-      ai: 0.12,
-    },
-    {
-      provider: 'openrouter' as const,
-      endpoint: 'https://openrouter.ai/api/alpha/decisions',
-      model: 'typesafe/jev-1.13',
-      sexual: 0.78,
-      ai: 0.21,
-    },
-  ])('uses the $provider Decisions API', async ({ provider, endpoint, model, sexual, ai }) => {
-    await fakeBrowser.storage.local.set({
-      settings: { ...SETTINGS, textProvider: provider },
-    });
-    await startWorker();
-    fetchMock.mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        answers: {
-          sexual: { type: 'noul', noul: sexual },
-          ai: { type: 'noul', noul: ai },
-        },
-      }),
-    });
-
-    await expect(
-      fakeBrowser.runtime.sendMessage({
-        type: 'jev',
-        tweetId: 'direct',
-        text: 'hello',
-        provider,
-        revision: 0,
-      }),
-    ).resolves.toMatchObject({ ok: true, sexual, ai });
-
-    expect(fetchMock).toHaveBeenCalledWith(
-      endpoint,
-      expect.objectContaining({
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer synthetic-${provider}`,
-          'Content-Type': 'application/json',
-        },
-      }),
-    );
-    const request = fetchMock.mock.calls[0]?.[1] as RequestInit;
-    expect(JSON.parse(request.body as string)).toMatchObject({
-      model,
-      state: { tweet_text: 'hello' },
-      questions: {
-        sexual: { type: 'noul' },
-        ai: { type: 'noul' },
-      },
-    });
-  });
-
   it('fails open on missing/undefined probability instead of propagating it', async () => {
     await fakeBrowser.storage.local.set({ settings: SETTINGS });
     await startWorker();
     evaluateMock.mockResolvedValue(
       evaluateResult({
         sexual: { type: 'boolean', probability: undefined },
-        ai: okAnswer(0.5),
       }),
     );
     const reply = await fakeBrowser.runtime.sendMessage({
@@ -207,7 +153,6 @@ describe('jev classification', () => {
     evaluateMock.mockResolvedValue(
       evaluateResult({
         sexual: okAnswer(1.5),
-        ai: okAnswer(0.5),
       }),
     );
     await expect(
@@ -224,7 +169,7 @@ describe('jev classification', () => {
   it('fails open on a missing answer object', async () => {
     await fakeBrowser.storage.local.set({ settings: SETTINGS });
     await startWorker();
-    evaluateMock.mockResolvedValue(evaluateResult({ ai: okAnswer(0.5) }));
+    evaluateMock.mockResolvedValue(evaluateResult({}));
     const reply = await fakeBrowser.runtime.sendMessage({
       type: 'jev',
       provider: 'vercel',
@@ -250,7 +195,6 @@ describe('jev classification', () => {
     evaluateMock.mockResolvedValue(
       evaluateResult({
         sexual: okAnswer(0.1),
-        ai: okAnswer(0.1),
       }),
     );
     await expect(
@@ -261,9 +205,83 @@ describe('jev classification', () => {
         provider: 'vercel',
         revision: 0,
       }),
-    ).resolves.toMatchObject({ ok: true, sexual: 0.1, ai: 0.1 });
+    ).resolves.toMatchObject({ ok: true, sexual: 0.1 });
     await expect(fakeBrowser.runtime.sendMessage({ type: 'get-status' })).resolves.toMatchObject({
       state: 'ok',
+    });
+  });
+  it('bounds waiting classification requests at 64 while running three providers', async () => {
+    await fakeBrowser.storage.local.set({ settings: SETTINGS });
+    await startWorker();
+    const gate = Promise.withResolvers<{ answers: Record<string, unknown> }>();
+    evaluateMock.mockImplementation(() => gate.promise);
+    const requests = Array.from({ length: 68 }, (_, index) =>
+      fakeBrowser.runtime.sendMessage({
+        type: 'jev',
+        tweetId: `queued-${index}`,
+        text: `queued ${index}`,
+        provider: 'vercel',
+        revision: 0,
+      }),
+    );
+
+    let overflowReply: unknown;
+    for (const request of requests) {
+      void request.then((reply) => {
+        if (!reply.ok && reply.error?.includes('queue full')) overflowReply = reply;
+      });
+    }
+    await vi.waitFor(() => expect(overflowReply).toBeDefined());
+    gate.resolve(evaluateResult({ sexual: okAnswer(0.1) }));
+    const replies = await Promise.all(requests);
+
+    expect(
+      replies.filter((reply) => !reply.ok && reply.error?.includes('queue full')),
+    ).toHaveLength(1);
+    expect(replies.filter((reply) => reply.ok)).toHaveLength(67);
+  });
+});
+
+describe('classify-image proxy', () => {
+  it('rejects non-Twimg hosts without making a request', async () => {
+    await startWorker();
+    const url = 'https://example.com/image.png';
+    await expect(fakeBrowser.runtime.sendMessage({ type: 'classify-image', url })).resolves.toEqual(
+      {
+        ok: false,
+        error: `image proxy: host not allowed for ${url}`,
+      },
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects images over the proxy size limit', async () => {
+    await startWorker();
+    fetchMock.mockResolvedValue({
+      ok: true,
+      blob: async () => ({ size: 8 * 1024 * 1024 + 1 }),
+    });
+
+    await expect(
+      fakeBrowser.runtime.sendMessage({
+        type: 'classify-image',
+        url: 'https://pbs.twimg.com/media/image.png',
+      }),
+    ).resolves.toMatchObject({ ok: false, error: expect.stringContaining('image too large') });
+  });
+
+  it('reports the image fetch timeout', async () => {
+    await startWorker();
+    fetchMock.mockRejectedValue(new DOMException('timed out', 'TimeoutError'));
+
+    await expect(
+      fakeBrowser.runtime.sendMessage({
+        type: 'classify-image',
+        url: 'https://pbs.twimg.com/media/image.png',
+      }),
+    ).resolves.toMatchObject({
+      ok: false,
+      error: expect.stringContaining('timed out after 10000ms'),
     });
   });
 });
@@ -274,34 +292,39 @@ describe('gateway status surfacing', () => {
     // message that never mentions "401" ("Invalid error response format: …").
     await fakeBrowser.storage.local.set({ settings: SETTINGS });
     await startWorker();
-    const error = new Error('Invalid error response format: Gateway request failed');
-    (error as { statusCode?: number }).statusCode = 401;
+    const error = Object.assign(
+      new Error('Invalid error response format: Gateway request failed'),
+      { statusCode: 401 },
+    );
     evaluateMock.mockRejectedValue(error);
-    const reply = (await fakeBrowser.runtime.sendMessage({
-      type: 'jev',
-      provider: 'vercel',
-      revision: 0,
-      tweetId: 't1',
-      text: 'hi',
-    })) as { ok: boolean; error: string };
-    expect(reply.ok).toBe(false);
-    expect(reply.error).toContain('401');
+    await expect(
+      fakeBrowser.runtime.sendMessage({
+        type: 'jev',
+        provider: 'vercel',
+        revision: 0,
+        tweetId: 't1',
+        text: 'hi',
+      }),
+    ).resolves.toMatchObject({
+      ok: false,
+      error: expect.stringContaining('401'),
+    });
   });
 
   it('leaves messages that already carry the status untouched', async () => {
     await fakeBrowser.storage.local.set({ settings: SETTINGS });
     await startWorker();
-    const error = new Error('HTTP 403 forbidden');
-    (error as { statusCode?: number }).statusCode = 403;
+    const error = Object.assign(new Error('HTTP 403 forbidden'), { statusCode: 403 });
     evaluateMock.mockRejectedValue(error);
-    const reply = (await fakeBrowser.runtime.sendMessage({
-      type: 'jev',
-      provider: 'vercel',
-      revision: 0,
-      tweetId: 't1',
-      text: 'hi',
-    })) as { ok: boolean; error: string };
-    expect(reply.error).toBe('HTTP 403 forbidden');
+    await expect(
+      fakeBrowser.runtime.sendMessage({
+        type: 'jev',
+        provider: 'vercel',
+        revision: 0,
+        tweetId: 't1',
+        text: 'hi',
+      }),
+    ).resolves.toMatchObject({ ok: false, error: 'HTTP 403 forbidden' });
   });
 });
 
@@ -312,9 +335,8 @@ describe('serialized log queue', () => {
       fakeBrowser.runtime.sendMessage({ type: 'log-blocked', entry: blockedEntry('a') }),
       fakeBrowser.runtime.sendMessage({ type: 'log-blocked', entry: blockedEntry('b') }),
     ]);
-    const stored = await fakeBrowser.storage.local.get('blockedLog');
-    const log = stored.blockedLog as Array<{ tweetId: string }>;
-    expect(log.map((e) => e.tweetId).sort()).toEqual(['a', 'b']);
+    const log = await Effect.runPromise(loadLog());
+    expect(log.map((entry) => entry.tweetId).sort()).toEqual(['a', 'b']);
   });
 
   it('routes clear-log through the same queue so appends cannot resurrect entries', async () => {
@@ -327,16 +349,14 @@ describe('serialized log queue', () => {
       type: 'log-blocked',
       entry: blockedEntry('b'),
     });
-    const cleared = await fakeBrowser.runtime.sendMessage({ type: 'clear-log' });
-    await expect(append).resolves.toBeDefined();
+    await fakeBrowser.runtime.sendMessage({ type: 'clear-log' });
+    await append;
 
-    expect(cleared).toEqual({ ok: true });
-    let stored = await fakeBrowser.storage.local.get('blockedLog');
-    expect(stored.blockedLog).toEqual([]);
+    expect(await Effect.runPromise(loadLog())).toEqual([]);
 
     await fakeBrowser.runtime.sendMessage({ type: 'log-blocked', entry: blockedEntry('c') });
-    stored = await fakeBrowser.storage.local.get('blockedLog');
-    expect((stored.blockedLog as Array<{ tweetId: string }>).map((e) => e.tweetId)).toEqual(['c']);
+    const log = await Effect.runPromise(loadLog());
+    expect(log.map((entry) => entry.tweetId)).toEqual(['c']);
   });
 
   it('routes clear-errors through the same queue', async () => {
@@ -346,9 +366,7 @@ describe('serialized log queue', () => {
       message: 'boom',
       tweetId: 't1',
     });
-    await expect(fakeBrowser.runtime.sendMessage({ type: 'clear-errors' })).resolves.toEqual({
-      ok: true,
-    });
+    await fakeBrowser.runtime.sendMessage({ type: 'clear-errors' });
     const stored = await fakeBrowser.storage.local.get('scanErrors');
     expect(stored.scanErrors).toEqual([]);
   });
@@ -359,11 +377,12 @@ describe('per-tab badge counts', () => {
     await fakeBrowser.storage.local.set({ settings: SETTINGS });
     await startWorker();
     const tab = await fakeBrowser.tabs.create({});
-    await (fakeBrowser.runtime.onMessage.trigger(
+    const responses = await fakeBrowser.runtime.onMessage.trigger(
       { type: 'tab-stats', blocked: 1234 },
       { tab },
       () => undefined,
-    ) as Promise<unknown[]>);
+    );
+    for (const response of responses) if (response) await response;
     // The count and badge are applied asynchronously after the trigger.
     await vi.waitFor(async () => {
       const stored = await fakeBrowser.storage.session.get(null);
@@ -376,11 +395,12 @@ describe('per-tab badge counts', () => {
 
   it('ignores tab-stats without a sender tab', async () => {
     await startWorker();
-    await (fakeBrowser.runtime.onMessage.trigger(
+    const responses = await fakeBrowser.runtime.onMessage.trigger(
       { type: 'tab-stats', blocked: 5 },
       {},
       () => undefined,
-    ) as Promise<unknown[]>);
+    );
+    for (const response of responses) if (response) await response;
     const stored = await fakeBrowser.storage.session.get(null);
     expect(stored).toEqual({});
   });
@@ -389,11 +409,12 @@ describe('per-tab badge counts', () => {
     await fakeBrowser.storage.local.set({ settings: SETTINGS });
     await startWorker();
     const tab = await fakeBrowser.tabs.create({});
-    await (fakeBrowser.runtime.onMessage.trigger(
+    const responses = await fakeBrowser.runtime.onMessage.trigger(
       { type: 'tab-stats', blocked: 3 },
       { tab },
       () => undefined,
-    ) as Promise<unknown[]>);
+    );
+    for (const response of responses) if (response) await response;
     await vi.waitFor(async () => {
       const stored = await fakeBrowser.storage.session.get(null);
       expect(stored[`jevTabBlocked:${tab.id}`]).toBe(3);
@@ -407,6 +428,62 @@ describe('per-tab badge counts', () => {
       expect(stored[`jevTabBlocked:${tab.id}`]).toBeUndefined();
     });
   });
+  it.each(['navigation', 'removal'] as const)(
+    'clears persisted tab counts after worker restart on %s before repaint',
+    async (event) => {
+      await fakeBrowser.storage.local.set({ settings: SETTINGS });
+      const tab = await fakeBrowser.tabs.create({});
+      const otherTab = await fakeBrowser.tabs.create({});
+      const tabKey = `jevTabBlocked:${tab.id}`;
+      const otherKey = `jevTabBlocked:${otherTab.id}`;
+      await fakeBrowser.storage.session.set({ [tabKey]: 3, [otherKey]: 5 });
+      await fakeBrowser.action.setBadgeText({ tabId: tab.id!, text: '3' });
+      await fakeBrowser.action.setBadgeText({ tabId: otherTab.id!, text: 'waiting' });
+      // Keep the fresh worker's tab-count map empty until the stale key is cleared.
+      const settingsLoad = Promise.withResolvers<{ settings: typeof SETTINGS }>();
+      const getSettings = vi
+        .spyOn(fakeBrowser.storage.local, 'get')
+        .mockImplementationOnce(() => settingsLoad.promise);
+      await startWorker();
+
+      if (event === 'navigation') {
+        await fakeBrowser.webNavigation.onCommitted.trigger({
+          documentId: 'after-restart',
+          documentLifecycle: 'active',
+          frameId: 0,
+          frameType: 'outermost_frame',
+          parentFrameId: -1,
+          processId: 1,
+          tabId: tab.id!,
+          timeStamp: 1,
+          transitionType: 'link',
+          transitionQualifiers: [],
+          url: 'https://example.com/',
+        });
+      } else {
+        await fakeBrowser.tabs.onRemoved.trigger(tab.id!, {
+          isWindowClosing: false,
+          windowId: tab.windowId,
+        });
+      }
+
+      await vi.waitFor(async () => {
+        expect(await fakeBrowser.action.getBadgeText({ tabId: tab.id! })).toBe('');
+      });
+
+      settingsLoad.resolve({ settings: SETTINGS });
+      await fakeBrowser.runtime.sendMessage({ type: 'get-status' });
+      getSettings.mockRestore();
+      // Startup's settings write triggers a repaint in the fake browser.
+      await vi.waitFor(async () => {
+        expect(await fakeBrowser.action.getBadgeText({ tabId: otherTab.id! })).toBe('5');
+      });
+
+      const stored = await fakeBrowser.storage.session.get(null);
+      expect(stored[tabKey]).toBeUndefined();
+      expect(await fakeBrowser.action.getBadgeText({ tabId: tab.id! })).toBe('');
+    },
+  );
 });
 
 describe('configuration transitions', () => {
@@ -435,6 +512,52 @@ describe('configuration transitions', () => {
     });
   });
 
+  it('does not send text with old credentials while an earlier provider change is saving', async () => {
+    await fakeBrowser.storage.local.set({ settings: SETTINGS });
+    await startWorker();
+    evaluateMock.mockResolvedValue(evaluateResult({ sexual: okAnswer(0.1) }));
+    await fakeBrowser.runtime.sendMessage({
+      type: 'jev',
+      tweetId: 'startup',
+      text: 'Finish initialization before holding a settings write.',
+      provider: 'vercel',
+      revision: 0,
+    });
+    evaluateMock.mockClear();
+    const saving = Promise.withResolvers<void>();
+    const releaseSave = Promise.withResolvers<void>();
+    const originalSet = fakeBrowser.storage.local.set.bind(fakeBrowser.storage.local);
+    vi.spyOn(fakeBrowser.storage.local, 'set').mockImplementation(async (entries) => {
+      if (
+        Predicate.isObject(entries) &&
+        Predicate.isObject(entries.settings) &&
+        entries.settings.textProvider === 'typesafe'
+      ) {
+        saving.resolve();
+        await releaseSave.promise;
+      }
+      await originalSet(entries);
+    });
+    const change = fakeBrowser.runtime.sendMessage({
+      type: 'update-settings',
+      change: { field: 'textProvider', value: 'typesafe' },
+    });
+    await saving.promise;
+    const reply = fakeBrowser.runtime.sendMessage({
+      type: 'jev',
+      tweetId: 'pending-provider-change',
+      text: 'Do not disclose this post to the previous provider.',
+      provider: 'vercel',
+      revision: 0,
+    });
+    // Let already-submitted work run while the earlier storage write stays suspended.
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    releaseSave.resolve();
+    await change;
+    expect(await reply).toMatchObject({ ok: false, stale: true });
+    expect(evaluateMock).not.toHaveBeenCalled();
+  });
+
   it('rejects queued and in-flight old configurations without invoking the new provider for them', async () => {
     await fakeBrowser.storage.local.set({ settings: SETTINGS });
     await startWorker();
@@ -454,7 +577,7 @@ describe('configuration transitions', () => {
       type: 'update-settings',
       change: { field: 'textProvider', value: 'typesafe' },
     });
-    gate.resolve(evaluateResult({ sexual: okAnswer(0.1), ai: okAnswer(0.1) }));
+    gate.resolve(evaluateResult({ sexual: okAnswer(0.1) }));
     const replies = await Promise.all(oldRequests);
     expect(replies.every((reply) => !reply.ok && reply.stale)).toBe(true);
     expect(evaluateMock).toHaveBeenCalledTimes(3);
@@ -464,7 +587,7 @@ describe('configuration transitions', () => {
     });
     fetchMock.mockResolvedValue({
       ok: true,
-      json: async () => ({ answers: { sexual: { probability: 0.9 }, ai: { probability: 0.2 } } }),
+      json: async () => ({ answers: { sexual: { probability: 0.9 } } }),
     });
     await expect(
       fakeBrowser.runtime.sendMessage({

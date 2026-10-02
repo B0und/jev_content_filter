@@ -7,8 +7,20 @@ import {
   type Worker,
 } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
+import * as Schema from 'effect/Schema';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { defaultSettings, type Settings } from '../../src/shared/types';
+
+const isEvaluationRequest = Schema.is(
+  Schema.Struct({ state: Schema.Struct({ tweet_text: Schema.String }) }),
+);
+
+export function remoteSettings(): Settings {
+  const settings = defaultSettings();
+  settings.enabled.aiGenerated = false;
+  return settings;
+}
 
 export const test = base.extend<{
   context: BrowserContext;
@@ -30,9 +42,17 @@ export const test = base.extend<{
     },
     { auto: true },
   ],
-  context: async ({ browserName, headless }, provide) => {
+  context: async ({ browserName, headless }, provide, testInfo) => {
     if (browserName !== 'chromium') throw new Error('Extension E2E requires Chromium');
-    const extension = path.resolve('.output/chrome-mv3');
+    const extension = path.resolve(process.env.JEV_EXTENSION_PATH ?? '.output/chrome-mv3');
+    testInfo.annotations.push({ type: 'extension-path', description: extension });
+    if (process.env.JEV_EXTENSION_PATH) console.info(`Testing installed bundle: ${extension}`);
+    for (const file of ['manifest.json', 'background.js', 'content-scripts/content.js']) {
+      const bytes = await readFile(path.join(extension, file));
+      const hash = createHash('sha256').update(bytes).digest('hex');
+      testInfo.annotations.push({ type: `extension-sha256:${file}`, description: hash });
+      if (process.env.JEV_EXTENSION_PATH) console.info(`${file} SHA256: ${hash}`);
+    }
     const context = await chromium.launchPersistentContext('', {
       channel: 'chromium',
       headless,
@@ -43,17 +63,16 @@ export const test = base.extend<{
       const url = new URL(route.request().url());
       if (url.protocol === 'chrome-extension:') return route.continue();
       if (url.hostname === 'ai-gateway.vercel.sh') {
-        const request = route.request().postDataJSON() as {
-          state?: { tweet_text?: string };
-        } | null;
-        const text = request?.state?.tweet_text ?? '';
+        const request: unknown = route.request().postDataJSON();
+        if (!isEvaluationRequest(request))
+          return route.fulfill({ status: 400, json: { error: 'Missing tweet text' } });
+        const text = request.state.tweet_text;
         if (text.includes('API_FAILURE'))
           return route.fulfill({ status: 401, json: { error: 'Invalid test API key' } });
         return route.fulfill({
           json: {
             answers: {
               sexual: { type: 'boolean', probability: text.includes('BLOCK_TEXT') ? 0.99 : 0.01 },
-              ai: { type: 'boolean', probability: 0.02 },
             },
           },
         });
@@ -77,7 +96,7 @@ export const test = base.extend<{
   },
   worker: async ({ context }, provide) => {
     const worker = context.serviceWorkers()[0] ?? (await context.waitForEvent('serviceworker'));
-    const settings = defaultSettings();
+    const settings = remoteSettings();
     settings.providerKeys.vercel = 'test-only-not-a-real-key';
     for (const key of ['porn', 'hentai', 'sexy', 'drawings'] as const)
       settings.enabled[key] = false;
