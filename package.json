@@ -15,8 +15,10 @@
     "format:check": "oxfmt --check",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "npm run build && playwright test",
-    "check": "npm run compile && npm run lint && npm run format:check && npm test && npm run test:e2e"
+    "test:e2e": "npm run build && playwright test && npm run test:agent-browser",
+    "check": "npm run compile && npm run lint && npm run format:check && npm test && npm run test:e2e",
+    "agent:browser": "node scripts/extension-agent.mjs",
+    "test:agent-browser": "node --test tests/agent/*.test.mjs"
   },
   "dependencies": {
     "@ai-sdk/gateway": "^4.0.86",
@@ -44,6 +46,7 @@
     "oxfmt": "^0.68.0",
     "oxlint": "^1.83.0",
     "oxlint-tsgolint": "^7.0.2002",
+    "puppeteer-core": "^25.12.0",
     "typescript": "^5.9.0",
     "vitest": "^5.0.1",
     "wxt": "^0.21.4"
