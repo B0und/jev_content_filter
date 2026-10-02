@@ -23,7 +23,7 @@ export function createLocalModels(onStatus: (status: ModelStatuses) => void): Lo
   };
   const statuses = initialModelStatuses();
   const lastProgress: Record<ModelKind, number> = { image: 0, aiText: 0 };
-  const update = (kind: ModelKind, state: 'loading' | 'ready' | 'error', error = '') => {
+  const update = (kind: ModelKind, state: 'idle' | 'loading' | 'ready' | 'error', error = '') => {
     statuses[kind] = {
       ...statuses[kind],
       state,
@@ -96,8 +96,11 @@ export function createLocalModels(onStatus: (status: ModelStatuses) => void): Lo
       }
     },
     async classifyImage(dataUrl) {
-      const result = await (await getImage())(dataUrl);
-      update('image', result.warning ? 'error' : 'ready', result.warning);
+      const classifier = await getImage();
+      const result = await classifier(dataUrl);
+      if (result.warning) update('image', 'error', result.warning);
+      else if (classifier.isReady()) update('image', 'ready');
+      else if (statuses.image.state !== 'error') update('image', 'idle');
       return result;
     },
     async classifyAiText(text) {

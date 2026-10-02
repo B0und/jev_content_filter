@@ -113,3 +113,19 @@ it('explicit warmup retries the anime model without classifying another image', 
   expect(mocks.create).toHaveBeenCalledTimes(2);
   expect(mocks.classify).not.toHaveBeenCalled();
 });
+
+it('completes photo classification without loading an unavailable anime model', async () => {
+  mocks.create.mockRejectedValue(new Error('model unavailable'));
+  mocks.classify.mockResolvedValue([
+    { className: 'Drawing', probability: 0.01 },
+    { className: 'Porn', probability: 0.01 },
+    { className: 'Hentai', probability: 0.01 },
+    { className: 'Sexy', probability: 0.03 },
+  ]);
+  const classify = await loadImageModel(() => {});
+  expect(await classify('data:image/png;base64,AA==')).toEqual({
+    scores: { drawings: 0.01, porn: 0.01, hentai: 0.01, sexy: 0.03 },
+  });
+  expect(mocks.create).not.toHaveBeenCalled();
+  expect(classify.isReady()).toBe(false);
+});

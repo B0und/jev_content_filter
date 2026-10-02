@@ -25,6 +25,7 @@ export interface ImageClassification {
 export interface ImageClassifier {
   (dataUrl: string): Promise<ImageClassification>;
   warmup(): Promise<void>;
+  isReady(): boolean;
 }
 
 function releaseMemoryHandlerAfterLoad(handler: tf.io.IOHandler): tf.io.IOHandler {
@@ -165,9 +166,9 @@ export async function loadImageModel(
           throw new Error(`The image model omitted its '${key}' score.`);
         }
       }
+      if (scores.drawings! < 0.5) return { scores };
       try {
         await warmup();
-        if (scores.drawings! < 0.5) return { scores };
         if (!animeModel) throw new Error('The anime rating model is unavailable.');
         const inputName = animeModel.inputNames[0];
         const outputName = animeModel.outputNames[0];
@@ -200,5 +201,5 @@ export async function loadImageModel(
       bitmap.close();
     }
   };
-  return Object.assign(classify, { warmup });
+  return Object.assign(classify, { warmup, isReady: () => animeModel !== undefined });
 }
