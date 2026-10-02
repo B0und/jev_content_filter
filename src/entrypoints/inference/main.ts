@@ -59,6 +59,7 @@ const supervisor = createWorkerSupervisor({
       return;
     }
     const reply = pending.get(event.data.id);
+    supervisor.complete(event.data.id);
     pending.delete(event.data.id);
     reply?.resolve(event.data.reply);
   },

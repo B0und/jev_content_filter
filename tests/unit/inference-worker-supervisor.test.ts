@@ -1,6 +1,6 @@
 // A crashed inference worker must not disable local filtering for the session:
 // the supervisor has to drop the failed instance and start a replacement.
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   createWorkerSupervisor,
   type SupervisedWorker,
@@ -38,6 +38,55 @@ function crash(handlers: WorkerHandlers, message: string) {
 }
 
 describe('inference worker supervisor', () => {
+  afterEach(() => vi.useRealTimers());
+
+  it('terminates stalled execution and permits recovery without accepting stale replies', () => {
+    vi.useFakeTimers();
+    const factory = fakeWorkerFactory();
+    const failures: Error[] = [];
+    const seen: unknown[] = [];
+    const supervisor = createWorkerSupervisor({
+      start: factory.start,
+      onMessage: (event) => seen.push(event.data),
+      onFailure: (error) => failures.push(error),
+      requestTimeoutMs: 100,
+    });
+    supervisor.send({ id: 1 });
+    vi.advanceTimersByTime(50);
+    supervisor.send({ id: 2 });
+    vi.advanceTimersByTime(50);
+    expect(factory.created[0]!.terminated).toBe(true);
+    expect(failures).toHaveLength(1);
+    supervisor.send({ id: 3 });
+    factory.handlers[0]!.onMessage(new MessageEvent('message', { data: 'stale result' }));
+    expect(seen).toEqual([]);
+    supervisor.complete(3);
+    vi.advanceTimersByTime(200);
+    expect(failures).toHaveLength(1);
+    expect(factory.created[1]!.terminated).toBe(false);
+    supervisor.terminate();
+  });
+
+  it('clears deadlines for completed requests and teardown', () => {
+    vi.useFakeTimers();
+    const factory = fakeWorkerFactory();
+    const failures: Error[] = [];
+    const supervisor = createWorkerSupervisor({
+      start: factory.start,
+      onMessage: () => {},
+      onFailure: (error) => failures.push(error),
+      requestTimeoutMs: 100,
+    });
+    supervisor.send({ id: 1 });
+    supervisor.complete(1);
+    vi.advanceTimersByTime(100);
+    expect(factory.created[0]!.terminated).toBe(false);
+    supervisor.send({ id: 2 });
+    supervisor.terminate();
+    vi.advanceTimersByTime(100);
+    expect(failures).toEqual([]);
+  });
+
   it('starts a replacement worker after a failure and reports it once', () => {
     const factory = fakeWorkerFactory();
     const failures: Error[] = [];
