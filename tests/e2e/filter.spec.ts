@@ -192,7 +192,7 @@ test('inspects a post, changes its threshold, and opens extension logs', async (
   await expect(logs).toHaveURL(`chrome-extension://${extensionId}/logs.html`);
   await expect(logs.getByRole('tab', { name: /Blocked/ })).toBeVisible();
   await logs.getByRole('tab', { name: /Errors/ }).click();
-  await expect(logs.getByRole('tabpanel')).toContainText('No scan errors');
+  await expect(logs.getByRole('tabpanel', { name: /Errors/ })).toContainText('No scan errors');
 });
 
 test('a failed text request stays visible and exposes an error', async ({ page, extensionId }) => {
@@ -582,7 +582,9 @@ test('persists popup edits and supports keyboard log filtering and clearing', as
   await popup.goto(`chrome-extension://${extensionId}/logs.html`);
   await popup.getByRole('combobox', { name: 'Filter by reason' }).click();
   await popup.getByRole('option', { name: 'Porn', exact: true }).click();
-  await expect(popup.getByRole('tabpanel')).toContainText('No blocked posts match');
+  await expect(popup.getByRole('tabpanel', { name: /Blocked/ })).toContainText(
+    'No blocked posts match',
+  );
   const blockedTab = popup.getByRole('tab', { name: /Blocked/ });
   await blockedTab.focus();
   await blockedTab.press('ArrowRight');
@@ -590,7 +592,7 @@ test('persists popup edits and supports keyboard log filtering and clearing', as
   await expect(popup.getByRole('tab', { name: /Errors/ })).toHaveAttribute('aria-selected', 'true');
   await popup.getByRole('tab', { name: /Blocked/ }).click();
   await popup.getByRole('button', { name: 'Clear all' }).click();
-  await expect(popup.getByRole('tabpanel')).toContainText('No blocked posts.');
+  await expect(popup.getByRole('tabpanel', { name: /Blocked/ })).toContainText('No blocked posts.');
 });
 
 test('keeps page-load badge totals across recycled cells and log visits, then resets on reload', async ({
