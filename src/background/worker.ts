@@ -413,12 +413,13 @@ export class BackgroundWorker extends Context.Service<BackgroundWorker, Backgrou
             return { ok: true };
           case 'jev':
             return yield* classify(request);
+          case 'extract-image-text':
           case 'classify-image': {
             const image = yield* fetchImageDataUrl(request.url);
             if (!image.ok) return image;
             return yield* runLocalInference({
               target: 'local-inference',
-              operation: 'image',
+              operation: request.type === 'extract-image-text' ? 'ocr' : 'image',
               dataUrl: image.dataUrl,
             });
           }

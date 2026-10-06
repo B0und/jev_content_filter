@@ -1,6 +1,7 @@
 import { Effect, Layer, ManagedRuntime, Semaphore } from 'effect';
 import * as Schema from 'effect/Schema';
 import { createLocalModels } from './models';
+import { extractImageText } from './ocr';
 import { InferenceRequestSchema, type InferenceReply } from './contracts';
 
 const WorkerRequestSchema = Schema.Struct({ id: Schema.Int, request: InferenceRequestSchema });
@@ -19,6 +20,8 @@ self.addEventListener('message', (event: MessageEvent<unknown>) => {
         await Promise.all(request.models.map((kind) => models.load(kind)));
         return { ok: true, scores: {} };
       }
+      if (request.operation === 'ocr')
+        return { ok: true, scores: {}, text: await extractImageText(request.dataUrl) };
       if (request.operation === 'image')
         return { ok: true, ...(await models.classifyImage(request.dataUrl)) };
       const scores = await models.classifyAiText(request.text);

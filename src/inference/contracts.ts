@@ -42,6 +42,11 @@ export const InferenceRequestSchema = Schema.Union([
   }),
   Schema.Struct({
     target: Schema.Literal('local-inference'),
+    operation: Schema.Literal('ocr'),
+    dataUrl: Schema.String,
+  }),
+  Schema.Struct({
+    target: Schema.Literal('local-inference'),
     operation: Schema.Literal('aiText'),
     text: Schema.String,
   }),
@@ -52,6 +57,7 @@ export const InferenceReplySchema = Schema.Union([
     ok: Schema.Literal(true),
     scores: Schema.Record(Schema.Literals(CATEGORY_KEYS), Schema.optionalKey(probability)),
     warning: Schema.optionalKey(Schema.String),
+    text: Schema.optionalKey(Schema.String),
   }),
   Schema.Struct({ ok: Schema.Literal(false), error: Schema.String }),
 ]);

@@ -86,7 +86,7 @@ function isFilterableMediaUrl(url: string): boolean {
     const parsed = new URL(url, location.origin);
     return (
       parsed.hostname.toLowerCase() === 'pbs.twimg.com' &&
-      FILTERABLE_MEDIA_PATH.test(parsed.pathname)
+      (FILTERABLE_MEDIA_PATH.test(parsed.pathname) || parsed.pathname.startsWith('/card_img/'))
     );
   } catch {
     return false;

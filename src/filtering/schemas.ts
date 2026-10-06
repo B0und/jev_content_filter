@@ -101,6 +101,7 @@ export const BgRequestSchema = Schema.Union([
   }),
   Schema.Struct({ type: Schema.Literal('update-settings'), change: SettingsChangeSchema }),
   Schema.Struct({ type: Schema.Literal('classify-image'), url: Schema.String }),
+  Schema.Struct({ type: Schema.Literal('extract-image-text'), url: Schema.String }),
   Schema.Struct({ type: Schema.Literal('classify-ai'), text: Schema.String }),
   Schema.Struct({ type: Schema.Literal('load-model'), kind: ModelKindSchema }),
   Schema.Struct({ type: Schema.Literal('local-model-status'), models: ModelStatusesSchema }),

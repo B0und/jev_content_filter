@@ -32,18 +32,20 @@ const PROVIDER_DETAILS: Record<
   vercel: {
     keyLabel: 'Vercel AI Gateway API key',
     placeholder: 'vck_…',
-    description: 'Post text is sent to Jev through Vercel AI Gateway for sexual-content checks.',
+    description:
+      'Post text and text read locally from images are sent to Jev through Vercel AI Gateway for sexual-content checks.',
   },
   typesafe: {
     keyLabel: 'TypeSafe API key',
     placeholder: 'Paste your TypeSafe key',
-    description: "Post text is sent to Jev's Decisions API for sexual-content checks.",
+    description:
+      "Post text and text read locally from images are sent to Jev's Decisions API for sexual-content checks.",
   },
   openrouter: {
     keyLabel: 'OpenRouter API key',
     placeholder: 'Paste your OpenRouter key',
     description:
-      "Post text is sent to Jev through OpenRouter's Decisions API for sexual-content checks.",
+      "Post text and text read locally from images are sent to Jev through OpenRouter's Decisions API for sexual-content checks.",
   },
 };
 
@@ -246,7 +248,8 @@ function ProviderSettings({ settings, report }: { settings: Settings; report: Ta
     <details className="diagnostics">
       <summary>Jev provider and scan details</summary>
       <p className="provider-scope">
-        Only sexual-text checks use this provider and key. AI-written-text checks run locally.
+        Sexual-text checks include words in images (English and Russian). Only these checks use this
+        provider and key. AI-written-text checks run locally.
       </p>
       {report && (
         <p className="scan-details">

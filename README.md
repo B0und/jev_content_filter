@@ -77,6 +77,7 @@ React follows [You Might Not Need an Effect](https://react.dev/learn/you-might-n
 ## Filtering behavior
 
 - Lower thresholds block more content. Thresholds are probabilities between 0 and 1; the popup displays percentages.
+- Sexual-text checks read post text and text in attached images and link previews. English and Russian OCR runs locally using bundled Tesseract.js language data; only the extracted words and caption are sent to the selected Jev provider. Image text is checked even when visual image categories are disabled, including posts without captions. OCR results are cached per image. Failed extraction is reported and retried, while caption and visual checks can still complete. Small, stylized, or obscured lettering can be missed. AI-written-text checks use the caption only.
 - Sexual-text checks include explicit sexual content, lewd innuendo, heavily implied sexual content, and engagement bait designed to arouse. Factual news, health, and relationship discussion should remain allowed.
 - The AI-written score is a classifier estimate, not proof of authorship.
 - Drawings includes ordinary anime and illustrations, not only sexual content. Disable that category if you want nonsexual illustrations to remain visible.

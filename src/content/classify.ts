@@ -8,6 +8,7 @@ import { CATEGORY_KEYS, STORAGE_KEYS, type CategoryKey } from '../filtering/type
 import { CategoryKeySchema } from '../filtering/schemas';
 import { settings, type Post } from './state';
 import { canonicalMediaUrl } from './dom';
+import { OCR_PIPELINE_REVISION, ocrImageUrl } from '../inference/ocr-policy';
 import { InferenceReplySchema } from '../inference/contracts';
 import { IMAGE_PIPELINE_REVISION, SELECTED_MODELS } from '../inference/model-catalog';
 const JevReplySchema = Schema.Union([
@@ -126,11 +127,53 @@ export function canRetry(error: string): boolean {
 /** Give up on a post after this many failed scans, whatever the error. */
 export const MAX_RETRIES = 5;
 
+const CachedImageTextSchema = Schema.Struct({ text: Schema.String, ts: Schema.Finite });
+const imageTextLock = Semaphore.makeUnsafe(1);
+const imageText = Effect.fnUntraced(function* (urls: string[]) {
+  const texts: string[] = [];
+  const errors: string[] = [];
+  for (const url of urls) {
+    const outcome = yield* Effect.result(
+      imageTextLock.withPermits(1)(
+        Effect.gen(function* () {
+          const key = `${CACHE_PREFIX}o:${OCR_PIPELINE_REVISION}:${hash64(canonicalMediaUrl(url))}`;
+          const stored = yield* browserEffect('read image text cache', () =>
+            browser.storage.local.get(key),
+          );
+          if (Schema.is(CachedImageTextSchema)(stored[key])) return stored[key].text;
+          const raw: unknown = yield* browserEffect('read text in image locally', () =>
+            browser.runtime.sendMessage({ type: 'extract-image-text', url: ocrImageUrl(url) }),
+          );
+          const reply = yield* Schema.decodeUnknownEffect(InferenceReplySchema)(raw).pipe(
+            Effect.mapError(
+              () => new ClassificationError({ message: 'Invalid image text response.' }),
+            ),
+          );
+          if (!reply.ok)
+            return yield* new ClassificationError({ message: `Image text: ${reply.error}` });
+          if (reply.text === undefined)
+            return yield* new ClassificationError({ message: 'Image text response omitted text.' });
+          const ts = yield* Clock.currentTimeMillis;
+          yield* browserEffect('cache image text', () =>
+            browser.storage.local.set({ [key]: { text: reply.text, ts } }),
+          ).pipe(Effect.ignore);
+          if (++cacheWrites % 250 === 0) yield* evictCache();
+          return reply.text;
+        }),
+      ),
+    );
+    if (outcome._tag === 'Failure') errors.push(message(outcome.failure));
+    else if (outcome.success.trim()) texts.push(outcome.success.trim());
+  }
+  return { texts, errors };
+});
+
 // --- Text scores ------------------------------------------------------------
 
 export const textScores = Effect.fnUntraced(function* (
   post: Post,
   text: string,
+  urls: string[] = [],
 ): Effect.fn.Return<
   { scores: Partial<Record<CategoryKey, number>>; errors: string[] },
   BrowserError | ClassificationError
@@ -138,13 +181,28 @@ export const textScores = Effect.fnUntraced(function* (
   const current = settings.current;
   const provider = current.textProvider;
   const revision = current.textConfigRevision;
+  const extractionErrors: string[] = [];
   const jobs: Array<
     Effect.Effect<Partial<Record<CategoryKey, number>>, BrowserError | ClassificationError>
   > = [];
   if (current.enabled.sexualText)
     jobs.push(
       Effect.gen(function* () {
-        const key = `${CACHE_PREFIX}t:${provider}:${hash64(text)}`;
+        if (urls.length && !current.providerKeys[provider])
+          return yield* new ClassificationError({
+            message: 'Add an API key in the Text tab to check sexual text.',
+          });
+        const ocr = yield* imageText(urls);
+        extractionErrors.push(...ocr.errors);
+        const combined = [
+          text && `Tweet text:\n${text}`,
+          ...ocr.texts.map((words, index) => `Text in attached image ${index + 1}:\n${words}`),
+        ]
+          .filter(Boolean)
+          .join('\n\n');
+        if (!combined) return {};
+        const input = ocr.texts.length ? combined : text;
+        const key = `${CACHE_PREFIX}t:${provider}:${OCR_PIPELINE_REVISION}:${hash64(input)}`;
         const cached = yield* readCache(key);
         if (cached?.scores.sexualText !== undefined)
           return { sexualText: cached.scores.sexualText };
@@ -154,7 +212,13 @@ export const textScores = Effect.fnUntraced(function* (
               'Add an API key in the Text tab to check sexual text. Local AI-written-text detection does not need a key.',
           });
         const rawReply: unknown = yield* browserEffect('classify sexual text', () =>
-          browser.runtime.sendMessage({ type: 'jev', tweetId: post.id, text, provider, revision }),
+          browser.runtime.sendMessage({
+            type: 'jev',
+            tweetId: post.id,
+            text: input,
+            provider,
+            revision,
+          }),
         );
         const reply = yield* Schema.decodeUnknownEffect(JevReplySchema)(rawReply).pipe(
           Effect.mapError(
@@ -168,6 +232,7 @@ export const textScores = Effect.fnUntraced(function* (
           return yield* new ClassificationError({ message: 'Invalid text scores.' });
         const scores = { sexualText: reply.sexual };
         if (
+          ocr.errors.length === 0 &&
           settings.current.textProvider === provider &&
           settings.current.textConfigRevision === revision
         )
@@ -175,7 +240,7 @@ export const textScores = Effect.fnUntraced(function* (
         return scores;
       }),
     );
-  if (current.enabled.aiGenerated)
+  if (current.enabled.aiGenerated && text)
     jobs.push(
       Effect.gen(function* () {
         const descriptor = SELECTED_MODELS.aiText;
@@ -210,7 +275,7 @@ export const textScores = Effect.fnUntraced(function* (
   )
     return yield* new ClassificationError({ message: 'Text configuration changed.' });
   const scores: Partial<Record<CategoryKey, number>> = {};
-  const errors: string[] = [];
+  const errors: string[] = [...extractionErrors];
   for (const outcome of outcomes) {
     if (outcome._tag === 'Failure') errors.push(message(outcome.failure));
     else Object.assign(scores, outcome.success);

@@ -57,6 +57,11 @@ export interface FakeBackground {
     type: 'classify-image';
     url: string;
   }) => InferenceReply | Promise<InferenceReply>;
+  ocrRespond: (request: {
+    type: 'extract-image-text';
+    url: string;
+  }) => InferenceReply | Promise<InferenceReply>;
+  ocrCalls: Array<{ type: 'extract-image-text'; url: string }>;
   jevCalls: Array<{ tweetId: string; text: string }>;
   aiCalls: Array<{ type: 'classify-ai'; text: string }>;
   imageCalls: Array<{ type: 'classify-image'; url: string }>;
@@ -74,6 +79,8 @@ export function installFakeBackground(): FakeBackground {
       ok: true,
       scores: { porn: 0.01, hentai: 0.01, sexy: 0.01, drawings: 0.01 },
     }),
+    ocrRespond: () => ({ ok: true, scores: {}, text: '' }),
+    ocrCalls: [],
     jevCalls: [],
     aiCalls: [],
     imageCalls: [],
@@ -100,6 +107,11 @@ export function installFakeBackground(): FakeBackground {
       if (request.type === 'classify-ai') {
         bg.aiCalls.push(request);
         void (async () => sendResponse(await bg.aiRespond(request)))();
+        return true;
+      }
+      if (request.type === 'extract-image-text') {
+        bg.ocrCalls.push(request);
+        void (async () => sendResponse(await bg.ocrRespond(request)))();
         return true;
       }
       if (request.type === 'classify-image') {
