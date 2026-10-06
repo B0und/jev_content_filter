@@ -34,8 +34,8 @@ export interface PopupState {
   getSnapshot: () => PopupSnapshot;
   subscribe: (listener: () => void) => () => void;
   start: () => () => void;
-  update: (change: SettingsChange) => Promise<boolean>;
-  dismissTextFilterError: (id: string) => void;
+  update: (change: SettingsChange, editorId?: string) => Promise<boolean>;
+  dismissEditorError: (id: string) => void;
   openLogs: () => void;
   retryModel: (kind: ModelKind) => void;
 }
@@ -232,9 +232,9 @@ export function createPopupState(dependencies: PopupStateDependencies): PopupSta
     publish({ error });
   }
 
-  function update(change: SettingsChange): Promise<boolean> {
+  function update(change: SettingsChange, editorId?: string): Promise<boolean> {
     if (!confirmedSettings) return Promise.resolve(false);
-    const key = editKey(change);
+    const key = editorId ? `editor:${editorId}` : editKey(change);
     const retriedError = saveErrors.get(key);
     try {
       applySettingsChange(currentSettings() ?? confirmedSettings, change);
@@ -274,8 +274,8 @@ export function createPopupState(dependencies: PopupStateDependencies): PopupSta
     );
   }
 
-  function dismissTextFilterError(id: string): void {
-    const key = `textFilter:${id}`;
+  function dismissEditorError(id: string): void {
+    const key = `editor:${id}`;
     const dismissed = saveErrors.get(key);
     saveErrors.delete(key);
     if (dismissed && snapshot.error === dismissed.message)
@@ -324,7 +324,7 @@ export function createPopupState(dependencies: PopupStateDependencies): PopupSta
     },
     start,
     update,
-    dismissTextFilterError,
+    dismissEditorError,
     openLogs,
     retryModel,
   };

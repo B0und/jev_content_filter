@@ -134,3 +134,34 @@ test('cancelling a failed new filter clears its abandoned save error', async ({
   ).toBeChecked();
   await expect(error).toHaveCount(0);
 });
+
+test('cancelling an untouched editor keeps a failed filter switch error', async ({
+  context,
+  extensionId,
+  worker,
+  setSettings,
+}) => {
+  const configured = remoteSettings();
+  configured.textFilters = [
+    { id: 'garden', name: 'Gardening', instructions: 'garden', threshold: 0.65, enabled: true },
+  ];
+  await setSettings(configured);
+  const popup = await context.newPage();
+  await popup.goto(`chrome-extension://${extensionId}/popup.html`);
+  await popup.getByRole('button', { name: 'Edit', exact: true }).click();
+  await worker.evaluate(() => {
+    const originalSet = chrome.storage.local.set.bind(chrome.storage.local);
+    chrome.storage.local.set = (items) => {
+      if (!('settings' in items)) return originalSet(items);
+      chrome.storage.local.set = originalSet;
+      return Promise.reject(new Error('Test switch save unavailable'));
+    };
+  });
+  await popup.getByRole('switch', { name: 'Enable Gardening', exact: true }).click();
+  const error = popup.getByRole('alert').filter({ hasText: 'Could not save settings' });
+  await expect(error).toBeVisible();
+  await popup.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(error).toBeVisible();
+  await popup.getByRole('switch', { name: 'Enable Gardening', exact: true }).click();
+  await expect(error).toHaveCount(0);
+});

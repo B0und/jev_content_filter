@@ -307,12 +307,21 @@ it('dismisses an abandoned filter error without clearing another failed edit', a
   try {
     await whenSnapshot(state, () => state.getSnapshot().settings !== null);
     await state.update({ field: 'masterEnabled', value: false });
-    await state.update({
-      field: 'textFilter',
-      value: { id: 'draft', name: 'Draft', instructions: 'garden', enabled: true, threshold: 0.65 },
-    });
+    await state.update(
+      {
+        field: 'textFilter',
+        value: {
+          id: 'draft',
+          name: 'Draft',
+          instructions: 'garden',
+          enabled: true,
+          threshold: 0.65,
+        },
+      },
+      'editor-draft',
+    );
     expect(state.getSnapshot().error).toContain('textFilter');
-    state.dismissTextFilterError('draft');
+    state.dismissEditorError('editor-draft');
     expect(state.getSnapshot().error).toContain('masterEnabled');
   } finally {
     stop();

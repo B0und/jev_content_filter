@@ -329,6 +329,7 @@ function CustomTextFilters({ settings }: { settings: Settings }) {
 
 function TextFilterEditor({ filter, onClose }: { filter: TextFilter | null; onClose: () => void }) {
   const [id] = useState(() => filter?.id ?? crypto.randomUUID());
+  const [editorId] = useState(() => crypto.randomUUID());
   const [saving, setSaving] = useState(false);
   const [name, setName] = useState(filter?.name ?? '');
   const [instructions, setInstructions] = useState(filter?.instructions ?? '');
@@ -341,18 +342,22 @@ function TextFilterEditor({ filter, onClose }: { filter: TextFilter | null; onCl
         if (saving || !name.trim() || !instructions.trim() || threshold === '') return;
         setSaving(true);
         try {
-          const saved = await popupState.update({
-            field: 'textFilter',
-            value: {
-              id,
-              name: name.trim(),
-              instructions: instructions.trim(),
-              enabled:
-                popupState.getSnapshot().settings?.textFilters.find((current) => current.id === id)
-                  ?.enabled ?? true,
-              threshold: Number(threshold) / 100,
+          const saved = await popupState.update(
+            {
+              field: 'textFilter',
+              value: {
+                id,
+                name: name.trim(),
+                instructions: instructions.trim(),
+                enabled:
+                  popupState
+                    .getSnapshot()
+                    .settings?.textFilters.find((current) => current.id === id)?.enabled ?? true,
+                threshold: Number(threshold) / 100,
+              },
             },
-          });
+            editorId,
+          );
           if (saved) onClose();
         } finally {
           setSaving(false);
@@ -401,7 +406,7 @@ function TextFilterEditor({ filter, onClose }: { filter: TextFilter | null; onCl
           type="button"
           disabled={saving}
           onClick={() => {
-            popupState.dismissTextFilterError(id);
+            popupState.dismissEditorError(editorId);
             onClose();
           }}
         >
