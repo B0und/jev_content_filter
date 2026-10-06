@@ -14,7 +14,7 @@ const { evaluateMock, createGatewayMock, fetchMock } = vi.hoisted(() => ({
   fetchMock: vi.fn(),
 }));
 
-vi.mock('ai', () => ({ experimental_evaluate: evaluateMock }));
+vi.mock('ai', () => ({ experimental_decide: evaluateMock }));
 vi.mock('@ai-sdk/gateway', () => ({
   createGateway: (...args: unknown[]) => createGatewayMock(...args),
 }));
@@ -42,6 +42,7 @@ function evaluateResult(answers: Record<string, unknown>) {
 }
 
 const SETTINGS: Settings = {
+  textFilters: [],
   masterEnabled: true,
   textProvider: 'vercel',
   providerKeys: {
@@ -85,7 +86,7 @@ beforeEach(() => {
   evaluateMock.mockReset();
   createGatewayMock.mockReset();
   fetchMock.mockReset();
-  createGatewayMock.mockImplementation(() => ({ evaluationModel: (id: string) => ({ id }) }));
+  createGatewayMock.mockImplementation(() => ({ decisionModel: (id: string) => ({ id }) }));
 });
 
 describe('background worker lifecycle', () => {
@@ -585,10 +586,7 @@ describe('configuration transitions', () => {
     await expect(fakeBrowser.runtime.sendMessage({ type: 'get-status' })).resolves.toMatchObject({
       state: 'ok',
     });
-    fetchMock.mockResolvedValue({
-      ok: true,
-      json: async () => ({ answers: { sexual: { probability: 0.9 } } }),
-    });
+    evaluateMock.mockResolvedValue(evaluateResult({ sexual: okAnswer(0.9) }));
     await expect(
       fakeBrowser.runtime.sendMessage({
         type: 'jev',
@@ -598,7 +596,7 @@ describe('configuration transitions', () => {
         revision: 1,
       }),
     ).resolves.toMatchObject({ ok: true, provider: 'typesafe', revision: 1, sexual: 0.9 });
-    expect(fetchMock.mock.calls[0]?.[1].headers.Authorization).toBe('Bearer synthetic-typesafe');
+    expect(evaluateMock.mock.calls.at(-1)?.[0].model.provider).toBe('typesafe.decision');
   });
 
   it('does not send another providers key when switching to an unconfigured provider', async () => {

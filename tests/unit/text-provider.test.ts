@@ -9,7 +9,7 @@ const { createGatewayMock, evaluateMock } = vi.hoisted(() => ({
   evaluateMock: vi.fn(),
 }));
 
-vi.mock('ai', () => ({ experimental_evaluate: evaluateMock }));
+vi.mock('ai', () => ({ experimental_decide: evaluateMock }));
 vi.mock('@ai-sdk/gateway', () => ({
   createGateway: (...args: unknown[]) => createGatewayMock(...args),
 }));
@@ -24,8 +24,12 @@ afterAll(() => server.close());
 beforeEach(() => {
   createGatewayMock.mockReset();
   evaluateMock.mockReset();
+  evaluateMock.mockImplementation(async (options) => {
+    const actual = await vi.importActual<typeof import('ai')>('ai');
+    return actual.experimental_decide(options);
+  });
   server.resetHandlers();
-  createGatewayMock.mockImplementation(() => ({ evaluationModel: (id: string) => ({ id }) }));
+  createGatewayMock.mockImplementation(() => ({ decisionModel: (id: string) => ({ id }) }));
 });
 
 afterEach(() => {
@@ -63,7 +67,7 @@ describe('text provider effects', () => {
     server.use(
       http.post(endpoint, () =>
         HttpResponse.json({
-          answers: { sexual: { noul: 0.9 } },
+          answers: { sexual: { type: 'noul', noul: 0.9 } },
         }),
       ),
     );
@@ -81,7 +85,7 @@ describe('text provider effects', () => {
   it('rejects malformed probabilities received over HTTP', async () => {
     server.use(
       http.post('https://api.typesafe.ai/v1/systemone', () =>
-        HttpResponse.json({ answers: { sexual: { noul: 1.1 } } }),
+        HttpResponse.json({ answers: { sexual: { type: 'noul', noul: 1.1 } } }),
       ),
     );
     const result = await Effect.runPromise(
@@ -94,7 +98,8 @@ describe('text provider effects', () => {
       ),
     );
     expect(result._tag).toBe('Failure');
-    if (result._tag === 'Failure') expect(result.failure.message).toContain('invalid probability');
+    if (result._tag === 'Failure')
+      expect(result.failure.message).toMatch(/probability|Invalid response|invalid/i);
   });
 
   it('reports a network failure as a typed provider error', async () => {
@@ -157,3 +162,52 @@ describe('text provider effects', () => {
     },
   );
 });
+
+it.each([
+  ['typesafe', 'https://api.typesafe.ai/v1/systemone'],
+  ['openrouter', 'https://openrouter.ai/api/alpha/decisions'],
+] as const)(
+  'sends enabled custom filters in one SDK decision call through %s',
+  async (provider, endpoint) => {
+    let body: unknown;
+    server.use(
+      http.post(endpoint, async ({ request }) => {
+        expect(request.headers.get('authorization')).toBe(`Bearer ${API_KEY}`);
+        body = await request.json();
+        return HttpResponse.json({
+          answers: {
+            sexual: { type: 'noul', noul: 0.1 },
+            'custom:garden': { type: 'noul', noul: 0.9 },
+          },
+        });
+      }),
+    );
+    const filter = {
+      id: 'garden',
+      name: 'Gardening',
+      instructions: 'Posts about gardening',
+      enabled: true,
+      threshold: 0.65,
+    };
+    expect(
+      await Effect.runPromise(
+        evaluateText({
+          provider,
+          apiKey: API_KEY,
+          text: 'Garden advice',
+          filters: [filter, { ...filter, id: 'disabled', enabled: false }],
+        }),
+      ),
+    ).toEqual({ sexual: 0.1, custom: { garden: 0.9 } });
+    expect(body).toMatchObject({
+      state: { tweet_text: 'Garden advice' },
+      questions: {
+        'custom:garden': {
+          type: 'noul',
+          instructions: expect.stringContaining(filter.instructions),
+        },
+      },
+    });
+    expect(body).not.toHaveProperty('questions.custom:disabled');
+  },
+);

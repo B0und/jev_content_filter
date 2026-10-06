@@ -1,6 +1,22 @@
 import type { ModelStatuses } from '../inference/contracts';
 
 export type CategoryKey = 'porn' | 'hentai' | 'sexy' | 'drawings' | 'sexualText' | 'aiGenerated';
+export type ScoreKey = CategoryKey | `custom:${string}`;
+export interface TextFilter {
+  id: string;
+  name: string;
+  instructions: string;
+  enabled: boolean;
+  threshold: number;
+}
+export function textFilterKey(id: string): `custom:${string}` {
+  return `custom:${id}`;
+}
+export function scoreLabel(key: ScoreKey, filters: TextFilter[] = []): string {
+  if (key.startsWith('custom:'))
+    return filters.find((filter) => textFilterKey(filter.id) === key)?.name ?? 'Custom text filter';
+  return CATEGORY_LABELS[key as CategoryKey];
+}
 export type TextProvider = 'vercel' | 'typesafe' | 'openrouter';
 export const TEXT_PROVIDER_LABELS: Record<TextProvider, string> = {
   vercel: 'Vercel AI Gateway',
@@ -13,12 +29,13 @@ export function isTextProvider(value: unknown): value is TextProvider {
 }
 
 export interface Settings {
+  textFilters: TextFilter[];
   masterEnabled: boolean;
   /** Provider that evaluates the text questions. */
   textProvider: TextProvider;
   /** Credentials never move between providers. */
   providerKeys: Record<TextProvider, string>;
-  /** Incremented when the selected provider or its credential changes. */
+  /** Incremented when custom rules, the selected provider, or its credential changes. */
   textConfigRevision: number;
   enabled: Record<CategoryKey, boolean>;
   /** Probability cutoff, 0..1. Lower blocks more. */
@@ -26,6 +43,8 @@ export interface Settings {
 }
 
 export type SettingsChange =
+  | { field: 'textFilter'; value: TextFilter }
+  | { field: 'deleteTextFilter'; id: string }
   | { field: 'masterEnabled'; value: boolean }
   | { field: 'textProvider'; value: TextProvider }
   | { field: 'providerKey'; provider: TextProvider; value: string }
@@ -45,7 +64,7 @@ export interface BlockedEntry {
   snippet: string;
   surface: string;
   ts: number;
-  reasons: Array<{ key: CategoryKey; score: number }>;
+  reasons: Array<{ key: ScoreKey; label?: string; score: number }>;
 }
 export interface TabReport {
   /** Currently attached posts; pending and error fields use the same live scope. */
@@ -76,7 +95,13 @@ export type BgRequest =
   | { type: 'open-logs'; errors: boolean }
   | { type: 'tab-stats'; blocked: number };
 export type JevReply =
-  | { ok: true; sexual: number; provider: TextProvider; revision: number }
+  | {
+      ok: true;
+      sexual: number;
+      custom?: Record<string, number>;
+      provider: TextProvider;
+      revision: number;
+    }
   | { ok: false; error: string; stale?: boolean };
 export type SettingsReply = { ok: true; settings: Settings } | { ok: false; error: string };
 export const STORAGE_KEYS = {
@@ -108,6 +133,7 @@ export const IMAGE_KEYS: CategoryKey[] = ['porn', 'hentai', 'sexy', 'drawings'];
 export const TEXT_KEYS: CategoryKey[] = ['sexualText', 'aiGenerated'];
 export function defaultSettings(): Settings {
   return {
+    textFilters: [],
     masterEnabled: true,
     textProvider: 'vercel',
     providerKeys: { vercel: '', typesafe: '', openrouter: '' },

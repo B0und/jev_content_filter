@@ -396,3 +396,44 @@ describe('retry policy', () => {
     expect(cacheKeys.length).toBe(50);
   });
 });
+
+it('checks custom rules with built-in text checks off and invalidates their cache after edits', async () => {
+  fakeBrowser.reset();
+  const filter = {
+    id: 'garden',
+    name: 'Gardening',
+    instructions: 'Posts about the garden',
+    enabled: true,
+    threshold: 0.65,
+  };
+  const base = textTaskSettings();
+  settings.current = textTaskSettings({
+    textFilters: [filter],
+    enabled: { ...base.enabled, sexualText: false, aiGenerated: false },
+  });
+  const bg = installFakeBackground();
+  bg.respond = () => ({ ok: true, sexual: 0.01, custom: { garden: 0.9 } });
+  const post = newPostStub('custom-cache');
+  const first = await Effect.runPromise(textScores(post, 'same text'));
+  expect(first.scores['custom:garden']).toBe(0.9);
+  expect(await Effect.runPromise(textScores(post, 'same text'))).toEqual(first);
+  expect(bg.jevCalls).toHaveLength(1);
+  settings.current = applySettingsChange(settings.current, {
+    field: 'textFilter',
+    value: { ...filter, instructions: 'Posts about a different topic' },
+  });
+  bg.respond = () => ({ ok: true, sexual: 0.01, custom: { garden: 0.1 } });
+  expect((await Effect.runPromise(textScores(post, 'same text'))).scores['custom:garden']).toBe(
+    0.1,
+  );
+  expect(bg.jevCalls).toHaveLength(2);
+  settings.current = applySettingsChange(settings.current, {
+    field: 'textFilter',
+    value: { ...filter, enabled: false },
+  });
+  expect(await Effect.runPromise(textScores(post, 'same text'))).toEqual({
+    scores: {},
+    errors: [],
+  });
+  expect(bg.jevCalls).toHaveLength(2);
+});

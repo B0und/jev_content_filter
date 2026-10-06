@@ -1,6 +1,6 @@
 # Jev Feed Filter
 
-A Chromium MV3 extension that filters posts and link previews on X and Twitter. Images use local NSFWJS MobileNetV2 and an Anime DBRating companion for sensitivity in drawings; AI-written text uses local E5-small q8. Sexual-text checks use TypeSafe Jev through Vercel AI Gateway, TypeSafe AI, or OpenRouter. NSFWJS and E5 weights are downloaded and cached after startup; Anime DBRating weights are bundled with the extension.
+A Chromium MV3 extension that filters posts and link previews on X and Twitter. Images use local NSFWJS MobileNetV2 and an Anime DBRating companion for sensitivity in drawings; AI-written text uses local E5-small q8. Sexual-text and custom text filters use TypeSafe Jev through Vercel AI Gateway, TypeSafe AI, or OpenRouter. NSFWJS and E5 weights are downloaded and cached after startup; Anime DBRating weights are bundled with the extension.
 
 ## Development and installation
 
@@ -19,7 +19,7 @@ npm run build
 
 Chromium 116 or newer is required for the offscreen inference document. Open `chrome://extensions`, enable Developer mode, choose **Load unpacked**, and select `.output/chrome-mv3`. Reload existing X tabs after installing or updating the extension. `npm run zip` creates a distributable archive.
 
-The popup separates **Text** and **Images** controls. Local image and AI-text filtering need no API key. Under Text, open the sexual-text provider settings and enter that provider's key if you want Jev checks. Each provider has its own key slot; changing providers never transfers another provider's key. Credentials come from extension settings, not build-time environment variables.
+The popup separates **Text** and **Images** controls. Local image and AI-text filtering need no API key. Under Text, open the Jev provider settings and enter that provider's key if you want Jev checks. Use **Add text filter** to name a rule, describe what to hide, and choose its probability threshold. You can edit, enable, disable, or delete up to 20 rules. Filters are stored in extension-local browser storage and survive popup closure, worker restarts, and browser restarts. Each provider has its own key slot; changing providers never transfers another provider's key. Credentials come from extension settings, not build-time environment variables.
 
 ## Model selection and downloads
 
@@ -98,11 +98,15 @@ Clearing requires the worker to read the stored rows first so its deletion recei
 
 ## Privacy and request consistency
 
-Post and link-preview text go to the selected provider only when sexual-text checks are enabled and configured. AI-written-text checks run locally. Images are downloaded without credentials from X's media hosts and processed locally. NSFWJS weights come from the pinned NSFWJS GitHub revision; E5 weights and tokenizer/config files come from the pinned Hugging Face revision. Model downloads do not include post text or images.
+Post and link-preview text go to the selected provider only when sexual-text checks or custom text filters are enabled and the selected provider has a key. AI-written-text checks run locally. Images are downloaded without credentials from X's media hosts and processed locally. NSFWJS weights come from the pinned NSFWJS GitHub revision; E5 weights and tokenizer/config files come from the pinned Hugging Face revision. Model downloads do not include post text or images.
 
 API keys, allow overrides, score caches, and logs are stored in extension-local browser storage. Keys are not encrypted by this application. Blocked logs contain short post snippets, so treat them as browsing data.
 
 The background worker serializes field-level settings changes from popups and inspectors. Concurrent edits to different settings preserve each other. Classification admission and dispatch wait for earlier settings writes before reading provider credentials. Requests carry a provider and text-configuration revision: obsolete queued requests are rejected, and obsolete in-flight responses cannot update the score cache or provider health. Already-started external requests are not retroactively revoked.
+
+Jev requests use AI SDK's experimental `experimental_decide` API with `boolean` questions and application-owned probability thresholds. Vercel uses its `decisionModel`; TypeSafe uses `@ai-sdk/typesafe-ai`. OpenRouter uses the same native Jev schema through the TypeSafe adapter with its HTTP destination set to OpenRouter's Decisions endpoint. SDK versions are pinned because this API is experimental. See the [TypeSafe provider documentation](https://ai-sdk.dev/providers/ai-sdk-providers/typesafe-ai).
+
+Custom filter instructions join the built-in sexual-text question in one decision call. Each rule gets a stable ID; rule edits invalidate text decisions and rescan existing posts and link previews. Failed decisions remain visible with an error instead of being hidden by a default score.
 
 Historical single-key settings migrate into the selected provider's key slot only. The worker rewrites normalized settings without the old shared-key field. Score-cache version 7 ignores earlier entries and includes local model identity/revision and text-check type.
 

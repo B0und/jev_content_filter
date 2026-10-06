@@ -109,3 +109,61 @@ describe('field-level settings changes', () => {
     },
   );
 });
+
+describe('custom text filters', () => {
+  const filter = {
+    id: 'garden',
+    name: 'Gardening',
+    instructions: 'Posts about gardening',
+    enabled: true,
+    threshold: 0.65,
+  };
+  it('persists independently named rules and restores them from storage', async () => {
+    let settings = applySettingsChange(defaultSettings(), { field: 'textFilter', value: filter });
+    settings = applySettingsChange(settings, {
+      field: 'textFilter',
+      value: { ...filter, id: 'news', name: 'News', instructions: 'Political news' },
+    });
+    await fakeBrowser.storage.local.set({ settings });
+    const restored = await Effect.runPromise(loadSettings());
+    expect(restored.textFilters).toEqual(settings.textFilters);
+    expect(restored.textConfigRevision).toBe(2);
+    const disabled = applySettingsChange(restored, {
+      field: 'textFilter',
+      value: { ...filter, enabled: false },
+    });
+    expect(disabled.textFilters[1]).toEqual(restored.textFilters[1]);
+    expect(disabled.textConfigRevision).toBe(3);
+    expect(
+      applySettingsChange(disabled, { field: 'deleteTextFilter', id: filter.id }).textFilters,
+    ).toEqual([restored.textFilters[1]]);
+  });
+  it('ignores corrupt and duplicate stored rules without losing valid ones', async () => {
+    await fakeBrowser.storage.local.set({
+      settings: {
+        textFilters: [
+          filter,
+          { ...filter, name: 'Duplicate' },
+          { ...filter, id: 'bad', threshold: 3 },
+          { ...filter, id: '__proto__' },
+        ],
+      },
+    });
+    expect((await Effect.runPromise(loadSettings())).textFilters).toEqual([filter]);
+  });
+  it('rejects blank instructions and too many rules', () => {
+    expect(() =>
+      applySettingsChange(defaultSettings(), {
+        field: 'textFilter',
+        value: { ...filter, instructions: '  ' },
+      }),
+    ).toThrow();
+    const settings = {
+      ...defaultSettings(),
+      textFilters: Array.from({ length: 20 }, (_, index) => ({ ...filter, id: `rule-${index}` })),
+    };
+    expect(() => applySettingsChange(settings, { field: 'textFilter', value: filter })).toThrow(
+      '20',
+    );
+  });
+});

@@ -203,7 +203,9 @@ class ContentSession extends Context.Service<ContentSession, ContentSessionApi>(
               return;
             }
             if (post.pending || post.retryAt !== null || !isAttached(post)) return;
-            const textEnabled = TEXT_KEYS.some((key) => settings.current.enabled[key]);
+            const textEnabled =
+              TEXT_KEYS.some((key) => settings.current.enabled[key]) ||
+              settings.current.textFilters.some((filter) => filter.enabled);
             const imageEnabled = IMAGE_KEYS.some((key) => settings.current.enabled[key]);
             const textNeeded = !post.textDone && !!post.text && textEnabled;
             const imagesNeeded = !post.imagesDone && post.urls.length > 0 && imageEnabled;
@@ -442,7 +444,10 @@ class ContentSession extends Context.Service<ContentSession, ContentSessionApi>(
                   post.partErrors.text = [];
                   post.partErrors.preview = [];
                   post.retryCount = 0;
-                  for (const key of TEXT_KEYS) {
+                  for (const key of [
+                    ...TEXT_KEYS,
+                    ...previous.textFilters.map((filter) => `custom:${filter.id}` as const),
+                  ]) {
                     delete post.scores[key];
                     delete post.previewScores[key];
                   }

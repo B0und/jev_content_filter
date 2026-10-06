@@ -76,7 +76,7 @@ test('provider switches isolate credentials and restore each providers own key',
       correctCredential: route.request().headers().authorization === 'Bearer synthetic-typesafe',
     });
     await route.fulfill({
-      json: { answers: { sexual: { probability: 0.01 } } },
+      json: { answers: { sexual: { type: 'noul', noul: 0.01 } } },
     });
   });
   await page.goto('https://x.com/home');

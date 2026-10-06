@@ -3,7 +3,14 @@
 import { Clock, Effect } from 'effect';
 import { browserEffect, browserRuntime } from '../platform/browser';
 import type { ContentScriptContext } from 'wxt/utils/content-script-context';
-import { CATEGORY_LABELS, IMAGE_KEYS, TEXT_KEYS, type CategoryKey } from '../filtering/types';
+import {
+  CATEGORY_LABELS,
+  scoreLabel,
+  IMAGE_KEYS,
+  TEXT_KEYS,
+  type CategoryKey,
+  type ScoreKey,
+} from '../filtering/types';
 import { updateSettings } from '../filtering/settings';
 import { message } from './classify';
 import { headerCarets, insertHost } from './dom';
@@ -197,7 +204,7 @@ function renderPostAtUiBoundary(post: Post): void {
 
 function logBlocked(
   post: Post,
-  reasons: Array<{ key: CategoryKey; score: number }>,
+  reasons: Array<{ key: ScoreKey; label?: string; score: number }>,
   snippet: string,
   target: 'post' | 'preview',
 ): Effect.Effect<void> {
@@ -536,11 +543,14 @@ function renderPanel(post: Post): void {
   panel.className = 'panel';
   panel.tabIndex = -1;
   const reason = hits(post)
-    .map((h) => `${CATEGORY_LABELS[h.key]} ${(h.score * 100).toFixed(0)}%`)
+    .map((h) => `${scoreLabel(h.key, settings.current.textFilters)} ${(h.score * 100).toFixed(0)}%`)
     .join(', ');
   const previewReason = previewBlocked(post)
     ? previewHits(post)
-        .map((h) => `${CATEGORY_LABELS[h.key]} ${(h.score * 100).toFixed(0)}%`)
+        .map(
+          (h) =>
+            `${scoreLabel(h.key, settings.current.textFilters)} ${(h.score * 100).toFixed(0)}%`,
+        )
         .join(', ')
     : '';
   const head = element(
@@ -568,7 +578,10 @@ function renderPanel(post: Post): void {
   }
   // Text categories — shown when the post has text and the category is enabled.
   const visibleTextKeys = TEXT_KEYS.filter((key) => settings.current.enabled[key]);
-  if (post.text && visibleTextKeys.length > 0) {
+  if (
+    post.text &&
+    (visibleTextKeys.length > 0 || settings.current.textFilters.some((filter) => filter.enabled))
+  ) {
     const groupLabel = element('div', 'Text');
     groupLabel.className = 'group-label';
     panel.append(groupLabel);
@@ -578,6 +591,16 @@ function renderPanel(post: Post): void {
     textTable.append(heading);
     for (const key of visibleTextKeys) {
       textTable.append(buildCategoryRow(post, key));
+    }
+    for (const filter of settings.current.textFilters.filter((item) => item.enabled)) {
+      const row = element('tr');
+      const score = post.scores[`custom:${filter.id}`];
+      row.append(
+        element('td', filter.name),
+        element('td', score === undefined ? 'Not checked' : `${(score * 100).toFixed(1)}%`),
+        element('td', `${(filter.threshold * 100).toFixed(1)}%`),
+      );
+      textTable.append(row);
     }
     panel.append(textTable);
   }
@@ -662,7 +685,7 @@ function retryText(post: Post): Text {
 function buildCategoryRow(
   post: Post,
   key: CategoryKey,
-  scores: Partial<Record<CategoryKey, number>> = post.scores,
+  scores: Partial<Record<ScoreKey, number>> = post.scores,
 ): HTMLElement {
   const row = element('tr');
   const score = scores[key];

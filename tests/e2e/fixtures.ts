@@ -13,7 +13,10 @@ import path from 'node:path';
 import { defaultSettings, type Settings } from '../../src/filtering/types';
 
 const isEvaluationRequest = Schema.is(
-  Schema.Struct({ state: Schema.Struct({ tweet_text: Schema.String }) }),
+  Schema.Struct({
+    state: Schema.Struct({ tweet_text: Schema.String }),
+    questions: Schema.Record(Schema.String, Schema.Struct({ instructions: Schema.String })),
+  }),
 );
 
 export function remoteSettings(): Settings {
@@ -73,6 +76,20 @@ export const test = base.extend<{
           json: {
             answers: {
               sexual: { type: 'boolean', probability: text.includes('BLOCK_TEXT') ? 0.99 : 0.01 },
+              ...Object.fromEntries(
+                Object.entries(request.questions)
+                  .filter(([key]) => key.startsWith('custom:'))
+                  .map(([key, question]) => [
+                    key,
+                    {
+                      type: 'boolean',
+                      probability:
+                        text.includes('garden') && question.instructions.includes('garden')
+                          ? 0.9
+                          : 0.01,
+                    },
+                  ]),
+              ),
             },
           },
         });

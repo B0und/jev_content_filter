@@ -2,7 +2,7 @@ import { Effect } from 'effect';
 import * as Schema from 'effect/Schema';
 import { BrowserError, browserEffect } from '../platform/browser';
 import { browser } from 'wxt/browser';
-import { FilterStatusSchema, SettingsReplySchema } from './schemas';
+import { FilterStatusSchema, SettingsReplySchema, TextFilterSchema } from './schemas';
 import {
   STORAGE_KEYS,
   defaultSettings,
@@ -79,6 +79,14 @@ export const loadSettings = Effect.fn('loadSettings')(function* () {
   }
 
   return {
+    textFilters: Array.isArray(raw.textFilters)
+      ? raw.textFilters
+          .filter(Schema.is(TextFilterSchema))
+          .filter(
+            (filter, index, all) => all.findIndex((other) => other.id === filter.id) === index,
+          )
+          .slice(0, 20)
+      : [],
     masterEnabled:
       typeof raw.masterEnabled === 'boolean' ? raw.masterEnabled : defaults.masterEnabled,
     textProvider,
@@ -97,6 +105,29 @@ export const loadSettings = Effect.fn('loadSettings')(function* () {
 export function applySettingsChange(current: Settings, change: SettingsChange): Settings {
   const next = { ...current };
   switch (change.field) {
+    case 'textFilter': {
+      if (
+        !Schema.is(TextFilterSchema)(change.value) ||
+        !change.value.name.trim() ||
+        !change.value.instructions.trim()
+      )
+        throw new Error('Enter a filter name and instructions.');
+      const filter = {
+        ...change.value,
+        name: change.value.name.trim(),
+        instructions: change.value.instructions.trim(),
+      };
+      const exists = current.textFilters.some((item) => item.id === filter.id);
+      if (!exists && current.textFilters.length >= 20)
+        throw new Error('You can save up to 20 text filters.');
+      next.textFilters = exists
+        ? current.textFilters.map((item) => (item.id === filter.id ? filter : item))
+        : [...current.textFilters, filter];
+      break;
+    }
+    case 'deleteTextFilter':
+      next.textFilters = current.textFilters.filter((item) => item.id !== change.id);
+      break;
     case 'masterEnabled':
       if (typeof change.value !== 'boolean') throw new Error('Invalid filtering setting.');
       next.masterEnabled = change.value;
@@ -129,6 +160,7 @@ export function applySettingsChange(current: Settings, change: SettingsChange): 
       throw new Error('Unknown settings field.');
   }
   if (
+    JSON.stringify(next.textFilters) !== JSON.stringify(current.textFilters) ||
     next.textProvider !== current.textProvider ||
     next.providerKeys[next.textProvider] !== current.providerKeys[current.textProvider]
   )

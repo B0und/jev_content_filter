@@ -46,9 +46,11 @@ export interface FakeBackground {
     tweetId: string;
     text: string;
   }) =>
-    | { ok: true; sexual: number }
+    | { ok: true; sexual: number; custom?: Record<string, number> }
     | { ok: false; error: string }
-    | Promise<{ ok: true; sexual: number } | { ok: false; error: string }>;
+    | Promise<
+        { ok: true; sexual: number; custom?: Record<string, number> } | { ok: false; error: string }
+      >;
   aiRespond: (request: {
     type: 'classify-ai';
     text: string;

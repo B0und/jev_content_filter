@@ -138,7 +138,7 @@ export class ExtensionSession {
                 sexy: false,
                 drawings: false,
                 sexualText: true,
-                aiGenerated: true,
+                aiGenerated: false,
               },
               thresholds: {
                 porn: 0.6,
@@ -251,12 +251,25 @@ export class ExtensionSession {
       let body;
       let contentType = 'application/json';
       if (url.hostname === 'ai-gateway.vercel.sh') {
-        const text = JSON.parse(request.postData ?? '{}').state?.tweet_text ?? '';
+        const payload = JSON.parse(request.postData ?? '{}');
+        const text = payload.state?.tweet_text ?? '';
+        const customAnswers = Object.fromEntries(
+          Object.entries(payload.questions ?? {})
+            .filter(([key]) => key.startsWith('custom:'))
+            .map(([key, question]) => [
+              key,
+              {
+                type: 'boolean',
+                probability:
+                  text.includes('garden') && question.instructions.includes('garden') ? 0.9 : 0.01,
+              },
+            ]),
+        );
         body = Buffer.from(
           JSON.stringify({
             answers: {
               sexual: { type: 'boolean', probability: text.includes('BLOCK_TEXT') ? 0.99 : 0.01 },
-              ai: { type: 'boolean', probability: 0.02 },
+              ...customAnswers,
             },
           }),
         );
