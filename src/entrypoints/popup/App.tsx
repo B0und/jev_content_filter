@@ -322,6 +322,7 @@ function TextFilterEditor({ filter, onClose }: { filter: TextFilter | null; onCl
     };
   }, [editorId]);
   const [saving, setSaving] = useState(false);
+  const editedFields = useRef({ name: false, instructions: false, threshold: false });
   const [name, setName] = useState(filter?.name ?? '');
   const [instructions, setInstructions] = useState(filter?.instructions ?? '');
   const [threshold, setThreshold] = useState(String((filter?.threshold ?? 0.65) * 100));
@@ -343,11 +344,11 @@ function TextFilterEditor({ filter, onClose }: { filter: TextFilter | null; onCl
                 field: 'patchTextFilter',
                 id,
                 value: {
-                  ...(value.name !== filter.name ? { name: value.name } : {}),
-                  ...(value.instructions !== filter.instructions
+                  ...(editedFields.current.name ? { name: value.name } : {}),
+                  ...(editedFields.current.instructions
                     ? { instructions: value.instructions }
                     : {}),
-                  ...(value.threshold !== filter.threshold ? { threshold: value.threshold } : {}),
+                  ...(editedFields.current.threshold ? { threshold: value.threshold } : {}),
                 },
               }
             : { field: 'textFilter', value: { id, ...value, enabled: true } };
@@ -365,7 +366,10 @@ function TextFilterEditor({ filter, onClose }: { filter: TextFilter | null; onCl
         disabled={saving}
         maxLength={80}
         value={name}
-        onChange={(event) => setName(event.target.value)}
+        onChange={(event) => {
+          editedFields.current.name = true;
+          setName(event.target.value);
+        }}
         placeholder="Crypto promotions"
       />
       <label htmlFor="filter-instructions">What should be hidden?</label>
@@ -376,7 +380,10 @@ function TextFilterEditor({ filter, onClose }: { filter: TextFilter | null; onCl
         maxLength={2000}
         rows={3}
         value={instructions}
-        onChange={(event) => setInstructions(event.target.value)}
+        onChange={(event) => {
+          editedFields.current.instructions = true;
+          setInstructions(event.target.value);
+        }}
         placeholder="Posts promoting crypto tokens or get-rich-quick investment schemes"
       />
       <label htmlFor="filter-threshold">Block at probability (%)</label>
@@ -389,7 +396,10 @@ function TextFilterEditor({ filter, onClose }: { filter: TextFilter | null; onCl
         max={100}
         step={0.1}
         value={threshold}
-        onChange={(event) => setThreshold(event.target.value)}
+        onChange={(event) => {
+          editedFields.current.threshold = true;
+          setThreshold(event.target.value);
+        }}
       />
       <p className="notice">Lower thresholds hide more posts.</p>
       <div className="custom-filter-actions">

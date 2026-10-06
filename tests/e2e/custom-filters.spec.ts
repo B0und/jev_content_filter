@@ -8,42 +8,48 @@ test.beforeEach(async ({ setSettings }) => {
   await setSettings(configured);
 });
 
-test('saving a popup draft preserves a threshold changed in the post inspector', async ({
-  page,
-  context,
-  extensionId,
-  setSettings,
-  worker,
-}) => {
-  const configured = remoteSettings();
-  configured.providerKeys.vercel = 'test-only-not-a-real-key';
-  await setSettings(configured);
-  await page.goto('https://x.com/home');
-  await page
-    .locator('[data-post="101"]')
-    .getByRole('button', { name: 'Allowed', exact: true })
-    .click();
-  const popup = await context.newPage();
-  await popup.goto(`chrome-extension://${extensionId}/popup.html`);
-  await popup.getByRole('button', { name: 'Edit', exact: true }).click();
-  await popup.getByLabel('Filter name', { exact: true }).fill('Renamed rule');
-  const threshold = page
-    .locator('[data-jev-panel]')
-    .getByRole('spinbutton', { name: 'Sexual text threshold percent' });
-  await threshold.fill('40');
-  await threshold.press('Tab');
-  await expect(popup.locator('.custom-filter-heading')).toContainText('40%');
-  await popup.getByRole('button', { name: 'Save filter' }).click();
-  await expect
-    .poll(async () => {
-      const raw = await worker.evaluate(
-        async () => (await chrome.storage.local.get('settings')).settings,
-      );
-      const filter = Schema.decodeUnknownSync(SettingsSchema)(raw).textFilters[0]!;
-      return { name: filter.name, threshold: filter.threshold };
-    })
-    .toEqual({ name: 'Renamed rule', threshold: 0.4 });
-});
+for (const editThreshold of [false, true]) {
+  test(`saving a popup draft ${editThreshold ? 'applies an explicitly edited threshold' : 'preserves an untouched inspector threshold'}`, async ({
+    page,
+    context,
+    extensionId,
+    setSettings,
+    worker,
+  }) => {
+    const configured = remoteSettings();
+    configured.providerKeys.vercel = 'test-only-not-a-real-key';
+    await setSettings(configured);
+    await page.goto('https://x.com/home');
+    await page
+      .locator('[data-post="101"]')
+      .getByRole('button', { name: 'Allowed', exact: true })
+      .click();
+    const popup = await context.newPage();
+    await popup.goto(`chrome-extension://${extensionId}/popup.html`);
+    await popup.getByRole('button', { name: 'Edit', exact: true }).click();
+    await popup.getByLabel('Filter name', { exact: true }).fill('Renamed rule');
+    const threshold = page
+      .locator('[data-jev-panel]')
+      .getByRole('spinbutton', { name: 'Sexual text threshold percent' });
+    await threshold.fill('40');
+    await threshold.press('Tab');
+    await expect(popup.locator('.custom-filter-heading')).toContainText('40%');
+    if (editThreshold) {
+      await popup.getByLabel('Block at probability (%)').fill('70');
+      await popup.getByLabel('Block at probability (%)').fill('65');
+    }
+    await popup.getByRole('button', { name: 'Save filter' }).click();
+    await expect
+      .poll(async () => {
+        const raw = await worker.evaluate(
+          async () => (await chrome.storage.local.get('settings')).settings,
+        );
+        const filter = Schema.decodeUnknownSync(SettingsSchema)(raw).textFilters[0]!;
+        return { name: filter.name, threshold: filter.threshold };
+      })
+      .toEqual({ name: 'Renamed rule', threshold: editThreshold ? 0.65 : 0.4 });
+  });
+}
 
 test('the initial preset can become an unrelated rule and deletion stays saved', async ({
   page,
