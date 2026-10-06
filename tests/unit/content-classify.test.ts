@@ -37,7 +37,7 @@ function textTaskSettings(overrides: Partial<Settings> = {}): Settings {
       hentai: false,
       sexy: false,
       drawings: false,
-      sexualText: true,
+
       aiGenerated: true,
       ...overrides.enabled,
     },
@@ -140,7 +140,7 @@ describe('score cache', () => {
     settings.current = baseSettings({
       enabled: {
         ...baseSettings().enabled,
-        sexualText: false,
+
         aiGenerated: false,
       },
     });
@@ -207,11 +207,11 @@ describe('score cache', () => {
     const post = newPostStub('4000');
     const otherPost = newPostStub('4001', 'same text');
     const bg = installFakeBackground();
-    bg.respond = () => ({ ok: true, sexual: 0.4 });
+    bg.respond = () => ({ ok: true, custom: { 'sexual-text': 0.4 } });
     bg.aiRespond = () => ({ ok: true, scores: { aiGenerated: 0.2 } });
 
     const first = await Effect.runPromise(textScores(post, 'same text'));
-    expect(first).toEqual({ scores: { sexualText: 0.4, aiGenerated: 0.2 }, errors: [] });
+    expect(first).toEqual({ scores: { 'custom:sexual-text': 0.4, aiGenerated: 0.2 }, errors: [] });
     const second = await Effect.runPromise(textScores(otherPost, 'same text'));
     expect(second).toEqual(first);
     expect(bg.jevCalls).toHaveLength(1);
@@ -223,18 +223,18 @@ describe('score cache', () => {
     settings.current = textTaskSettings({ textProvider: 'vercel' });
     const post = newPostStub('4010');
     const bg = installFakeBackground();
-    bg.respond = () => ({ ok: true, sexual: 0.4 });
+    bg.respond = () => ({ ok: true, custom: { 'sexual-text': 0.4 } });
     bg.aiRespond = () => ({ ok: true, scores: { aiGenerated: 0.2 } });
 
     await expect(Effect.runPromise(textScores(post, 'provider-sensitive text'))).resolves.toEqual({
-      scores: { sexualText: 0.4, aiGenerated: 0.2 },
+      scores: { 'custom:sexual-text': 0.4, aiGenerated: 0.2 },
       errors: [],
     });
     settings.current = { ...settings.current, textProvider: 'typesafe' };
-    bg.respond = () => ({ ok: true, sexual: 0.8 });
+    bg.respond = () => ({ ok: true, custom: { 'sexual-text': 0.8 } });
     bg.aiRespond = () => ({ ok: true, scores: { aiGenerated: 0.95 } });
     await expect(Effect.runPromise(textScores(post, 'provider-sensitive text'))).resolves.toEqual({
-      scores: { sexualText: 0.8, aiGenerated: 0.2 },
+      scores: { 'custom:sexual-text': 0.8, aiGenerated: 0.2 },
       errors: [],
     });
     expect(bg.jevCalls).toHaveLength(2);
@@ -252,7 +252,7 @@ describe('score cache', () => {
     });
     const post = newPostStub('4020');
     const bg = installFakeBackground();
-    const gate = Promise.withResolvers<{ ok: true; sexual: number }>();
+    const gate = Promise.withResolvers<{ ok: true; custom: Record<string, number> }>();
     const jevStarted = Promise.withResolvers<void>();
     const aiStarted = Promise.withResolvers<void>();
     bg.respond = () => {
@@ -270,7 +270,7 @@ describe('score cache', () => {
       field: 'textProvider',
       value: 'typesafe',
     });
-    gate.resolve({ ok: true, sexual: 0.1 });
+    gate.resolve({ ok: true, custom: { 'sexual-text': 0.1 } });
     await rejected;
 
     const stored = await browser.storage.local.get(null);
@@ -281,10 +281,10 @@ describe('score cache', () => {
     });
     expect(cachedScores).toEqual([{ aiGenerated: 0.2 }]);
 
-    bg.respond = () => ({ ok: true, sexual: 0.9 });
+    bg.respond = () => ({ ok: true, custom: { 'sexual-text': 0.9 } });
     bg.aiRespond = () => ({ ok: true, scores: { aiGenerated: 0.95 } });
     await expect(Effect.runPromise(textScores(post, 'configuration-race'))).resolves.toEqual({
-      scores: { sexualText: 0.9, aiGenerated: 0.2 },
+      scores: { 'custom:sexual-text': 0.9, aiGenerated: 0.2 },
       errors: [],
     });
     expect(bg.jevCalls).toHaveLength(2);
@@ -296,7 +296,7 @@ describe('runtime text task behavior', () => {
     const configured = textTaskSettings({
       providerKeys: { vercel: '', typesafe: '', openrouter: '' },
     });
-    configured.enabled.sexualText = false;
+    configured.textFilters = [];
     configured.thresholds.aiGenerated = 0.65;
     const test = await startRuntime(configured);
     try {
@@ -409,10 +409,10 @@ it('checks custom rules with built-in text checks off and invalidates their cach
   const base = textTaskSettings();
   settings.current = textTaskSettings({
     textFilters: [filter],
-    enabled: { ...base.enabled, sexualText: false, aiGenerated: false },
+    enabled: { ...base.enabled, aiGenerated: false },
   });
   const bg = installFakeBackground();
-  bg.respond = () => ({ ok: true, sexual: 0.01, custom: { garden: 0.9 } });
+  bg.respond = () => ({ ok: true, custom: { garden: 0.9 } });
   const post = newPostStub('custom-cache');
   const first = await Effect.runPromise(textScores(post, 'same text'));
   expect(first.scores['custom:garden']).toBe(0.9);
@@ -431,7 +431,7 @@ it('checks custom rules with built-in text checks off and invalidates their cach
     field: 'textFilter',
     value: { ...filter, instructions: 'Posts about a different topic' },
   });
-  bg.respond = () => ({ ok: true, sexual: 0.01, custom: { garden: 0.1 } });
+  bg.respond = () => ({ ok: true, custom: { garden: 0.1 } });
   expect((await Effect.runPromise(textScores(post, 'same text'))).scores['custom:garden']).toBe(
     0.1,
   );

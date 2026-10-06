@@ -11,6 +11,7 @@ import {
   IMAGE_KEYS,
   STORAGE_KEYS,
   TEXT_KEYS,
+  textDecisionSignature,
   type ScoreKey,
   type CategoryKey,
   type TabReport,
@@ -432,6 +433,8 @@ class ContentSession extends Context.Service<ContentSession, ContentSessionApi>(
               const current = settings.current;
               const resuming = !previous.masterEnabled && current.masterEnabled;
               const textConfigChanged =
+                textDecisionSignature(previous.textFilters) !==
+                  textDecisionSignature(current.textFilters) ||
                 previous.textConfigRevision !== current.textConfigRevision ||
                 previous.textProvider !== current.textProvider ||
                 previous.providerKeys[previous.textProvider] !==

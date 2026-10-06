@@ -18,7 +18,7 @@ it('keeps a blocked video stable when X changes only its thumbnail size', async 
     hentai: false,
     sexy: false,
     drawings: false,
-    sexualText: false,
+
     aiGenerated: false,
   };
   const runtime = await startRuntime({ enabled: configured.enabled });
@@ -56,7 +56,7 @@ it('keeps a blocked video stable when X changes only its thumbnail size', async 
 
 it('keeps the parent post blocked when quoted-post metadata mounts before its timestamp', async () => {
   const runtime = await startRuntime();
-  runtime.bg.respond = () => ({ ok: true, sexual: 0.99 });
+  runtime.bg.respond = () => ({ ok: true, custom: { 'sexual-text': 0.99 } });
   const article = buildTweetArticle({
     id: '2105016474192515573',
     text: 'The parent post stays unchanged while its quote hydrates.',

@@ -132,12 +132,21 @@ export class ExtensionSession {
               textProvider: 'vercel',
               textConfigRevision: 0,
               providerKeys: { vercel: 'agent-fixture-key', typesafe: '', openrouter: '' },
+              textFilters: [
+                {
+                  id: 'sexual-text',
+                  name: 'Sexual text',
+                  instructions:
+                    'Explicit sexual content, lewd innuendo, heavily implied sexual content, or engagement bait designed to arouse.',
+                  enabled: true,
+                  threshold: 0.65,
+                },
+              ],
               enabled: {
                 porn: false,
                 hentai: false,
                 sexy: false,
                 drawings: false,
-                sexualText: true,
                 aiGenerated: false,
               },
               thresholds: {
@@ -145,7 +154,6 @@ export class ExtensionSession {
                 hentai: 0.6,
                 sexy: 0.65,
                 drawings: 0.7,
-                sexualText: 0.65,
                 aiGenerated: 0.65,
               },
             },
@@ -253,6 +261,14 @@ export class ExtensionSession {
       if (url.hostname === 'ai-gateway.vercel.sh') {
         const payload = JSON.parse(request.postData ?? '{}');
         const text = payload.state?.tweet_text ?? '';
+        const textWords = new Set(text.toLowerCase().match(/\p{L}{4,}/gu) ?? []);
+        const matchesQuestion = (instructions) =>
+          text.includes('BLOCK_TEXT') ||
+          (
+            (instructions.split('\n').slice(1).join('\n') || instructions)
+              .toLowerCase()
+              .match(/\p{L}{4,}/gu) ?? []
+          ).some((word) => !['posts', 'about', 'content'].includes(word) && textWords.has(word));
         const customAnswers = Object.fromEntries(
           Object.entries(payload.questions ?? {})
             .filter(([key]) => key.startsWith('custom:'))
@@ -260,17 +276,13 @@ export class ExtensionSession {
               key,
               {
                 type: 'boolean',
-                probability:
-                  text.includes('garden') && question.instructions.includes('garden') ? 0.9 : 0.01,
+                probability: matchesQuestion(question.instructions) ? 0.9 : 0.01,
               },
             ]),
         );
         body = Buffer.from(
           JSON.stringify({
-            answers: {
-              sexual: { type: 'boolean', probability: text.includes('BLOCK_TEXT') ? 0.99 : 0.01 },
-              ...customAnswers,
-            },
+            answers: customAnswers,
           }),
         );
       } else if (url.hostname === 'pbs.twimg.com') {

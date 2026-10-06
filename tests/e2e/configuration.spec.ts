@@ -76,7 +76,7 @@ test('provider switches isolate credentials and restore each providers own key',
       correctCredential: route.request().headers().authorization === 'Bearer synthetic-typesafe',
     });
     await route.fulfill({
-      json: { answers: { sexual: { type: 'noul', noul: 0.01 } } },
+      json: { answers: { 'custom:sexual-text': { type: 'noul', noul: 0.01 } } },
     });
   });
   await page.goto('https://x.com/home');
@@ -109,7 +109,7 @@ test('late and replaced video posters update the filtering decision without unre
 }) => {
   test.setTimeout(90_000);
   const settings = remoteSettings();
-  settings.enabled.sexualText = false;
+  settings.textFilters = [];
   settings.enabled.aiGenerated = false;
   for (const category of ['porn', 'hentai', 'sexy', 'drawings'] as const)
     settings.thresholds[category] = 0;
@@ -181,33 +181,24 @@ test('rapid credential edits survive popup close and independent windows preserv
   await expect(
     second.getByRole('spinbutton', { name: 'AI-written text threshold percent', exact: true }),
   ).toBeEnabled();
+  await first.getByRole('button', { name: 'Edit', exact: true }).click();
   await Promise.all([
-    first
-      .getByRole('spinbutton', { name: 'Sexual text threshold percent', exact: true })
-      .fill('37'),
+    first.getByLabel('Block at probability (%)').fill('37'),
     second
       .getByRole('spinbutton', { name: 'AI-written text threshold percent', exact: true })
       .fill('48'),
   ]);
+  await first.getByRole('button', { name: 'Save filter', exact: true }).click();
   await expect
-    .poll(() =>
-      worker.evaluate(async () => {
-        const stored = (await chrome.storage.local.get('settings')).settings;
-        if (!stored || typeof stored !== 'object' || !('thresholds' in stored))
-          throw new Error('Missing thresholds.');
-        const thresholds = stored.thresholds;
-        if (
-          !thresholds ||
-          typeof thresholds !== 'object' ||
-          !('sexualText' in thresholds) ||
-          !('aiGenerated' in thresholds)
-        )
-          throw new Error('Missing text thresholds.');
-        return {
-          sexualText: thresholds.sexualText,
-          aiGenerated: thresholds.aiGenerated,
-        };
-      }),
-    )
-    .toEqual({ sexualText: 0.37, aiGenerated: 0.48 });
+    .poll(async () => {
+      const stored = await worker.evaluate(
+        async () => (await chrome.storage.local.get('settings')).settings,
+      );
+      const parsed = Schema.decodeUnknownSync(SettingsSchema)(stored);
+      return {
+        preset: parsed.textFilters.find((filter) => filter.id === 'sexual-text')?.threshold,
+        aiGenerated: parsed.thresholds.aiGenerated,
+      };
+    })
+    .toEqual({ preset: 0.37, aiGenerated: 0.48 });
 });

@@ -18,8 +18,7 @@ import { IMAGE_PIPELINE_REVISION, SELECTED_MODELS } from '../inference/model-cat
 const JevReplySchema = Schema.Union([
   Schema.Struct({
     ok: Schema.Literal(true),
-    sexual: Schema.Finite,
-    custom: Schema.optionalKey(Schema.Record(Schema.String, Schema.Finite)),
+    custom: Schema.Record(Schema.String, Schema.Finite),
     provider: Schema.String,
     revision: Schema.Finite,
   }),
@@ -144,13 +143,13 @@ export const textScores = Effect.fnUntraced(function* (
   const jobs: Array<
     Effect.Effect<Partial<Record<ScoreKey, number>>, BrowserError | ClassificationError>
   > = [];
-  if (current.enabled.sexualText || current.textFilters.some((filter) => filter.enabled))
+  if (current.textFilters.some((filter) => filter.enabled))
     jobs.push(
       Effect.gen(function* () {
         const key = `${CACHE_PREFIX}t:${provider}:${hash64(textDecisionSignature(current.textFilters))}:${hash64(text)}`;
         const cached = yield* readCache(key);
         if (
-          cached?.scores.sexualText !== undefined &&
+          cached &&
           current.textFilters
             .filter((filter) => filter.enabled)
             .every((filter) => cached.scores[`custom:${filter.id}`] !== undefined)
@@ -161,7 +160,7 @@ export const textScores = Effect.fnUntraced(function* (
             message:
               'Add an API key in the Text tab to check Jev text filters. Local AI-written-text detection does not need a key.',
           });
-        const rawReply: unknown = yield* browserEffect('classify sexual text', () =>
+        const rawReply: unknown = yield* browserEffect('classify text filters', () =>
           browser.runtime.sendMessage({ type: 'jev', tweetId: post.id, text, provider, revision }),
         );
         const reply = yield* Schema.decodeUnknownEffect(JevReplySchema)(rawReply).pipe(
@@ -172,16 +171,9 @@ export const textScores = Effect.fnUntraced(function* (
         if (!reply.ok) return yield* new ClassificationError({ message: reply.error });
         if (reply.provider !== provider || reply.revision !== revision)
           return yield* new ClassificationError({ message: 'Text configuration changed.' });
-        if (!Number.isFinite(reply.sexual) || reply.sexual < 0 || reply.sexual > 1)
-          return yield* new ClassificationError({ message: 'Invalid text scores.' });
-        const scores: Partial<Record<ScoreKey, number>> = { sexualText: reply.sexual };
+        const scores: Partial<Record<ScoreKey, number>> = {};
         for (const filter of current.textFilters.filter((item) => item.enabled)) {
-          const score = reply.custom?.[filter.id];
-          if (score === undefined || !Number.isFinite(score) || score < 0 || score > 1)
-            return yield* new ClassificationError({
-              message: 'Invalid custom text filter scores.',
-            });
-          scores[`custom:${filter.id}`] = score;
+          scores[`custom:${filter.id}`] = reply.custom[filter.id]!;
         }
         if (
           settings.current.textProvider === provider &&

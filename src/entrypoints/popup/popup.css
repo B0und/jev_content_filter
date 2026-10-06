@@ -437,11 +437,6 @@ body {
   line-height: 1.4;
 }
 
-.sexual-text-section {
-  padding-top: 12px;
-  border-top: 1px solid var(--rule);
-}
-
 .diagnostics {
   padding-top: 8px;
   border-top: 1px solid var(--rule);

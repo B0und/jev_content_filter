@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { Effect, Predicate } from 'effect';
 import { loadLog } from '../../src/history/log';
-import type { BlockedEntry, Settings } from '../../src/filtering/types';
+import { defaultSettings, type BlockedEntry, type Settings } from '../../src/filtering/types';
 
 const { evaluateMock, createGatewayMock, fetchMock } = vi.hoisted(() => ({
   evaluateMock: vi.fn(),
@@ -42,7 +42,7 @@ function evaluateResult(answers: Record<string, unknown>) {
 }
 
 const SETTINGS: Settings = {
-  textFilters: [],
+  textFilters: defaultSettings().textFilters,
   masterEnabled: true,
   textProvider: 'vercel',
   providerKeys: {
@@ -56,7 +56,6 @@ const SETTINGS: Settings = {
     hentai: true,
     sexy: true,
     drawings: true,
-    sexualText: true,
     aiGenerated: true,
   },
   thresholds: {
@@ -64,7 +63,6 @@ const SETTINGS: Settings = {
     hentai: 0.6,
     sexy: 0.65,
     drawings: 0.7,
-    sexualText: 0.65,
     aiGenerated: 0.65,
   },
 };
@@ -129,44 +127,6 @@ describe('background worker lifecycle', () => {
 });
 
 describe('jev classification', () => {
-  it('fails open on missing/undefined probability instead of propagating it', async () => {
-    await fakeBrowser.storage.local.set({ settings: SETTINGS });
-    await startWorker();
-    evaluateMock.mockResolvedValue(
-      evaluateResult({
-        sexual: { type: 'boolean', probability: undefined },
-      }),
-    );
-    const reply = await fakeBrowser.runtime.sendMessage({
-      type: 'jev',
-      provider: 'vercel',
-      revision: 0,
-      tweetId: 't1',
-      text: 'hi',
-    });
-    expect(reply).toEqual({ ok: false, error: expect.stringContaining('probability') });
-    expect(reply).not.toHaveProperty('sexual');
-  });
-
-  it('fails open on out-of-range probabilities', async () => {
-    await fakeBrowser.storage.local.set({ settings: SETTINGS });
-    await startWorker();
-    evaluateMock.mockResolvedValue(
-      evaluateResult({
-        sexual: okAnswer(1.5),
-      }),
-    );
-    await expect(
-      fakeBrowser.runtime.sendMessage({
-        type: 'jev',
-        tweetId: 't1',
-        text: 'hi',
-        provider: 'vercel',
-        revision: 0,
-      }),
-    ).resolves.toEqual({ ok: false, error: expect.stringContaining('probability') });
-  });
-
   it('fails open on a missing answer object', async () => {
     await fakeBrowser.storage.local.set({ settings: SETTINGS });
     await startWorker();
@@ -195,7 +155,7 @@ describe('jev classification', () => {
 
     evaluateMock.mockResolvedValue(
       evaluateResult({
-        sexual: okAnswer(0.1),
+        'custom:sexual-text': okAnswer(0.1),
       }),
     );
     await expect(
@@ -206,7 +166,7 @@ describe('jev classification', () => {
         provider: 'vercel',
         revision: 0,
       }),
-    ).resolves.toMatchObject({ ok: true, sexual: 0.1 });
+    ).resolves.toMatchObject({ ok: true, custom: { 'sexual-text': 0.1 } });
     await expect(fakeBrowser.runtime.sendMessage({ type: 'get-status' })).resolves.toMatchObject({
       state: 'ok',
     });
@@ -233,7 +193,7 @@ describe('jev classification', () => {
       });
     }
     await vi.waitFor(() => expect(overflowReply).toBeDefined());
-    gate.resolve(evaluateResult({ sexual: okAnswer(0.1) }));
+    gate.resolve(evaluateResult({ 'custom:sexual-text': okAnswer(0.1) }));
     const replies = await Promise.all(requests);
 
     expect(
@@ -516,7 +476,7 @@ describe('configuration transitions', () => {
   it('does not send text with old credentials while an earlier provider change is saving', async () => {
     await fakeBrowser.storage.local.set({ settings: SETTINGS });
     await startWorker();
-    evaluateMock.mockResolvedValue(evaluateResult({ sexual: okAnswer(0.1) }));
+    evaluateMock.mockResolvedValue(evaluateResult({ 'custom:sexual-text': okAnswer(0.1) }));
     await fakeBrowser.runtime.sendMessage({
       type: 'jev',
       tweetId: 'startup',
@@ -578,7 +538,7 @@ describe('configuration transitions', () => {
       type: 'update-settings',
       change: { field: 'textProvider', value: 'typesafe' },
     });
-    gate.resolve(evaluateResult({ sexual: okAnswer(0.1) }));
+    gate.resolve(evaluateResult({ 'custom:sexual-text': okAnswer(0.1) }));
     const replies = await Promise.all(oldRequests);
     expect(replies.every((reply) => !reply.ok && reply.stale)).toBe(true);
     expect(evaluateMock).toHaveBeenCalledTimes(3);
@@ -586,7 +546,7 @@ describe('configuration transitions', () => {
     await expect(fakeBrowser.runtime.sendMessage({ type: 'get-status' })).resolves.toMatchObject({
       state: 'ok',
     });
-    evaluateMock.mockResolvedValue(evaluateResult({ sexual: okAnswer(0.9) }));
+    evaluateMock.mockResolvedValue(evaluateResult({ 'custom:sexual-text': okAnswer(0.9) }));
     await expect(
       fakeBrowser.runtime.sendMessage({
         type: 'jev',
@@ -595,7 +555,12 @@ describe('configuration transitions', () => {
         provider: 'typesafe',
         revision: 1,
       }),
-    ).resolves.toMatchObject({ ok: true, provider: 'typesafe', revision: 1, sexual: 0.9 });
+    ).resolves.toMatchObject({
+      ok: true,
+      provider: 'typesafe',
+      revision: 1,
+      custom: { 'sexual-text': 0.9 },
+    });
     expect(evaluateMock.mock.calls.at(-1)?.[0].model.provider).toBe('typesafe.decision');
   });
 

@@ -14,7 +14,14 @@ vi.mock('@ai-sdk/gateway', () => ({
   createGateway: (...args: unknown[]) => createGatewayMock(...args),
 }));
 
-import { evaluateText } from '../../src/background/text-provider';
+import { evaluateText as evaluateProviderText } from '../../src/background/text-provider';
+import { defaultSettings } from '../../src/filtering/types';
+
+const evaluateText = (
+  request: Omit<Parameters<typeof evaluateProviderText>[0], 'filters'> & {
+    filters?: Parameters<typeof evaluateProviderText>[0]['filters'];
+  },
+) => evaluateProviderText({ filters: defaultSettings().textFilters, ...request });
 
 const API_KEY = 'provider-secret-token';
 const server = setupServer();
@@ -37,6 +44,19 @@ afterEach(() => {
 });
 
 describe('text provider effects', () => {
+  it('makes no decision call when all text filters are disabled or deleted', async () => {
+    for (const filters of [
+      [],
+      defaultSettings().textFilters.map((filter) => ({ ...filter, enabled: false })),
+    ]) {
+      expect(
+        await Effect.runPromise(
+          evaluateText({ provider: 'typesafe', apiKey: API_KEY, text: 'hello', filters }),
+        ),
+      ).toEqual({ custom: {} });
+    }
+    expect(evaluateMock).not.toHaveBeenCalled();
+  });
   it('returns a typed status error without exposing the provider key', async () => {
     server.use(
       http.post('https://api.typesafe.ai/v1/systemone', () =>
@@ -67,7 +87,7 @@ describe('text provider effects', () => {
     server.use(
       http.post(endpoint, () =>
         HttpResponse.json({
-          answers: { sexual: { type: 'noul', noul: 0.9 } },
+          answers: { 'custom:sexual-text': { type: 'noul', noul: 0.9 } },
         }),
       ),
     );
@@ -79,13 +99,13 @@ describe('text provider effects', () => {
           text: 'test input',
         }),
       ),
-    ).toEqual({ sexual: 0.9 });
+    ).toEqual({ custom: { 'sexual-text': 0.9 } });
   });
 
-  it('rejects malformed probabilities received over HTTP', async () => {
+  it('lets the SDK reject malformed probabilities received over HTTP', async () => {
     server.use(
       http.post('https://api.typesafe.ai/v1/systemone', () =>
-        HttpResponse.json({ answers: { sexual: { type: 'noul', noul: 1.1 } } }),
+        HttpResponse.json({ answers: { 'custom:sexual-text': { type: 'noul', noul: 1.1 } } }),
       ),
     );
     const result = await Effect.runPromise(
@@ -135,7 +155,6 @@ describe('text provider effects', () => {
           body = await request.json();
           return HttpResponse.json({
             answers: {
-              sexual: { type: 'noul', noul: 0.1 },
               'custom:garden': { type: 'noul', noul: 0.9 },
             },
           });
@@ -157,7 +176,7 @@ describe('text provider effects', () => {
             filters: [filter, { ...filter, id: 'disabled', enabled: false }],
           }),
         ),
-      ).toEqual({ sexual: 0.1, custom: { garden: 0.9 } });
+      ).toEqual({ custom: { garden: 0.9 } });
       expect(body).toMatchObject({
         state: { tweet_text: 'Garden advice' },
         questions: {
@@ -204,7 +223,9 @@ describe('text provider effects', () => {
               'abort',
               () =>
                 response.resolve(
-                  HttpResponse.json({ answers: { sexual: { type: 'noul', noul: 0.1 } } }),
+                  HttpResponse.json({
+                    answers: { 'custom:sexual-text': { type: 'noul', noul: 0.1 } },
+                  }),
                 ),
               { once: true },
             );

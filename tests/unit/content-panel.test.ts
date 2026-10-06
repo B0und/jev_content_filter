@@ -103,9 +103,12 @@ describe('inspector panel', () => {
   it('hides disabled categories from the inspector panel', async () => {
     const configured = baseSettings();
     configured.enabled.drawings = false;
-    configured.enabled.sexualText = false;
+    configured.textFilters = [];
     configured.enabled.aiGenerated = false;
-    const test = await startRuntime({ enabled: configured.enabled });
+    const test = await startRuntime({
+      enabled: configured.enabled,
+      textFilters: configured.textFilters,
+    });
     try {
       const article = buildTweetArticle({
         id: '5003',
@@ -171,7 +174,6 @@ it.each(['body text', ''])('shows custom preview scores separately with body %j'
   try {
     test.bg.respond = (request) => ({
       ok: true,
-      sexual: 0.01,
       custom: { garden: request.text.includes('garden') ? 0.9 : 0.1 },
     });
     const article = buildTweetArticle({ id: '5900', text, previewText: 'garden preview' });
@@ -218,7 +220,7 @@ it('refreshes an open inspector after custom labels and thresholds change withou
   };
   const test = await startRuntime({ enabled: configured.enabled, textFilters: [filter] });
   try {
-    test.bg.respond = () => ({ ok: true, sexual: 0.01, custom: { garden: 0.9 } });
+    test.bg.respond = () => ({ ok: true, custom: { garden: 0.9 } });
     const article = buildTweetArticle({ id: '5902', text: 'garden' });
     test.handle.discover();
     await until(() => article.hasAttribute('data-jev-hidden'));
@@ -233,7 +235,9 @@ it('refreshes an open inspector after custom labels and thresholds change withou
     });
     await until(() => !article.hasAttribute('data-jev-hidden'));
     expect(root?.textContent).toContain('Renamed filter');
-    expect(root?.textContent).toContain('95.0%');
+    expect(root?.querySelector<HTMLInputElement>('[data-jev-cat="custom:garden"]')?.value).toBe(
+      '95',
+    );
     expect(root?.querySelector('.head')?.textContent).toBe('Allowed');
     expect(test.bg.jevCalls).toHaveLength(1);
   } finally {
@@ -254,7 +258,6 @@ it('preserves inspector threshold drafts until that saved threshold changes', as
   try {
     test.bg.respond = () => ({
       ok: true,
-      sexual: 0.01,
       custom: { garden: 0.1 },
     });
     const article = buildTweetArticle({ id: '5903', text: 'garden' });
@@ -262,7 +265,7 @@ it('preserves inspector threshold drafts until that saved threshold changes', as
     await until(() => aria(iconButton(article)).includes('Allowed'));
     iconButton(article).dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }));
     const root = document.querySelector('[data-jev-panel]')?.shadowRoot;
-    const threshold = () => root?.querySelector<HTMLInputElement>('[data-jev-cat="sexualText"]');
+    const threshold = () => root?.querySelector<HTMLInputElement>('[data-jev-cat="custom:garden"]');
     const input = threshold();
     if (!input) throw new Error('threshold input missing');
     input.focus();
@@ -279,9 +282,8 @@ it('preserves inspector threshold drafts until that saved threshold changes', as
     expect(root?.activeElement).toBe(threshold());
     await browser.storage.local.set({
       settings: applySettingsChange(settings.current, {
-        field: 'threshold',
-        category: 'sexualText',
-        value: 0.75,
+        field: 'textFilter',
+        value: { ...settings.current.textFilters[0]!, threshold: 0.75 },
       }),
     });
     await until(() => threshold()?.value === '75');

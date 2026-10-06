@@ -1,6 +1,6 @@
 # Jev Feed Filter
 
-A Chromium MV3 extension that filters posts and link previews on X and Twitter. Images use local NSFWJS MobileNetV2 and an Anime DBRating companion for sensitivity in drawings; AI-written text uses local E5-small q8. Sexual-text and custom text filters use TypeSafe Jev through Vercel AI Gateway, TypeSafe AI, or OpenRouter. NSFWJS and E5 weights are downloaded and cached after startup; Anime DBRating weights are bundled with the extension.
+A Chromium MV3 extension that filters posts and link previews on X and Twitter. Images use local NSFWJS MobileNetV2 and an Anime DBRating companion for sensitivity in drawings; AI-written text uses local E5-small q8. User-defined text filters use TypeSafe Jev through Vercel AI Gateway, TypeSafe AI, or OpenRouter. NSFWJS and E5 weights are downloaded and cached after startup; Anime DBRating weights are bundled with the extension.
 
 ## Development and installation
 
@@ -98,7 +98,7 @@ Clearing requires the worker to read the stored rows first so its deletion recei
 
 ## Privacy and request consistency
 
-Post and link-preview text go to the selected provider only when sexual-text checks or custom text filters are enabled and the selected provider has a key. AI-written-text checks run locally. Images are downloaded without credentials from X's media hosts and processed locally. NSFWJS weights come from the pinned NSFWJS GitHub revision; E5 weights and tokenizer/config files come from the pinned Hugging Face revision. Model downloads do not include post text or images.
+Post and link-preview text go to the selected provider only when text filters are enabled and the selected provider has a key. AI-written-text checks run locally. Images are downloaded without credentials from X's media hosts and processed locally. NSFWJS weights come from the pinned NSFWJS GitHub revision; E5 weights and tokenizer/config files come from the pinned Hugging Face revision. Model downloads do not include post text or images.
 
 API keys, allow overrides, score caches, and logs are stored in extension-local browser storage. Keys are not encrypted by this application. Blocked logs contain short post snippets, so treat them as browsing data.
 
@@ -106,9 +106,9 @@ The background worker serializes field-level settings changes from popups and in
 
 Jev requests use AI SDK's experimental `experimental_decide` API with `boolean` questions and application-owned probability thresholds. Vercel uses its `decisionModel`; TypeSafe uses `@ai-sdk/typesafe-ai`. OpenRouter uses the same native Jev schema through the TypeSafe adapter with its HTTP destination set to OpenRouter's Decisions endpoint. SDK versions are pinned because this API is experimental. See the [TypeSafe provider documentation](https://ai-sdk.dev/providers/ai-sdk-providers/typesafe-ai).
 
-Custom filter instructions join the built-in sexual-text question in one decision call. Each rule gets a stable ID; instruction edits invalidate cached text decisions and rescan existing posts and link previews. Name and threshold edits reuse saved decisions. Failed decisions remain visible with an error instead of being hidden by a default score.
+Sexual text is an initial text-filter preset. You can edit or delete it like any other rule; deleting it stays deleted. All enabled filter instructions become questions in one decision call. Each rule gets a stable ID; instruction edits invalidate cached text decisions and rescan existing posts and link previews. Name and threshold edits reuse saved decisions. Failed decisions remain visible with an error instead of being hidden by a default score.
 
-Historical single-key settings migrate into the selected provider's key slot only. The worker rewrites normalized settings without the old shared-key field. Score-cache version 7 ignores earlier entries and includes local model identity/revision and text-check type.
+Older sexual-text settings migrate into the preset, preserving their enabled state and threshold. Historical single-key settings migrate into the selected provider's key slot only. The worker rewrites normalized settings without the old shared-key field. Score-cache version 7 ignores earlier entries and includes local model identity/revision and text-check type.
 
 ## Benchmark lab
 

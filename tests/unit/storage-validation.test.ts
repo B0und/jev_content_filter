@@ -15,16 +15,24 @@ describe('stored data validation', () => {
       snippet: 'blocked content',
       surface: 'Text',
       ts: 1,
-      reasons: [{ key: 'sexualText', score: 0.9 }],
+      reasons: [{ key: 'custom:sexual-text', score: 0.9 }],
     };
     await fakeBrowser.storage.local.set({
       blockedLog: [
         null,
         entry,
+        { ...entry, tweetId: 'legacy', reasons: [{ key: 'sexualText', score: 0.9 }] },
         { ...entry, tweetId: 'invalid', reasons: [{ key: 'unknown', score: 0.9 }] },
       ],
     });
-    expect(await Effect.runPromise(loadLog())).toEqual([entry]);
+    expect(await Effect.runPromise(loadLog())).toEqual([
+      entry,
+      {
+        ...entry,
+        tweetId: 'legacy',
+        reasons: [{ key: 'custom:sexual-text', score: 0.9, label: 'Sexual text' }],
+      },
+    ]);
   });
 
   it('preserves legacy scan errors and post-linked errors without admitting malformed rows', async () => {

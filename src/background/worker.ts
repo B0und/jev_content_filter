@@ -302,7 +302,7 @@ export class BackgroundWorker extends Context.Service<BackgroundWorker, Backgrou
             provider: request.provider,
             apiKey,
             text: request.text,
-            filters: settings?.textFilters,
+            filters: settings?.textFilters ?? [],
           }),
         );
         const current = yield* Ref.get(settingsState);

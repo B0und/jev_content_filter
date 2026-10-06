@@ -11,6 +11,53 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllEnvs());
 
 describe('settings storage normalization', () => {
+  it('seeds the preset as ordinary editable initial data and never restores a deleted preset', async () => {
+    const initial = await Effect.runPromise(loadSettings());
+    expect(initial.textFilters).toEqual(defaultSettings().textFilters);
+    const preset = initial.textFilters[0]!;
+    const edited = applySettingsChange(initial, {
+      field: 'textFilter',
+      value: { ...preset, name: 'Sports', instructions: 'Sports results', threshold: 0.4 },
+    });
+    await fakeBrowser.storage.local.set({ settings: edited });
+    expect((await Effect.runPromise(loadSettings())).textFilters).toEqual(edited.textFilters);
+    await fakeBrowser.storage.local.set({
+      settings: applySettingsChange(edited, { field: 'deleteTextFilter', id: preset.id }),
+    });
+    expect((await Effect.runPromise(loadSettings())).textFilters).toEqual([]);
+  });
+
+  it('migrates the legacy preset without losing existing user rules or its saved cutoff', async () => {
+    const rules = Array.from({ length: 20 }, (_, index) => ({
+      id: `rule-${index}`,
+      name: `Rule ${index}`,
+      instructions: `Topic ${index}`,
+      enabled: true,
+      threshold: 0.5,
+    }));
+    await fakeBrowser.storage.local.set({
+      settings: {
+        enabled: { sexualText: false },
+        thresholds: { sexualText: 0.37 },
+        textFilters: rules,
+      },
+    });
+    const migrated = await Effect.runPromise(loadSettings());
+    expect(migrated.textFilters).toEqual([
+      { ...defaultSettings().textFilters[0], enabled: false, threshold: 0.37 },
+      ...rules,
+    ]);
+    expect(migrated.enabled).not.toHaveProperty('sexualText');
+    expect(migrated.thresholds).not.toHaveProperty('sexualText');
+    await fakeBrowser.storage.local.set({ settings: migrated });
+    expect((await Effect.runPromise(loadSettings())).textFilters).toEqual(migrated.textFilters);
+  });
+
+  it('migrates the preset legacy slider', async () => {
+    await fakeBrowser.storage.local.set({ settings: { sliders: { sexualText: 100 } } });
+    expect((await Effect.runPromise(loadSettings())).textFilters[0]!.threshold).toBeCloseTo(0.45);
+  });
+
   it('does not obtain credentials from build-time environment values', async () => {
     const loaded = await Effect.runPromise(loadSettings());
     expect(Object.values(loaded.providerKeys)).toEqual(['', '', '']);
@@ -132,11 +179,11 @@ describe('custom text filters', () => {
       field: 'textFilter',
       value: { ...filter, enabled: false },
     });
-    expect(disabled.textFilters[1]).toEqual(restored.textFilters[1]);
+    expect(disabled.textFilters[2]).toEqual(restored.textFilters[2]);
     expect(disabled.textConfigRevision).toBe(3);
     expect(
       applySettingsChange(disabled, { field: 'deleteTextFilter', id: filter.id }).textFilters,
-    ).toEqual([restored.textFilters[1]]);
+    ).toEqual([restored.textFilters[0], restored.textFilters[2]]);
   });
   it('ignores corrupt and duplicate stored rules without losing valid ones', async () => {
     await fakeBrowser.storage.local.set({

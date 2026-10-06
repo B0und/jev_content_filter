@@ -2,6 +2,41 @@ import { test, expect, remoteSettings } from './fixtures';
 import * as Schema from 'effect/Schema';
 import { SettingsSchema } from '../../src/filtering/schemas';
 
+test.beforeEach(async ({ setSettings }) => {
+  const configured = remoteSettings();
+  configured.textFilters = [];
+  await setSettings(configured);
+});
+
+test('the initial preset can become an unrelated rule and deletion stays saved', async ({
+  page,
+  context,
+  extensionId,
+  setSettings,
+}) => {
+  const configured = remoteSettings();
+  configured.providerKeys.vercel = 'test-only-not-a-real-key';
+  await setSettings(configured);
+  await page.goto('https://x.com/home');
+  const post = page.locator('[data-post="101"]');
+  await expect(post).toBeVisible();
+  const popup = await context.newPage();
+  await popup.goto(`chrome-extension://${extensionId}/popup.html`);
+  await popup.getByRole('button', { name: 'Edit', exact: true }).click();
+  await popup.getByLabel('Filter name', { exact: true }).fill('Outdoor hobbies');
+  await popup.getByLabel('What should be hidden?').fill('Posts about the garden');
+  await popup.getByRole('button', { name: 'Save filter' }).click();
+  await expect(post).toBeHidden();
+  await popup.reload();
+  await expect(
+    popup.getByRole('switch', { name: 'Enable Outdoor hobbies', exact: true }),
+  ).toBeChecked();
+  await popup.getByRole('button', { name: 'Delete Outdoor hobbies', exact: true }).click();
+  await expect(post).toBeVisible();
+  await popup.reload();
+  await expect(popup.locator('.custom-filter')).toHaveCount(0);
+});
+
 test('custom filters can be created, edited, disabled and deleted while the feed updates', async ({
   page,
   context,
@@ -10,6 +45,7 @@ test('custom filters can be created, edited, disabled and deleted while the feed
   worker,
 }) => {
   const settings = remoteSettings();
+  settings.textFilters = [];
   for (const key of Object.keys(settings.enabled) as Array<keyof typeof settings.enabled>)
     settings.enabled[key] = false;
   settings.providerKeys.vercel = 'test-only-not-a-real-key';
@@ -50,7 +86,12 @@ test('custom filters can be created, edited, disabled and deleted while the feed
   await expect(garden).toBeHidden();
   const logs = await context.newPage();
   await logs.goto(`chrome-extension://${extensionId}/logs.html`);
-  await expect(logs.locator('.col-reasons').filter({ hasText: 'Gardening 90%' })).toBeVisible();
+  await expect(
+    logs
+      .locator('.row')
+      .filter({ hasText: 'A calm afternoon in the garden.' })
+      .locator('.col-reasons'),
+  ).toHaveText('Gardening 90%');
   await popup.getByRole('button', { name: 'Delete Gardening' }).click();
   await expect(garden).toBeVisible();
   await expect

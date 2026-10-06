@@ -612,11 +612,13 @@ function renderPanel(post: Post): void {
         values.push(
           `Preview ${previewScore === undefined ? 'not checked' : `${(previewScore * 100).toFixed(1)}%`}`,
         );
-      row.append(
-        element('td', filter.name),
-        element('td', values.join(' · ')),
-        element('td', `${(filter.threshold * 100).toFixed(1)}%`),
+      row.append(element('td', filter.name), element('td', values.join(' · ')));
+      const cell = element('td');
+      cell.append(
+        thresholdInput(post, `custom:${filter.id}`, filter.threshold),
+        document.createTextNode('%'),
       );
+      row.append(cell);
       textTable.append(row);
     }
     panel.append(textTable);
@@ -715,32 +717,48 @@ function buildCategoryRow(
     element('td', score === undefined ? 'Not checked' : `${(score * 100).toFixed(1)}%`),
   );
   const cell = element('td');
+  cell.append(
+    thresholdInput(post, key, settings.current.thresholds[key]),
+    document.createTextNode('%'),
+  );
+  row.append(cell);
+  return row;
+}
+
+function thresholdInput(post: Post, key: ScoreKey, threshold: number): HTMLInputElement {
   const input = element('input');
   input.type = 'number';
   input.min = '0';
   input.max = '100';
   input.step = '0.1';
-  input.defaultValue = String(Number((settings.current.thresholds[key] * 100).toFixed(1)));
-  input.setAttribute('aria-label', `${CATEGORY_LABELS[key]} threshold percent`);
+  input.defaultValue = String(Number((threshold * 100).toFixed(1)));
+  input.setAttribute(
+    'aria-label',
+    `${scoreLabel(key, settings.current.textFilters)} threshold percent`,
+  );
   input.setAttribute('data-jev-cat', key);
   input.addEventListener('change', () => {
     if (!input.validity.valid || input.value === '') return;
+    const filter = settings.current.textFilters.find((item) => `custom:${item.id}` === key);
+    if (key.startsWith('custom:') && !filter) return;
     void browserRuntime
       .runPromise(
-        updateSettings({
-          field: 'threshold',
-          category: key,
-          value: input.valueAsNumber / 100,
-        }),
+        updateSettings(
+          filter
+            ? { field: 'textFilter', value: { ...filter, threshold: input.valueAsNumber / 100 } }
+            : {
+                field: 'threshold',
+                category: key as CategoryKey,
+                value: input.valueAsNumber / 100,
+              },
+        ),
       )
       .catch((error: unknown) => {
         post.errors.push(`Settings: ${message(error)}`);
         renderPostAtUiBoundary(post);
       });
   });
-  cell.append(input, document.createTextNode('%'));
-  row.append(cell);
-  return row;
+  return input;
 }
 
 export function closePanelIfOpen(): void {

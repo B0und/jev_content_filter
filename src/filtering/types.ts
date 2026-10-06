@@ -1,6 +1,6 @@
 import type { ModelStatuses } from '../inference/contracts';
 
-export type CategoryKey = 'porn' | 'hentai' | 'sexy' | 'drawings' | 'sexualText' | 'aiGenerated';
+export type CategoryKey = 'porn' | 'hentai' | 'sexy' | 'drawings' | 'aiGenerated';
 export type ScoreKey = CategoryKey | `custom:${string}`;
 export interface TextFilter {
   id: string;
@@ -9,6 +9,15 @@ export interface TextFilter {
   enabled: boolean;
   threshold: number;
 }
+export const SEXUAL_TEXT_FILTER_ID = 'sexual-text';
+export const DEFAULT_TEXT_FILTER: TextFilter = {
+  id: SEXUAL_TEXT_FILTER_ID,
+  name: 'Sexual text',
+  instructions:
+    'Explicit sexual content, lewd innuendo, heavily implied sexual content, or engagement bait designed to arouse.',
+  enabled: true,
+  threshold: 0.65,
+};
 /** Only active questions affect decisions; labels and cutoffs are application policy. */
 export function textDecisionSignature(filters: TextFilter[]): string {
   return JSON.stringify(
@@ -106,8 +115,7 @@ export type BgRequest =
 export type JevReply =
   | {
       ok: true;
-      sexual: number;
-      custom?: Record<string, number>;
+      custom: Record<string, number>;
       provider: TextProvider;
       revision: number;
     }
@@ -127,22 +135,14 @@ export const CATEGORY_LABELS: Record<CategoryKey, string> = {
   hentai: 'Hentai',
   sexy: 'Suggestive images',
   drawings: 'Drawings / anime',
-  sexualText: 'Sexual text',
   aiGenerated: 'AI-written text',
 };
-export const CATEGORY_KEYS: CategoryKey[] = [
-  'porn',
-  'hentai',
-  'sexy',
-  'drawings',
-  'sexualText',
-  'aiGenerated',
-];
+export const CATEGORY_KEYS: CategoryKey[] = ['porn', 'hentai', 'sexy', 'drawings', 'aiGenerated'];
 export const IMAGE_KEYS: CategoryKey[] = ['porn', 'hentai', 'sexy', 'drawings'];
-export const TEXT_KEYS: CategoryKey[] = ['sexualText', 'aiGenerated'];
+export const TEXT_KEYS: CategoryKey[] = ['aiGenerated'];
 export function defaultSettings(): Settings {
   return {
-    textFilters: [],
+    textFilters: [{ ...DEFAULT_TEXT_FILTER }],
     masterEnabled: true,
     textProvider: 'vercel',
     providerKeys: { vercel: '', typesafe: '', openrouter: '' },
@@ -152,7 +152,6 @@ export function defaultSettings(): Settings {
       hentai: true,
       sexy: true,
       drawings: true,
-      sexualText: true,
       aiGenerated: true,
     },
     thresholds: {
@@ -160,7 +159,6 @@ export function defaultSettings(): Settings {
       hentai: 0.6,
       sexy: 0.65,
       drawings: 0.7,
-      sexualText: 0.65,
       aiGenerated: 0.65,
     },
   };

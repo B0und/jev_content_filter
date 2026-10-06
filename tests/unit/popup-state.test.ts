@@ -253,7 +253,7 @@ it('reports the save outcome and clears a failed-save message after a successful
       threshold: 0.72,
     };
     await expect(state.update({ field: 'textFilter', value: filter })).resolves.toBe(false);
-    expect(state.getSnapshot().settings?.textFilters).toEqual([]);
+    expect(state.getSnapshot().settings?.textFilters).toEqual(defaultSettings().textFilters);
     expect(state.getSnapshot().error).toContain('Could not save settings');
     fail = false;
     await expect(state.update({ field: 'textFilter', value: filter })).resolves.toBe(true);
@@ -279,7 +279,10 @@ it('keeps another edits save error until that edit is successfully retried', asy
   try {
     await whenSnapshot(state, () => state.getSnapshot().settings !== null);
     const failed = state.update({ field: 'masterEnabled', value: false });
-    const successful = state.update({ field: 'threshold', category: 'sexualText', value: 0.75 });
+    const successful = state.update({
+      field: 'textFilter',
+      value: { ...defaultSettings().textFilters[0]!, threshold: 0.75 },
+    });
     await whenSnapshot(state, () => requests.length === 2);
     requests[0]?.complete.reject('first write failed');
     await expect(failed).resolves.toBe(false);
@@ -356,7 +359,7 @@ it('ignores a save error arriving after its editor closes', async () => {
     await expect(saving).resolves.toBe(false);
     expect(state.getSnapshot().error).toBe('');
     expect(state.getSnapshot().saving).toBe(false);
-    expect(state.getSnapshot().settings?.textFilters).toEqual([]);
+    expect(state.getSnapshot().settings?.textFilters).toEqual(defaultSettings().textFilters);
   } finally {
     stop();
   }

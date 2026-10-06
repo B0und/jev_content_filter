@@ -72,25 +72,29 @@ export const test = base.extend<{
         const text = request.state.tweet_text;
         if (text.includes('API_FAILURE'))
           return route.fulfill({ status: 401, json: { error: 'Invalid test API key' } });
+        const textWords = new Set(text.toLowerCase().match(/\p{L}{4,}/gu) ?? []);
+        // Deterministic fake provider: shared content words match, and the
+        // BLOCK_TEXT fixture marker forces a match for every requested rule.
+        const matchesQuestion = (instructions: string) =>
+          text.includes('BLOCK_TEXT') ||
+          (
+            (instructions.split('\n').slice(1).join('\n') || instructions)
+              .toLowerCase()
+              .match(/\p{L}{4,}/gu) ?? []
+          ).some((word) => !['posts', 'about', 'content'].includes(word) && textWords.has(word));
         return route.fulfill({
           json: {
-            answers: {
-              sexual: { type: 'boolean', probability: text.includes('BLOCK_TEXT') ? 0.99 : 0.01 },
-              ...Object.fromEntries(
-                Object.entries(request.questions)
-                  .filter(([key]) => key.startsWith('custom:'))
-                  .map(([key, question]) => [
-                    key,
-                    {
-                      type: 'boolean',
-                      probability:
-                        text.includes('garden') && question.instructions.includes('garden')
-                          ? 0.9
-                          : 0.01,
-                    },
-                  ]),
-              ),
-            },
+            answers: Object.fromEntries(
+              Object.entries(request.questions)
+                .filter(([key]) => key.startsWith('custom:'))
+                .map(([key, question]) => [
+                  key,
+                  {
+                    type: 'boolean',
+                    probability: matchesQuestion(question.instructions) ? 0.9 : 0.01,
+                  },
+                ]),
+            ),
           },
         });
       }

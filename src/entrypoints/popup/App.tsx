@@ -33,20 +33,18 @@ const PROVIDER_DETAILS: Record<
   vercel: {
     keyLabel: 'Vercel AI Gateway API key',
     placeholder: 'vck_…',
-    description:
-      'Post text is sent to Jev through Vercel AI Gateway for sexual-content and custom filter checks.',
+    description: 'Post text is sent to Jev through Vercel AI Gateway to check your text filters.',
   },
   typesafe: {
     keyLabel: 'TypeSafe API key',
     placeholder: 'Paste your TypeSafe key',
-    description:
-      "Post text is sent to Jev's Decisions API for sexual-content and custom filter checks.",
+    description: "Post text is sent to Jev's Decisions API to check your text filters.",
   },
   openrouter: {
     keyLabel: 'OpenRouter API key',
     placeholder: 'Paste your OpenRouter key',
     description:
-      "Post text is sent to Jev through OpenRouter's Decisions API for sexual-content and custom filter checks.",
+      "Post text is sent to Jev through OpenRouter's Decisions API to check your text filters.",
   },
 };
 
@@ -154,21 +152,6 @@ export function App() {
             </p>
           </section>
 
-          <section
-            className="filter-section sexual-text-section"
-            aria-labelledby="sexual-text-heading"
-          >
-            <div className="section-heading">
-              <h2 id="sexual-text-heading">Sexual-text checks</h2>
-              <p>
-                These checks use Jev and the provider key below. They do not control AI-written-text
-                checks.
-              </p>
-            </div>
-            <div className="category-list">
-              <Category category="sexualText" settings={settings} update={popupState.update} />
-            </div>
-          </section>
           <CustomTextFilters settings={settings} />
           <section className="filter-section">
             <ProviderSettings settings={settings} report={report} />
@@ -455,7 +438,7 @@ function ProviderSettings({ settings, report }: { settings: Settings; report: Ta
       </div>
       <ProviderKey key={settings.textProvider} settings={settings} />
       <p className="provider-description">
-        {providerDetails.description} Without a key, sexual text is not checked.
+        {providerDetails.description} Without a key, these text filters are not checked.
       </p>
     </details>
   );

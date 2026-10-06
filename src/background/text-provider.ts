@@ -6,15 +6,14 @@ import * as Schema from 'effect/Schema';
 import type { TextProvider, TextFilter } from '../filtering/types';
 
 export interface TextScores {
-  sexual: number;
-  custom?: Record<string, number>;
+  custom: Record<string, number>;
 }
 
 interface TextDecisionRequest {
   provider: TextProvider;
   apiKey: string;
   text: string;
-  filters?: TextFilter[];
+  filters: TextFilter[];
 }
 
 export class TextProviderError extends Schema.TaggedError<TextProviderError>()(
@@ -26,22 +25,7 @@ export class TextProviderError extends Schema.TaggedError<TextProviderError>()(
   },
 ) {}
 
-const BUILTIN_QUESTIONS = {
-  sexual: {
-    type: 'boolean',
-    instructions:
-      'Does this tweet contain explicit sexual content, lewd innuendo, heavily implied sexual content, or engagement bait designed to arouse?',
-    criteria: {
-      true: 'Lewd imagery descriptions, sexual innuendo, thirst traps, or gooner-bait phrasing',
-      false:
-        'Ordinary non-sexual content, even if it discusses news, health, or relationships factually',
-    },
-  },
-} as const;
-
-const validProbability = Schema.is(
-  Schema.Finite.check(Schema.isBetween({ minimum: 0, maximum: 1 })),
-);
+type BooleanDecisionQuestion = Extract<Experimental_DecisionQuestion, { type: 'boolean' }>;
 
 let gatewayInstance: GatewayProvider | null = null;
 let gatewayKeyUsed = '';
@@ -76,12 +60,13 @@ export const evaluateText = Effect.fnUntraced(function* ({
   provider,
   apiKey,
   text,
-  filters = [],
+  filters,
 }: TextDecisionRequest): Effect.fn.Return<TextScores, TextProviderError> {
   return yield* Effect.tryPromise({
     try: async (signal) => {
-      const questions: Record<string, Experimental_DecisionQuestion> = { ...BUILTIN_QUESTIONS };
       const activeFilters = filters.filter((filter) => filter.enabled);
+      if (!activeFilters.length) return { custom: {} };
+      const questions: Record<string, BooleanDecisionQuestion> = {};
       for (const filter of activeFilters) {
         questions[`custom:${filter.id}`] = {
           type: 'boolean',
@@ -107,17 +92,14 @@ export const evaluateText = Effect.fnUntraced(function* ({
         state: { tweet_text: text },
         questions,
       });
-      const sexual = result.answers.sexual;
-      if (sexual?.type !== 'boolean' || !validProbability(sexual.probability))
-        throw new Error('Jev returned invalid probability for sexual text.');
+      // experimental_decide returns a complete, validated result: boolean
+      // probabilities are guaranteed finite and within [0, 1] by the SDK.
       const custom: Record<string, number> = {};
       for (const filter of activeFilters) {
-        const answer = result.answers[`custom:${filter.id}`];
-        if (answer?.type !== 'boolean' || !validProbability(answer.probability))
-          throw new Error(`Jev returned invalid probability for ${filter.name}.`);
+        const answer = result.answers[`custom:${filter.id}`]!;
         custom[filter.id] = answer.probability;
       }
-      return { sexual: sexual.probability, ...(activeFilters.length ? { custom } : {}) };
+      return { custom };
     },
     catch: (cause) => asTextProviderError(provider, apiKey, cause),
   });
