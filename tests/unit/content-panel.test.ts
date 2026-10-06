@@ -241,3 +241,53 @@ it('refreshes an open inspector after custom labels and thresholds change withou
     clearFeed();
   }
 });
+
+it('preserves inspector threshold drafts until that saved threshold changes', async () => {
+  const filter = {
+    id: 'garden',
+    name: 'Gardening',
+    instructions: 'garden',
+    threshold: 0.65,
+    enabled: true,
+  };
+  const test = await startRuntime({ textFilters: [filter] });
+  try {
+    test.bg.respond = () => ({
+      ok: true,
+      sexual: 0.01,
+      custom: { garden: 0.1 },
+    });
+    const article = buildTweetArticle({ id: '5903', text: 'garden' });
+    test.handle.discover();
+    await until(() => aria(iconButton(article)).includes('Allowed'));
+    iconButton(article).dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }));
+    const root = document.querySelector('[data-jev-panel]')?.shadowRoot;
+    const threshold = () => root?.querySelector<HTMLInputElement>('[data-jev-cat="sexualText"]');
+    const input = threshold();
+    if (!input) throw new Error('threshold input missing');
+    input.focus();
+    input.value = '42';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    await browser.storage.local.set({
+      settings: applySettingsChange(settings.current, {
+        field: 'textFilter',
+        value: { ...filter, name: 'Renamed filter' },
+      }),
+    });
+    await until(() => !!root?.textContent?.includes('Renamed filter'));
+    expect(threshold()?.value).toBe('42');
+    expect(root?.activeElement).toBe(threshold());
+    await browser.storage.local.set({
+      settings: applySettingsChange(settings.current, {
+        field: 'threshold',
+        category: 'sexualText',
+        value: 0.75,
+      }),
+    });
+    await until(() => threshold()?.value === '75');
+    expect(test.bg.jevCalls).toHaveLength(1);
+  } finally {
+    stopRuntime(test);
+    clearFeed();
+  }
+});
