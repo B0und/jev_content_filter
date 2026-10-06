@@ -347,7 +347,9 @@ function TextFilterEditor({ filter, onClose }: { filter: TextFilter | null; onCl
               id,
               name: name.trim(),
               instructions: instructions.trim(),
-              enabled: filter?.enabled ?? true,
+              enabled:
+                popupState.getSnapshot().settings?.textFilters.find((current) => current.id === id)
+                  ?.enabled ?? true,
               threshold: Number(threshold) / 100,
             },
           });

@@ -38,6 +38,16 @@ test('custom filters can be created, edited, disabled and deleted while the feed
   await expect(garden).toBeVisible();
   await popup.getByRole('switch', { name: 'Enable Gardening', exact: true }).click();
   await expect(garden).toBeHidden();
+  await popup.getByRole('button', { name: 'Edit', exact: true }).click();
+  await popup.getByRole('switch', { name: 'Enable Gardening', exact: true }).click();
+  await expect(garden).toBeVisible();
+  await popup.getByRole('button', { name: 'Save filter' }).click();
+  await expect(
+    popup.getByRole('switch', { name: 'Enable Gardening', exact: true }),
+  ).not.toBeChecked();
+  await expect(garden).toBeVisible();
+  await popup.getByRole('switch', { name: 'Enable Gardening', exact: true }).click();
+  await expect(garden).toBeHidden();
   const logs = await context.newPage();
   await logs.goto(`chrome-extension://${extensionId}/logs.html`);
   await expect(logs.locator('.col-reasons').filter({ hasText: 'Gardening 90%' })).toBeVisible();

@@ -59,6 +59,7 @@ type OptimisticEdit = {
 export function createPopupState(dependencies: PopupStateDependencies): PopupState {
   const subscribers = new Set<() => void>();
   const optimisticEdits: OptimisticEdit[] = [];
+  const saveErrors = new Map<string, { message: string }>();
   const settingsReadLock = Semaphore.makeUnsafe(1);
   const statusReadLock = Semaphore.makeUnsafe(1);
   const modelReadLock = Semaphore.makeUnsafe(1);
@@ -208,12 +209,36 @@ export function createPopupState(dependencies: PopupStateDependencies): PopupSta
     return stop;
   }
 
+  function editKey(change: SettingsChange): string {
+    switch (change.field) {
+      case 'textFilter':
+        return `textFilter:${change.value.id}`;
+      case 'deleteTextFilter':
+        return `textFilter:${change.id}`;
+      case 'providerKey':
+        return `providerKey:${change.provider}`;
+      case 'enabled':
+      case 'threshold':
+        return `${change.field}:${change.category}`;
+      default:
+        return change.field;
+    }
+  }
+
+  function saveError(key: string, cause: unknown): void {
+    const error = `Could not save settings: ${String(cause)}`;
+    saveErrors.set(key, { message: error });
+    publish({ error });
+  }
+
   function update(change: SettingsChange): Promise<boolean> {
     if (!confirmedSettings) return Promise.resolve(false);
+    const key = editKey(change);
+    const retriedError = saveErrors.get(key);
     try {
       applySettingsChange(currentSettings() ?? confirmedSettings, change);
     } catch (cause) {
-      publish({ error: `Could not save settings: ${String(cause)}` });
+      saveError(key, cause);
       return Promise.resolve(false);
     }
     const edit: OptimisticEdit = { change, phase: 'saving' };
@@ -227,14 +252,19 @@ export function createPopupState(dependencies: PopupStateDependencies): PopupSta
         Effect.match({
           onSuccess: () => {
             edit.phase = 'confirmed';
-            publish({ error: '' });
+            if (saveErrors.get(key) === retriedError) saveErrors.delete(key);
+            const remainingError = [...saveErrors.values()].at(-1)?.message;
+            if (remainingError) publish({ error: remainingError });
+            else if (retriedError && snapshot.error === retriedError.message)
+              publish({ error: '' });
+            else publish();
             refreshSettingsWhileMounted?.();
             return true;
           },
           onFailure: (cause) => {
             const index = optimisticEdits.indexOf(edit);
             if (index >= 0) optimisticEdits.splice(index, 1);
-            publish({ error: `Could not save settings: ${String(cause)}` });
+            saveError(key, cause);
             refreshSettingsWhileMounted?.();
             return false;
           },

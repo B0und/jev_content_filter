@@ -262,3 +262,36 @@ it('reports the save outcome and clears a failed-save message after a successful
     stop();
   }
 });
+
+it('keeps another edits save error until that edit is successfully retried', async () => {
+  const requests: WriteRequest[] = [];
+  const state = createPopupState(
+    popupDependencies({
+      updateSettings: (change) =>
+        browserEffect('test save', () => {
+          const complete = deferred<Settings>();
+          requests.push({ change, complete });
+          return complete.promise;
+        }),
+    }),
+  );
+  const stop = state.start();
+  try {
+    await whenSnapshot(state, () => state.getSnapshot().settings !== null);
+    const failed = state.update({ field: 'masterEnabled', value: false });
+    const successful = state.update({ field: 'threshold', category: 'sexualText', value: 0.75 });
+    await whenSnapshot(state, () => requests.length === 2);
+    requests[0]?.complete.reject('first write failed');
+    await expect(failed).resolves.toBe(false);
+    requests[1]?.complete.resolve(defaultSettings());
+    await expect(successful).resolves.toBe(true);
+    expect(state.getSnapshot().error).toContain('first write failed');
+    const retry = state.update({ field: 'masterEnabled', value: false });
+    await whenSnapshot(state, () => requests.length === 3);
+    requests[2]?.complete.resolve(defaultSettings());
+    await expect(retry).resolves.toBe(true);
+    expect(state.getSnapshot().error).toBe('');
+  } finally {
+    stop();
+  }
+});
