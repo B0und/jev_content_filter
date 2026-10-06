@@ -1,3 +1,4 @@
+import { imageDimensionsFromData } from 'image-dimensions';
 import { createWorker, OEM, PSM, type Worker } from 'tesseract.js';
 
 let worker: Worker | undefined;
@@ -9,7 +10,13 @@ const MAX_OCR_EDGE = 2048;
 export async function extractImageText(dataUrl: string): Promise<string> {
   const response = await fetch(dataUrl);
   if (!response.ok) throw new Error(`Image text decoding failed (${response.status}).`);
-  const bitmap = await createImageBitmap(await response.blob());
+  const blob = await response.blob();
+  const dimensions = imageDimensionsFromData(new Uint8Array(await blob.arrayBuffer()));
+  if (!dimensions || dimensions.width <= 0 || dimensions.height <= 0)
+    throw new Error('Image dimensions could not be read before local OCR decoding.');
+  if (dimensions.width * dimensions.height > MAX_SOURCE_PIXELS)
+    throw new Error('Image exceeds the local OCR pixel budget.');
+  const bitmap = await createImageBitmap(blob);
   let image: Blob;
   try {
     if (bitmap.width * bitmap.height > MAX_SOURCE_PIXELS)
