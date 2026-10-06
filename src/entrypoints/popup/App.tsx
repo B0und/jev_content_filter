@@ -330,6 +330,7 @@ function CustomTextFilters({ settings }: { settings: Settings }) {
 function TextFilterEditor({ filter, onClose }: { filter: TextFilter | null; onClose: () => void }) {
   const [id] = useState(() => filter?.id ?? crypto.randomUUID());
   const [editorId] = useState(() => crypto.randomUUID());
+  useEffect(() => () => popupState.dismissEditorError(editorId), [editorId]);
   const [saving, setSaving] = useState(false);
   const [name, setName] = useState(filter?.name ?? '');
   const [instructions, setInstructions] = useState(filter?.instructions ?? '');
@@ -402,14 +403,7 @@ function TextFilterEditor({ filter, onClose }: { filter: TextFilter | null; onCl
         <button type="submit" disabled={saving}>
           {saving ? 'Saving filter…' : 'Save filter'}
         </button>
-        <button
-          type="button"
-          disabled={saving}
-          onClick={() => {
-            popupState.dismissEditorError(editorId);
-            onClose();
-          }}
-        >
+        <button type="button" disabled={saving} onClick={onClose}>
           Cancel
         </button>
       </div>

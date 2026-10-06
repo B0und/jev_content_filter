@@ -102,7 +102,7 @@ test('a failed filter save preserves the draft for a successful retry', async ({
   await expect(popup.getByRole('switch', { name: 'Enable Gardening', exact: true })).toBeChecked();
 });
 
-test('cancelling a failed new filter clears its abandoned save error', async ({
+test('cancelled and deleted editors clear their abandoned save errors', async ({
   context,
   extensionId,
   worker,
@@ -132,6 +132,20 @@ test('cancelling a failed new filter clears its abandoned save error', async ({
   await expect(
     popup.getByRole('switch', { name: 'Enable Replacement', exact: true }),
   ).toBeChecked();
+  await expect(error).toHaveCount(0);
+  await popup.getByRole('button', { name: 'Edit', exact: true }).click();
+  await worker.evaluate(() => {
+    const originalSet = chrome.storage.local.set.bind(chrome.storage.local);
+    chrome.storage.local.set = (items) => {
+      if (!('settings' in items)) return originalSet(items);
+      chrome.storage.local.set = originalSet;
+      return Promise.reject(new Error('Test edited filter save unavailable'));
+    };
+  });
+  await popup.getByRole('button', { name: 'Save filter' }).click();
+  await expect(error).toBeVisible();
+  await popup.getByRole('button', { name: 'Delete Replacement', exact: true }).click();
+  await expect(popup.getByLabel('Filter name', { exact: true })).toHaveCount(0);
   await expect(error).toHaveCount(0);
 });
 
