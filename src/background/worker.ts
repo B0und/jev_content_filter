@@ -15,8 +15,14 @@ import {
   type TextProvider,
 } from '../filtering/types';
 import { evaluateText, type TextScores } from './text-provider';
-import { runLocalInference, warmLocalModels } from './local-inference';
-import { MODEL_STATUS_KEY, initialModelStatuses, type ModelKind } from '../inference/contracts';
+import { runLocalInference, runLocalOcr, warmLocalModels } from './local-inference';
+import {
+  MODEL_STATUS_KEY,
+  initialModelStatuses,
+  encodeOcrReply,
+  OcrError,
+  type ModelKind,
+} from '../inference/contracts';
 
 const QUEUE_CONCURRENCY = 3;
 // The admission semaphore bounds all work to three active plus 64 waiting.
@@ -414,12 +420,23 @@ export class BackgroundWorker extends Context.Service<BackgroundWorker, Backgrou
           case 'jev':
             return yield* classify(request);
           case 'extract-image-text':
+            return yield* encodeOcrReply(
+              Effect.gen(function* () {
+                const image = yield* fetchImageDataUrl(request.url);
+                if (!image.ok) return yield* new OcrError({ message: image.error });
+                return yield* runLocalOcr(image.dataUrl);
+              }),
+            ).pipe(
+              Effect.mapError(
+                (error) => new BrowserError({ operation: 'encode OCR reply', cause: error }),
+              ),
+            );
           case 'classify-image': {
             const image = yield* fetchImageDataUrl(request.url);
             if (!image.ok) return image;
             return yield* runLocalInference({
               target: 'local-inference',
-              operation: request.type === 'extract-image-text' ? 'ocr' : 'image',
+              operation: 'image',
               dataUrl: image.dataUrl,
             });
           }

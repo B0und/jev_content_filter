@@ -2,7 +2,7 @@ import { Effect, Layer, ManagedRuntime, Semaphore } from 'effect';
 import * as Schema from 'effect/Schema';
 import { createLocalModels } from './models';
 import { extractImageText } from './ocr';
-import { InferenceRequestSchema, type InferenceReply } from './contracts';
+import { InferenceRequestSchema, encodeOcrReply, type InferenceReply } from './contracts';
 
 const WorkerRequestSchema = Schema.Struct({ id: Schema.Int, request: InferenceRequestSchema });
 class LocalInferenceError extends Schema.TaggedError<LocalInferenceError>()('LocalInferenceError', {
@@ -14,14 +14,24 @@ const models = createLocalModels((status) => self.postMessage({ type: 'status', 
 self.addEventListener('message', (event: MessageEvent<unknown>) => {
   if (!Schema.is(WorkerRequestSchema)(event.data)) return;
   const { id, request } = event.data;
+  if (request.operation === 'ocr') {
+    runtime.runFork(
+      inference
+        .withPermits(1)(encodeOcrReply(extractImageText(request.dataUrl)))
+        .pipe(
+          Effect.tap((reply) =>
+            Effect.sync(() => self.postMessage({ type: 'ocr-result', id, reply })),
+          ),
+        ),
+    );
+    return;
+  }
   const classify = Effect.tryPromise({
     try: async (): Promise<InferenceReply> => {
       if (request.operation === 'warmup') {
         await Promise.all(request.models.map((kind) => models.load(kind)));
         return { ok: true, scores: {} };
       }
-      if (request.operation === 'ocr')
-        return { ok: true, scores: {}, text: await extractImageText(request.dataUrl) };
       if (request.operation === 'image')
         return { ok: true, ...(await models.classifyImage(request.dataUrl)) };
       const scores = await models.classifyAiText(request.text);

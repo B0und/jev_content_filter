@@ -4,12 +4,17 @@ import { Clock, Effect, Semaphore } from 'effect';
 import * as Schema from 'effect/Schema';
 import { browser } from 'wxt/browser';
 import { browserEffect, BrowserError } from '../platform/browser';
-import { CATEGORY_KEYS, STORAGE_KEYS, type CategoryKey } from '../filtering/types';
+import {
+  CATEGORY_KEYS,
+  STORAGE_KEYS,
+  type CategoryKey,
+  type TextProvider,
+} from '../filtering/types';
 import { CategoryKeySchema } from '../filtering/schemas';
 import { settings, type Post } from './state';
 import { canonicalMediaUrl } from './dom';
 import { OCR_PIPELINE_REVISION, ocrImageUrl } from '../inference/ocr-policy';
-import { InferenceReplySchema } from '../inference/contracts';
+import { InferenceReplySchema, OcrReplyCodec } from '../inference/contracts';
 import { IMAGE_PIPELINE_REVISION, SELECTED_MODELS } from '../inference/model-catalog';
 const JevReplySchema = Schema.Union([
   Schema.Struct({
@@ -53,6 +58,44 @@ const CachedTimestampEntrySchema = Schema.Struct({ ts: Schema.Finite });
 const isCachedScoreEntry = Schema.is(CachedScoreEntrySchema);
 const isCachedTimestampEntry = Schema.is(CachedTimestampEntrySchema);
 const isCategoryKey = Schema.is(CategoryKeySchema);
+
+type CacheIdentity =
+  | { task: 'image' | 'imageText'; url: string }
+  | { task: 'sexualText'; provider: TextProvider; text: string }
+  | { task: 'aiText'; text: string };
+
+/** Build the single versioned cache key for every classifier input. */
+function cacheKey(identity: CacheIdentity): string {
+  let kind: string;
+  let revision: string;
+  let input: string;
+  switch (identity.task) {
+    case 'image':
+      kind = 'i';
+      revision = IMAGE_PIPELINE_REVISION;
+      input = canonicalMediaUrl(identity.url);
+      break;
+    case 'imageText':
+      kind = 'o';
+      revision = OCR_PIPELINE_REVISION;
+      input = canonicalMediaUrl(identity.url);
+      break;
+    case 'sexualText':
+      kind = 't';
+      revision = `${identity.provider}:${OCR_PIPELINE_REVISION}`;
+      input = identity.text;
+      break;
+    case 'aiText': {
+      kind = 'a';
+      const descriptor = SELECTED_MODELS.aiText;
+      revision = `${descriptor.id}:${descriptor.revision}`;
+      input = identity.text;
+      break;
+    }
+  }
+  return `${CACHE_PREFIX}${kind}:${revision}:${hash64(input)}`;
+}
+
 /** 64-bit-ish FNV-1a + djb2 pair, base36: collisions become vanishingly unlikely. */
 function hash64(input: string): string {
   let h1 = 0x811c9dc5;
@@ -136,7 +179,7 @@ const imageText = Effect.fnUntraced(function* (urls: string[]) {
     const outcome = yield* Effect.result(
       imageTextLock.withPermits(1)(
         Effect.gen(function* () {
-          const key = `${CACHE_PREFIX}o:${OCR_PIPELINE_REVISION}:${hash64(canonicalMediaUrl(url))}`;
+          const key = cacheKey({ task: 'imageText', url });
           const stored = yield* browserEffect('read image text cache', () =>
             browser.storage.local.get(key),
           );
@@ -144,21 +187,18 @@ const imageText = Effect.fnUntraced(function* (urls: string[]) {
           const raw: unknown = yield* browserEffect('read text in image locally', () =>
             browser.runtime.sendMessage({ type: 'extract-image-text', url: ocrImageUrl(url) }),
           );
-          const reply = yield* Schema.decodeUnknownEffect(InferenceReplySchema)(raw).pipe(
+          const words = yield* Schema.decodeUnknownEffect(OcrReplyCodec)(raw).pipe(
+            Effect.flatMap(Effect.fromResult),
             Effect.mapError(
-              () => new ClassificationError({ message: 'Invalid image text response.' }),
+              (cause) => new ClassificationError({ message: `Image text: ${cause.message}` }),
             ),
           );
-          if (!reply.ok)
-            return yield* new ClassificationError({ message: `Image text: ${reply.error}` });
-          if (reply.text === undefined)
-            return yield* new ClassificationError({ message: 'Image text response omitted text.' });
           const ts = yield* Clock.currentTimeMillis;
           yield* browserEffect('cache image text', () =>
-            browser.storage.local.set({ [key]: { text: reply.text, ts } }),
+            browser.storage.local.set({ [key]: { text: words, ts } }),
           ).pipe(Effect.ignore);
           if (++cacheWrites % 250 === 0) yield* evictCache();
-          return reply.text;
+          return words;
         }),
       ),
     );
@@ -185,66 +225,67 @@ export const textScores = Effect.fnUntraced(function* (
   const jobs: Array<
     Effect.Effect<Partial<Record<CategoryKey, number>>, BrowserError | ClassificationError>
   > = [];
-  if (current.enabled.sexualText)
-    jobs.push(
-      Effect.gen(function* () {
-        if (urls.length && !current.providerKeys[provider])
-          return yield* new ClassificationError({
-            message: 'Add an API key in the Text tab to check sexual text.',
-          });
-        const ocr = yield* imageText(urls);
-        extractionErrors.push(...ocr.errors);
-        const combined = [
-          text && `Tweet text:\n${text}`,
-          ...ocr.texts.map((words, index) => `Text in attached image ${index + 1}:\n${words}`),
-        ]
-          .filter(Boolean)
-          .join('\n\n');
-        if (!combined) return {};
-        const input = ocr.texts.length ? combined : text;
-        const key = `${CACHE_PREFIX}t:${provider}:${OCR_PIPELINE_REVISION}:${hash64(input)}`;
-        const cached = yield* readCache(key);
-        if (cached?.scores.sexualText !== undefined)
-          return { sexualText: cached.scores.sexualText };
-        if (!current.providerKeys[provider])
-          return yield* new ClassificationError({
-            message:
-              'Add an API key in the Text tab to check sexual text. Local AI-written-text detection does not need a key.',
-          });
-        const rawReply: unknown = yield* browserEffect('classify sexual text', () =>
-          browser.runtime.sendMessage({
-            type: 'jev',
-            tweetId: post.id,
-            text: input,
-            provider,
-            revision,
-          }),
-        );
-        const reply = yield* Schema.decodeUnknownEffect(JevReplySchema)(rawReply).pipe(
-          Effect.mapError(
-            () => new ClassificationError({ message: 'Invalid text classification response.' }),
-          ),
-        );
-        if (!reply.ok) return yield* new ClassificationError({ message: reply.error });
-        if (reply.provider !== provider || reply.revision !== revision)
-          return yield* new ClassificationError({ message: 'Text configuration changed.' });
-        if (!Number.isFinite(reply.sexual) || reply.sexual < 0 || reply.sexual > 1)
-          return yield* new ClassificationError({ message: 'Invalid text scores.' });
-        const scores = { sexualText: reply.sexual };
-        if (
-          ocr.errors.length === 0 &&
-          settings.current.textProvider === provider &&
-          settings.current.textConfigRevision === revision
-        )
-          yield* writeCache(key, scores);
-        return scores;
-      }),
-    );
+  jobs.push(
+    Effect.gen(function* () {
+      const ocr = yield* imageText(urls);
+      extractionErrors.push(...ocr.errors);
+      if (!current.enabled.sexualText) return {};
+      const combined = [
+        text && `Tweet text:\n${text}`,
+        ...ocr.texts.map((words, index) => `Text in attached image ${index + 1}:\n${words}`),
+      ]
+        .filter(Boolean)
+        .join('\n\n');
+      if (!combined) return {};
+      const input = ocr.texts.length ? combined : text;
+      const key = cacheKey({ task: 'sexualText', provider, text: input });
+      const cached = yield* readCache(key);
+      if (cached?.scores.sexualText !== undefined) return { sexualText: cached.scores.sexualText };
+      if (
+        !settings.current.masterEnabled ||
+        !settings.current.enabled.sexualText ||
+        settings.current.textProvider !== provider ||
+        settings.current.textConfigRevision !== revision
+      )
+        return {};
+      if (!settings.current.providerKeys[provider])
+        return yield* new ClassificationError({
+          message:
+            'Add an API key in the Text tab to check sexual text. Local AI-written-text detection does not need a key.',
+        });
+      const rawReply: unknown = yield* browserEffect('classify sexual text', () =>
+        browser.runtime.sendMessage({
+          type: 'jev',
+          tweetId: post.id,
+          text: input,
+          provider,
+          revision,
+        }),
+      );
+      const reply = yield* Schema.decodeUnknownEffect(JevReplySchema)(rawReply).pipe(
+        Effect.mapError(
+          () => new ClassificationError({ message: 'Invalid text classification response.' }),
+        ),
+      );
+      if (!reply.ok) return yield* new ClassificationError({ message: reply.error });
+      if (reply.provider !== provider || reply.revision !== revision)
+        return yield* new ClassificationError({ message: 'Text configuration changed.' });
+      if (!Number.isFinite(reply.sexual) || reply.sexual < 0 || reply.sexual > 1)
+        return yield* new ClassificationError({ message: 'Invalid text scores.' });
+      const scores = { sexualText: reply.sexual };
+      if (
+        ocr.errors.length === 0 &&
+        settings.current.textProvider === provider &&
+        settings.current.textConfigRevision === revision
+      )
+        yield* writeCache(key, scores);
+      return scores;
+    }),
+  );
   if (current.enabled.aiGenerated && text)
     jobs.push(
       Effect.gen(function* () {
-        const descriptor = SELECTED_MODELS.aiText;
-        const key = `${CACHE_PREFIX}a:${descriptor.id}:${descriptor.revision}:${hash64(text)}`;
+        const key = cacheKey({ task: 'aiText', text });
         const cached = yield* readCache(key);
         if (cached?.scores.aiGenerated !== undefined)
           return { aiGenerated: cached.scores.aiGenerated };
@@ -304,9 +345,7 @@ const classifyImages = Effect.fnUntraced(function* (
   const misses: Array<{ url: string; index: number }> = [];
   for (let index = 0; index < urls.length; index++) {
     const url = urls[index] ?? '';
-    const cached = yield* readCache(
-      `${CACHE_PREFIX}i:${IMAGE_PIPELINE_REVISION}:${hash64(canonicalMediaUrl(url))}`,
-    );
+    const cached = yield* readCache(cacheKey({ task: 'image', url }));
     if (cached) {
       for (const category of CATEGORY_KEYS) {
         const value = cached.scores[category];
@@ -344,10 +383,7 @@ const classifyImages = Effect.fnUntraced(function* (
       errors.push(`Image ${miss.index + 1}: ${outcome.warning}`);
       continue; // Preserve available scores, but retry the incomplete check instead of caching it.
     }
-    yield* writeCache(
-      `${CACHE_PREFIX}i:${IMAGE_PIPELINE_REVISION}:${hash64(canonicalMediaUrl(miss.url))}`,
-      imageScores,
-    );
+    yield* writeCache(cacheKey({ task: 'image', url: miss.url }), imageScores);
   }
   return { scores, errors };
 });

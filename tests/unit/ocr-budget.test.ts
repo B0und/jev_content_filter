@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import { readFile } from 'node:fs/promises';
 import { afterEach, expect, it, vi } from 'vitest';
 import { extractImageText } from '../../src/inference/ocr';
@@ -12,7 +13,7 @@ it('rejects oversized encoded images before allocating a decoded bitmap', async 
   const decode = vi.fn();
   vi.stubGlobal('createImageBitmap', decode);
   await expect(
-    extractImageText(`data:image/png;base64,${image.toString('base64')}`),
+    Effect.runPromise(extractImageText(`data:image/png;base64,${image.toString('base64')}`)),
   ).rejects.toThrow('Image exceeds the local OCR pixel budget.');
   expect(decode).not.toHaveBeenCalled();
 });
@@ -20,7 +21,7 @@ it('rejects oversized encoded images before allocating a decoded bitmap', async 
 it('rejects unknown dimensions without asking the image decoder to guess', async () => {
   const decode = vi.fn();
   vi.stubGlobal('createImageBitmap', decode);
-  await expect(extractImageText('data:image/png;base64,AA==')).rejects.toThrow(
+  await expect(Effect.runPromise(extractImageText('data:image/png;base64,AA=='))).rejects.toThrow(
     'Image dimensions could not be read',
   );
   expect(decode).not.toHaveBeenCalled();

@@ -1,6 +1,7 @@
 import { Effect } from 'effect';
 import { afterEach, beforeEach, expect, it } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
+import { OcrError } from '../../src/inference/contracts';
 import { textScores } from '../../src/content/classify';
 import { settings } from '../../src/content/state';
 import {
@@ -36,7 +37,7 @@ afterEach(clearFeed);
 
 it('blocks image-only posts through sexual text with all visual categories off', async () => {
   const test = await startRuntime(configured());
-  test.bg.ocrRespond = () => ({ ok: true, scores: {}, text: explicitText });
+  test.bg.ocrRespond = () => Effect.succeed(explicitText);
   test.bg.respond = ({ text }) => ({ ok: true, sexual: text.includes(explicitText) ? 0.99 : 0.01 });
   const article = buildTweetArticle({ id: '8100', text: '', images: [imageUrl] });
   test.handle.discover();
@@ -52,11 +53,8 @@ it('combines caption and all image text, caches size variants, and keeps AI inpu
   const bg = installFakeBackground();
   settings.current = configured();
   settings.current.enabled.aiGenerated = true;
-  bg.ocrRespond = ({ url }) => ({
-    ok: true,
-    scores: {},
-    text: url.includes('second') ? 'Second image words' : explicitText,
-  });
+  bg.ocrRespond = ({ url }) =>
+    Effect.succeed(url.includes('second') ? 'Second image words' : explicitText);
   const post = newPostStub('8101');
   const first = await Effect.runPromise(
     textScores(post, 'Дегустация', [imageUrl, 'https://pbs.twimg.com/media/second.png']),
@@ -79,12 +77,12 @@ it('combines caption and all image text, caches size variants, and keeps AI inpu
 it('reports failed extraction while checking the caption and retries without caching the failure', async () => {
   const bg = installFakeBackground();
   settings.current = configured();
-  bg.ocrRespond = () => ({ ok: false, error: 'OCR unavailable' });
+  bg.ocrRespond = () => Effect.fail(new OcrError({ message: 'OCR unavailable' }));
   const post = newPostStub('8102');
   const first = await Effect.runPromise(textScores(post, 'Caption', [imageUrl]));
   expect(first.scores.sexualText).toBe(0.01);
   expect(first.errors).toContain('Image text: OCR unavailable');
-  bg.ocrRespond = () => ({ ok: true, scores: {}, text: explicitText });
+  bg.ocrRespond = () => Effect.succeed(explicitText);
   await Effect.runPromise(textScores(post, 'Caption', [imageUrl]));
   expect(bg.ocrCalls).toHaveLength(2);
   expect(bg.jevCalls[1]?.text).toContain(explicitText);
@@ -92,7 +90,7 @@ it('reports failed extraction while checking the caption and retries without cac
 
 it('rechecks sexual text when a new image arrives after a safe caption', async () => {
   const test = await startRuntime(configured());
-  test.bg.ocrRespond = () => ({ ok: true, scores: {}, text: explicitText });
+  test.bg.ocrRespond = () => Effect.succeed(explicitText);
   test.bg.respond = ({ text }) => ({ ok: true, sexual: text.includes(explicitText) ? 0.99 : 0.01 });
   const article = buildTweetArticle({ id: '8103', text: 'Дегустация' });
   test.handle.discover();
@@ -110,7 +108,7 @@ it('rechecks sexual text when a new image arrives after a safe caption', async (
 
 it('checks text in link preview images even without preview text', async () => {
   const test = await startRuntime(configured());
-  test.bg.ocrRespond = () => ({ ok: true, scores: {}, text: explicitText });
+  test.bg.ocrRespond = () => Effect.succeed(explicitText);
   test.bg.respond = ({ text }) => ({ ok: true, sexual: text.includes(explicitText) ? 0.99 : 0.01 });
   const article = buildTweetArticle({ id: '8104', text: 'A link' });
   const card = document.createElement('div');
@@ -128,17 +126,48 @@ it('checks text in link preview images even without preview text', async () => {
   stopRuntime(test);
 });
 
-it('skips OCR when sexual text is disabled and caches successful empty extraction', async () => {
+it('always reads image words with sexual text disabled and caches empty extraction', async () => {
   const bg = installFakeBackground();
   settings.current = configured();
   settings.current.enabled.sexualText = false;
   settings.current.enabled.aiGenerated = true;
   const post = newPostStub('8105');
   await Effect.runPromise(textScores(post, 'Caption', [imageUrl]));
-  expect(bg.ocrCalls).toHaveLength(0);
+  expect(bg.ocrCalls).toHaveLength(1);
   settings.current.enabled.sexualText = true;
   await Effect.runPromise(textScores(post, 'Caption', [imageUrl]));
   await Effect.runPromise(textScores(post, 'Another caption', [imageUrl]));
   expect(bg.ocrCalls).toHaveLength(1);
   expect(bg.jevCalls.map(({ text }) => text)).toEqual(['Caption', 'Another caption']);
+});
+
+it('runs OCR for image-only posts with every classifier disabled and no provider key', async () => {
+  const current = configured();
+  current.enabled.sexualText = false;
+  current.providerKeys.vercel = '';
+  const test = await startRuntime(current);
+  const article = buildTweetArticle({ id: '8106', images: [imageUrl] });
+  test.handle.discover();
+  await until(() => test.bg.ocrCalls.length === 1 && test.handle.report().pending === 0);
+  expect(test.bg.jevCalls).toHaveLength(0);
+  expect(test.bg.imageCalls).toHaveLength(0);
+  expect(article.hasAttribute('data-jev-hidden')).toBe(false);
+  stopRuntime(test);
+});
+
+it('does not send image words after sexual-text checks are disabled mid-scan', async () => {
+  const bg = installFakeBackground();
+  settings.current = configured();
+  const gate = Promise.withResolvers<string>();
+  bg.ocrRespond = () =>
+    Effect.tryPromise({
+      try: () => gate.promise,
+      catch: (error) => new OcrError({ message: String(error) }),
+    });
+  const pending = Effect.runPromise(textScores(newPostStub('8107'), 'Caption', [imageUrl]));
+  await until(() => bg.ocrCalls.length === 1);
+  settings.current.enabled.sexualText = false;
+  gate.resolve(explicitText);
+  await expect(pending).resolves.toEqual({ scores: {}, errors: [] });
+  expect(bg.jevCalls).toHaveLength(0);
 });

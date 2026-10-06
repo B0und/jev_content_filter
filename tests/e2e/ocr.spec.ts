@@ -1,4 +1,5 @@
 import * as Schema from 'effect/Schema';
+import { OcrReplyCodec } from '../../src/inference/contracts';
 import { test, expect, remoteSettings } from './fixtures';
 
 const EvaluationSchema = Schema.Struct({ state: Schema.Struct({ tweet_text: Schema.String }) });
@@ -57,8 +58,12 @@ test('reads Russian and English screenshot text locally and filters an innocent 
       url: 'https://pbs.twimg.com/media/ocr-example.png',
     }),
   );
-  expect(reply).toMatchObject({ ok: true, text: expect.stringContaining('сосать твой член') });
-  expect(reply).toMatchObject({ text: expect.stringContaining('English screenshot text') });
+  const result = Schema.decodeUnknownSync(OcrReplyCodec)(reply);
+  expect(result).toMatchObject({
+    _tag: 'Success',
+    success: expect.stringContaining('сосать твой член'),
+  });
+  expect(result).toMatchObject({ success: expect.stringContaining('English screenshot text') });
   await page.evaluate(() => {
     const article = document.createElement('article');
     article.dataset.testid = 'tweet';

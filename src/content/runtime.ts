@@ -205,15 +205,11 @@ class ContentSession extends Context.Service<ContentSession, ContentSessionApi>(
             if (post.pending || post.retryAt !== null || !isAttached(post)) return;
             const textEnabled = TEXT_KEYS.some((key) => settings.current.enabled[key]);
             const imageEnabled = IMAGE_KEYS.some((key) => settings.current.enabled[key]);
-            const ocrEnabled = settings.current.enabled.sexualText;
             const textNeeded =
-              !post.textDone &&
-              ((!!post.text && textEnabled) || (post.urls.length > 0 && ocrEnabled));
+              !post.textDone && ((!!post.text && textEnabled) || post.urls.length > 0);
             const imagesNeeded = !post.imagesDone && post.urls.length > 0 && imageEnabled;
             const previewNeeded =
-              !post.previewDone &&
-              ((!!post.previewUrl && (imageEnabled || ocrEnabled)) ||
-                (!!post.previewText && textEnabled));
+              !post.previewDone && (!!post.previewUrl || (!!post.previewText && textEnabled));
             if (!textNeeded && !imagesNeeded && !previewNeeded) return;
             const version = post.version;
             const text = post.text;
@@ -273,7 +269,7 @@ class ContentSession extends Context.Service<ContentSession, ContentSessionApi>(
                   ? capture(imageScores([previewUrl]))
                   : Effect.succeed({ value: { scores: {}, errors: [] } } as const);
               const previewTextResult =
-                (previewText && textEnabled) || (previewUrl && ocrEnabled)
+                (previewText && textEnabled) || previewUrl
                   ? capture(textScores(post, previewText, previewUrl ? [previewUrl] : []))
                   : Effect.succeed({ value: { scores: {}, errors: [] } } as const);
               const previewWork = Effect.gen(function* () {

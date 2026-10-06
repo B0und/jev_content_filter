@@ -16,7 +16,7 @@ import {
   type Settings,
   type TabReport,
 } from '../../src/filtering/types';
-import type { InferenceReply } from '../../src/inference/contracts';
+import { OcrError, encodeOcrReply, type InferenceReply } from '../../src/inference/contracts';
 import { newPost, type Post } from '../../src/content/state';
 import { applySettingsChange, loadSettings } from '../../src/filtering/settings';
 import { BgRequestSchema } from '../../src/filtering/schemas';
@@ -60,7 +60,7 @@ export interface FakeBackground {
   ocrRespond: (request: {
     type: 'extract-image-text';
     url: string;
-  }) => InferenceReply | Promise<InferenceReply>;
+  }) => Effect.Effect<string, OcrError>;
   ocrCalls: Array<{ type: 'extract-image-text'; url: string }>;
   jevCalls: Array<{ tweetId: string; text: string }>;
   aiCalls: Array<{ type: 'classify-ai'; text: string }>;
@@ -79,7 +79,7 @@ export function installFakeBackground(): FakeBackground {
       ok: true,
       scores: { porn: 0.01, hentai: 0.01, sexy: 0.01, drawings: 0.01 },
     }),
-    ocrRespond: () => ({ ok: true, scores: {}, text: '' }),
+    ocrRespond: () => Effect.succeed(''),
     ocrCalls: [],
     jevCalls: [],
     aiCalls: [],
@@ -111,7 +111,8 @@ export function installFakeBackground(): FakeBackground {
       }
       if (request.type === 'extract-image-text') {
         bg.ocrCalls.push(request);
-        void (async () => sendResponse(await bg.ocrRespond(request)))();
+        void (async () =>
+          sendResponse(await Effect.runPromise(encodeOcrReply(bg.ocrRespond(request)))))();
         return true;
       }
       if (request.type === 'classify-image') {

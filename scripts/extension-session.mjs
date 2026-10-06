@@ -8,8 +8,9 @@ import puppeteer from 'puppeteer-core';
 import { chromium } from '@playwright/test';
 
 export class ExtensionSession {
-  constructor({ root, output, artifacts, profile, headless = false, live = false }) {
+  constructor({ root, output, artifacts, profile, headless = false, live = false, ocrDataRoot }) {
     this.root = root;
+    this.ocrDataRoot = ocrDataRoot ?? root;
     this.output = output ?? path.join(root, '.output/chrome-mv3');
     this.artifacts = artifacts;
     this.profile = profile;
@@ -216,6 +217,19 @@ export class ExtensionSession {
   async mockRequests(page) {
     const feed = await readFile(path.join(this.root, 'tests/e2e/feed.html'), 'utf8');
     const image = await readFile(path.join(this.root, 'mock/pbs.twimg.com/media/landscape.png'));
+    const ocrData = new Map(
+      await Promise.all(
+        ['eng', 'rus'].map(async (language) => [
+          language,
+          await readFile(
+            path.join(
+              this.ocrDataRoot,
+              `node_modules/@tesseract.js-data/${language}/4.0.0_best_int/${language}.traineddata.gz`,
+            ),
+          ),
+        ]),
+      ),
+    );
     // Intercept the worker too: page interception alone cannot stop background fetches.
     const workerTarget = await this.browser.waitForTarget(
       (target) =>
@@ -224,10 +238,10 @@ export class ExtensionSession {
     );
     const state = this.targets.get(workerTarget);
     await this.attach(workerTarget);
-    const mockWorker = async (target) => {
+    const mockExtensionTarget = async (target) => {
       if (
-        target.type() !== 'service_worker' ||
-        this.retiredWorkers.has(target) ||
+        !['service_worker', 'page', 'worker'].includes(target.type()) ||
+        (target.type() === 'service_worker' && this.retiredWorkers.has(target)) ||
         !target.url().startsWith(`chrome-extension://${this.extensionId}/`)
       )
         return;
@@ -263,6 +277,17 @@ export class ExtensionSession {
       } else if (url.hostname === 'pbs.twimg.com') {
         body = image;
         contentType = 'image/png';
+      } else if (
+        url.hostname === 'raw.githubusercontent.com' &&
+        url.pathname.includes('/naptha/tessdata/')
+      ) {
+        const language = path.basename(url.pathname).replace('.traineddata.gz', '');
+        body = ocrData.get(language);
+        if (!body) {
+          await client.send('Fetch.failRequest', { requestId, errorReason: 'BlockedByClient' });
+          return;
+        }
+        contentType = 'application/gzip';
       } else {
         await client.send('Fetch.failRequest', { requestId, errorReason: 'BlockedByClient' });
         return;
@@ -276,11 +301,13 @@ export class ExtensionSession {
     };
     // Register before reloads can create a replacement worker.
     this.browser.on('targetcreated', (target) => {
-      void mockWorker(target).catch((error) => this.record('harness', 'error', error.message));
+      void mockExtensionTarget(target).catch((error) =>
+        this.record('harness', 'error', error.message),
+      );
     });
-    this.mockWorker = mockWorker;
+    this.mockWorker = mockExtensionTarget;
     assert(state, 'Background collector was not attached');
-    await mockWorker(workerTarget);
+    await mockExtensionTarget(workerTarget);
     await page.setRequestInterception(true);
     page.on('request', (request) => {
       const url = new URL(request.url());

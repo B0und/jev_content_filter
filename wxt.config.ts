@@ -19,22 +19,11 @@ export default defineConfig({
         absoluteSrc: resolve(wxt.config.root, 'node_modules/tesseract.js/dist/worker.min.js'),
         relativeDest: 'ocr/worker.min.js',
       });
-      for (const variant of ['lstm', 'simd-lstm', 'relaxedsimd-lstm']) {
-        const name = `tesseract-core-${variant}.wasm.js`;
-        files.push({
-          absoluteSrc: resolve(wxt.config.root, 'node_modules/tesseract.js-core', name),
-          relativeDest: `ocr/${name}`,
-        });
-      }
-      for (const language of ['eng', 'rus']) {
-        files.push({
-          absoluteSrc: resolve(
-            wxt.config.root,
-            `node_modules/@tesseract.js-data/${language}/4.0.0_best_int/${language}.traineddata.gz`,
-          ),
-          relativeDest: `ocr/data/${language}.traineddata.gz`,
-        });
-      }
+      const core = 'tesseract-core-simd-lstm.wasm.js';
+      files.push({
+        absoluteSrc: resolve(wxt.config.root, 'node_modules/tesseract.js-core', core),
+        relativeDest: `ocr/${core}`,
+      });
       for (const dependency of ['tesseract.js', 'tesseract.js-core']) {
         files.push({
           absoluteSrc: resolve(
@@ -86,6 +75,7 @@ export default defineConfig({
       'https://*.huggingface.co/*',
       'https://*.hf.co/*',
       'https://raw.githubusercontent.com/infinitered/nsfwjs/*',
+      'https://raw.githubusercontent.com/naptha/tessdata/*',
     ],
   },
 });
