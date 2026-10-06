@@ -330,7 +330,14 @@ function CustomTextFilters({ settings }: { settings: Settings }) {
 function TextFilterEditor({ filter, onClose }: { filter: TextFilter | null; onClose: () => void }) {
   const [id] = useState(() => filter?.id ?? crypto.randomUUID());
   const [editorId] = useState(() => crypto.randomUUID());
-  useEffect(() => () => popupState.dismissEditorError(editorId), [editorId]);
+  const active = useRef(true);
+  useEffect(() => {
+    active.current = true;
+    return () => {
+      active.current = false;
+      popupState.dismissEditorError(editorId);
+    };
+  }, [editorId]);
   const [saving, setSaving] = useState(false);
   const [name, setName] = useState(filter?.name ?? '');
   const [instructions, setInstructions] = useState(filter?.instructions ?? '');
@@ -359,9 +366,9 @@ function TextFilterEditor({ filter, onClose }: { filter: TextFilter | null; onCl
             },
             editorId,
           );
-          if (saved) onClose();
+          if (saved && active.current) onClose();
         } finally {
-          setSaving(false);
+          if (active.current) setSaving(false);
         }
       }}
     >

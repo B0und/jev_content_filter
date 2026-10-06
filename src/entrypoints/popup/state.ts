@@ -55,6 +55,8 @@ export interface PopupStateDependencies {
 type OptimisticEdit = {
   readonly change: SettingsChange;
   phase: 'saving' | 'confirmed';
+  readonly editorId: string | undefined;
+  abandoned?: boolean;
 };
 
 export function createPopupState(dependencies: PopupStateDependencies): PopupState {
@@ -242,7 +244,7 @@ export function createPopupState(dependencies: PopupStateDependencies): PopupSta
       saveError(key, cause);
       return Promise.resolve(false);
     }
-    const edit: OptimisticEdit = { change, phase: 'saving' };
+    const edit: OptimisticEdit = { change, phase: 'saving', editorId };
     optimisticEdits.push(edit);
     publish();
 
@@ -265,7 +267,8 @@ export function createPopupState(dependencies: PopupStateDependencies): PopupSta
           onFailure: (cause) => {
             const index = optimisticEdits.indexOf(edit);
             if (index >= 0) optimisticEdits.splice(index, 1);
-            saveError(key, cause);
+            if (edit.abandoned) publish();
+            else saveError(key, cause);
             refreshSettingsWhileMounted?.();
             return false;
           },
@@ -275,6 +278,9 @@ export function createPopupState(dependencies: PopupStateDependencies): PopupSta
   }
 
   function dismissEditorError(id: string): void {
+    for (const edit of optimisticEdits) {
+      if (edit.editorId === id) edit.abandoned = true;
+    }
     const key = `editor:${id}`;
     const dismissed = saveErrors.get(key);
     saveErrors.delete(key);

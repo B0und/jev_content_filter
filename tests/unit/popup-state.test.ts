@@ -327,3 +327,37 @@ it('dismisses an abandoned filter error without clearing another failed edit', a
     stop();
   }
 });
+
+it('ignores a save error arriving after its editor closes', async () => {
+  const complete = deferred<Settings>();
+  const state = createPopupState(
+    popupDependencies({
+      updateSettings: () => browserEffect('test delayed save', () => complete.promise),
+    }),
+  );
+  const stop = state.start();
+  try {
+    await whenSnapshot(state, () => state.getSnapshot().settings !== null);
+    const saving = state.update(
+      {
+        field: 'textFilter',
+        value: {
+          id: 'late',
+          name: 'Draft',
+          instructions: 'garden',
+          enabled: true,
+          threshold: 0.65,
+        },
+      },
+      'closed-editor',
+    );
+    state.dismissEditorError('closed-editor');
+    complete.reject('late save failure');
+    await expect(saving).resolves.toBe(false);
+    expect(state.getSnapshot().error).toBe('');
+    expect(state.getSnapshot().saving).toBe(false);
+    expect(state.getSnapshot().settings?.textFilters).toEqual([]);
+  } finally {
+    stop();
+  }
+});

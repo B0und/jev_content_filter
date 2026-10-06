@@ -179,3 +179,38 @@ test('cancelling an untouched editor keeps a failed filter switch error', async 
   await popup.getByRole('switch', { name: 'Enable Gardening', exact: true }).click();
   await expect(error).toHaveCount(0);
 });
+
+test('a late successful save leaves the newer editor open', async ({
+  context,
+  extensionId,
+  worker,
+  setSettings,
+}) => {
+  const configured = remoteSettings();
+  configured.textFilters = [
+    { id: 'first', name: 'First', instructions: 'garden', threshold: 0.65, enabled: true },
+    { id: 'second', name: 'Second', instructions: 'crypto', threshold: 0.65, enabled: true },
+  ];
+  await setSettings(configured);
+  const popup = await context.newPage();
+  await popup.goto(`chrome-extension://${extensionId}/popup.html`);
+  await popup.getByRole('button', { name: 'Edit', exact: true }).nth(0).click();
+  await popup.getByLabel('Filter name', { exact: true }).fill('First changed');
+  await worker.evaluate(() => {
+    const originalSet = chrome.storage.local.set.bind(chrome.storage.local);
+    const delay = Promise.withResolvers<void>();
+    Object.assign(globalThis, { releaseFilterSave: () => delay.resolve() });
+    chrome.storage.local.set = (items) => {
+      if (!('settings' in items)) return originalSet(items);
+      chrome.storage.local.set = originalSet;
+      return delay.promise.then(() => originalSet(items));
+    };
+  });
+  await popup.getByRole('button', { name: 'Save filter' }).click();
+  await expect(popup.getByText('Saving changes…', { exact: true })).toBeVisible();
+  await popup.getByRole('button', { name: 'Edit', exact: true }).nth(1).click();
+  await expect(popup.getByLabel('Filter name', { exact: true })).toHaveValue('Second');
+  await worker.evaluate('globalThis.releaseFilterSave()');
+  await expect(popup.getByText('Saving changes…', { exact: true })).toHaveCount(0);
+  await expect(popup.getByLabel('Filter name', { exact: true })).toHaveValue('Second');
+});
