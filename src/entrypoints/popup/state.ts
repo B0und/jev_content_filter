@@ -35,6 +35,7 @@ export interface PopupState {
   subscribe: (listener: () => void) => () => void;
   start: () => () => void;
   update: (change: SettingsChange) => Promise<boolean>;
+  dismissTextFilterError: (id: string) => void;
   openLogs: () => void;
   retryModel: (kind: ModelKind) => void;
 }
@@ -273,6 +274,14 @@ export function createPopupState(dependencies: PopupStateDependencies): PopupSta
     );
   }
 
+  function dismissTextFilterError(id: string): void {
+    const key = `textFilter:${id}`;
+    const dismissed = saveErrors.get(key);
+    saveErrors.delete(key);
+    if (dismissed && snapshot.error === dismissed.message)
+      publish({ error: [...saveErrors.values()].at(-1)?.message ?? '' });
+  }
+
   function openLogs(): void {
     browserRuntime.runFork(
       dependencies.openLogs.pipe(
@@ -315,6 +324,7 @@ export function createPopupState(dependencies: PopupStateDependencies): PopupSta
     },
     start,
     update,
+    dismissTextFilterError,
     openLogs,
     retryModel,
   };

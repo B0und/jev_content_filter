@@ -101,3 +101,36 @@ test('a failed filter save preserves the draft for a successful retry', async ({
   await expect(popup.getByLabel('Filter name', { exact: true })).toHaveCount(0);
   await expect(popup.getByRole('switch', { name: 'Enable Gardening', exact: true })).toBeChecked();
 });
+
+test('cancelling a failed new filter clears its abandoned save error', async ({
+  context,
+  extensionId,
+  worker,
+}) => {
+  const popup = await context.newPage();
+  await popup.goto(`chrome-extension://${extensionId}/popup.html`);
+  await popup.getByRole('button', { name: 'Add text filter' }).click();
+  await popup.getByLabel('Filter name', { exact: true }).fill('Abandoned draft');
+  await popup.getByLabel('What should be hidden?').fill('garden');
+  await worker.evaluate(() => {
+    const originalSet = chrome.storage.local.set.bind(chrome.storage.local);
+    chrome.storage.local.set = (items) => {
+      if (!('settings' in items)) return originalSet(items);
+      chrome.storage.local.set = originalSet;
+      return Promise.reject(new Error('Test storage unavailable'));
+    };
+  });
+  await popup.getByRole('button', { name: 'Save filter' }).click();
+  const error = popup.getByRole('alert').filter({ hasText: 'Could not save settings' });
+  await expect(error).toBeVisible();
+  await popup.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(error).toHaveCount(0);
+  await popup.getByRole('button', { name: 'Add text filter' }).click();
+  await popup.getByLabel('Filter name', { exact: true }).fill('Replacement');
+  await popup.getByLabel('What should be hidden?').fill('garden');
+  await popup.getByRole('button', { name: 'Save filter' }).click();
+  await expect(
+    popup.getByRole('switch', { name: 'Enable Replacement', exact: true }),
+  ).toBeChecked();
+  await expect(error).toHaveCount(0);
+});

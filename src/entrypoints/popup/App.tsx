@@ -397,7 +397,14 @@ function TextFilterEditor({ filter, onClose }: { filter: TextFilter | null; onCl
         <button type="submit" disabled={saving}>
           {saving ? 'Saving filter…' : 'Save filter'}
         </button>
-        <button type="button" disabled={saving} onClick={onClose}>
+        <button
+          type="button"
+          disabled={saving}
+          onClick={() => {
+            popupState.dismissTextFilterError(id);
+            onClose();
+          }}
+        >
           Cancel
         </button>
       </div>

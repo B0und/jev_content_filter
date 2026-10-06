@@ -295,3 +295,26 @@ it('keeps another edits save error until that edit is successfully retried', asy
     stop();
   }
 });
+
+it('dismisses an abandoned filter error without clearing another failed edit', async () => {
+  const state = createPopupState(
+    popupDependencies({
+      updateSettings: (change) =>
+        Effect.fail(new BrowserError({ operation: 'test save', cause: change.field })),
+    }),
+  );
+  const stop = state.start();
+  try {
+    await whenSnapshot(state, () => state.getSnapshot().settings !== null);
+    await state.update({ field: 'masterEnabled', value: false });
+    await state.update({
+      field: 'textFilter',
+      value: { id: 'draft', name: 'Draft', instructions: 'garden', enabled: true, threshold: 0.65 },
+    });
+    expect(state.getSnapshot().error).toContain('textFilter');
+    state.dismissTextFilterError('draft');
+    expect(state.getSnapshot().error).toContain('masterEnabled');
+  } finally {
+    stop();
+  }
+});
