@@ -3,13 +3,13 @@
 import { Clock, Effect, Semaphore } from 'effect';
 import * as Schema from 'effect/Schema';
 import { browser } from 'wxt/browser';
-import { browserEffect, BrowserError } from '../shared/browser';
-import { CATEGORY_KEYS, STORAGE_KEYS, type CategoryKey } from '../shared/types';
-import { CategoryKeySchema } from '../shared/schemas';
+import { browserEffect, BrowserError } from '../platform/browser';
+import { CATEGORY_KEYS, STORAGE_KEYS, type CategoryKey } from '../filtering/types';
+import { CategoryKeySchema } from '../filtering/schemas';
 import { settings, type Post } from './state';
 import { canonicalMediaUrl } from './dom';
-import { InferenceReplySchema } from '../shared/inference';
-import { IMAGE_PIPELINE_REVISION, SELECTED_MODELS } from '../shared/model-catalog';
+import { InferenceReplySchema } from '../inference/contracts';
+import { IMAGE_PIPELINE_REVISION, SELECTED_MODELS } from '../inference/model-catalog';
 const JevReplySchema = Schema.Union([
   Schema.Struct({
     ok: Schema.Literal(true),

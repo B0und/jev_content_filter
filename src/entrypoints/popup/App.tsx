@@ -19,9 +19,9 @@ import {
   type SettingsChange,
   type TextProvider,
   type TabReport,
-} from '../../shared/types';
-import { SELECTED_MODELS } from '../../shared/model-catalog';
-import type { ModelKind, ModelStatus } from '../../shared/inference';
+} from '../../filtering/types';
+import { SELECTED_MODELS } from '../../inference/model-catalog';
+import type { ModelKind, ModelStatus } from '../../inference/contracts';
 import { popupState } from './state';
 import './popup.css';
 

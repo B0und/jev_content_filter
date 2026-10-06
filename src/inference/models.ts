@@ -1,7 +1,7 @@
 import { env } from '@huggingface/transformers';
 import { loadImageModel, type ImageClassification } from './image';
 import { loadAiTextModel } from './ai-text';
-import { initialModelStatuses, type ModelKind, type ModelStatuses } from '../shared/inference';
+import { initialModelStatuses, type ModelKind, type ModelStatuses } from './contracts';
 
 export interface LocalModels {
   load(kind: ModelKind): Promise<void>;

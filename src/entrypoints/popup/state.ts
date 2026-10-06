@@ -1,15 +1,15 @@
 import { Effect, Layer, ManagedRuntime, Semaphore } from 'effect';
 import * as Schema from 'effect/Schema';
 import { browser } from 'wxt/browser';
-import { browserEffect, browserRuntime, BrowserError } from '../../shared/browser';
+import { browserEffect, browserRuntime, BrowserError } from '../../platform/browser';
 import {
   applySettingsChange,
   loadSettings,
   loadStatus,
   updateSettings,
-} from '../../shared/settings';
-import { TabReportSchema } from '../../shared/schemas';
-import type { FilterStatus, Settings, SettingsChange, TabReport } from '../../shared/types';
+} from '../../filtering/settings';
+import { TabReportSchema } from '../../filtering/schemas';
+import type { FilterStatus, Settings, SettingsChange, TabReport } from '../../filtering/types';
 import {
   MODEL_STATUS_KEY,
   ModelStatusesSchema,
@@ -17,7 +17,7 @@ import {
   initialModelStatuses,
   type ModelStatuses,
   type ModelKind,
-} from '../../shared/inference';
+} from '../../inference/contracts';
 
 export interface PopupSnapshot {
   settings: Settings | null;

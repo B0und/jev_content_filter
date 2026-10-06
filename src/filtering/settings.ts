@@ -1,6 +1,6 @@
 import { Effect } from 'effect';
 import * as Schema from 'effect/Schema';
-import { BrowserError, browserEffect } from './browser';
+import { BrowserError, browserEffect } from '../platform/browser';
 import { browser } from 'wxt/browser';
 import { FilterStatusSchema, SettingsReplySchema } from './schemas';
 import {

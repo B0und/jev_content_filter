@@ -1,6 +1,6 @@
 import * as Schema from 'effect/Schema';
 import { test, expect, remoteSettings } from './fixtures';
-import { TabReportSchema } from '../../src/shared/schemas';
+import { TabReportSchema } from '../../src/filtering/schemas';
 test('filters posts and previews, restores them on pause, and persists an unblock', async ({
   page,
   context,

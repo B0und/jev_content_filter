@@ -1,4 +1,4 @@
-import type { ModelStatuses } from './inference';
+import type { ModelStatuses } from '../inference/contracts';
 
 export type CategoryKey = 'porn' | 'hentai' | 'sexy' | 'drawings' | 'sexualText' | 'aiGenerated';
 export type TextProvider = 'vercel' | 'typesafe' | 'openrouter';

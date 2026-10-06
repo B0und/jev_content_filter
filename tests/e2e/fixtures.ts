@@ -10,7 +10,7 @@ import { readFile } from 'node:fs/promises';
 import * as Schema from 'effect/Schema';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
-import { defaultSettings, type Settings } from '../../src/shared/types';
+import { defaultSettings, type Settings } from '../../src/filtering/types';
 
 const isEvaluationRequest = Schema.is(
   Schema.Struct({ state: Schema.Struct({ tweet_text: Schema.String }) }),

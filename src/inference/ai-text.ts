@@ -1,5 +1,5 @@
 import { pipeline } from '@huggingface/transformers';
-import { SELECTED_MODELS } from '../shared/model-catalog';
+import { SELECTED_MODELS } from './model-catalog';
 
 const MAX_INPUT_TOKENS = 512;
 const AI_LABEL_ID = 1;

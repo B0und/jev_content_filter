@@ -1,5 +1,5 @@
 import { Effect } from 'effect';
-import { BrowserError, browserEffect } from '../src/shared/browser';
+import { BrowserError, browserEffect } from '../src/platform/browser';
 import {
   useEffect,
   useMemo,

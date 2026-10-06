@@ -23,8 +23,8 @@ import {
 } from '../../src/content/classify';
 import { canonicalMediaUrl, readArticle } from '../../src/content/dom';
 import { settings } from '../../src/content/state';
-import { STORAGE_KEYS, type CategoryKey, type Settings } from '../../src/shared/types';
-import { applySettingsChange } from '../../src/shared/settings';
+import { STORAGE_KEYS, type CategoryKey, type Settings } from '../../src/filtering/types';
+import { applySettingsChange } from '../../src/filtering/settings';
 afterEach(clearFeed);
 
 function textTaskSettings(overrides: Partial<Settings> = {}): Settings {

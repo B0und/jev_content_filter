@@ -1,13 +1,13 @@
 import { Effect, Semaphore } from 'effect';
 import * as Schema from 'effect/Schema';
 import { browser } from 'wxt/browser';
-import { BrowserError, browserEffect } from '../shared/browser';
+import { BrowserError, browserEffect } from '../platform/browser';
 import {
   InferenceReplySchema,
   type InferenceRequest,
   type InferenceReply,
   type ModelKind,
-} from '../shared/inference';
+} from '../inference/contracts';
 
 const documentLock = Semaphore.makeUnsafe(1);
 const ensureDocument = documentLock.withPermits(1)(

@@ -1,5 +1,5 @@
 import * as Schema from 'effect/Schema';
-import { CATEGORY_KEYS } from './types';
+import { CATEGORY_KEYS } from '../filtering/types';
 
 export type ModelKind = 'image' | 'aiText';
 export interface ModelStatus {

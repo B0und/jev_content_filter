@@ -3,7 +3,7 @@ import * as ort from 'onnxruntime-web/wasm';
 import * as tf from '@tensorflow/tfjs';
 import { load as loadNsfwCore } from 'nsfwjs/core';
 import { MobileNetV2Model } from 'nsfwjs/models/mobilenet_v2';
-import { ANIME_RATING_MODEL, SELECTED_MODELS } from '../src/shared/model-catalog';
+import { ANIME_RATING_MODEL, SELECTED_MODELS } from '../src/inference/model-catalog';
 import { loadImageModel } from '../src/inference/image';
 
 const FIXTURES_URL = '/image-model-fixtures.json';

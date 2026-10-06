@@ -1,18 +1,18 @@
 import { Effect } from 'effect';
-import { BrowserError, browserEffect } from '../../src/shared/browser';
+import { BrowserError, browserEffect } from '../../src/platform/browser';
 import { describe, expect, it } from 'vitest';
 import {
   defaultSettings,
   type FilterStatus,
   type Settings,
   type SettingsChange,
-} from '../../src/shared/types';
+} from '../../src/filtering/types';
 import {
   createPopupState,
   type PopupState,
   type PopupStateDependencies,
 } from '../../src/entrypoints/popup/state';
-import { initialModelStatuses } from '../../src/shared/inference';
+import { initialModelStatuses } from '../../src/inference/contracts';
 
 interface Deferred<A> {
   promise: Promise<A>;

@@ -12,8 +12,8 @@ import {
   until,
 } from './support';
 import { browser } from 'wxt/browser';
-import { STORAGE_KEYS } from '../../src/shared/types';
-import { MODEL_STATUS_KEY, initialModelStatuses } from '../../src/shared/inference';
+import { STORAGE_KEYS } from '../../src/filtering/types';
+import { MODEL_STATUS_KEY, initialModelStatuses } from '../../src/inference/contracts';
 
 type FakeJevReply = { ok: true; sexual: number } | { ok: false; error: string };
 

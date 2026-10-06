@@ -1,7 +1,7 @@
 import { Effect, Layer, ManagedRuntime } from 'effect';
 import * as Schema from 'effect/Schema';
 import { browser } from 'wxt/browser';
-import { BrowserError, browserEffect } from '../../shared/browser';
+import { BrowserError, browserEffect } from '../../platform/browser';
 import {
   InferenceRequestSchema,
   InferenceReplySchema,
@@ -9,7 +9,7 @@ import {
   initialModelStatuses,
   type InferenceRequest,
   type InferenceReply,
-} from '../../shared/inference';
+} from '../../inference/contracts';
 import { createWorkerSupervisor } from './worker-supervisor';
 
 const WorkerReplySchema = Schema.Union([

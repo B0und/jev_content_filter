@@ -1,8 +1,8 @@
 import * as tf from '@tensorflow/tfjs';
 import * as ort from 'onnxruntime-web/wasm';
 import { NSFWJS } from 'nsfwjs/core';
-import { ANIME_RATING_MODEL, SELECTED_MODELS } from '../shared/model-catalog';
-import { IMAGE_KEYS, type CategoryKey } from '../shared/types';
+import { ANIME_RATING_MODEL, SELECTED_MODELS } from './model-catalog';
+import { IMAGE_KEYS, type CategoryKey } from '../filtering/types';
 import { downloadModelFile } from './download';
 
 const MODEL_SIZE = 224;

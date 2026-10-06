@@ -1,9 +1,9 @@
 import { Effect } from 'effect';
-import { BrowserError, browserEffect } from '../../src/shared/browser';
+import { BrowserError, browserEffect } from '../../src/platform/browser';
 import { describe, expect, it } from 'vitest';
-import { STORAGE_KEYS, type BlockedEntry, type FilterStatus } from '../../src/shared/types';
-import type { ScanErrorEntry } from '../../src/shared/log';
-import type { ClearReply } from '../../src/shared/schemas';
+import { STORAGE_KEYS, type BlockedEntry, type FilterStatus } from '../../src/filtering/types';
+import type { ScanErrorEntry } from '../../src/history/log';
+import type { ClearReply } from '../../src/filtering/schemas';
 import {
   createLogsState,
   type LogsState,

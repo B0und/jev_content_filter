@@ -4,16 +4,16 @@ import { Clock, Context, Duration, Effect, Fiber, Layer, ManagedRuntime, Scope }
 import * as Schema from 'effect/Schema';
 import { browser } from 'wxt/browser';
 import type { ContentScriptContext } from 'wxt/utils/content-script-context';
-import { browserEffect, type BrowserError } from '../shared/browser';
-import { loadSettings } from '../shared/settings';
-import { MODEL_STATUS_KEY, ModelStatusesSchema } from '../shared/inference';
+import { browserEffect, type BrowserError } from '../platform/browser';
+import { loadSettings } from '../filtering/settings';
+import { MODEL_STATUS_KEY, ModelStatusesSchema } from '../inference/contracts';
 import {
   IMAGE_KEYS,
   STORAGE_KEYS,
   TEXT_KEYS,
   type CategoryKey,
   type TabReport,
-} from '../shared/types';
+} from '../filtering/types';
 import { canRetry, imageScores, MAX_RETRIES, message, textScores } from './classify';
 import { readArticle, sameUrls } from './dom';
 import {

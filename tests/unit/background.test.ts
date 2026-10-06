@@ -5,8 +5,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { Effect, Predicate } from 'effect';
-import { loadLog } from '../../src/shared/log';
-import type { BlockedEntry, Settings } from '../../src/shared/types';
+import { loadLog } from '../../src/history/log';
+import type { BlockedEntry, Settings } from '../../src/filtering/types';
 
 const { evaluateMock, createGatewayMock, fetchMock } = vi.hoisted(() => ({
   evaluateMock: vi.fn(),

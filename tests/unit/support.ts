@@ -15,11 +15,11 @@ import {
   type BlockedEntry,
   type Settings,
   type TabReport,
-} from '../../src/shared/types';
-import type { InferenceReply } from '../../src/shared/inference';
+} from '../../src/filtering/types';
+import type { InferenceReply } from '../../src/inference/contracts';
 import { newPost, type Post } from '../../src/content/state';
-import { applySettingsChange, loadSettings } from '../../src/shared/settings';
-import { BgRequestSchema } from '../../src/shared/schemas';
+import { applySettingsChange, loadSettings } from '../../src/filtering/settings';
+import { BgRequestSchema } from '../../src/filtering/schemas';
 import { startContentFilter } from '../../src/content/runtime';
 
 const isBgRequest = Schema.is(BgRequestSchema);

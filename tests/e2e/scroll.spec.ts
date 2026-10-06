@@ -1,6 +1,6 @@
 import { test, expect } from './fixtures';
 import * as Schema from 'effect/Schema';
-import { TabReportSchema } from '../../src/shared/schemas';
+import { TabReportSchema } from '../../src/filtering/schemas';
 
 const decodeReport = Schema.decodeUnknownSync(TabReportSchema);
 

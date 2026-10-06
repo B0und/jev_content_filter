@@ -1,6 +1,6 @@
 import { test, expect, remoteSettings } from './fixtures';
 import * as Schema from 'effect/Schema';
-import { SettingsSchema } from '../../src/shared/schemas';
+import { SettingsSchema } from '../../src/filtering/schemas';
 
 test('threshold edits apply after a pause and flush when the popup closes', async ({
   context,

@@ -1,7 +1,7 @@
 import { Effect, Layer, ManagedRuntime, Semaphore } from 'effect';
 import * as Schema from 'effect/Schema';
 import { createLocalModels } from './models';
-import { InferenceRequestSchema, type InferenceReply } from '../shared/inference';
+import { InferenceRequestSchema, type InferenceReply } from './contracts';
 
 const WorkerRequestSchema = Schema.Struct({ id: Schema.Int, request: InferenceRequestSchema });
 class LocalInferenceError extends Schema.TaggedError<LocalInferenceError>()('LocalInferenceError', {

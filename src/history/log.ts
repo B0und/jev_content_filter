@@ -1,10 +1,10 @@
 // Blocked-tweet log and scan-error log: FIFO capped, read, clear over storage.local.
 import { Clock, Effect } from 'effect';
 import * as Schema from 'effect/Schema';
-import { browserEffect, type BrowserError } from './browser';
+import { browserEffect, type BrowserError } from '../platform/browser';
 import { browser } from 'wxt/browser';
-import { LOG_LIMIT, STORAGE_KEYS, type BlockedEntry } from './types';
-import { BlockedEntrySchema, ScanErrorEntrySchema } from './schemas';
+import { LOG_LIMIT, STORAGE_KEYS, type BlockedEntry } from '../filtering/types';
+import { BlockedEntrySchema, ScanErrorEntrySchema } from '../filtering/schemas';
 
 const isBlockedEntry = Schema.is(BlockedEntrySchema);
 const isScanErrorEntry = Schema.is(ScanErrorEntrySchema);

@@ -1,16 +1,16 @@
 import { Effect, Layer, ManagedRuntime, Semaphore } from 'effect';
 import * as Schema from 'effect/Schema';
 import { browser } from 'wxt/browser';
-import { BrowserError, browserEffect, browserRuntime } from '../../shared/browser';
-import { loadLog, loadScanErrors, type ScanErrorEntry } from '../../shared/log';
-import { loadStatus } from '../../shared/settings';
+import { BrowserError, browserEffect, browserRuntime } from '../../platform/browser';
+import { loadLog, loadScanErrors, type ScanErrorEntry } from '../../history/log';
+import { loadStatus } from '../../filtering/settings';
 import {
   BlockedEntrySchema,
   ClearReplySchema,
   ScanErrorEntrySchema,
   type ClearReply,
-} from '../../shared/schemas';
-import { STORAGE_KEYS, type BlockedEntry, type FilterStatus } from '../../shared/types';
+} from '../../filtering/schemas';
+import { STORAGE_KEYS, type BlockedEntry, type FilterStatus } from '../../filtering/types';
 
 export type ClearAction = 'clear-log' | 'clear-errors';
 export type ErrorRow = ScanErrorEntry & { source: 'Scan' | 'Text API' };

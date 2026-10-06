@@ -1,4 +1,4 @@
-import type { ModelKind } from './inference';
+import type { ModelKind } from './contracts';
 
 interface ModelDescriptor {
   readonly id: string;

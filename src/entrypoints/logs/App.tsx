@@ -8,7 +8,7 @@ import {
   CATEGORY_LABELS,
   type BlockedEntry,
   type CategoryKey,
-} from '../../shared/types';
+} from '../../filtering/types';
 import { logsState, type ErrorRow } from './state';
 import './logs.css';
 

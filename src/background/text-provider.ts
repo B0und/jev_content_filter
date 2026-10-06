@@ -2,7 +2,7 @@ import { experimental_evaluate } from 'ai';
 import { createGateway, type GatewayProvider } from '@ai-sdk/gateway';
 import { Effect } from 'effect';
 import * as Schema from 'effect/Schema';
-import type { TextProvider } from '../shared/types';
+import type { TextProvider } from '../filtering/types';
 
 export interface TextScores {
   sexual: number;

@@ -1,8 +1,8 @@
 import { Effect } from 'effect';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
-import { applySettingsChange, loadSettings } from '../../src/shared/settings';
-import { defaultSettings } from '../../src/shared/types';
+import { applySettingsChange, loadSettings } from '../../src/filtering/settings';
+import { defaultSettings } from '../../src/filtering/types';
 
 beforeEach(() => {
   fakeBrowser.reset();

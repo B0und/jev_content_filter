@@ -33,7 +33,7 @@ Enabled local models warm after background startup and settings changes while fi
 
 These are diagnostic corpora, not general accuracy claims. At the preserved AI threshold of 0.65, E5 falsely flags 10/60 human examples and misses 29/60 generated examples. Scores are uncalibrated estimates, not authorship evidence. See the [text report](benchmarks/text-report.md) and [image report](benchmarks/image-model-report.md) for pinned sources, provenance, preprocessing, per-case results, and limitations.
 
-Inference JavaScript, the ONNX WASM engine, and the Anime DBRating model are packaged. NSFWJS and E5 model data come from remote origins. No remote executable code is loaded. The catalog in `src/shared/model-catalog.ts` pins the model revisions. Total image weights are 19.6 MB, including the 16.8 MB bundled anime model.
+Inference JavaScript, the ONNX WASM engine, and the Anime DBRating model are packaged. NSFWJS and E5 model data come from remote origins. No remote executable code is loaded. The catalog in `src/inference/model-catalog.ts` pins the model revisions. Total image weights are 19.6 MB, including the 16.8 MB bundled anime model.
 
 ## Effect tooling
 
@@ -57,16 +57,16 @@ Prefer installed documentation and source when references differ. `AGENTS.md` co
 
 Effect owns asynchronous work; React and the DOM modules own rendering.
 
-- `src/background/runtime.ts` builds one `BackgroundWorker` Layer and `ManagedRuntime`. Three scoped consumers process classification jobs; admission is capped at three active requests plus 64 waiting. Semaphores serialize settings, log, status, icon, and tab-count mutations. Browser listeners still register synchronously for MV3 worker wake-up.
+- `src/background/worker.ts` colocates `BackgroundWorker` and its Layer; `src/background/runtime.ts` builds the `ManagedRuntime` and registers browser listeners synchronously for MV3 worker wake-up. Three scoped consumers process classification jobs; admission is capped at three active requests plus 64 waiting. Semaphores serialize settings, log, status, icon, and tab-count mutations.
 - `src/background/local-inference.ts` owns single-flight offscreen-document creation. The offscreen page hosts `src/inference/worker.ts`, an ES module worker with an Effect runtime and serialized inference. Image and AI graphs load independently and persist their downloaded assets through browser caches.
 - Local inference admits one active request and at most eight waiting payloads. Overflow returns an error without interrupting active work. The five-minute execution deadline starts when a request is sent to the worker, covering model loading and inference. A deadline or worker error terminates the worker, rejects its pending requests, and marks model status as failed. The next request starts a replacement; late messages from the old worker are ignored.
 - The offscreen page publishes model status through authenticated runtime messages; only the background writes extension storage. Offscreen documents have runtime access, not `chrome.storage`. A model-ready transition retries affected failed content checks without requiring a settings edit.
 - `src/content/runtime.ts` builds a `ContentSession` Layer per WXT context. Scans and retry fibers belong to its Scope. Context invalidation restores the DOM and disposes the runtime, interrupting pending work.
 - `src/content/classify.ts` composes cache reads, schema-decoded replies, independent sexual/AI checks, scoring, and cache writes as Effects. Provider revisions and local-model identities prevent obsolete replies from reaching the cache.
-- `src/shared/browser.ts` adapts native Promise APIs into interruptible Effects with `BrowserError`. Provider failures have a separate typed error; provider keys are redacted before errors leave the adapter.
+- `src/platform/browser.ts` adapts native Promise APIs into interruptible Effects with `BrowserError`. Provider failures have a separate typed error; provider keys are redacted before errors leave the adapter.
 - `src/entrypoints/popup/state.ts` and `src/entrypoints/logs/state.ts` expose snapshots through `useSyncExternalStore`. They own optimistic settings edits, pending log actions, storage reconciliation, and errors. React handlers call domain operations.
 - Each open view scopes its reads and polling to a disposable runtime. Submitted writes run separately so closing the view does not cancel them. The background worker serializes settings changes and log clearing; unblock actions write persistent allow overrides.
-- `src/shared/schemas.ts` validates browser messages, stored log rows, status, settings acknowledgements, and tab reports before they enter application state.
+- `src/filtering/schemas.ts` validates browser messages, stored log rows, status, settings acknowledgements, and tab reports before they enter application state.
 - `benchmarks/storage.ts` owns the lab's serialized saves in a `BenchmarkStorage` Layer. The Vite storage plugin scopes the SQLite connection to the server lifetime and consumes request bodies through an Effect Stream.
 - `benchmarks/state.ts` exposes the lab's snapshot through `useSyncExternalStore`. User edits submit serialized saves directly; hydration does not write the loaded or fallback dataset back to storage.
 
@@ -210,11 +210,15 @@ The browser-loop regressions exercise the actual toolbar popup, active-tab filte
 ## Code layout
 
 - `src/entrypoints`: WXT wiring, popup, logs, and the offscreen inference page.
-- `src/inference`: model downloads, browser caches, graph adapters, readiness, and the module worker.
+- `src/inference`: inference contracts, pinned model catalog, downloads, browser caches, graph adapters, readiness, and the module worker.
 - `src/background`: classification queue, local-inference transport, provider requests, serialized settings/log mutations, image fetch proxy, and toolbar state.
 - `src/content`: DOM discovery, post lifecycle, filtering policy, score cache, classification orchestration, and inspector UI.
-- `src/shared`: settings normalization, request/data contracts, pinned model catalog, and persistent logs.
+- `src/filtering`: settings normalization and filtering category, request, and data contracts.
+- `src/history`: persistent blocked-entry and scan-error logs.
+- `src/platform`: native browser adaptation and the Effect bridge.
 - `benchmarks`: local evaluation UI, metrics, import/export normalization, and SQLite persistence.
 - `tests/unit` and `tests/e2e`: deterministic regressions and Chromium scenarios.
+
+Modules shared by several execution contexts live with the domain that owns them, not in a generic `shared` folder. Stateful Effect services colocate their Layer; each host composes its runtime at its integration entrypoint. Keep pure helpers and schemas as ordinary modules. The [domain structure research](docs/effect-domain-structure-research.md) records the article's recommendations, installed Effect guidance, and policies deliberately not adopted.
 
 Feed reports keep live scan statistics separate from page-load totals. Live analyzed/blocked, pending, failure, and retry statistics use attached posts. Cumulative totals retain post identities for the document lifetime, independently of the 200-detached-post retention limit. Attached posts are exempt from that limit. Evicted posts cannot apply late scan results to recycled articles.

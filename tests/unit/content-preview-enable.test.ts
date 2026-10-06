@@ -3,7 +3,7 @@
 // be logged and unblockable through the existing override contract.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { browser } from 'wxt/browser';
-import { STORAGE_KEYS, type Settings } from '../../src/shared/types';
+import { STORAGE_KEYS, type Settings } from '../../src/filtering/types';
 import {
   baseSettings,
   buildTweetArticle,

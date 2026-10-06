@@ -3,7 +3,7 @@
 // lifecycle with WXT fake storage and mocked classifier responses.
 import { afterEach, describe, expect, it } from 'vitest';
 import { browser } from 'wxt/browser';
-import { STORAGE_KEYS, type Settings } from '../../src/shared/types';
+import { STORAGE_KEYS, type Settings } from '../../src/filtering/types';
 import {
   baseSettings,
   buildTweetArticle,

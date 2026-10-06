@@ -1,9 +1,9 @@
 import { Effect } from 'effect';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
-import { loadLog, loadScanErrors } from '../../src/shared/log';
-import { loadStatus, updateSettings } from '../../src/shared/settings';
-import { defaultSettings, type BlockedEntry } from '../../src/shared/types';
+import { loadLog, loadScanErrors } from '../../src/history/log';
+import { loadStatus, updateSettings } from '../../src/filtering/settings';
+import { defaultSettings, type BlockedEntry } from '../../src/filtering/types';
 
 beforeEach(() => fakeBrowser.reset());
 

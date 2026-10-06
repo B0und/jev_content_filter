@@ -1,10 +1,10 @@
 // Rendering and inspector DOM stay here; Effect values represent external
 // logging requests that the content runtime owns.
 import { Clock, Effect } from 'effect';
-import { browserEffect, browserRuntime } from '../shared/browser';
+import { browserEffect, browserRuntime } from '../platform/browser';
 import type { ContentScriptContext } from 'wxt/utils/content-script-context';
-import { CATEGORY_LABELS, IMAGE_KEYS, TEXT_KEYS, type CategoryKey } from '../shared/types';
-import { updateSettings } from '../shared/settings';
+import { CATEGORY_LABELS, IMAGE_KEYS, TEXT_KEYS, type CategoryKey } from '../filtering/types';
+import { updateSettings } from '../filtering/settings';
 import { message } from './classify';
 import { headerCarets, insertHost } from './dom';
 import {

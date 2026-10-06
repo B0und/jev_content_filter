@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { ANIME_RATING_MODEL, SELECTED_MODELS } from '../../src/shared/model-catalog';
+import { ANIME_RATING_MODEL, SELECTED_MODELS } from '../../src/inference/model-catalog';
 import { loadImageModel } from '../../src/inference/image';
 
 const mocks = vi.hoisted(() => ({

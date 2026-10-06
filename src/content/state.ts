@@ -7,7 +7,7 @@ import {
   type CategoryKey,
   type Settings,
   type TabReport,
-} from '../shared/types';
+} from '../filtering/types';
 
 export interface Post {
   id: string;

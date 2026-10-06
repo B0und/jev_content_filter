@@ -1,6 +1,6 @@
 import * as Schema from 'effect/Schema';
 import { CATEGORY_KEYS, TEXT_PROVIDERS } from './types';
-import { ModelKindSchema, ModelStatusesSchema } from './inference';
+import { ModelKindSchema, ModelStatusesSchema } from '../inference/contracts';
 
 export const CategoryKeySchema = Schema.Literals(CATEGORY_KEYS);
 export const TextProviderSchema = Schema.Literals(TEXT_PROVIDERS);
