@@ -579,7 +579,7 @@ function renderPanel(post: Post): void {
   // Text categories — shown when the post has text and the category is enabled.
   const visibleTextKeys = TEXT_KEYS.filter((key) => settings.current.enabled[key]);
   if (
-    post.text &&
+    (post.text || post.previewText) &&
     (visibleTextKeys.length > 0 || settings.current.textFilters.some((filter) => filter.enabled))
   ) {
     const groupLabel = element('div', 'Text');
@@ -595,9 +595,17 @@ function renderPanel(post: Post): void {
     for (const filter of settings.current.textFilters.filter((item) => item.enabled)) {
       const row = element('tr');
       const score = post.scores[`custom:${filter.id}`];
+      const previewScore = post.previewScores[`custom:${filter.id}`];
+      const values: string[] = [];
+      if (post.text)
+        values.push(`Post ${score === undefined ? 'not checked' : `${(score * 100).toFixed(1)}%`}`);
+      if (post.previewText)
+        values.push(
+          `Preview ${previewScore === undefined ? 'not checked' : `${(previewScore * 100).toFixed(1)}%`}`,
+        );
       row.append(
         element('td', filter.name),
-        element('td', score === undefined ? 'Not checked' : `${(score * 100).toFixed(1)}%`),
+        element('td', values.join(' · ')),
         element('td', `${(filter.threshold * 100).toFixed(1)}%`),
       );
       textTable.append(row);

@@ -458,3 +458,32 @@ describe('content lifecycle', () => {
     stopRuntime(test);
   });
 });
+
+it('clears custom matches when post text changes and its new decision fails', async () => {
+  const configured = baseSettings();
+  for (const key of Object.keys(configured.enabled) as Array<keyof typeof configured.enabled>)
+    configured.enabled[key] = false;
+  const test = await startRuntime({
+    enabled: configured.enabled,
+    textFilters: [
+      { id: 'garden', name: 'Gardening', instructions: 'garden', threshold: 0.65, enabled: true },
+    ],
+  });
+  try {
+    test.bg.respond = () => ({ ok: true, sexual: 0.01, custom: { garden: 0.9 } });
+    const article = buildTweetArticle({ id: '5901', text: 'garden advice' });
+    test.handle.discover();
+    await until(() => article.hasAttribute('data-jev-hidden'), 'custom match not hidden');
+    await until(() => test.bg.blockedEntries.length === 1);
+    test.bg.respond = () => ({ ok: false, error: '401 invalid key' });
+    article.querySelector('[data-testid="tweetText"]')!.textContent = 'unrelated new topic';
+    test.handle.discover();
+    await until(
+      () => test.bg.jevCalls.length === 2 && !aria(iconButton(article)).includes('Scanning'),
+    );
+    expect(article.hasAttribute('data-jev-hidden')).toBe(false);
+    expect(test.bg.blockedEntries).toHaveLength(1);
+  } finally {
+    stopRuntime(test);
+  }
+});

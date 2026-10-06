@@ -11,6 +11,7 @@ import {
   IMAGE_KEYS,
   STORAGE_KEYS,
   TEXT_KEYS,
+  type ScoreKey,
   type CategoryKey,
   type TabReport,
 } from '../filtering/types';
@@ -252,7 +253,7 @@ class ContentSession extends Context.Service<ContentSession, ContentSessionApi>(
                       post.previewScores = result.scores;
                       post.previewDone = true;
                     } else {
-                      for (const key of name === 'text' ? TEXT_KEYS : IMAGE_KEYS)
+                      for (const key of name === 'text' ? textScoreKeys(post) : IMAGE_KEYS)
                         delete post.scores[key];
                       Object.assign(post.scores, result.scores);
                       if (name === 'text') post.textDone = true;
@@ -375,7 +376,7 @@ class ContentSession extends Context.Service<ContentSession, ContentSessionApi>(
                   post.textDone = false;
                   post.partErrors.text = [];
                   post.logged = false;
-                  for (const key of TEXT_KEYS) delete post.scores[key];
+                  for (const key of textScoreKeys(post)) delete post.scores[key];
                 }
                 if (!sameUrls(post.urls, content.urls)) {
                   post.urls = content.urls;
@@ -702,4 +703,14 @@ function teardown(ctx: ContentScriptContext): void {
   lastBadgeBlocked = -1;
   removeAllUI();
   clearBindingIndex();
+}
+
+/** Include retained custom scores, even if their rules have since been deleted. */
+function textScoreKeys(post: Post): ScoreKey[] {
+  return [
+    ...TEXT_KEYS,
+    ...Object.keys(post.scores).filter((key): key is `custom:${string}` =>
+      key.startsWith('custom:'),
+    ),
+  ];
 }

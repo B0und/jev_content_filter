@@ -122,6 +122,55 @@ describe('text provider effects', () => {
     }
   });
 
+  it.each([
+    ['typesafe', 'https://api.typesafe.ai/v1/systemone'],
+    ['openrouter', 'https://openrouter.ai/api/alpha/decisions'],
+  ] as const)(
+    'sends enabled custom filters in one SDK decision call through %s',
+    async (provider, endpoint) => {
+      let body: unknown;
+      server.use(
+        http.post(endpoint, async ({ request }) => {
+          expect(request.headers.get('authorization')).toBe(`Bearer ${API_KEY}`);
+          body = await request.json();
+          return HttpResponse.json({
+            answers: {
+              sexual: { type: 'noul', noul: 0.1 },
+              'custom:garden': { type: 'noul', noul: 0.9 },
+            },
+          });
+        }),
+      );
+      const filter = {
+        id: 'garden',
+        name: 'Gardening',
+        instructions: 'Posts about gardening',
+        enabled: true,
+        threshold: 0.65,
+      };
+      expect(
+        await Effect.runPromise(
+          evaluateText({
+            provider,
+            apiKey: API_KEY,
+            text: 'Garden advice',
+            filters: [filter, { ...filter, id: 'disabled', enabled: false }],
+          }),
+        ),
+      ).toEqual({ sexual: 0.1, custom: { garden: 0.9 } });
+      expect(body).toMatchObject({
+        state: { tweet_text: 'Garden advice' },
+        questions: {
+          'custom:garden': {
+            type: 'noul',
+            instructions: expect.stringContaining(filter.instructions),
+          },
+        },
+      });
+      expect(body).not.toHaveProperty('questions.custom:disabled');
+    },
+  );
+
   it.each(['typesafe', 'vercel'] as const)(
     'interrupts the pending %s request',
     async (provider) => {
@@ -138,13 +187,27 @@ describe('text provider effects', () => {
           rejectOnAbort(options.abortSignal),
         );
       } else {
+        // Observe the native transport signal; MSW's cloned Request signal can
+        // outlive an interrupted fetch on Node 26.
+        const originalFetch = globalThis.fetch;
+        let transportSignal: AbortSignal | undefined;
+        vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+          transportSignal = init?.signal ?? undefined;
+          return originalFetch(input, init);
+        });
         server.use(
-          http.post('https://api.typesafe.ai/v1/systemone', ({ request }) => {
+          http.post('https://api.typesafe.ai/v1/systemone', () => {
             const response = Promise.withResolvers<Response>();
-            requestSignal.resolve(request.signal);
-            request.signal.addEventListener('abort', () => response.resolve(HttpResponse.error()), {
-              once: true,
-            });
+            if (!transportSignal) throw new Error('Missing transport abort signal');
+            requestSignal.resolve(transportSignal);
+            transportSignal.addEventListener(
+              'abort',
+              () =>
+                response.resolve(
+                  HttpResponse.json({ answers: { sexual: { type: 'noul', noul: 0.1 } } }),
+                ),
+              { once: true },
+            );
             return response.promise;
           }),
         );
@@ -162,52 +225,3 @@ describe('text provider effects', () => {
     },
   );
 });
-
-it.each([
-  ['typesafe', 'https://api.typesafe.ai/v1/systemone'],
-  ['openrouter', 'https://openrouter.ai/api/alpha/decisions'],
-] as const)(
-  'sends enabled custom filters in one SDK decision call through %s',
-  async (provider, endpoint) => {
-    let body: unknown;
-    server.use(
-      http.post(endpoint, async ({ request }) => {
-        expect(request.headers.get('authorization')).toBe(`Bearer ${API_KEY}`);
-        body = await request.json();
-        return HttpResponse.json({
-          answers: {
-            sexual: { type: 'noul', noul: 0.1 },
-            'custom:garden': { type: 'noul', noul: 0.9 },
-          },
-        });
-      }),
-    );
-    const filter = {
-      id: 'garden',
-      name: 'Gardening',
-      instructions: 'Posts about gardening',
-      enabled: true,
-      threshold: 0.65,
-    };
-    expect(
-      await Effect.runPromise(
-        evaluateText({
-          provider,
-          apiKey: API_KEY,
-          text: 'Garden advice',
-          filters: [filter, { ...filter, id: 'disabled', enabled: false }],
-        }),
-      ),
-    ).toEqual({ sexual: 0.1, custom: { garden: 0.9 } });
-    expect(body).toMatchObject({
-      state: { tweet_text: 'Garden advice' },
-      questions: {
-        'custom:garden': {
-          type: 'noul',
-          instructions: expect.stringContaining(filter.instructions),
-        },
-      },
-    });
-    expect(body).not.toHaveProperty('questions.custom:disabled');
-  },
-);

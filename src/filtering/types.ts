@@ -9,6 +9,15 @@ export interface TextFilter {
   enabled: boolean;
   threshold: number;
 }
+/** Only active questions affect decisions; labels and cutoffs are application policy. */
+export function textDecisionSignature(filters: TextFilter[]): string {
+  return JSON.stringify(
+    filters
+      .filter((filter) => filter.enabled)
+      .map(({ id, instructions }) => ({ id, instructions }))
+      .sort((a, b) => a.id.localeCompare(b.id)),
+  );
+}
 export function textFilterKey(id: string): `custom:${string}` {
   return `custom:${id}`;
 }
@@ -35,7 +44,7 @@ export interface Settings {
   textProvider: TextProvider;
   /** Credentials never move between providers. */
   providerKeys: Record<TextProvider, string>;
-  /** Incremented when custom rules, the selected provider, or its credential changes. */
+  /** Incremented when active custom questions, the selected provider, or its credential changes. */
   textConfigRevision: number;
   enabled: Record<CategoryKey, boolean>;
   /** Probability cutoff, 0..1. Lower blocks more. */

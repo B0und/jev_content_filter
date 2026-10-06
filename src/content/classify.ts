@@ -4,7 +4,12 @@ import { Clock, Effect, Semaphore } from 'effect';
 import * as Schema from 'effect/Schema';
 import { browser } from 'wxt/browser';
 import { browserEffect, BrowserError } from '../platform/browser';
-import { CATEGORY_KEYS, STORAGE_KEYS, type ScoreKey } from '../filtering/types';
+import {
+  CATEGORY_KEYS,
+  STORAGE_KEYS,
+  textDecisionSignature,
+  type ScoreKey,
+} from '../filtering/types';
 import { ScoreKeySchema } from '../filtering/schemas';
 import { settings, type Post } from './state';
 import { canonicalMediaUrl } from './dom';
@@ -142,7 +147,7 @@ export const textScores = Effect.fnUntraced(function* (
   if (current.enabled.sexualText || current.textFilters.some((filter) => filter.enabled))
     jobs.push(
       Effect.gen(function* () {
-        const key = `${CACHE_PREFIX}t:${provider}:${hash64(JSON.stringify(current.textFilters))}:${hash64(text)}`;
+        const key = `${CACHE_PREFIX}t:${provider}:${hash64(textDecisionSignature(current.textFilters))}:${hash64(text)}`;
         const cached = yield* readCache(key);
         if (
           cached?.scores.sexualText !== undefined &&

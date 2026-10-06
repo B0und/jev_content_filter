@@ -6,6 +6,7 @@ import { FilterStatusSchema, SettingsReplySchema, TextFilterSchema } from './sch
 import {
   STORAGE_KEYS,
   defaultSettings,
+  textDecisionSignature,
   type FilterStatus,
   CATEGORY_KEYS,
   isTextProvider,
@@ -160,7 +161,7 @@ export function applySettingsChange(current: Settings, change: SettingsChange): 
       throw new Error('Unknown settings field.');
   }
   if (
-    JSON.stringify(next.textFilters) !== JSON.stringify(current.textFilters) ||
+    textDecisionSignature(next.textFilters) !== textDecisionSignature(current.textFilters) ||
     next.textProvider !== current.textProvider ||
     next.providerKeys[next.textProvider] !== current.providerKeys[current.textProvider]
   )

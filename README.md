@@ -106,7 +106,7 @@ The background worker serializes field-level settings changes from popups and in
 
 Jev requests use AI SDK's experimental `experimental_decide` API with `boolean` questions and application-owned probability thresholds. Vercel uses its `decisionModel`; TypeSafe uses `@ai-sdk/typesafe-ai`. OpenRouter uses the same native Jev schema through the TypeSafe adapter with its HTTP destination set to OpenRouter's Decisions endpoint. SDK versions are pinned because this API is experimental. See the [TypeSafe provider documentation](https://ai-sdk.dev/providers/ai-sdk-providers/typesafe-ai).
 
-Custom filter instructions join the built-in sexual-text question in one decision call. Each rule gets a stable ID; rule edits invalidate text decisions and rescan existing posts and link previews. Failed decisions remain visible with an error instead of being hidden by a default score.
+Custom filter instructions join the built-in sexual-text question in one decision call. Each rule gets a stable ID; instruction edits invalidate cached text decisions and rescan existing posts and link previews. Name and threshold edits reuse saved decisions. Failed decisions remain visible with an error instead of being hidden by a default score.
 
 Historical single-key settings migrate into the selected provider's key slot only. The worker rewrites normalized settings without the old shared-key field. Score-cache version 7 ignores earlier entries and includes local model identity/revision and text-check type.
 

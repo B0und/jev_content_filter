@@ -155,6 +155,34 @@ describe('inspector panel', () => {
   });
 });
 
+it.each(['body text', ''])('shows custom preview scores separately with body %j', async (text) => {
+  const configured = baseSettings();
+  for (const key of Object.keys(configured.enabled) as Array<keyof typeof configured.enabled>)
+    configured.enabled[key] = false;
+  const test = await startRuntime({
+    enabled: configured.enabled,
+    textFilters: [
+      { id: 'garden', name: 'Gardening', instructions: 'garden', threshold: 0.65, enabled: true },
+    ],
+  });
+  try {
+    test.bg.respond = (request) => ({
+      ok: true,
+      sexual: 0.01,
+      custom: { garden: request.text.includes('garden') ? 0.9 : 0.1 },
+    });
+    const article = buildTweetArticle({ id: '5900', text, previewText: 'garden preview' });
+    test.handle.discover();
+    await until(() => !!article.querySelector('[data-jev-card-hidden]'), 'preview was not hidden');
+    iconButton(article).dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }));
+    const root = document.querySelector('[data-jev-panel]')?.shadowRoot;
+    expect(root?.textContent).toContain('Preview 90.0%');
+    if (text) expect(root?.textContent).toContain('Post 10.0%');
+  } finally {
+    stopRuntime(test);
+  }
+});
+
 function shadowRoot(host: HTMLElement): ShadowRoot {
   const root = host.shadowRoot;
   if (!root) throw new Error('panel shadow root missing');

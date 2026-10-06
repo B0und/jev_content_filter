@@ -420,6 +420,15 @@ it('checks custom rules with built-in text checks off and invalidates their cach
   expect(bg.jevCalls).toHaveLength(1);
   settings.current = applySettingsChange(settings.current, {
     field: 'textFilter',
+    value: { ...filter, name: 'Renamed', threshold: 0.95 },
+  });
+  expect((await Effect.runPromise(textScores(post, 'same text'))).scores['custom:garden']).toBe(
+    0.9,
+  );
+  expect(bg.jevCalls).toHaveLength(1);
+  expect(settings.current.textConfigRevision).toBe(0);
+  settings.current = applySettingsChange(settings.current, {
+    field: 'textFilter',
     value: { ...filter, instructions: 'Posts about a different topic' },
   });
   bg.respond = () => ({ ok: true, sexual: 0.01, custom: { garden: 0.1 } });
