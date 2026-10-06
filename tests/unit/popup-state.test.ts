@@ -91,8 +91,8 @@ describe('popup settings state', () => {
     const stop = state.start();
     await whenSnapshot(state, () => state.getSnapshot().settings !== null);
 
-    state.update({ field: 'masterEnabled', value: false });
-    state.update({ field: 'threshold', category: 'porn', value: 0.61 });
+    void state.update({ field: 'masterEnabled', value: false });
+    void state.update({ field: 'threshold', category: 'porn', value: 0.61 });
     await bothWritesStarted.promise;
     stored = {
       ...stored,
@@ -163,7 +163,7 @@ describe('popup settings state', () => {
     );
     const stop = state.start();
     await whenSnapshot(state, () => state.getSnapshot().settings !== null);
-    state.update({ field: 'masterEnabled', value: false });
+    void state.update({ field: 'masterEnabled', value: false });
     await writeStarted.promise;
     stop();
     stored = savedSettings;
@@ -189,7 +189,7 @@ describe('popup settings state', () => {
     const stop = state.start();
     await whenSnapshot(state, () => state.getSnapshot().settings !== null);
 
-    state.update({ field: 'masterEnabled', value: false });
+    void state.update({ field: 'masterEnabled', value: false });
     await whenSnapshot(
       state,
       () => !state.getSnapshot().saving && state.getSnapshot().error.includes('worker unavailable'),
@@ -230,4 +230,35 @@ describe('popup settings state', () => {
     await reportAborted.promise;
     expect(state.getSnapshot().settings?.masterEnabled).toBe(true);
   });
+});
+
+it('reports the save outcome and clears a failed-save message after a successful retry', async () => {
+  let fail = true;
+  const state = createPopupState(
+    popupDependencies({
+      updateSettings: () =>
+        fail
+          ? Effect.fail(new BrowserError({ operation: 'test save', cause: 'storage unavailable' }))
+          : Effect.succeed(defaultSettings()),
+    }),
+  );
+  const stop = state.start();
+  try {
+    await whenSnapshot(state, () => state.getSnapshot().settings !== null);
+    const filter = {
+      id: 'draft',
+      name: 'Gardening',
+      instructions: 'garden',
+      enabled: true,
+      threshold: 0.72,
+    };
+    await expect(state.update({ field: 'textFilter', value: filter })).resolves.toBe(false);
+    expect(state.getSnapshot().settings?.textFilters).toEqual([]);
+    expect(state.getSnapshot().error).toContain('Could not save settings');
+    fail = false;
+    await expect(state.update({ field: 'textFilter', value: filter })).resolves.toBe(true);
+    expect(state.getSnapshot().error).toBe('');
+  } finally {
+    stop();
+  }
 });

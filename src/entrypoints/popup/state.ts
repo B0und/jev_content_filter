@@ -34,7 +34,7 @@ export interface PopupState {
   getSnapshot: () => PopupSnapshot;
   subscribe: (listener: () => void) => () => void;
   start: () => () => void;
-  update: (change: SettingsChange) => void;
+  update: (change: SettingsChange) => Promise<boolean>;
   openLogs: () => void;
   retryModel: (kind: ModelKind) => void;
 }
@@ -208,27 +208,35 @@ export function createPopupState(dependencies: PopupStateDependencies): PopupSta
     return stop;
   }
 
-  function update(change: SettingsChange): void {
-    if (!confirmedSettings) return;
+  function update(change: SettingsChange): Promise<boolean> {
+    if (!confirmedSettings) return Promise.resolve(false);
+    try {
+      applySettingsChange(currentSettings() ?? confirmedSettings, change);
+    } catch (cause) {
+      publish({ error: `Could not save settings: ${String(cause)}` });
+      return Promise.resolve(false);
+    }
     const edit: OptimisticEdit = { change, phase: 'saving' };
     optimisticEdits.push(edit);
     publish();
 
     // The background owns read-modify-write and receives every edit immediately;
     // view disposal only stops the refresh used to reconcile this optimistic projection.
-    browserRuntime.runFork(
+    return browserRuntime.runPromise(
       dependencies.updateSettings(change).pipe(
         Effect.match({
           onSuccess: () => {
             edit.phase = 'confirmed';
-            publish();
+            publish({ error: '' });
             refreshSettingsWhileMounted?.();
+            return true;
           },
           onFailure: (cause) => {
             const index = optimisticEdits.indexOf(edit);
             if (index >= 0) optimisticEdits.splice(index, 1);
             publish({ error: `Could not save settings: ${String(cause)}` });
             refreshSettingsWhileMounted?.();
+            return false;
           },
         }),
       ),

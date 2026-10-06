@@ -52,3 +52,42 @@ test('custom filters can be created, edited, disabled and deleted while the feed
     })
     .toEqual([]);
 });
+
+test('a failed filter save preserves the draft for a successful retry', async ({
+  context,
+  extensionId,
+  worker,
+}) => {
+  const popup = await context.newPage();
+  await popup.goto(`chrome-extension://${extensionId}/popup.html`);
+  await popup.getByRole('button', { name: 'Add text filter' }).click();
+  await popup.getByLabel('Filter name', { exact: true }).fill('Gardening');
+  await popup.getByLabel('What should be hidden?').fill('Posts about the garden');
+  await popup.getByLabel('Block at probability (%)').fill('72');
+  await worker.evaluate(() => {
+    const originalSet = chrome.storage.local.set.bind(chrome.storage.local);
+    Object.assign(globalThis, {
+      restoreCustomFilterStorage: () => {
+        chrome.storage.local.set = originalSet;
+      },
+    });
+    chrome.storage.local.set = (items) =>
+      'settings' in items
+        ? Promise.reject(new Error('Test storage unavailable'))
+        : originalSet(items);
+  });
+  try {
+    await popup.getByRole('button', { name: 'Save filter' }).click();
+    await expect(
+      popup.getByRole('alert').filter({ hasText: 'Could not save settings' }),
+    ).toBeVisible();
+    await expect(popup.getByLabel('Filter name', { exact: true })).toHaveValue('Gardening');
+    await expect(popup.getByLabel('What should be hidden?')).toHaveValue('Posts about the garden');
+    await expect(popup.getByLabel('Block at probability (%)')).toHaveValue('72');
+  } finally {
+    await worker.evaluate('globalThis.restoreCustomFilterStorage()');
+  }
+  await popup.getByRole('button', { name: 'Save filter' }).click();
+  await expect(popup.getByLabel('Filter name', { exact: true })).toHaveCount(0);
+  await expect(popup.getByRole('switch', { name: 'Enable Gardening', exact: true })).toBeChecked();
+});

@@ -164,6 +164,8 @@ export function isDark(element: Element): boolean {
 
 export function renderAll(): void {
   for (const [article, binding] of bindings) render(article, binding);
+  const openPost = openPostId ? posts.get(openPostId) : undefined;
+  if (openPost) renderPanel(openPost);
 }
 
 export function renderPost(post: Post): Array<Effect.Effect<void>> {

@@ -292,7 +292,7 @@ function CustomTextFilters({ settings }: { settings: Settings }) {
                 type="button"
                 aria-label={`Delete ${filter.name}`}
                 onClick={() => {
-                  popupState.update({ field: 'deleteTextFilter', id: filter.id });
+                  void popupState.update({ field: 'deleteTextFilter', id: filter.id });
                   if (editing?.id === filter.id) setEditing(null);
                 }}
               >
@@ -328,32 +328,40 @@ function CustomTextFilters({ settings }: { settings: Settings }) {
 }
 
 function TextFilterEditor({ filter, onClose }: { filter: TextFilter | null; onClose: () => void }) {
+  const [id] = useState(() => filter?.id ?? crypto.randomUUID());
+  const [saving, setSaving] = useState(false);
   const [name, setName] = useState(filter?.name ?? '');
   const [instructions, setInstructions] = useState(filter?.instructions ?? '');
   const [threshold, setThreshold] = useState(String((filter?.threshold ?? 0.65) * 100));
   return (
     <form
       className="text-filter-editor"
-      onSubmit={(event) => {
+      onSubmit={async (event) => {
         event.preventDefault();
-        if (!name.trim() || !instructions.trim() || threshold === '') return;
-        popupState.update({
-          field: 'textFilter',
-          value: {
-            id: filter?.id ?? crypto.randomUUID(),
-            name: name.trim(),
-            instructions: instructions.trim(),
-            enabled: filter?.enabled ?? true,
-            threshold: Number(threshold) / 100,
-          },
-        });
-        onClose();
+        if (saving || !name.trim() || !instructions.trim() || threshold === '') return;
+        setSaving(true);
+        try {
+          const saved = await popupState.update({
+            field: 'textFilter',
+            value: {
+              id,
+              name: name.trim(),
+              instructions: instructions.trim(),
+              enabled: filter?.enabled ?? true,
+              threshold: Number(threshold) / 100,
+            },
+          });
+          if (saved) onClose();
+        } finally {
+          setSaving(false);
+        }
       }}
     >
       <label htmlFor="filter-name">Filter name</label>
       <input
         id="filter-name"
         required
+        disabled={saving}
         maxLength={80}
         value={name}
         onChange={(event) => setName(event.target.value)}
@@ -363,6 +371,7 @@ function TextFilterEditor({ filter, onClose }: { filter: TextFilter | null; onCl
       <textarea
         id="filter-instructions"
         required
+        disabled={saving}
         maxLength={2000}
         rows={3}
         value={instructions}
@@ -374,6 +383,7 @@ function TextFilterEditor({ filter, onClose }: { filter: TextFilter | null; onCl
         id="filter-threshold"
         type="number"
         required
+        disabled={saving}
         min={0}
         max={100}
         step={0.1}
@@ -382,8 +392,10 @@ function TextFilterEditor({ filter, onClose }: { filter: TextFilter | null; onCl
       />
       <p className="notice">Lower thresholds hide more posts.</p>
       <div className="custom-filter-actions">
-        <button type="submit">Save filter</button>
-        <button type="button" onClick={onClose}>
+        <button type="submit" disabled={saving}>
+          {saving ? 'Saving filter…' : 'Save filter'}
+        </button>
+        <button type="button" disabled={saving} onClick={onClose}>
           Cancel
         </button>
       </div>
@@ -416,7 +428,7 @@ function ProviderSettings({ settings, report }: { settings: Settings; report: Ta
           value={settings.textProvider}
           onChange={(event) => {
             const provider = event.currentTarget.value;
-            if (isTextProvider(provider)) update({ field: 'textProvider', value: provider });
+            if (isTextProvider(provider)) void update({ field: 'textProvider', value: provider });
           }}
         >
           {TEXT_PROVIDERS.map((provider) => (

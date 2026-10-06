@@ -1,6 +1,9 @@
 // Inspector panel regressions: Open logs must go through the background
 // message (never a direct extension-URL navigation), Escape closes and
 // restores focus, and scan errors are shown.
+import { browser } from 'wxt/browser';
+import { applySettingsChange } from '../../src/filtering/settings';
+import { settings } from '../../src/content/state';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   clearFeed,
@@ -180,6 +183,7 @@ it.each(['body text', ''])('shows custom preview scores separately with body %j'
     if (text) expect(root?.textContent).toContain('Post 10.0%');
   } finally {
     stopRuntime(test);
+    clearFeed();
   }
 });
 
@@ -200,3 +204,40 @@ async function untilValue<T>(read: () => T | null, message: string): Promise<T> 
   if (value === null) throw new Error(message);
   return value;
 }
+
+it('refreshes an open inspector after custom labels and thresholds change without rescanning', async () => {
+  const configured = baseSettings();
+  for (const key of Object.keys(configured.enabled) as Array<keyof typeof configured.enabled>)
+    configured.enabled[key] = false;
+  const filter = {
+    id: 'garden',
+    name: 'Gardening',
+    instructions: 'garden',
+    threshold: 0.65,
+    enabled: true,
+  };
+  const test = await startRuntime({ enabled: configured.enabled, textFilters: [filter] });
+  try {
+    test.bg.respond = () => ({ ok: true, sexual: 0.01, custom: { garden: 0.9 } });
+    const article = buildTweetArticle({ id: '5902', text: 'garden' });
+    test.handle.discover();
+    await until(() => article.hasAttribute('data-jev-hidden'));
+    iconButton(article).dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }));
+    const root = document.querySelector('[data-jev-panel]')?.shadowRoot;
+    expect(root?.textContent).toContain('Gardening');
+    await browser.storage.local.set({
+      settings: applySettingsChange(settings.current, {
+        field: 'textFilter',
+        value: { ...filter, name: 'Renamed filter', threshold: 0.95 },
+      }),
+    });
+    await until(() => !article.hasAttribute('data-jev-hidden'));
+    expect(root?.textContent).toContain('Renamed filter');
+    expect(root?.textContent).toContain('95.0%');
+    expect(root?.querySelector('.head')?.textContent).toBe('Allowed');
+    expect(test.bg.jevCalls).toHaveLength(1);
+  } finally {
+    stopRuntime(test);
+    clearFeed();
+  }
+});
