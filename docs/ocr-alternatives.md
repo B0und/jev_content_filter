@@ -32,19 +32,20 @@ worker mode and custom model archives:
 - [PaddleOCR browser deployment](https://github.com/PaddlePaddle/PaddleOCR/blob/main/docs/version3.x/inference_deployment/cross_platform/browser.md)
 - [PaddleOCR.js SDK README](https://github.com/PaddlePaddle/PaddleOCR/blob/main/paddleocr-js/packages/core/README.md)
 
-It is the strongest future accuracy candidate, especially for multilingual
-text, but it brings a detector plus recognizer pipeline, OpenCV.js, ONNX Runtime
-configuration, and model archives. That is a much larger integration and
-download surface than this extension currently needs. It should be benchmarked
-against real X screenshots before replacing the small OCR path.
+PaddleOCR.js is the most promising candidate to benchmark next. It brings a
+detector and recognizer pipeline, OpenCV.js, and model archives. The extension
+already has ONNX Runtime, so some runtime code may be reusable. We have not
+measured its added package size, English screenshot accuracy, or latency here.
+Those measurements are needed before calling it better than Tesseract for this
+workload.
 
 ### Scribe.js
 
 Scribe.js claims generally better accuracy than Tesseract.js and adds layout and
 PDF features. Its own comparison says Tesseract.js is smaller and faster for
 PNG/JPEG extraction, while Scribe's quality mode is often 40–90% slower than its
-speed mode. Scribe.js is AGPL-3.0, which is also a poor fit for this extension's
-Apache-compatible distribution:
+speed mode. Scribe.js is AGPL-3.0, so adopting it would require reviewing the
+extension's distribution license:
 
 - [Scribe.js comparison with Tesseract.js](https://github.com/scribeocr/scribe.js/blob/master/docs/scribe_vs_tesseract.md)
 
@@ -65,3 +66,17 @@ PaddleOCR.js on a fixed corpus of English screenshots (small text, stylized
 fonts, dark backgrounds, rotated text, and memes). Record first-use download
 time, warm recognition time, output quality, extension package size, and memory
 use before switching engines.
+
+## Measured Tesseract latency
+
+On 2026-10-07, the installed Chromium extension recognized a synthetic
+1100 × 420 English screenshot containing three lines of 36 px Arial text.
+Six sequential requests took 294, 255, 255, 248, 246, and 248 ms, averaging
+258 ms. All requests returned the expected text. The OCR worker and English
+and Russian language packs were already loaded. Requests went directly to
+the offscreen inference document, bypassing the extracted-text cache.
+
+This measures preprocessing, recognition, and extension message round trips
+on this machine. It excludes image download, first-use model initialization,
+language download, queue waiting, and Jev classification. It is a sample for
+one screenshot, not a general average across real X images.
