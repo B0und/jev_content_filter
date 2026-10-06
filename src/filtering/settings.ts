@@ -131,17 +131,21 @@ export const loadSettings = Effect.fn('loadSettings')(function* () {
 export function applySettingsChange(current: Settings, change: SettingsChange): Settings {
   const next = { ...current };
   switch (change.field) {
-    case 'textFilter': {
-      if (
-        !Schema.is(TextFilterSchema)(change.value) ||
-        !change.value.name.trim() ||
-        !change.value.instructions.trim()
-      )
+    case 'textFilter':
+    case 'patchTextFilter': {
+      let value;
+      if (change.field === 'patchTextFilter') {
+        const existing = current.textFilters.find((filter) => filter.id === change.id);
+        // A delayed edit must never recreate a rule deleted in another view.
+        if (!existing) return current;
+        value = { ...existing, ...change.value };
+      } else value = change.value;
+      if (!Schema.is(TextFilterSchema)(value) || !value.name.trim() || !value.instructions.trim())
         throw new Error('Enter a filter name and instructions.');
       const filter = {
-        ...change.value,
-        name: change.value.name.trim(),
-        instructions: change.value.instructions.trim(),
+        ...value,
+        name: value.name.trim(),
+        instructions: value.instructions.trim(),
       };
       const exists = current.textFilters.some((item) => item.id === filter.id);
       if (!exists && current.textFilters.length >= 20)

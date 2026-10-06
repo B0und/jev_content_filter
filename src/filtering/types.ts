@@ -62,6 +62,7 @@ export interface Settings {
 
 export type SettingsChange =
   | { field: 'textFilter'; value: TextFilter }
+  | { field: 'patchTextFilter'; id: string; value: Partial<Omit<TextFilter, 'id'>> }
   | { field: 'deleteTextFilter'; id: string }
   | { field: 'masterEnabled'; value: boolean }
   | { field: 'textProvider'; value: TextProvider }

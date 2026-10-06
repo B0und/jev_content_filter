@@ -122,6 +122,41 @@ describe('settings storage normalization', () => {
 });
 
 describe('field-level settings changes', () => {
+  it('merges independent filter edits and never recreates a deleted filter', () => {
+    const original = defaultSettings();
+    const id = original.textFilters[0]!.id;
+    const threshold = applySettingsChange(original, {
+      field: 'patchTextFilter',
+      id,
+      value: { threshold: 0.4 },
+    });
+    const renamed = applySettingsChange(threshold, {
+      field: 'patchTextFilter',
+      id,
+      value: { name: 'Renamed rule', instructions: 'Sports results' },
+    });
+    const toggled = applySettingsChange(renamed, {
+      field: 'patchTextFilter',
+      id,
+      value: { enabled: false },
+    });
+    expect(toggled.textFilters[0]).toEqual({
+      ...original.textFilters[0],
+      name: 'Renamed rule',
+      instructions: 'Sports results',
+      threshold: 0.4,
+      enabled: false,
+    });
+    const deleted = applySettingsChange(toggled, { field: 'deleteTextFilter', id });
+    expect(
+      applySettingsChange(deleted, {
+        field: 'patchTextFilter',
+        id,
+        value: { threshold: 0.3 },
+      }).textFilters,
+    ).toEqual([]);
+  });
+
   it('isolates provider credentials and changes revision only for active text configuration', () => {
     const original = defaultSettings();
     const vercel = applySettingsChange(original, {

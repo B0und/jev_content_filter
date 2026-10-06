@@ -36,6 +36,16 @@ export const SettingsSchema = Schema.Struct({
 
 export const SettingsChangeSchema = Schema.Union([
   Schema.Struct({ field: Schema.Literal('textFilter'), value: TextFilterSchema }),
+  Schema.Struct({
+    field: Schema.Literal('patchTextFilter'),
+    id: TextFilterSchema.fields.id,
+    value: Schema.Struct({
+      name: Schema.optionalKey(TextFilterSchema.fields.name),
+      instructions: Schema.optionalKey(TextFilterSchema.fields.instructions),
+      enabled: Schema.optionalKey(TextFilterSchema.fields.enabled),
+      threshold: Schema.optionalKey(TextFilterSchema.fields.threshold),
+    }),
+  }),
   Schema.Struct({ field: Schema.Literal('deleteTextFilter'), id: Schema.String }),
   Schema.Struct({ field: Schema.Literal('masterEnabled'), value: Schema.Boolean }),
   Schema.Struct({ field: Schema.Literal('textProvider'), value: TextProviderSchema }),

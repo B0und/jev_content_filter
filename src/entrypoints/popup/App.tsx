@@ -252,7 +252,7 @@ function CustomTextFilters({ settings }: { settings: Settings }) {
                 aria-label={`Enable ${filter.name}`}
                 checked={filter.enabled}
                 onCheckedChange={(enabled) =>
-                  popupState.update({ field: 'textFilter', value: { ...filter, enabled } })
+                  popupState.update({ field: 'patchTextFilter', id: filter.id, value: { enabled } })
                 }
               >
                 <Switch.Thumb className="thumb" />
@@ -333,22 +333,25 @@ function TextFilterEditor({ filter, onClose }: { filter: TextFilter | null; onCl
         if (saving || !name.trim() || !instructions.trim() || threshold === '') return;
         setSaving(true);
         try {
-          const saved = await popupState.update(
-            {
-              field: 'textFilter',
-              value: {
+          const value = {
+            name: name.trim(),
+            instructions: instructions.trim(),
+            threshold: Number(threshold) / 100,
+          };
+          const change: SettingsChange = filter
+            ? {
+                field: 'patchTextFilter',
                 id,
-                name: name.trim(),
-                instructions: instructions.trim(),
-                enabled:
-                  popupState
-                    .getSnapshot()
-                    .settings?.textFilters.find((current) => current.id === id)?.enabled ?? true,
-                threshold: Number(threshold) / 100,
-              },
-            },
-            editorId,
-          );
+                value: {
+                  ...(value.name !== filter.name ? { name: value.name } : {}),
+                  ...(value.instructions !== filter.instructions
+                    ? { instructions: value.instructions }
+                    : {}),
+                  ...(value.threshold !== filter.threshold ? { threshold: value.threshold } : {}),
+                },
+              }
+            : { field: 'textFilter', value: { id, ...value, enabled: true } };
+          const saved = await popupState.update(change, editorId);
           if (saved && active.current) onClose();
         } finally {
           if (active.current) setSaving(false);
@@ -408,8 +411,7 @@ function ProviderSettings({ settings, report }: { settings: Settings; report: Ta
     <details className="diagnostics">
       <summary>Jev provider and scan details</summary>
       <p className="provider-scope">
-        Sexual-text and custom filters use this provider and key. AI-written-text checks run
-        locally.
+        Your text filters use this provider and key. AI-written-text checks run locally.
       </p>
       {report && (
         <p className="scan-details">

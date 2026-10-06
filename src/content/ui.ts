@@ -745,7 +745,11 @@ function thresholdInput(post: Post, key: ScoreKey, threshold: number): HTMLInput
       .runPromise(
         updateSettings(
           filter
-            ? { field: 'textFilter', value: { ...filter, threshold: input.valueAsNumber / 100 } }
+            ? {
+                field: 'patchTextFilter',
+                id: filter.id,
+                value: { threshold: input.valueAsNumber / 100 },
+              }
             : {
                 field: 'threshold',
                 category: key as CategoryKey,

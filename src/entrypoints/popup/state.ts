@@ -217,6 +217,7 @@ export function createPopupState(dependencies: PopupStateDependencies): PopupSta
       case 'textFilter':
         return `textFilter:${change.value.id}`;
       case 'deleteTextFilter':
+      case 'patchTextFilter':
         return `textFilter:${change.id}`;
       case 'providerKey':
         return `providerKey:${change.provider}`;
