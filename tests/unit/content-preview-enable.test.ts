@@ -3,7 +3,7 @@
 // be logged and unblockable through the existing override contract.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { browser } from 'wxt/browser';
-import { STORAGE_KEYS, type Settings } from '../../src/shared/types';
+import { STORAGE_KEYS, type Settings } from '../../src/filtering/types';
 import {
   baseSettings,
   buildTweetArticle,
@@ -39,7 +39,7 @@ describe('category enable transitions', () => {
 
     // Assign the classifier reply before the settings write: the runtime
     // scans immediately when the change lands.
-    test.bg.respond = () => ({ ok: true, sexual: 0.9, ai: 0.01 });
+    test.bg.respond = () => ({ ok: true, sexual: 0.9 });
     const enabled: Settings = baseSettings({
       providerKeys: { vercel: 'test-key', typesafe: '', openrouter: '' },
     });
@@ -62,8 +62,8 @@ describe('category enable transitions', () => {
     const test = await startRuntime({ enabled: { ...baseSettings().enabled, aiGenerated: false } });
     test.bg.respond = (request) =>
       request.text === 'preview page about explicit things'
-        ? { ok: true, sexual: 0.9, ai: 0.01 }
-        : { ok: true, sexual: 0.01, ai: 0.01 };
+        ? { ok: true, sexual: 0.9 }
+        : { ok: true, sexual: 0.01 };
     const article = buildTweetArticle({
       id: '3002',
       text: 'clean text',
@@ -89,7 +89,8 @@ describe('category enable transitions', () => {
 
     // The logs page unblocks by writing an override — the preview restores.
     await browser.storage.local.set({ [`${STORAGE_KEYS.overrides}:3002`]: 'allow' });
-    const card = article.querySelector('[data-testid="card.wrapper"]') as HTMLElement;
+    const card = article.querySelector('[data-testid="card.wrapper"]');
+    if (!(card instanceof HTMLElement)) throw new Error('card wrapper missing');
     await until(
       () => !card.hasAttribute('data-jev-card-hidden'),
       'preview stayed hidden after override',

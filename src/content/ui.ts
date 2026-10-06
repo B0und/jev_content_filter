@@ -1,20 +1,21 @@
-// Rendering and the inspector panel. Everything here owns DOM only — policy
-// decisions come from state, classification from classify, and lifecycle
-// wiring from runtime.
-import { browser } from 'wxt/browser';
+// Rendering and inspector DOM stay here; Effect values represent external
+// logging requests that the content runtime owns.
+import { Clock, Effect } from 'effect';
+import { browserEffect, browserRuntime } from '../platform/browser';
 import type { ContentScriptContext } from 'wxt/utils/content-script-context';
-import { CATEGORY_LABELS, IMAGE_KEYS, TEXT_KEYS, type CategoryKey } from '../shared/types';
-import { updateSettings } from '../shared/settings';
+import { CATEGORY_LABELS, IMAGE_KEYS, TEXT_KEYS, type CategoryKey } from '../filtering/types';
+import { updateSettings } from '../filtering/settings';
 import { message } from './classify';
 import { headerCarets, insertHost } from './dom';
 import {
   blocked,
   bindings,
   hits,
+  isAttached,
   posts,
   previewBlocked,
   previewHits,
-  reviewMode,
+  recordPageStats,
   settings,
   stateOf,
   type Binding,
@@ -123,7 +124,7 @@ function applyCard(article: HTMLElement, post: Post, hiding: boolean): void {
       card.append(link);
     }
   } else {
-    delete card.dataset.jevCardHidden;
+    card.removeAttribute('data-jev-card-hidden');
     const link = card.querySelector('[data-jev-card-link]');
     link?.remove();
   }
@@ -158,21 +159,39 @@ export function renderAll(): void {
   for (const [article, binding] of bindings) render(article, binding);
 }
 
-export function renderPost(post: Post): void {
-  if (posts.get(post.id) !== post) return;
+export function renderPost(post: Post): Array<Effect.Effect<void>> {
+  if (posts.get(post.id) !== post) return [];
   for (const [article, binding] of bindings) if (binding.post === post) render(article, binding);
   if (openPostId === post.id) renderPanel(post);
-  if (settings.current.masterEnabled && !reviewMode.current) {
-    const postHits = hits(post);
-    if (postHits.length && !post.logged) {
-      post.logged = true;
-      void logBlocked(post, postHits, post.text, 'post');
-    }
-    const previewReasons = previewHits(post);
-    if (previewBlocked(post) && previewReasons.length && !post.previewLogged) {
-      post.previewLogged = true;
-      void logBlocked(post, previewReasons, post.previewText || post.text, 'preview');
-    }
+  return logEffects(post);
+}
+
+/**
+ * Log effects for content this moment counts as blocked. Only hidden content is
+ * logged: an opened or allowed post is not a block, and its row would have
+ * nothing to unblock. Visibility can change without a scan — the URL starts or
+ * stops addressing the post, or a threshold change re-blocks existing scores —
+ * so discovery dispatches these on every pass.
+ */
+export function logEffects(post: Post): Array<Effect.Effect<void>> {
+  if (!isAttached(post)) return [];
+  const effects: Array<Effect.Effect<void>> = [];
+  if (blocked(post) && !post.logged) {
+    post.logged = true;
+    effects.push(logBlocked(post, hits(post), post.text, 'post'));
+  }
+  if (previewBlocked(post) && !post.previewLogged) {
+    post.previewLogged = true;
+    effects.push(logBlocked(post, previewHits(post), post.previewText || post.text, 'preview'));
+  }
+  return effects;
+}
+
+function renderPostAtUiBoundary(post: Post): void {
+  for (const effect of renderPost(post)) {
+    void browserRuntime.runPromise(effect).catch((error: unknown) => {
+      console.error('Content logging effect failed', error);
+    });
   }
 }
 
@@ -181,22 +200,30 @@ function logBlocked(
   reasons: Array<{ key: CategoryKey; score: number }>,
   snippet: string,
   target: 'post' | 'preview',
-): Promise<unknown> {
-  const entry = {
-    tweetId: post.id,
-    handle: post.handle,
-    target,
-    author: post.author,
-    snippet: snippet.slice(0, 140),
-    surface: location.pathname.includes('/status/') ? 'status/replies' : 'timeline',
-    ts: Date.now(),
-    reasons,
-  };
-  return browser.runtime.sendMessage({ type: 'log-blocked', entry }).catch((error) => {
-    if (target === 'post') {
-      post.logged = false;
-      post.errors.push(`Log: ${message(error)}`);
-    } else post.previewLogged = false;
+): Effect.Effect<void> {
+  return Effect.gen(function* () {
+    const entry = {
+      tweetId: post.id,
+      handle: post.handle,
+      target,
+      author: post.author,
+      snippet: snippet.slice(0, 140),
+      surface: location.pathname.includes('/status/') ? 'status/replies' : 'timeline',
+      ts: yield* Clock.currentTimeMillis,
+      reasons,
+    };
+    yield* browserEffect('log blocked content', () =>
+      browser.runtime.sendMessage({ type: 'log-blocked', entry }),
+    ).pipe(
+      Effect.catch((error) =>
+        Effect.sync(() => {
+          if (target === 'post') {
+            post.logged = false;
+            post.errors.push(`Log: ${message(error)}`);
+          } else post.previewLogged = false;
+        }),
+      ),
+    );
   });
 }
 
@@ -213,7 +240,7 @@ function setHostVisibility(host: HTMLElement, button: HTMLButtonElement, visible
 }
 
 export function render(article: HTMLElement, binding: Binding): void {
-  const { post, host, button } = binding;
+  const { post, host, root, button } = binding;
   // Paused: keep the invisible control slot so toggling cannot reflow the feed.
   if (!settings.current.masterEnabled) {
     setHostVisibility(host, button, false);
@@ -223,6 +250,7 @@ export function render(article: HTMLElement, binding: Binding): void {
     return;
   }
   if (!article.isConnected) return;
+  recordPageStats(post);
   setHostVisibility(host, button, true);
   applyVisibility(article, binding);
   applyCard(article, post, true);
@@ -235,7 +263,7 @@ export function render(article: HTMLElement, binding: Binding): void {
   const dark = isDark(article);
   host.style.setProperty('--jev-fg', dark ? '#71767b' : '#536471');
   host.style.setProperty('--jev-hover', dark ? 'rgba(239,243,244,0.1)' : 'rgba(15,20,25,0.05)');
-  const shadow = host.shadowRoot as ShadowRoot;
+  const shadow = root;
   if (!shadow.querySelector('style')) {
     const style = document.createElement('style');
     style.textContent = ICON_CSS;
@@ -248,7 +276,7 @@ export function render(article: HTMLElement, binding: Binding): void {
   const expanded = openPostId === post.id;
   const signature = [
     blocked(post) ? 'b' : 'e',
-    String(post.pending || post.retryTimer != null),
+    String(post.pending || post.retryAt !== null),
     post.errors.length > 0 && !post.pending ? 'warn' : '',
     stateLabel,
     retryLabel,
@@ -258,7 +286,7 @@ export function render(article: HTMLElement, binding: Binding): void {
   if (binding.renderState === signature) return;
   binding.renderState = signature;
   button.innerHTML = blocked(post) ? BLOCKED_SVG : EYE_SVG;
-  button.classList.toggle('pending', !!post.pending || !!post.retryTimer);
+  button.classList.toggle('pending', !!post.pending || post.retryAt !== null);
   button.classList.toggle('warn', post.errors.length > 0 && !post.pending);
   buttonPosts.set(button, post);
   button.setAttribute('aria-label', `${stateLabel}${retryLabel}`);
@@ -332,8 +360,8 @@ function element<K extends keyof HTMLElementTagNameMap>(
 
 function placePanel(anchor: HTMLElement): void {
   if (!panelRoot) return;
-  const panel = panelRoot.querySelector('.panel') as HTMLElement | null;
-  if (!panel) return;
+  const panel = panelRoot.querySelector('.panel');
+  if (!(panel instanceof HTMLElement)) return;
   const rect = anchor.getBoundingClientRect();
   let left = Math.min(
     Math.max(8, rect.right - panelSize.width + 30),
@@ -378,10 +406,12 @@ function openPanel(post: Post, anchor: HTMLButtonElement, _ctx: ContentScriptCon
   openPostId = post.id;
   panelAnchor = anchor;
   panelFocusCategory = null;
-  panelHost = document.createElement('div');
-  panelHost.setAttribute('data-jev-panel', '');
-  panelRoot = panelHost.attachShadow({ mode: 'open' });
-  document.body.append(panelHost);
+  const host = document.createElement('div');
+  host.setAttribute('data-jev-panel', '');
+  const root = host.attachShadow({ mode: 'open' });
+  panelHost = host;
+  panelRoot = root;
+  document.body.append(host);
   // Keep this panel's dismissal listeners independent of script-wide
   // invalidation: each open gets its own lifetime, torn down on close.
   const panelSignals = new AbortController();
@@ -429,7 +459,11 @@ function openPanel(post: Post, anchor: HTMLButtonElement, _ctx: ContentScriptCon
     panelFrame = 0;
   };
   renderPanel(post);
-  const panel = panelRoot.querySelector('.panel') as HTMLElement;
+  const panel = root.querySelector('.panel');
+  if (!(panel instanceof HTMLElement)) {
+    closePanel();
+    return;
+  }
   panelSize = { width: panel.offsetWidth, height: panel.offsetHeight };
   placePanel(anchor);
   // Keyboard users land in the panel itself, not nowhere.
@@ -457,7 +491,7 @@ function closePanel(): void {
   panelAnchor = null;
   if (previous) {
     const post = posts.get(previous);
-    if (post) renderPost(post);
+    if (post) renderPostAtUiBoundary(post);
   }
   // Return focus to the button that opened the panel (no-op when focus is
   // already elsewhere, e.g. the user clicked into another control).
@@ -466,7 +500,9 @@ function closePanel(): void {
 }
 
 function renderPanel(post: Post): void {
-  if (!panelRoot || openPostId !== post.id) return;
+  const root = panelRoot;
+  const host = panelHost;
+  if (!root || !host || openPostId !== post.id) return;
   const dark = isDark(document.body);
   const vars = dark
     ? {
@@ -487,15 +523,15 @@ function renderPanel(post: Post): void {
         '--p-accent': '#1d9bf0',
         '--p-shadow': 'rgba(101,119,134,0.28)',
       };
-  for (const [name, value] of Object.entries(vars)) panelHost!.style.setProperty(name, value);
+  for (const [name, value] of Object.entries(vars)) host.style.setProperty(name, value);
   // Preserve focus across rebuilds (countdown ticks re-render the panel);
   // threshold inputs are found again by category instead of label escaping.
   const focusedCategory = panelFocusCategory;
   panelFocusCategory = null;
-  panelRoot.replaceChildren();
+  root.replaceChildren();
   const style = element('style');
   style.textContent = PANEL_CSS;
-  panelRoot.append(style);
+  root.append(style);
   const panel = element('div');
   panel.className = 'panel';
   panel.tabIndex = -1;
@@ -572,22 +608,26 @@ function renderPanel(post: Post): void {
   logsLink.rel = 'noreferrer';
   logsLink.addEventListener('click', (event) => {
     event.preventDefault();
-    void browser.runtime.sendMessage({ type: 'open-logs', errors: false }).catch(() => {});
+    void browserRuntime
+      .runPromise(
+        browserEffect('open logs from content panel', () =>
+          browser.runtime.sendMessage({ type: 'open-logs', errors: false }),
+        ),
+      )
+      .catch(() => {});
   });
   foot.append(logsLink);
   panel.append(foot);
   const hint = element('p', 'Unblock posts from the logs page.');
   hint.className = 'hint';
   panel.append(hint);
-  panelRoot.append(panel);
+  root.append(panel);
   if (panelPos) {
     panel.style.left = `${panelPos.left}px`;
     panel.style.top = `${panelPos.top}px`;
   }
   if (focusedCategory) {
-    const restored = panelRoot.querySelector<HTMLInputElement>(
-      `[data-jev-cat="${focusedCategory}"]`,
-    );
+    const restored = root.querySelector<HTMLInputElement>(`[data-jev-cat="${focusedCategory}"]`);
     restored?.focus();
   }
   // Live countdown for retry timers; stops once no retry is pending.
@@ -602,8 +642,7 @@ function renderPanel(post: Post): void {
         return;
       }
       if (!current.retryAt) renderPanel(current);
-      else
-        panelRoot?.querySelector<HTMLElement>('.retry-status')?.replaceChildren(retryText(current));
+      else root.querySelector<HTMLElement>('.retry-status')?.replaceChildren(retryText(current));
     }, 1000);
   }
 }
@@ -642,18 +681,18 @@ function buildCategoryRow(
   input.setAttribute('data-jev-cat', key);
   input.addEventListener('change', () => {
     if (!input.validity.valid || input.value === '') return;
-    void (async () => {
-      try {
-        await updateSettings({
+    void browserRuntime
+      .runPromise(
+        updateSettings({
           field: 'threshold',
           category: key,
           value: input.valueAsNumber / 100,
-        });
-      } catch (error) {
+        }),
+      )
+      .catch((error: unknown) => {
         post.errors.push(`Settings: ${message(error)}`);
-        renderPost(post);
-      }
-    })();
+        renderPostAtUiBoundary(post);
+      });
   });
   cell.append(input, document.createTextNode('%'));
   row.append(cell);

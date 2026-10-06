@@ -1,10 +1,11 @@
 import { experimental_evaluate } from 'ai';
 import { createGateway, type GatewayProvider } from '@ai-sdk/gateway';
-import type { TextProvider } from '../shared/types';
+import { Effect } from 'effect';
+import * as Schema from 'effect/Schema';
+import type { TextProvider } from '../filtering/types';
 
 export interface TextScores {
   sexual: number;
-  ai: number;
 }
 
 interface TextEvaluationRequest {
@@ -12,6 +13,15 @@ interface TextEvaluationRequest {
   apiKey: string;
   text: string;
 }
+
+export class TextProviderError extends Schema.TaggedError<TextProviderError>()(
+  'TextProviderError',
+  {
+    provider: Schema.Literals(['vercel', 'typesafe', 'openrouter']),
+    message: Schema.String,
+    statusCode: Schema.optional(Schema.Finite),
+  },
+) {}
 
 const DIRECT_PROVIDER_CONFIG = {
   typesafe: {
@@ -35,16 +45,31 @@ const DECISION_QUESTIONS = {
         'Ordinary non-sexual content, even if it discusses news, health, or relationships factually',
     },
   },
-  ai: {
-    type: 'noul',
+} as const;
+
+const GATEWAY_QUESTIONS = {
+  sexual: {
+    type: 'boolean',
     instructions:
-      'Was this tweet most likely written by an AI or LLM, e.g. generic AI phrasing, engagement-farming templates, or machine-generated summaries?',
+      'Does this tweet contain explicit sexual content, lewd innuendo, heavily implied sexual content, or engagement bait designed to arouse?',
     criteria: {
-      true: 'Tell-tale LLM phrasing, over-structured lists, hollow engagement bait, synthetic voice',
-      false: 'Natural human writing, including slang, typos, or short fragments',
+      true: 'Lewd imagery descriptions, sexual innuendo, thirst traps, or gooner-bait phrasing',
+      false:
+        'Ordinary non-sexual content, even if it discusses news, health, or relationships factually',
     },
   },
 } as const;
+
+const AnswerSchema = Schema.Struct({
+  probability: Schema.optional(Schema.Unknown),
+  noul: Schema.optional(Schema.Unknown),
+});
+const AnswersSchema = Schema.Record(Schema.String, Schema.Unknown);
+const ProbabilitySchema = Schema.Finite.check(Schema.isBetween({ minimum: 0, maximum: 1 }));
+const EvaluationResponseSchema = Schema.Struct({ answers: Schema.optional(Schema.Unknown) });
+const ProviderErrorResponseSchema = Schema.Struct({
+  error: Schema.optional(Schema.Struct({ message: Schema.optional(Schema.String) })),
+});
 
 let gatewayInstance: GatewayProvider | null = null;
 let gatewayKeyUsed = '';
@@ -58,62 +83,20 @@ function gateway(apiKey: string): GatewayProvider {
 }
 
 function probabilityOf(answer: unknown): number | undefined {
-  const value = (answer as { probability?: unknown; noul?: unknown } | undefined) ?? {};
+  const value = answer ?? {};
+  if (!Schema.is(AnswerSchema)(value)) return undefined;
   const probability = typeof value.probability === 'number' ? value.probability : value.noul;
-  if (
-    typeof probability !== 'number' ||
-    !Number.isFinite(probability) ||
-    probability < 0 ||
-    probability > 1
-  ) {
-    return undefined;
-  }
-  return probability;
+  return Schema.is(ProbabilitySchema)(probability) ? probability : undefined;
 }
 
 function scoresFromAnswers(rawAnswers: unknown): TextScores {
-  const answers = (rawAnswers ?? {}) as Record<string, unknown>;
+  const input = rawAnswers ?? {};
+  const answers = Schema.is(AnswersSchema)(input) ? input : {};
   const sexual = probabilityOf(answers.sexual);
-  const ai = probabilityOf(answers.ai);
-  if (sexual === undefined || ai === undefined) {
-    throw new Error(
-      `Jev returned invalid probability (sexual: ${JSON.stringify(answers.sexual)}, ai: ${JSON.stringify(answers.ai)})`,
-    );
+  if (sexual === undefined) {
+    throw new Error(`Jev returned invalid probability (sexual: ${JSON.stringify(answers.sexual)})`);
   }
-  return { sexual, ai };
-}
-
-async function evaluateViaGateway(apiKey: string, text: string): Promise<TextScores> {
-  const result = await experimental_evaluate({
-    model: gateway(apiKey).evaluationModel('typesafe-ai/jev'),
-    maxRetries: 0,
-    // Gateway can take ~15s to surface a rate-limit error; cap the wait so
-    // the fail-open path isn't held hostage by a doomed request.
-    abortSignal: AbortSignal.timeout(8000),
-    state: { tweet_text: text },
-    questions: {
-      sexual: {
-        type: 'boolean',
-        instructions:
-          'Does this tweet contain explicit sexual content, lewd innuendo, heavily implied sexual content, or engagement bait designed to arouse?',
-        criteria: {
-          true: 'Lewd imagery descriptions, sexual innuendo, thirst traps, or gooner-bait phrasing',
-          false:
-            'Ordinary non-sexual content, even if it discusses news, health, or relationships factually',
-        },
-      },
-      ai: {
-        type: 'boolean',
-        instructions:
-          'Was this tweet most likely written by an AI or LLM, e.g. generic AI phrasing, engagement-farming templates, or machine-generated summaries?',
-        criteria: {
-          true: 'Tell-tale LLM phrasing, over-structured lists, hollow engagement bait, synthetic voice',
-          false: 'Natural human writing, including slang, typos, or short fragments',
-        },
-      },
-    },
-  });
-  return scoresFromAnswers((result as { answers?: unknown }).answers);
+  return { sexual };
 }
 
 class ProviderResponseError extends Error {
@@ -126,11 +109,30 @@ class ProviderResponseError extends Error {
   }
 }
 
-async function evaluateViaDecisions(
+function asTextProviderError(
+  provider: TextProvider,
+  apiKey: string,
+  cause: unknown,
+): TextProviderError {
+  let statusCode: number | undefined;
+  if (typeof cause === 'object' && cause !== null && 'statusCode' in cause) {
+    if (typeof cause.statusCode === 'number') statusCode = cause.statusCode;
+  }
+  const originalMessage = cause instanceof Error ? cause.message : String(cause);
+  const message = apiKey ? originalMessage.replaceAll(apiKey, '[redacted]') : originalMessage;
+  return new TextProviderError({
+    provider,
+    message,
+    ...(statusCode === undefined ? {} : { statusCode }),
+  });
+}
+
+const evaluateViaDecisions = async (
   provider: Exclude<TextProvider, 'vercel'>,
   apiKey: string,
   text: string,
-): Promise<TextScores> {
+  signal: AbortSignal,
+): Promise<TextScores> => {
   const config = DIRECT_PROVIDER_CONFIG[provider];
   const response = await fetch(config.endpoint, {
     method: 'POST',
@@ -143,29 +145,44 @@ async function evaluateViaDecisions(
       state: { tweet_text: text },
       questions: DECISION_QUESTIONS,
     }),
-    signal: AbortSignal.timeout(8000),
+    signal: AbortSignal.any([signal, AbortSignal.timeout(8000)]),
   });
 
   if (!response.ok) {
     let message = response.statusText || 'provider request failed';
     try {
-      const body = (await response.json()) as { error?: { message?: unknown } };
-      if (typeof body.error?.message === 'string') message = body.error.message;
+      const body = Schema.decodeUnknownSync(ProviderErrorResponseSchema)(await response.json());
+      if (body.error?.message !== undefined) message = body.error.message;
     } catch {
       // Preserve the HTTP status when the provider returns a non-JSON error.
     }
     throw new ProviderResponseError(response.status, message);
   }
 
-  const result = (await response.json()) as { answers?: unknown };
+  const result = Schema.decodeUnknownSync(EvaluationResponseSchema)(await response.json());
   return scoresFromAnswers(result.answers);
-}
+};
 
-export function evaluateText({
+export const evaluateText = Effect.fnUntraced(function* ({
   provider,
   apiKey,
   text,
-}: TextEvaluationRequest): Promise<TextScores> {
-  if (provider === 'vercel') return evaluateViaGateway(apiKey, text);
-  return evaluateViaDecisions(provider, apiKey, text);
-}
+}: TextEvaluationRequest): Effect.fn.Return<TextScores, TextProviderError> {
+  return yield* Effect.tryPromise({
+    try: (signal) => {
+      if (provider !== 'vercel') return evaluateViaDecisions(provider, apiKey, text, signal);
+
+      return experimental_evaluate({
+        model: gateway(apiKey).evaluationModel('typesafe-ai/jev'),
+        maxRetries: 0,
+        // Keep the provider deadline while inheriting Effect interruption.
+        abortSignal: AbortSignal.any([signal, AbortSignal.timeout(8000)]),
+        state: { tweet_text: text },
+        questions: GATEWAY_QUESTIONS,
+      }).then((result) =>
+        scoresFromAnswers(Schema.decodeSync(EvaluationResponseSchema)(result).answers),
+      );
+    },
+    catch: (cause) => asTextProviderError(provider, apiKey, cause),
+  });
+});

@@ -7,7 +7,7 @@ import {
   type CategoryKey,
   type Settings,
   type TabReport,
-} from '../shared/types';
+} from '../filtering/types';
 
 export interface Post {
   id: string;
@@ -33,9 +33,8 @@ export interface Post {
   previewLogged: boolean;
   recorded: Set<string>;
   retryCount: number;
+  /** Non-null while an Effect retry fiber is scheduled. */
   retryAt: number | null;
-  /** Window timer id; cleared through clearTimeout. */
-  retryTimer: number | undefined;
 }
 
 export interface Binding {
@@ -49,6 +48,9 @@ export interface Binding {
 
 export const posts = new Map<string, Post>();
 export const bindings = new Map<HTMLElement, Binding>();
+// Keep only identities so totals survive detached-post eviction without retaining scores or DOM.
+const pageAnalyzed = new Set<string>();
+const pageBlocked = new Set<string>();
 /** Article bindings grouped by post, so attachment checks don't scan the feed. */
 let articlesByPost = new WeakMap<Post, Set<HTMLElement>>();
 export function trackBinding(article: HTMLElement, binding: Binding): void {
@@ -79,8 +81,14 @@ export const overrides = new Map<string, 'allow'>();
 /** Replaced wholesale whenever settings are loaded; readers always see the latest. */
 export const settings: { current: Settings } = { current: defaultSettings() };
 
-/** Direct log links opt into review mode so the linked post stays visible. */
-export const reviewMode = { current: false };
+/**
+ * Post the URL addresses directly: its status permalink, or the detail view X
+ * opens over the timeline. Read from the live path at render time. The runtime
+ * schedules a render on navigation even when X makes no DOM changes.
+ */
+export function openedPostId(): string {
+  return /\/status\/(\d+)/.exec(location.pathname)?.[1] ?? '';
+}
 
 export function newPost(
   id: string,
@@ -113,7 +121,6 @@ export function newPost(
     recorded: new Set(),
     retryCount: 0,
     retryAt: null,
-    retryTimer: undefined,
   };
 }
 
@@ -142,7 +149,7 @@ export function previewHits(post: Post): Array<{ key: CategoryKey; score: number
 }
 
 export function blocked(post: Post): boolean {
-  if (!settings.current.masterEnabled || reviewMode.current) return false;
+  if (!settings.current.masterEnabled || post.id === openedPostId()) return false;
   if (overrides.has(post.id)) return false;
   return hits(post).length > 0;
 }
@@ -151,7 +158,7 @@ export function previewBlocked(post: Post): boolean {
   // Fail open: only hide the preview when its own scan finished cleanly.
   if (
     !settings.current.masterEnabled ||
-    reviewMode.current ||
+    post.id === openedPostId() ||
     overrides.has(post.id) ||
     post.partErrors.preview.length
   )
@@ -162,9 +169,11 @@ export function previewBlocked(post: Post): boolean {
 export function stateOf(post: Post): string {
   if (!settings.current.masterEnabled) return 'Paused';
   if (post.pending) return 'Scanning';
+  if (post.id === openedPostId()) return 'Opened post';
   if (blocked(post)) return 'Blocked';
   if (overrides.get(post.id) === 'allow') return 'Allowed by you';
-  if (post.errors.length > 0) return post.retryTimer ? 'Retry scheduled' : 'Not fully checked';
+  if (post.errors.length > 0)
+    return post.retryAt !== null ? 'Retry scheduled' : 'Not fully checked';
   if (post.scannedAt) return 'Allowed';
   return 'Not scanned';
 }
@@ -175,9 +184,27 @@ export function isAttached(post: Post): boolean {
   return false;
 }
 
+export function recordPageStats(post: Post): void {
+  if (!pageAnalyzed.has(post.id)) {
+    for (const key of CATEGORY_KEYS) {
+      if (post.scores[key] !== undefined || post.previewScores[key] !== undefined) {
+        pageAnalyzed.add(post.id);
+        break;
+      }
+    }
+  }
+  if (!pageBlocked.has(post.id) && (blocked(post) || previewBlocked(post)))
+    pageBlocked.add(post.id);
+}
+
+export function resetPageStats(): void {
+  pageAnalyzed.clear();
+  pageBlocked.clear();
+}
+
 export function report(): TabReport {
-  // Only currently connected bindings count. Reading `isConnected` directly
-  // avoids stale attachment counters before MutationObserver delivery.
+  // Live scan statistics use connected bindings; cumulative totals do not.
+  // Reading isConnected avoids stale attachment counters before observer delivery.
   const attached = new Set<Post>();
   for (const [article, binding] of bindings)
     if (article.isConnected && posts.get(binding.post.id) === binding.post)
@@ -196,13 +223,15 @@ export function report(): TabReport {
     if (blocked(post) || previewBlocked(post)) blockedCount++;
     if (post.pending) pending++;
     if (post.errors.length > 0) failed++;
-    if (post.retryTimer) retrying++;
+    if (post.retryAt !== null) retrying++;
     lastScannedAt = Math.max(lastScannedAt, post.scannedAt);
     for (const error of post.errors) errors.add(error);
   }
   return {
     analyzed,
     blocked: blockedCount,
+    pageAnalyzed: pageAnalyzed.size,
+    pageBlocked: pageBlocked.size,
     pending,
     failed,
     retrying,

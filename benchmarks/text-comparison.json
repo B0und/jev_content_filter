@@ -1,0 +1,2670 @@
+{
+  "cases": [
+    {
+      "id": "umt-gpt4o-test-0011",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0011",
+      "text": "Me snapping selfies : * uneasy grin * Me on picture day : * uncomfortable beam * Result : Maybe no more grinning ;'( #Snapday2016",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "yes"
+      },
+      "provenance": "synthetic-ai",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 11 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 1 means GPT-4o generated; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0013",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0013",
+      "text": "@USER Thrilled to have you lead the tournament ! The accolades were truly well-deserved .",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "yes"
+      },
+      "provenance": "synthetic-ai",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 13 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 1 means GPT-4o generated; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0015",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0015",
+      "text": "So happy watching them connect again ! :grinning_cat_with_smiling_eyes: :sparkles: #finallytogether",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "yes"
+      },
+      "provenance": "synthetic-ai",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 15 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 1 means GPT-4o generated; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0019",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0019",
+      "text": "@USER @USER YES ! That period was truly a highlight for me . Shutting down my shop was such a heartbreaking experience .",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "yes"
+      },
+      "provenance": "synthetic-ai",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 19 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 1 means GPT-4o generated; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0064",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0064",
+      "text": "in geometry today hannah started crying of laughter because ms . canning said ' pp",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "no"
+      },
+      "provenance": "unknown",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 64 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 0 means human original TweetEval emotion tweet; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0065",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0065",
+      "text": "Each morning , I ask myself if my actions and words will honor God , from how I decide , react , and treat others . Am I living in a way that delights Him ?",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "yes"
+      },
+      "provenance": "synthetic-ai",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 65 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 1 means GPT-4o generated; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0067",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0067",
+      "text": "@USER @USER it is no surprise that a supporter of Trump would struggle to grasp the distinction between reality and fantasy .",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "yes"
+      },
+      "provenance": "synthetic-ai",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 67 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 1 means GPT-4o generated; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0069",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0069",
+      "text": "Newmarket woke up to pristine skies and a crisp , sunny morning — perfect conditions for Ladies Day !",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "yes"
+      },
+      "provenance": "synthetic-ai",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 69 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 1 means GPT-4o generated; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0077",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0077",
+      "text": "Trains getting canceled is infuriating ! We lost precious moments with Kodak this morning because of it :angry_face: #TuesdayBlues",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "yes"
+      },
+      "provenance": "synthetic-ai",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 77 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 1 means GPT-4o generated; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0079",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0079",
+      "text": "@USER Not trying to be harsh , but do not you think it is a bit past the prime to start a degree in radio broadcasting ? will not it be outdated in 10 years or so ?",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "yes"
+      },
+      "provenance": "synthetic-ai",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 79 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 1 means GPT-4o generated; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0087",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0087",
+      "text": "@USER ¿ planeas asistir al concierto de The Amity Affliction ?",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "yes"
+      },
+      "provenance": "synthetic-ai",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 87 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 1 means GPT-4o generated; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0089",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0089",
+      "text": "@USER Seriously ? Five turnovers and limiting a solid offense to just 7 points should be alarming ? Give me a break !",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "yes"
+      },
+      "provenance": "synthetic-ai",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 89 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 1 means GPT-4o generated; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0095",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0095",
+      "text": "This is quite uplifting !",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "yes"
+      },
+      "provenance": "synthetic-ai",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 95 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 1 means GPT-4o generated; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0097",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0097",
+      "text": "@USER Seriously ? that is just another baseless theory from some salty fan . I cannot be bothered with all that pets vs vets nonsense either .",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "yes"
+      },
+      "provenance": "synthetic-ai",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 97 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 1 means GPT-4o generated; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0099",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0099",
+      "text": "Stared straight at the solar eclipse by mistake . Still here , but no new superpowers to show for it . #letdown",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "yes"
+      },
+      "provenance": "synthetic-ai",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 99 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 1 means GPT-4o generated; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0110",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0110",
+      "text": "HUGE CONGRATULATIONS TO NICOLE WINNING BIG BROTHER 18 ! @USER #BB18 sorry not sorry",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "no"
+      },
+      "provenance": "unknown",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 110 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 0 means human original TweetEval emotion tweet; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0112",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0112",
+      "text": "Can someone make me a priority list of which things I should be outraged at + in which order ? #outrage #racism #animalrights #abortion",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "no"
+      },
+      "provenance": "unknown",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 112 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 0 means human original TweetEval emotion tweet; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0114",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0114",
+      "text": "You boys dint know the game am I the game ... life after death ...",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "no"
+      },
+      "provenance": "unknown",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 114 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 0 means human original TweetEval emotion tweet; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0116",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0116",
+      "text": "@USER ... specifically are the cause of it all , and they resent being considered the enemy .",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "no"
+      },
+      "provenance": "unknown",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 116 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 0 means human original TweetEval emotion tweet; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0118",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0118",
+      "text": "@USER :face_with_tears_of_joy: :face_with_tears_of_joy: :face_with_tears_of_joy: . Sure half these stars get together , break up , have affairs , let porn vids slip out , fight , ect etc all to up there ratings . #sad",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "no"
+      },
+      "provenance": "unknown",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 118 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 0 means human original TweetEval emotion tweet; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0182",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0182",
+      "text": "it is pretty depressing when u hit pan on ur favourite highlighter",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "no"
+      },
+      "provenance": "unknown",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 182 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 0 means human original TweetEval emotion tweet; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0184",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0184",
+      "text": "Watching Avatar and wondering why I took so long to watch this * collapses in a joyous heap *",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "no"
+      },
+      "provenance": "unknown",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 184 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 0 means human original TweetEval emotion tweet; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0186",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0186",
+      "text": "So they #threaten to kill #kapernick for KNEELING . I say every athlete just stop playing until social justice and equality comes forth .",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "no"
+      },
+      "provenance": "unknown",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 186 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 0 means human original TweetEval emotion tweet; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0188",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0188",
+      "text": "@USER growl like a dog , see if she lifts herself off and gives you space ?",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "no"
+      },
+      "provenance": "unknown",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 188 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 0 means human original TweetEval emotion tweet; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0190",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0190",
+      "text": "i was angry .",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "no"
+      },
+      "provenance": "unknown",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 190 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 0 means human original TweetEval emotion tweet; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0196",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0196",
+      "text": "a #monster is only a #monster",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "no"
+      },
+      "provenance": "unknown",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 196 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 0 means human original TweetEval emotion tweet; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0201",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0201",
+      "text": "@USER Lost our info 9 years ago and you are just informing us now ? Unbelievable .",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "yes"
+      },
+      "provenance": "synthetic-ai",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 201 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 1 means GPT-4o generated; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0203",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0203",
+      "text": "@USER I agree , it is decent but does not hit the mark . do not Breathe totally takes the crown as my top horror flick for the month . it is hands down my favorite horror movie of the year ( up to now ) !",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "yes"
+      },
+      "provenance": "synthetic-ai",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 203 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 1 means GPT-4o generated; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0207",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0207",
+      "text": "Those sugar cookies are complete garbage . cannot stand them !",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "yes"
+      },
+      "provenance": "synthetic-ai",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 207 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 1 means GPT-4o generated; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0261",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0261",
+      "text": "Nuclear bombs and cyberattacks are dangerous , but the real menace is scalar weapons ! When will people wake up ? ! #scalarweapon",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "yes"
+      },
+      "provenance": "synthetic-ai",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 261 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 1 means GPT-4o generated; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0263",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0263",
+      "text": "do not miss this incredible stream from @USER on #lively #musically — it is pure joy !",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "yes"
+      },
+      "provenance": "synthetic-ai",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 263 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 1 means GPT-4o generated; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0265",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0265",
+      "text": "Diving into episode 2 of AHS Season 6 ! Excited !",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "yes"
+      },
+      "provenance": "synthetic-ai",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 265 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 1 means GPT-4o generated; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0267",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0267",
+      "text": "@USER Feeling down and overwhelmed , just so confused :(",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "yes"
+      },
+      "provenance": "synthetic-ai",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 267 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 1 means GPT-4o generated; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0275",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0275",
+      "text": "@USER @USER Does it really take so much frantic effort now just to make progress ? I recall it being much more leisurely .",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "yes"
+      },
+      "provenance": "synthetic-ai",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 275 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 1 means GPT-4o generated; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0277",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0277",
+      "text": "Reflecting on past errors — though once daunting — has truly been enlightening .",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "yes"
+      },
+      "provenance": "synthetic-ai",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 277 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 1 means GPT-4o generated; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0326",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0326",
+      "text": "Imagine how many ksones are crying right now for not getting tickets :loudly_crying_face: Meanwhile , isones dont even get a chance to go on war for tickets :loudly_crying_face:",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "no"
+      },
+      "provenance": "unknown",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 326 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 0 means human original TweetEval emotion tweet; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0355",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0355",
+      "text": "If that child does not stop screaming at the pool , I am seriously losing it . #EnoughAlready #WhereAreTheParents",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "yes"
+      },
+      "provenance": "synthetic-ai",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 355 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 1 means GPT-4o generated; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0357",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0357",
+      "text": "Calm and self-control triumph over power and conquest . Mastering our emotions can lead to greater victories than taking a city . #wisdom #innerstrength",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "yes"
+      },
+      "provenance": "synthetic-ai",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 357 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 1 means GPT-4o generated; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0359",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0359",
+      "text": "Unbelievable how my 19 - year-old sister acts like a toddler , throwing fits just to be in the spotlight …",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "yes"
+      },
+      "provenance": "synthetic-ai",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 359 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 1 means GPT-4o generated; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0363",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0363",
+      "text": "I cannot decide which is more unbearable , those cringe-worthy new ads or the tasteless cardboard they call pizza .",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "yes"
+      },
+      "provenance": "synthetic-ai",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 363 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 1 means GPT-4o generated; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0365",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0365",
+      "text": "Can you cut out the nonstop laughter ? it is seriously infuriating .",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "yes"
+      },
+      "provenance": "synthetic-ai",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 365 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 1 means GPT-4o generated; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0367",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0367",
+      "text": "On my last roll ... Brilliant , time for a TP run !",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "yes"
+      },
+      "provenance": "synthetic-ai",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 367 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 1 means GPT-4o generated; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0369",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0369",
+      "text": "Stevie Ray Vaughan is take on ' Voodoo Child ' blows Jimi is out of the water ! #guitar #music",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "yes"
+      },
+      "provenance": "synthetic-ai",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 369 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 1 means GPT-4o generated; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0371",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0371",
+      "text": "Furious over the unfairness , time to wreck my neighbor is windows . Perfectly logical .",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "yes"
+      },
+      "provenance": "synthetic-ai",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 371 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 1 means GPT-4o generated; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0373",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0373",
+      "text": "@USER Who knew my worst fear would be an enraged orange character , but here we are . #fear #Trump",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "yes"
+      },
+      "provenance": "synthetic-ai",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 373 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 1 means GPT-4o generated; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0375",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0375",
+      "text": "Excited to kick off my new job tomorrow , cannot help but feel those butterflies !",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "yes"
+      },
+      "provenance": "synthetic-ai",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 375 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 1 means GPT-4o generated; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0377",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0377",
+      "text": "Just a heads up ... Joshua is stepping out tonight ! First , he is on trash duty , then he is jamming some blues at our favorite spot for $ 6.75 !",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "yes"
+      },
+      "provenance": "synthetic-ai",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 377 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 1 means GPT-4o generated; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0379",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0379",
+      "text": "Forget being timid , I am determined to break through those barriers .",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "yes"
+      },
+      "provenance": "synthetic-ai",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 379 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 1 means GPT-4o generated; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0380",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0380",
+      "text": "my mom recorded nightmare before Christmas for me :smiling_face_with_heart-eyes: :smiling_face_with_heart-eyes: :smiling_face_with_heart-eyes: I LOVE IT :two_hearts:",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "no"
+      },
+      "provenance": "unknown",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 380 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 0 means human original TweetEval emotion tweet; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0387",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0387",
+      "text": "Feeling utterly defeated by the weight of despair tonight ... #struggling #low",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "yes"
+      },
+      "provenance": "synthetic-ai",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 387 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 1 means GPT-4o generated; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0389",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0389",
+      "text": "Do you really think Dani Alves will end up at PSG ? Feeling uneasy about this possibility .",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "yes"
+      },
+      "provenance": "synthetic-ai",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 389 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 1 means GPT-4o generated; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0421",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0421",
+      "text": "Guess I will just be sorrow on display .",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "yes"
+      },
+      "provenance": "synthetic-ai",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 421 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 1 means GPT-4o generated; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0521",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0521",
+      "text": "Feeling overwhelmed ? Our ACT 4 support group for anxiety and depression starts Monday , October 17 . Join us for 6 weeks of mindfulness . Register now . #Halifax",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "yes"
+      },
+      "provenance": "synthetic-ai",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 521 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 1 means GPT-4o generated; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0523",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0523",
+      "text": "I just wish I had a shoulder to cry on . Completely drained and heartbroken . #sorrow",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "yes"
+      },
+      "provenance": "synthetic-ai",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 523 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 1 means GPT-4o generated; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0525",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0525",
+      "text": "I am on the verge of blocking every single person yammering about the weather . We get it , it is pouring . Enough already ! #furious",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "yes"
+      },
+      "provenance": "synthetic-ai",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 525 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 1 means GPT-4o generated; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0527",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0527",
+      "text": "@USER who knows ? let us just pray I do not accidentally set off her wild rage again . No wrath like it ...",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "yes"
+      },
+      "provenance": "synthetic-ai",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 527 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 1 means GPT-4o generated; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0531",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0531",
+      "text": "Why all the hate for fizzy water ? ! it is amazing when you pair it with other flavors !",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "yes"
+      },
+      "provenance": "synthetic-ai",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 531 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 1 means GPT-4o generated; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0533",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0533",
+      "text": "@USER Excited to catch everyone on October 8th ! Get ready because @USER is about to light up the stage . #bringiton #getwild #the40 #brandonmanitoba #countrymusic",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "yes"
+      },
+      "provenance": "synthetic-ai",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 533 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 1 means GPT-4o generated; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0535",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0535",
+      "text": "Even with the idea of wouldriver responsibility ' being so common , we still face fatalities , aggressive behavior , and traffic infractions every single day .",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "yes"
+      },
+      "provenance": "synthetic-ai",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 535 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 1 means GPT-4o generated; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0537",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0537",
+      "text": "Feeling so anxious about this exam , wish me luck … :disappointed_face:",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "yes"
+      },
+      "provenance": "synthetic-ai",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 537 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 1 means GPT-4o generated; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0539",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0539",
+      "text": "@USER Those infuriating rodents .",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "yes"
+      },
+      "provenance": "synthetic-ai",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 539 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 1 means GPT-4o generated; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0551",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0551",
+      "text": "Experiencing that rush of emotions where exhilaration , fear , jitters , euphoria , and a gut punch combine into one incredible feeling . What do we call that ?",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "yes"
+      },
+      "provenance": "synthetic-ai",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 551 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 1 means GPT-4o generated; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0553",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0553",
+      "text": "Every time I let one slip , my dog gets startled ! LOL it is too funny !",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "yes"
+      },
+      "provenance": "synthetic-ai",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 553 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 1 means GPT-4o generated; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0555",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0555",
+      "text": "Cowboys , what was that ? !",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "yes"
+      },
+      "provenance": "synthetic-ai",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 555 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 1 means GPT-4o generated; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0557",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0557",
+      "text": "@USER it is not that deep . #HOUvsNE #",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "yes"
+      },
+      "provenance": "synthetic-ai",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 557 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 1 means GPT-4o generated; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0559",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0559",
+      "text": "@USER Really think about it : if he needed votes from white people , would not he only discuss issues that matter to them and totally ignore everyone else ?",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "yes"
+      },
+      "provenance": "synthetic-ai",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 559 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 1 means GPT-4o generated; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0581",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0581",
+      "text": "Basing your identity on what you stand against is such a colossal error . it is maddening how often people fall into this murky trap .",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "yes"
+      },
+      "provenance": "synthetic-ai",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 581 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 1 means GPT-4o generated; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0583",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0583",
+      "text": "Hello , Tuesday ! Crossing fingers for a smooth day ahead :grinning_face_with_smiling_eyes: #ToddlerLife #Cuddles #Challenges #PMA",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "yes"
+      },
+      "provenance": "synthetic-ai",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 583 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 1 means GPT-4o generated; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0585",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0585",
+      "text": "My dog is such a jerk . I checked on him when he started whining , and the ungrateful brat latched onto me and would not stop biting .",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "yes"
+      },
+      "provenance": "synthetic-ai",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 585 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 1 means GPT-4o generated; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0587",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0587",
+      "text": "Your companions shape who you are . Feeling slightly overwhelmed by the incredibly brilliant folks I encountered @USER @USER @USER @USER @USER !",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "yes"
+      },
+      "provenance": "synthetic-ai",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 587 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 1 means GPT-4o generated; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0591",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0591",
+      "text": "it is disheartening to see Merkel stand by Israel is aggressive policies , rejecting Palestine is effort to join the UN . #MiddleEast #Diplomacy",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "yes"
+      },
+      "provenance": "synthetic-ai",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 591 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 1 means GPT-4o generated; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0593",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0593",
+      "text": "@USER So exciting ! Is it true that KG might be transitioning from being a player to co-owning the team with Glen ?",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "yes"
+      },
+      "provenance": "synthetic-ai",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 593 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 1 means GPT-4o generated; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0595",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0595",
+      "text": "Drowning in endless tasks , and the clock feels frozen hours away :crying_face:",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "yes"
+      },
+      "provenance": "synthetic-ai",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 595 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 1 means GPT-4o generated; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0597",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0597",
+      "text": "Managed to dunk my phone in the sink today . Silence is golden , except when it is forced on you because your speaker is shot . Fantastic . Now relying on earphones for survival .",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "yes"
+      },
+      "provenance": "synthetic-ai",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 597 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 1 means GPT-4o generated; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0610",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0610",
+      "text": "2 days on ... never a fucking pen ! ! !",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "no"
+      },
+      "provenance": "unknown",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 610 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 0 means human original TweetEval emotion tweet; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0612",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0612",
+      "text": "#PeopleLikeMeBecause they see the happy exterior , not the hopelessness I sometimes feel inside . #depression",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "no"
+      },
+      "provenance": "unknown",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 612 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 0 means human original TweetEval emotion tweet; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0614",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0614",
+      "text": "I am excited for the #FirstDayofFall & the rest of the season . I have 2 #Halloween #scare",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "no"
+      },
+      "provenance": "unknown",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 614 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 0 means human original TweetEval emotion tweet; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0616",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0616",
+      "text": "@USER eh well i can do the sting vs cactus loser leaves wcw match at bash at the beach lol",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "no"
+      },
+      "provenance": "unknown",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 616 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 0 means human original TweetEval emotion tweet; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0618",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0618",
+      "text": "Hey buddy , I just came by to feed my Venus Flytrap . — Sue ( S1E13 )",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "no"
+      },
+      "provenance": "unknown",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 618 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 0 means human original TweetEval emotion tweet; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0620",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0620",
+      "text": "@USER literally Nicole already had her chance and she played shitty both seasons .",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "no"
+      },
+      "provenance": "unknown",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 620 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 0 means human original TweetEval emotion tweet; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0622",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0622",
+      "text": "@USER Miss Cookie sends her thanks ! she is not as spry as she used to be - like me ! She does not have the adventures the young pups do !",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "no"
+      },
+      "provenance": "unknown",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 622 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 0 means human original TweetEval emotion tweet; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0624",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0624",
+      "text": "@USER Wow , did you get a really good buy on a bunch of ' 70 is movies ? There were bad then and are worse now !",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "no"
+      },
+      "provenance": "unknown",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 624 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 0 means human original TweetEval emotion tweet; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0626",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0626",
+      "text": "@USER @USER Hey stupid , that was bad intel to take Bin Laden out . Try again with your faux outrage . I bet u admire Putin right ?",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "no"
+      },
+      "provenance": "unknown",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 626 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 0 means human original TweetEval emotion tweet; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0634",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0634",
+      "text": "@USER Bullies , rudeness and littering all make me #mad !",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "no"
+      },
+      "provenance": "unknown",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 634 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 0 means human original TweetEval emotion tweet; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0636",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0636",
+      "text": "@USER @USER Is it about rabid penguins on a plane",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "no"
+      },
+      "provenance": "unknown",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 636 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 0 means human original TweetEval emotion tweet; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0640",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0640",
+      "text": "An @USER kind of drive home from work today #nightmare",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "no"
+      },
+      "provenance": "unknown",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 640 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 0 means human original TweetEval emotion tweet; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0642",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0642",
+      "text": "Best horror Comedy movie of 2017 #AnandoBrahma @USER #SrinivasReddy . In 2nd half I got throat pain #toomuch",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "no"
+      },
+      "provenance": "unknown",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 642 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 0 means human original TweetEval emotion tweet; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0644",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0644",
+      "text": "@USER @USER @USER Connor said he is worried that Jack will steal his girls on a night out",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "no"
+      },
+      "provenance": "unknown",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 644 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 0 means human original TweetEval emotion tweet; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0646",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0646",
+      "text": "@USER seriously dude buy some bubble tape for your phones . #snap",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "no"
+      },
+      "provenance": "unknown",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 646 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 0 means human original TweetEval emotion tweet; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0650",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0650",
+      "text": "@USER there is no room for jokes in hockey ! This is a serious business where we made up teams to fill out the tournament !",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "no"
+      },
+      "provenance": "unknown",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 650 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 0 means human original TweetEval emotion tweet; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0654",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0654",
+      "text": "@USER I do not really understand the burst and semi auto version bc the damage does not change so those are essentially useless",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "no"
+      },
+      "provenance": "unknown",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 654 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 0 means human original TweetEval emotion tweet; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0656",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0656",
+      "text": "@USER glee glee glee glee gLEE GLEE i LOST LOST LOST lowe much",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "no"
+      },
+      "provenance": "unknown",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 656 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 0 means human original TweetEval emotion tweet; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0682",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0682",
+      "text": "Or all of it , with our displeasure pieced ,",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "no"
+      },
+      "provenance": "unknown",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 682 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 0 means human original TweetEval emotion tweet; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0684",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0684",
+      "text": "Back on my",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "no"
+      },
+      "provenance": "unknown",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 684 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 0 means human original TweetEval emotion tweet; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0686",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0686",
+      "text": "In addition to fiction , wish me luck on my research paper this semester . 15-20 pages , oh boy .",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "no"
+      },
+      "provenance": "unknown",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 686 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 0 means human original TweetEval emotion tweet; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0698",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0698",
+      "text": "@USER evidently @USER feels above #norms . SHOW the #tax",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "no"
+      },
+      "provenance": "unknown",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 698 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 0 means human original TweetEval emotion tweet; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0700",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0700",
+      "text": "Hi guys ! I now do lessons via Skype ! Contact me for more info . #skype #lesson #basslessons #teacher #free lesson #music #groove #rock",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "no"
+      },
+      "provenance": "unknown",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 700 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 0 means human original TweetEval emotion tweet; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0702",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0702",
+      "text": "Listening to @USER at work is my slice of sunshine in this dreary cube world",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "no"
+      },
+      "provenance": "unknown",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 702 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 0 means human original TweetEval emotion tweet; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0704",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0704",
+      "text": "We can easily #forgive a #child who is #afraid of the #dark ; the real #tragedy of #life is when #men are #afraid of the #light .",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "no"
+      },
+      "provenance": "unknown",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 704 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 0 means human original TweetEval emotion tweet; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0706",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0706",
+      "text": "final vestiges of my 90 is childhood were just dashed on the shoals of hearing a house cover of Tracy Chapman is ' fast car",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "no"
+      },
+      "provenance": "unknown",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 706 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 0 means human original TweetEval emotion tweet; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0708",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0708",
+      "text": "@USER Is that the new studio kit ? I would be terrified of pressing the wrong button and launching something dangerous !",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "no"
+      },
+      "provenance": "unknown",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 708 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 0 means human original TweetEval emotion tweet; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0712",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0712",
+      "text": "I need a :bento_box: sushi date :rice_ball: @USER :spaghetti: an olive guarded date :cheese_wedge: @USER and a 👊🏼 Rockys date :pizza:",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "no"
+      },
+      "provenance": "unknown",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 712 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 0 means human original TweetEval emotion tweet; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0718",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0718",
+      "text": "@USER True . We were rejoicing the fact that we signed a quality young CB but we need one more at least . @USER ?",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "no"
+      },
+      "provenance": "unknown",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 718 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 0 means human original TweetEval emotion tweet; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0720",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0720",
+      "text": "Hey no turn over after a kick - way to go Texans ! Way to go ! #Texans",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "no"
+      },
+      "provenance": "unknown",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 720 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 0 means human original TweetEval emotion tweet; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0722",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0722",
+      "text": "India should now react to the uri attack ...",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "no"
+      },
+      "provenance": "unknown",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 722 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 0 means human original TweetEval emotion tweet; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0724",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0724",
+      "text": "#GameOfThones how can you top that next week",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "no"
+      },
+      "provenance": "unknown",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 724 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 0 means human original TweetEval emotion tweet; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0728",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0728",
+      "text": "I had some weird dreams last night . First about dogs whose heads explode and roaches come out . Second , dark clouds and flying into space .",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "no"
+      },
+      "provenance": "unknown",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 728 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 0 means human original TweetEval emotion tweet; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0774",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0774",
+      "text": "Dehydrated , exhausted , stressed but still blessed .",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "no"
+      },
+      "provenance": "unknown",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 774 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 0 means human original TweetEval emotion tweet; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0776",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0776",
+      "text": "@USER @USER culture & language already protected . \\ n £ on ' promoting Welsh",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "no"
+      },
+      "provenance": "unknown",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 776 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 0 means human original TweetEval emotion tweet; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0778",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0778",
+      "text": "We join our sister is in #SA as they mourn the death of a bright star #PrudenceMabele . RIP sis , till we meet again .",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "no"
+      },
+      "provenance": "unknown",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 778 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 0 means human original TweetEval emotion tweet; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0790",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0790",
+      "text": "in my dream ... They were trying to steal my kidney ! ! ! #blackmarket",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "no"
+      },
+      "provenance": "unknown",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 790 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 0 means human original TweetEval emotion tweet; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0792",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0792",
+      "text": "Absolutely fuming that some woman jumped into my prebooked taxi and drove off :enraged_face:",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "no"
+      },
+      "provenance": "unknown",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 792 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 0 means human original TweetEval emotion tweet; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0794",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0794",
+      "text": "@USER Flirt , simper , pout , repeat . Yuck .",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "no"
+      },
+      "provenance": "unknown",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 794 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 0 means human original TweetEval emotion tweet; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0796",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0796",
+      "text": "@USER You bottled it and deleted the picture :weary_face: #scared",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "no"
+      },
+      "provenance": "unknown",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 796 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 0 means human original TweetEval emotion tweet; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0798",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0798",
+      "text": "Reflection : the grind has been so REAL ! Working 2 jobs & being in school . #ksudsm #ksu #recruiter #instructor #tumble #cheer",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "no"
+      },
+      "provenance": "unknown",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 798 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 0 means human original TweetEval emotion tweet; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0816",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0816",
+      "text": "Vegas , you won .",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "no"
+      },
+      "provenance": "unknown",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 816 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 0 means human original TweetEval emotion tweet; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0870",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0870",
+      "text": "This has been the most depressing week full of rain ever lol",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "no"
+      },
+      "provenance": "unknown",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 870 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 0 means human original TweetEval emotion tweet; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0874",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0874",
+      "text": "awoke from an actual nightmare about unicode normalization",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "no"
+      },
+      "provenance": "unknown",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 874 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 0 means human original TweetEval emotion tweet; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0876",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0876",
+      "text": "Goddamn headache .",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "no"
+      },
+      "provenance": "unknown",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 876 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 0 means human original TweetEval emotion tweet; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    },
+    {
+      "id": "umt-gpt4o-test-0878",
+      "modality": "text",
+      "title": "umt-gpt4o-test-0878",
+      "text": "No but that is so cute .",
+      "labels": {
+        "sexualContent": "unknown",
+        "aiGenerated": "no"
+      },
+      "provenance": "unknown",
+      "notes": "Source: redasers/Unmasking-the-Imposters, CC BY 4.0, gpt4o/test row 878 at revision 48d1eee50c389d12f49bb0af285a37dba4d23a6a. Dataset label 0 means human original TweetEval emotion tweet; see benchmarks/text-report.md for provenance and limits.",
+      "createdAt": "2026-10-01T19:40:35.627Z"
+    }
+  ],
+  "solutions": [
+    {
+      "id": "measured-text:onnx-community/e5-small-lora-ai-generated-detector-ONNX@02919a911bb647ceac84de99afb00ea2da8c2725",
+      "name": "E5 small LoRA AI text detector q8",
+      "description": "onnx-community/e5-small-lora-ai-generated-detector-ONNX@02919a911bb647ceac84de99afb00ea2da8c2725; q8 ONNX, class 1 is AI-generated; 34157539 weight bytes; Chromium CPU/WASM inference.",
+      "kind": "other",
+      "predictions": {
+        "umt-gpt4o-test-0011": {
+          "aiGenerated": 0.5462602376937866
+        },
+        "umt-gpt4o-test-0013": {
+          "aiGenerated": 0.7409687638282776
+        },
+        "umt-gpt4o-test-0015": {
+          "aiGenerated": 0.3416469991207123
+        },
+        "umt-gpt4o-test-0019": {
+          "aiGenerated": 0.5268325209617615
+        },
+        "umt-gpt4o-test-0064": {
+          "aiGenerated": 0.12269573658704758
+        },
+        "umt-gpt4o-test-0065": {
+          "aiGenerated": 0.9352231025695801
+        },
+        "umt-gpt4o-test-0067": {
+          "aiGenerated": 0.9090415239334106
+        },
+        "umt-gpt4o-test-0069": {
+          "aiGenerated": 0.8142827749252319
+        },
+        "umt-gpt4o-test-0077": {
+          "aiGenerated": 0.28441011905670166
+        },
+        "umt-gpt4o-test-0079": {
+          "aiGenerated": 0.3813132643699646
+        },
+        "umt-gpt4o-test-0087": {
+          "aiGenerated": 0.42792701721191406
+        },
+        "umt-gpt4o-test-0089": {
+          "aiGenerated": 0.40824225544929504
+        },
+        "umt-gpt4o-test-0095": {
+          "aiGenerated": 0.6947346329689026
+        },
+        "umt-gpt4o-test-0097": {
+          "aiGenerated": 0.6756425499916077
+        },
+        "umt-gpt4o-test-0099": {
+          "aiGenerated": 0.5680195689201355
+        },
+        "umt-gpt4o-test-0110": {
+          "aiGenerated": 0.33812415599823
+        },
+        "umt-gpt4o-test-0112": {
+          "aiGenerated": 0.1280447393655777
+        },
+        "umt-gpt4o-test-0114": {
+          "aiGenerated": 0.41783010959625244
+        },
+        "umt-gpt4o-test-0116": {
+          "aiGenerated": 0.7457083463668823
+        },
+        "umt-gpt4o-test-0118": {
+          "aiGenerated": 0.29245635867118835
+        },
+        "umt-gpt4o-test-0182": {
+          "aiGenerated": 0.21854689717292786
+        },
+        "umt-gpt4o-test-0184": {
+          "aiGenerated": 0.23116426169872284
+        },
+        "umt-gpt4o-test-0186": {
+          "aiGenerated": 0.6860561370849609
+        },
+        "umt-gpt4o-test-0188": {
+          "aiGenerated": 0.8177762031555176
+        },
+        "umt-gpt4o-test-0190": {
+          "aiGenerated": 0.3453144133090973
+        },
+        "umt-gpt4o-test-0196": {
+          "aiGenerated": 0.3550869822502136
+        },
+        "umt-gpt4o-test-0201": {
+          "aiGenerated": 0.6218541264533997
+        },
+        "umt-gpt4o-test-0203": {
+          "aiGenerated": 0.280866414308548
+        },
+        "umt-gpt4o-test-0207": {
+          "aiGenerated": 0.6027034521102905
+        },
+        "umt-gpt4o-test-0261": {
+          "aiGenerated": 0.6943433284759521
+        },
+        "umt-gpt4o-test-0263": {
+          "aiGenerated": 0.6977916359901428
+        },
+        "umt-gpt4o-test-0265": {
+          "aiGenerated": 0.5110271573066711
+        },
+        "umt-gpt4o-test-0267": {
+          "aiGenerated": 0.8381372094154358
+        },
+        "umt-gpt4o-test-0275": {
+          "aiGenerated": 0.5535510182380676
+        },
+        "umt-gpt4o-test-0277": {
+          "aiGenerated": 0.8221701979637146
+        },
+        "umt-gpt4o-test-0326": {
+          "aiGenerated": 0.6284402012825012
+        },
+        "umt-gpt4o-test-0355": {
+          "aiGenerated": 0.47384113073349
+        },
+        "umt-gpt4o-test-0357": {
+          "aiGenerated": 0.8076928853988647
+        },
+        "umt-gpt4o-test-0359": {
+          "aiGenerated": 0.8394439816474915
+        },
+        "umt-gpt4o-test-0363": {
+          "aiGenerated": 0.6859773993492126
+        },
+        "umt-gpt4o-test-0365": {
+          "aiGenerated": 0.7423168420791626
+        },
+        "umt-gpt4o-test-0367": {
+          "aiGenerated": 0.6381930112838745
+        },
+        "umt-gpt4o-test-0369": {
+          "aiGenerated": 0.13284482061862946
+        },
+        "umt-gpt4o-test-0371": {
+          "aiGenerated": 0.30550140142440796
+        },
+        "umt-gpt4o-test-0373": {
+          "aiGenerated": 0.22329029440879822
+        },
+        "umt-gpt4o-test-0375": {
+          "aiGenerated": 0.6643080115318298
+        },
+        "umt-gpt4o-test-0377": {
+          "aiGenerated": 0.831594705581665
+        },
+        "umt-gpt4o-test-0379": {
+          "aiGenerated": 0.8799771666526794
+        },
+        "umt-gpt4o-test-0380": {
+          "aiGenerated": 0.6291335821151733
+        },
+        "umt-gpt4o-test-0387": {
+          "aiGenerated": 0.5641976594924927
+        },
+        "umt-gpt4o-test-0389": {
+          "aiGenerated": 0.8548194766044617
+        },
+        "umt-gpt4o-test-0421": {
+          "aiGenerated": 0.2727576792240143
+        },
+        "umt-gpt4o-test-0521": {
+          "aiGenerated": 0.8103916049003601
+        },
+        "umt-gpt4o-test-0523": {
+          "aiGenerated": 0.5100919008255005
+        },
+        "umt-gpt4o-test-0525": {
+          "aiGenerated": 0.7149778008460999
+        },
+        "umt-gpt4o-test-0527": {
+          "aiGenerated": 0.5707522034645081
+        },
+        "umt-gpt4o-test-0531": {
+          "aiGenerated": 0.7963247895240784
+        },
+        "umt-gpt4o-test-0533": {
+          "aiGenerated": 0.46176302433013916
+        },
+        "umt-gpt4o-test-0535": {
+          "aiGenerated": 0.8473355174064636
+        },
+        "umt-gpt4o-test-0537": {
+          "aiGenerated": 0.6936332583427429
+        },
+        "umt-gpt4o-test-0539": {
+          "aiGenerated": 0.3750569224357605
+        },
+        "umt-gpt4o-test-0551": {
+          "aiGenerated": 0.8515741229057312
+        },
+        "umt-gpt4o-test-0553": {
+          "aiGenerated": 0.6007738709449768
+        },
+        "umt-gpt4o-test-0555": {
+          "aiGenerated": 0.5432673096656799
+        },
+        "umt-gpt4o-test-0557": {
+          "aiGenerated": 0.49667471647262573
+        },
+        "umt-gpt4o-test-0559": {
+          "aiGenerated": 0.8309383988380432
+        },
+        "umt-gpt4o-test-0581": {
+          "aiGenerated": 0.8483051061630249
+        },
+        "umt-gpt4o-test-0583": {
+          "aiGenerated": 0.5830804109573364
+        },
+        "umt-gpt4o-test-0585": {
+          "aiGenerated": 0.8558915257453918
+        },
+        "umt-gpt4o-test-0587": {
+          "aiGenerated": 0.7070027589797974
+        },
+        "umt-gpt4o-test-0591": {
+          "aiGenerated": 0.6253795027732849
+        },
+        "umt-gpt4o-test-0593": {
+          "aiGenerated": 0.8119704127311707
+        },
+        "umt-gpt4o-test-0595": {
+          "aiGenerated": 0.6972915530204773
+        },
+        "umt-gpt4o-test-0597": {
+          "aiGenerated": 0.7285363674163818
+        },
+        "umt-gpt4o-test-0610": {
+          "aiGenerated": 0.42633968591690063
+        },
+        "umt-gpt4o-test-0612": {
+          "aiGenerated": 0.31176885962486267
+        },
+        "umt-gpt4o-test-0614": {
+          "aiGenerated": 0.11531542241573334
+        },
+        "umt-gpt4o-test-0616": {
+          "aiGenerated": 0.09627413749694824
+        },
+        "umt-gpt4o-test-0618": {
+          "aiGenerated": 0.7650914788246155
+        },
+        "umt-gpt4o-test-0620": {
+          "aiGenerated": 0.17622055113315582
+        },
+        "umt-gpt4o-test-0622": {
+          "aiGenerated": 0.8197524547576904
+        },
+        "umt-gpt4o-test-0624": {
+          "aiGenerated": 0.46626320481300354
+        },
+        "umt-gpt4o-test-0626": {
+          "aiGenerated": 0.18481005728244781
+        },
+        "umt-gpt4o-test-0634": {
+          "aiGenerated": 0.27372708916664124
+        },
+        "umt-gpt4o-test-0636": {
+          "aiGenerated": 0.14243252575397491
+        },
+        "umt-gpt4o-test-0640": {
+          "aiGenerated": 0.07815069705247879
+        },
+        "umt-gpt4o-test-0642": {
+          "aiGenerated": 0.07786235958337784
+        },
+        "umt-gpt4o-test-0644": {
+          "aiGenerated": 0.2688731551170349
+        },
+        "umt-gpt4o-test-0646": {
+          "aiGenerated": 0.40166133642196655
+        },
+        "umt-gpt4o-test-0650": {
+          "aiGenerated": 0.6375583410263062
+        },
+        "umt-gpt4o-test-0654": {
+          "aiGenerated": 0.35421162843704224
+        },
+        "umt-gpt4o-test-0656": {
+          "aiGenerated": 0.15025004744529724
+        },
+        "umt-gpt4o-test-0682": {
+          "aiGenerated": 0.29383230209350586
+        },
+        "umt-gpt4o-test-0684": {
+          "aiGenerated": 0.14597080647945404
+        },
+        "umt-gpt4o-test-0686": {
+          "aiGenerated": 0.5835675597190857
+        },
+        "umt-gpt4o-test-0698": {
+          "aiGenerated": 0.10367517173290253
+        },
+        "umt-gpt4o-test-0700": {
+          "aiGenerated": 0.6253174543380737
+        },
+        "umt-gpt4o-test-0702": {
+          "aiGenerated": 0.14719319343566895
+        },
+        "umt-gpt4o-test-0704": {
+          "aiGenerated": 0.6042514443397522
+        },
+        "umt-gpt4o-test-0706": {
+          "aiGenerated": 0.10047978907823563
+        },
+        "umt-gpt4o-test-0708": {
+          "aiGenerated": 0.7193974256515503
+        },
+        "umt-gpt4o-test-0712": {
+          "aiGenerated": 0.6216302514076233
+        },
+        "umt-gpt4o-test-0718": {
+          "aiGenerated": 0.3557190001010895
+        },
+        "umt-gpt4o-test-0720": {
+          "aiGenerated": 0.19591201841831207
+        },
+        "umt-gpt4o-test-0722": {
+          "aiGenerated": 0.8624542355537415
+        },
+        "umt-gpt4o-test-0724": {
+          "aiGenerated": 0.08336824923753738
+        },
+        "umt-gpt4o-test-0728": {
+          "aiGenerated": 0.8574209809303284
+        },
+        "umt-gpt4o-test-0774": {
+          "aiGenerated": 0.8232718110084534
+        },
+        "umt-gpt4o-test-0776": {
+          "aiGenerated": 0.07955445349216461
+        },
+        "umt-gpt4o-test-0778": {
+          "aiGenerated": 0.69515460729599
+        },
+        "umt-gpt4o-test-0790": {
+          "aiGenerated": 0.6353608965873718
+        },
+        "umt-gpt4o-test-0792": {
+          "aiGenerated": 0.5528327822685242
+        },
+        "umt-gpt4o-test-0794": {
+          "aiGenerated": 0.6170871257781982
+        },
+        "umt-gpt4o-test-0796": {
+          "aiGenerated": 0.22264453768730164
+        },
+        "umt-gpt4o-test-0798": {
+          "aiGenerated": 0.4730992913246155
+        },
+        "umt-gpt4o-test-0816": {
+          "aiGenerated": 0.5743559002876282
+        },
+        "umt-gpt4o-test-0870": {
+          "aiGenerated": 0.25292298197746277
+        },
+        "umt-gpt4o-test-0874": {
+          "aiGenerated": 0.12060859799385071
+        },
+        "umt-gpt4o-test-0876": {
+          "aiGenerated": 0.390722393989563
+        },
+        "umt-gpt4o-test-0878": {
+          "aiGenerated": 0.4234439730644226
+        }
+      }
+    },
+    {
+      "id": "measured-text:onnx-community/tmr-ai-text-detector-ONNX@b9aa251e5bcda7e429fcc936767d921435945b60",
+      "name": "TMR RoBERTa-base AI text detector q8",
+      "description": "onnx-community/tmr-ai-text-detector-ONNX@b9aa251e5bcda7e429fcc936767d921435945b60; q8 ONNX, class 1 is AI-generated; 125855418 weight bytes; Chromium CPU/WASM inference.",
+      "kind": "other",
+      "predictions": {
+        "umt-gpt4o-test-0011": {
+          "aiGenerated": 0.969918966293335
+        },
+        "umt-gpt4o-test-0013": {
+          "aiGenerated": 0.974668025970459
+        },
+        "umt-gpt4o-test-0015": {
+          "aiGenerated": 0.9566344618797302
+        },
+        "umt-gpt4o-test-0019": {
+          "aiGenerated": 0.9769195914268494
+        },
+        "umt-gpt4o-test-0064": {
+          "aiGenerated": 0.12606675922870636
+        },
+        "umt-gpt4o-test-0065": {
+          "aiGenerated": 0.6945185661315918
+        },
+        "umt-gpt4o-test-0067": {
+          "aiGenerated": 0.9789028763771057
+        },
+        "umt-gpt4o-test-0069": {
+          "aiGenerated": 0.9782191514968872
+        },
+        "umt-gpt4o-test-0077": {
+          "aiGenerated": 0.9469486474990845
+        },
+        "umt-gpt4o-test-0079": {
+          "aiGenerated": 0.9604602456092834
+        },
+        "umt-gpt4o-test-0087": {
+          "aiGenerated": 0.9677183032035828
+        },
+        "umt-gpt4o-test-0089": {
+          "aiGenerated": 0.9705763459205627
+        },
+        "umt-gpt4o-test-0095": {
+          "aiGenerated": 0.6745076179504395
+        },
+        "umt-gpt4o-test-0097": {
+          "aiGenerated": 0.9673342704772949
+        },
+        "umt-gpt4o-test-0099": {
+          "aiGenerated": 0.9155444502830505
+        },
+        "umt-gpt4o-test-0110": {
+          "aiGenerated": 0.9620444178581238
+        },
+        "umt-gpt4o-test-0112": {
+          "aiGenerated": 0.7785894870758057
+        },
+        "umt-gpt4o-test-0114": {
+          "aiGenerated": 0.06394662708044052
+        },
+        "umt-gpt4o-test-0116": {
+          "aiGenerated": 0.9483131170272827
+        },
+        "umt-gpt4o-test-0118": {
+          "aiGenerated": 0.9798592329025269
+        },
+        "umt-gpt4o-test-0182": {
+          "aiGenerated": 0.6884238123893738
+        },
+        "umt-gpt4o-test-0184": {
+          "aiGenerated": 0.8974693417549133
+        },
+        "umt-gpt4o-test-0186": {
+          "aiGenerated": 0.8273395299911499
+        },
+        "umt-gpt4o-test-0188": {
+          "aiGenerated": 0.9644989371299744
+        },
+        "umt-gpt4o-test-0190": {
+          "aiGenerated": 0.7139185667037964
+        },
+        "umt-gpt4o-test-0196": {
+          "aiGenerated": 0.8416810035705566
+        },
+        "umt-gpt4o-test-0201": {
+          "aiGenerated": 0.9497464895248413
+        },
+        "umt-gpt4o-test-0203": {
+          "aiGenerated": 0.9234607815742493
+        },
+        "umt-gpt4o-test-0207": {
+          "aiGenerated": 0.8413316607475281
+        },
+        "umt-gpt4o-test-0261": {
+          "aiGenerated": 0.850006103515625
+        },
+        "umt-gpt4o-test-0263": {
+          "aiGenerated": 0.9795897006988525
+        },
+        "umt-gpt4o-test-0265": {
+          "aiGenerated": 0.9577543139457703
+        },
+        "umt-gpt4o-test-0267": {
+          "aiGenerated": 0.979117751121521
+        },
+        "umt-gpt4o-test-0275": {
+          "aiGenerated": 0.9690362811088562
+        },
+        "umt-gpt4o-test-0277": {
+          "aiGenerated": 0.972310483455658
+        },
+        "umt-gpt4o-test-0326": {
+          "aiGenerated": 0.8125507831573486
+        },
+        "umt-gpt4o-test-0355": {
+          "aiGenerated": 0.7629244327545166
+        },
+        "umt-gpt4o-test-0357": {
+          "aiGenerated": 0.958450973033905
+        },
+        "umt-gpt4o-test-0359": {
+          "aiGenerated": 0.9583721160888672
+        },
+        "umt-gpt4o-test-0363": {
+          "aiGenerated": 0.9237039089202881
+        },
+        "umt-gpt4o-test-0365": {
+          "aiGenerated": 0.10013194382190704
+        },
+        "umt-gpt4o-test-0367": {
+          "aiGenerated": 0.21844737231731415
+        },
+        "umt-gpt4o-test-0369": {
+          "aiGenerated": 0.9214969277381897
+        },
+        "umt-gpt4o-test-0371": {
+          "aiGenerated": 0.6200737357139587
+        },
+        "umt-gpt4o-test-0373": {
+          "aiGenerated": 0.9510537385940552
+        },
+        "umt-gpt4o-test-0375": {
+          "aiGenerated": 0.9764783978462219
+        },
+        "umt-gpt4o-test-0377": {
+          "aiGenerated": 0.9823698401451111
+        },
+        "umt-gpt4o-test-0379": {
+          "aiGenerated": 0.9742249846458435
+        },
+        "umt-gpt4o-test-0380": {
+          "aiGenerated": 0.5502213835716248
+        },
+        "umt-gpt4o-test-0387": {
+          "aiGenerated": 0.8078060746192932
+        },
+        "umt-gpt4o-test-0389": {
+          "aiGenerated": 0.980554461479187
+        },
+        "umt-gpt4o-test-0421": {
+          "aiGenerated": 0.03867363557219505
+        },
+        "umt-gpt4o-test-0521": {
+          "aiGenerated": 0.9732781052589417
+        },
+        "umt-gpt4o-test-0523": {
+          "aiGenerated": 0.7807315587997437
+        },
+        "umt-gpt4o-test-0525": {
+          "aiGenerated": 0.9777764678001404
+        },
+        "umt-gpt4o-test-0527": {
+          "aiGenerated": 0.9702818989753723
+        },
+        "umt-gpt4o-test-0531": {
+          "aiGenerated": 0.7770521640777588
+        },
+        "umt-gpt4o-test-0533": {
+          "aiGenerated": 0.946770191192627
+        },
+        "umt-gpt4o-test-0535": {
+          "aiGenerated": 0.9608272314071655
+        },
+        "umt-gpt4o-test-0537": {
+          "aiGenerated": 0.8505164384841919
+        },
+        "umt-gpt4o-test-0539": {
+          "aiGenerated": 0.9553675651550293
+        },
+        "umt-gpt4o-test-0551": {
+          "aiGenerated": 0.9207655787467957
+        },
+        "umt-gpt4o-test-0553": {
+          "aiGenerated": 0.9617747664451599
+        },
+        "umt-gpt4o-test-0555": {
+          "aiGenerated": 0.6164462566375732
+        },
+        "umt-gpt4o-test-0557": {
+          "aiGenerated": 0.811252236366272
+        },
+        "umt-gpt4o-test-0559": {
+          "aiGenerated": 0.9545958638191223
+        },
+        "umt-gpt4o-test-0581": {
+          "aiGenerated": 0.9769241213798523
+        },
+        "umt-gpt4o-test-0583": {
+          "aiGenerated": 0.9695496559143066
+        },
+        "umt-gpt4o-test-0585": {
+          "aiGenerated": 0.963088870048523
+        },
+        "umt-gpt4o-test-0587": {
+          "aiGenerated": 0.15563064813613892
+        },
+        "umt-gpt4o-test-0591": {
+          "aiGenerated": 0.9211570024490356
+        },
+        "umt-gpt4o-test-0593": {
+          "aiGenerated": 0.9759156703948975
+        },
+        "umt-gpt4o-test-0595": {
+          "aiGenerated": 0.9417822957038879
+        },
+        "umt-gpt4o-test-0597": {
+          "aiGenerated": 0.9827316403388977
+        },
+        "umt-gpt4o-test-0610": {
+          "aiGenerated": 0.0938032865524292
+        },
+        "umt-gpt4o-test-0612": {
+          "aiGenerated": 0.876383364200592
+        },
+        "umt-gpt4o-test-0614": {
+          "aiGenerated": 0.05882802978157997
+        },
+        "umt-gpt4o-test-0616": {
+          "aiGenerated": 0.9236528277397156
+        },
+        "umt-gpt4o-test-0618": {
+          "aiGenerated": 0.9216457605361938
+        },
+        "umt-gpt4o-test-0620": {
+          "aiGenerated": 0.9071248769760132
+        },
+        "umt-gpt4o-test-0622": {
+          "aiGenerated": 0.9539738297462463
+        },
+        "umt-gpt4o-test-0624": {
+          "aiGenerated": 0.9623165726661682
+        },
+        "umt-gpt4o-test-0626": {
+          "aiGenerated": 0.9730400443077087
+        },
+        "umt-gpt4o-test-0634": {
+          "aiGenerated": 0.9002232551574707
+        },
+        "umt-gpt4o-test-0636": {
+          "aiGenerated": 0.9742538332939148
+        },
+        "umt-gpt4o-test-0640": {
+          "aiGenerated": 0.7896275520324707
+        },
+        "umt-gpt4o-test-0642": {
+          "aiGenerated": 0.16891013085842133
+        },
+        "umt-gpt4o-test-0644": {
+          "aiGenerated": 0.9827510714530945
+        },
+        "umt-gpt4o-test-0646": {
+          "aiGenerated": 0.927158772945404
+        },
+        "umt-gpt4o-test-0650": {
+          "aiGenerated": 0.9726113677024841
+        },
+        "umt-gpt4o-test-0654": {
+          "aiGenerated": 0.6491531729698181
+        },
+        "umt-gpt4o-test-0656": {
+          "aiGenerated": 0.9012128114700317
+        },
+        "umt-gpt4o-test-0682": {
+          "aiGenerated": 0.4228641092777252
+        },
+        "umt-gpt4o-test-0684": {
+          "aiGenerated": 0.6676405668258667
+        },
+        "umt-gpt4o-test-0686": {
+          "aiGenerated": 0.7729998826980591
+        },
+        "umt-gpt4o-test-0698": {
+          "aiGenerated": 0.30415257811546326
+        },
+        "umt-gpt4o-test-0700": {
+          "aiGenerated": 0.9754723906517029
+        },
+        "umt-gpt4o-test-0702": {
+          "aiGenerated": 0.5653481483459473
+        },
+        "umt-gpt4o-test-0704": {
+          "aiGenerated": 0.09837575256824493
+        },
+        "umt-gpt4o-test-0706": {
+          "aiGenerated": 0.10829436779022217
+        },
+        "umt-gpt4o-test-0708": {
+          "aiGenerated": 0.9637323021888733
+        },
+        "umt-gpt4o-test-0712": {
+          "aiGenerated": 0.8856581449508667
+        },
+        "umt-gpt4o-test-0718": {
+          "aiGenerated": 0.9684158563613892
+        },
+        "umt-gpt4o-test-0720": {
+          "aiGenerated": 0.632040798664093
+        },
+        "umt-gpt4o-test-0722": {
+          "aiGenerated": 0.9527326822280884
+        },
+        "umt-gpt4o-test-0724": {
+          "aiGenerated": 0.9049128293991089
+        },
+        "umt-gpt4o-test-0728": {
+          "aiGenerated": 0.9556021690368652
+        },
+        "umt-gpt4o-test-0774": {
+          "aiGenerated": 0.910993218421936
+        },
+        "umt-gpt4o-test-0776": {
+          "aiGenerated": 0.9782600998878479
+        },
+        "umt-gpt4o-test-0778": {
+          "aiGenerated": 0.9496179819107056
+        },
+        "umt-gpt4o-test-0790": {
+          "aiGenerated": 0.9638339877128601
+        },
+        "umt-gpt4o-test-0792": {
+          "aiGenerated": 0.894403874874115
+        },
+        "umt-gpt4o-test-0794": {
+          "aiGenerated": 0.9402694702148438
+        },
+        "umt-gpt4o-test-0796": {
+          "aiGenerated": 0.89698326587677
+        },
+        "umt-gpt4o-test-0798": {
+          "aiGenerated": 0.9415291547775269
+        },
+        "umt-gpt4o-test-0816": {
+          "aiGenerated": 0.46423405408859253
+        },
+        "umt-gpt4o-test-0870": {
+          "aiGenerated": 0.5189173817634583
+        },
+        "umt-gpt4o-test-0874": {
+          "aiGenerated": 0.1895700842142105
+        },
+        "umt-gpt4o-test-0876": {
+          "aiGenerated": 0.0702534094452858
+        },
+        "umt-gpt4o-test-0878": {
+          "aiGenerated": 0.05254410207271576
+        }
+      }
+    },
+    {
+      "id": "measured-text:typesafe-ai/jev@2026-10-01T19:23:24.304Z",
+      "name": "Jev (Vercel AI Gateway, matched run)",
+      "description": "typesafe-ai/jev; provider-managed revision; actual production questions; measured 2026-10-01T19:23:24.304Z on the same corpus.",
+      "kind": "llm",
+      "predictions": {
+        "umt-gpt4o-test-0011": {
+          "aiGenerated": 0.12
+        },
+        "umt-gpt4o-test-0013": {
+          "aiGenerated": 0.42
+        },
+        "umt-gpt4o-test-0015": {
+          "aiGenerated": 0.15
+        },
+        "umt-gpt4o-test-0019": {
+          "aiGenerated": 0.2
+        },
+        "umt-gpt4o-test-0064": {
+          "aiGenerated": 0.07
+        },
+        "umt-gpt4o-test-0065": {
+          "aiGenerated": 0.28
+        },
+        "umt-gpt4o-test-0067": {
+          "aiGenerated": 0.17
+        },
+        "umt-gpt4o-test-0069": {
+          "aiGenerated": 0.35
+        },
+        "umt-gpt4o-test-0077": {
+          "aiGenerated": 0.16
+        },
+        "umt-gpt4o-test-0079": {
+          "aiGenerated": 0.22
+        },
+        "umt-gpt4o-test-0087": {
+          "aiGenerated": 0.16
+        },
+        "umt-gpt4o-test-0089": {
+          "aiGenerated": 0.12
+        },
+        "umt-gpt4o-test-0095": {
+          "aiGenerated": 0.2
+        },
+        "umt-gpt4o-test-0097": {
+          "aiGenerated": 0.13
+        },
+        "umt-gpt4o-test-0099": {
+          "aiGenerated": 0.17
+        },
+        "umt-gpt4o-test-0110": {
+          "aiGenerated": 0.13
+        },
+        "umt-gpt4o-test-0112": {
+          "aiGenerated": 0.28
+        },
+        "umt-gpt4o-test-0114": {
+          "aiGenerated": 0.1
+        },
+        "umt-gpt4o-test-0116": {
+          "aiGenerated": 0.21
+        },
+        "umt-gpt4o-test-0118": {
+          "aiGenerated": 0.12
+        },
+        "umt-gpt4o-test-0182": {
+          "aiGenerated": 0.09
+        },
+        "umt-gpt4o-test-0184": {
+          "aiGenerated": 0.12
+        },
+        "umt-gpt4o-test-0186": {
+          "aiGenerated": 0.19
+        },
+        "umt-gpt4o-test-0188": {
+          "aiGenerated": 0.11
+        },
+        "umt-gpt4o-test-0190": {
+          "aiGenerated": 0.13
+        },
+        "umt-gpt4o-test-0196": {
+          "aiGenerated": 0.21
+        },
+        "umt-gpt4o-test-0201": {
+          "aiGenerated": 0.09
+        },
+        "umt-gpt4o-test-0203": {
+          "aiGenerated": 0.2
+        },
+        "umt-gpt4o-test-0207": {
+          "aiGenerated": 0.11
+        },
+        "umt-gpt4o-test-0261": {
+          "aiGenerated": 0.28
+        },
+        "umt-gpt4o-test-0263": {
+          "aiGenerated": 0.64
+        },
+        "umt-gpt4o-test-0265": {
+          "aiGenerated": 0.15
+        },
+        "umt-gpt4o-test-0267": {
+          "aiGenerated": 0.13
+        },
+        "umt-gpt4o-test-0275": {
+          "aiGenerated": 0.19
+        },
+        "umt-gpt4o-test-0277": {
+          "aiGenerated": 0.55
+        },
+        "umt-gpt4o-test-0326": {
+          "aiGenerated": 0.13
+        },
+        "umt-gpt4o-test-0355": {
+          "aiGenerated": 0.12
+        },
+        "umt-gpt4o-test-0357": {
+          "aiGenerated": 0.64
+        },
+        "umt-gpt4o-test-0359": {
+          "aiGenerated": 0.14
+        },
+        "umt-gpt4o-test-0363": {
+          "aiGenerated": 0.19
+        },
+        "umt-gpt4o-test-0365": {
+          "aiGenerated": 0.11
+        },
+        "umt-gpt4o-test-0367": {
+          "aiGenerated": 0.11
+        },
+        "umt-gpt4o-test-0369": {
+          "aiGenerated": 0.12
+        },
+        "umt-gpt4o-test-0371": {
+          "aiGenerated": 0.22
+        },
+        "umt-gpt4o-test-0373": {
+          "aiGenerated": 0.15
+        },
+        "umt-gpt4o-test-0375": {
+          "aiGenerated": 0.17
+        },
+        "umt-gpt4o-test-0377": {
+          "aiGenerated": 0.17
+        },
+        "umt-gpt4o-test-0379": {
+          "aiGenerated": 0.33
+        },
+        "umt-gpt4o-test-0380": {
+          "aiGenerated": 0.09
+        },
+        "umt-gpt4o-test-0387": {
+          "aiGenerated": 0.2
+        },
+        "umt-gpt4o-test-0389": {
+          "aiGenerated": 0.15
+        },
+        "umt-gpt4o-test-0421": {
+          "aiGenerated": 0.16
+        },
+        "umt-gpt4o-test-0521": {
+          "aiGenerated": 0.29
+        },
+        "umt-gpt4o-test-0523": {
+          "aiGenerated": 0.2
+        },
+        "umt-gpt4o-test-0525": {
+          "aiGenerated": 0.16
+        },
+        "umt-gpt4o-test-0527": {
+          "aiGenerated": 0.12
+        },
+        "umt-gpt4o-test-0531": {
+          "aiGenerated": 0.19
+        },
+        "umt-gpt4o-test-0533": {
+          "aiGenerated": 0.29
+        },
+        "umt-gpt4o-test-0535": {
+          "aiGenerated": 0.39
+        },
+        "umt-gpt4o-test-0537": {
+          "aiGenerated": 0.13
+        },
+        "umt-gpt4o-test-0539": {
+          "aiGenerated": 0.12
+        },
+        "umt-gpt4o-test-0551": {
+          "aiGenerated": 0.41
+        },
+        "umt-gpt4o-test-0553": {
+          "aiGenerated": 0.13
+        },
+        "umt-gpt4o-test-0555": {
+          "aiGenerated": 0.12
+        },
+        "umt-gpt4o-test-0557": {
+          "aiGenerated": 0.1
+        },
+        "umt-gpt4o-test-0559": {
+          "aiGenerated": 0.17
+        },
+        "umt-gpt4o-test-0581": {
+          "aiGenerated": 0.32
+        },
+        "umt-gpt4o-test-0583": {
+          "aiGenerated": 0.27
+        },
+        "umt-gpt4o-test-0585": {
+          "aiGenerated": 0.13
+        },
+        "umt-gpt4o-test-0587": {
+          "aiGenerated": 0.28
+        },
+        "umt-gpt4o-test-0591": {
+          "aiGenerated": 0.21
+        },
+        "umt-gpt4o-test-0593": {
+          "aiGenerated": 0.15
+        },
+        "umt-gpt4o-test-0595": {
+          "aiGenerated": 0.16
+        },
+        "umt-gpt4o-test-0597": {
+          "aiGenerated": 0.16
+        },
+        "umt-gpt4o-test-0610": {
+          "aiGenerated": 0.07
+        },
+        "umt-gpt4o-test-0612": {
+          "aiGenerated": 0.18
+        },
+        "umt-gpt4o-test-0614": {
+          "aiGenerated": 0.22
+        },
+        "umt-gpt4o-test-0616": {
+          "aiGenerated": 0.09
+        },
+        "umt-gpt4o-test-0618": {
+          "aiGenerated": 0.18
+        },
+        "umt-gpt4o-test-0620": {
+          "aiGenerated": 0.05
+        },
+        "umt-gpt4o-test-0622": {
+          "aiGenerated": 0.17
+        },
+        "umt-gpt4o-test-0624": {
+          "aiGenerated": 0.12
+        },
+        "umt-gpt4o-test-0626": {
+          "aiGenerated": 0.1
+        },
+        "umt-gpt4o-test-0634": {
+          "aiGenerated": 0.18
+        },
+        "umt-gpt4o-test-0636": {
+          "aiGenerated": 0.11
+        },
+        "umt-gpt4o-test-0640": {
+          "aiGenerated": 0.12
+        },
+        "umt-gpt4o-test-0642": {
+          "aiGenerated": 0.1
+        },
+        "umt-gpt4o-test-0644": {
+          "aiGenerated": 0.14
+        },
+        "umt-gpt4o-test-0646": {
+          "aiGenerated": 0.07
+        },
+        "umt-gpt4o-test-0650": {
+          "aiGenerated": 0.16
+        },
+        "umt-gpt4o-test-0654": {
+          "aiGenerated": 0.12
+        },
+        "umt-gpt4o-test-0656": {
+          "aiGenerated": 0.07
+        },
+        "umt-gpt4o-test-0682": {
+          "aiGenerated": 0.32
+        },
+        "umt-gpt4o-test-0684": {
+          "aiGenerated": 0.17
+        },
+        "umt-gpt4o-test-0686": {
+          "aiGenerated": 0.12
+        },
+        "umt-gpt4o-test-0698": {
+          "aiGenerated": 0.12
+        },
+        "umt-gpt4o-test-0700": {
+          "aiGenerated": 0.21
+        },
+        "umt-gpt4o-test-0702": {
+          "aiGenerated": 0.17
+        },
+        "umt-gpt4o-test-0704": {
+          "aiGenerated": 0.27
+        },
+        "umt-gpt4o-test-0706": {
+          "aiGenerated": 0.17
+        },
+        "umt-gpt4o-test-0708": {
+          "aiGenerated": 0.18
+        },
+        "umt-gpt4o-test-0712": {
+          "aiGenerated": 0.27
+        },
+        "umt-gpt4o-test-0718": {
+          "aiGenerated": 0.14
+        },
+        "umt-gpt4o-test-0720": {
+          "aiGenerated": 0.12
+        },
+        "umt-gpt4o-test-0722": {
+          "aiGenerated": 0.15
+        },
+        "umt-gpt4o-test-0724": {
+          "aiGenerated": 0.15
+        },
+        "umt-gpt4o-test-0728": {
+          "aiGenerated": 0.18
+        },
+        "umt-gpt4o-test-0774": {
+          "aiGenerated": 0.18
+        },
+        "umt-gpt4o-test-0776": {
+          "aiGenerated": 0.13
+        },
+        "umt-gpt4o-test-0778": {
+          "aiGenerated": 0.14
+        },
+        "umt-gpt4o-test-0790": {
+          "aiGenerated": 0.14
+        },
+        "umt-gpt4o-test-0792": {
+          "aiGenerated": 0.15
+        },
+        "umt-gpt4o-test-0794": {
+          "aiGenerated": 0.12
+        },
+        "umt-gpt4o-test-0796": {
+          "aiGenerated": 0.1
+        },
+        "umt-gpt4o-test-0798": {
+          "aiGenerated": 0.12
+        },
+        "umt-gpt4o-test-0816": {
+          "aiGenerated": 0.13
+        },
+        "umt-gpt4o-test-0870": {
+          "aiGenerated": 0.1
+        },
+        "umt-gpt4o-test-0874": {
+          "aiGenerated": 0.12
+        },
+        "umt-gpt4o-test-0876": {
+          "aiGenerated": 0.07
+        },
+        "umt-gpt4o-test-0878": {
+          "aiGenerated": 0.11
+        }
+      }
+    }
+  ]
+}

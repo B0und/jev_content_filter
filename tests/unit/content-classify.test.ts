@@ -1,17 +1,16 @@
-// Cache and classification regressions: case-sensitive image URL keys,
-// cache validation + versioning, NSFW class name mapping, and the retry
-// policy (no forever-retries on missing keys).
+// Classification/cache regressions: media URL handling, v7 validation,
+// independent text-task caching, and the retry policy for missing keys.
 import {
-  nsfwProbe,
   baseSettings,
   buildTweetArticle,
+  clearFeed,
   installFakeBackground,
   newPostStub,
   startRuntime,
   stopRuntime,
   until,
 } from './support';
-// Support registers external image-inference mocks before classification loads.
+import { Effect } from 'effect';
 import { afterEach, describe, expect, it } from 'vitest';
 import { browser } from 'wxt/browser';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
@@ -24,8 +23,32 @@ import {
 } from '../../src/content/classify';
 import { canonicalMediaUrl, readArticle } from '../../src/content/dom';
 import { settings } from '../../src/content/state';
-import { STORAGE_KEYS } from '../../src/shared/types';
-import { applySettingsChange } from '../../src/shared/settings';
+import { STORAGE_KEYS, type CategoryKey, type Settings } from '../../src/filtering/types';
+import { applySettingsChange } from '../../src/filtering/settings';
+afterEach(clearFeed);
+
+function textTaskSettings(overrides: Partial<Settings> = {}): Settings {
+  const base = baseSettings();
+  return baseSettings({
+    ...overrides,
+    enabled: {
+      ...base.enabled,
+      porn: false,
+      hentai: false,
+      sexy: false,
+      drawings: false,
+      sexualText: true,
+      aiGenerated: true,
+      ...overrides.enabled,
+    },
+    providerKeys: {
+      vercel: 'test-key',
+      typesafe: 'test-key',
+      openrouter: 'test-key',
+      ...overrides.providerKeys,
+    },
+  });
+}
 
 describe('media URL canonicalization', () => {
   it('collapses the size variants X oscillates between', () => {
@@ -94,136 +117,249 @@ describe('score cache', () => {
     await browser.storage.local.clear();
   });
 
-  it('rejects malformed, out-of-range, and stale-version entries', async () => {
-    const key = `${STORAGE_KEYS.scores}:v6:t:abc`;
+  it('rejects malformed entries and never reads cache versions before v7', async () => {
+    const key = `${STORAGE_KEYS.scores}:v7:t:abc`;
     await browser.storage.local.set({ [key]: { scores: { porn: 3 }, ts: 1 } });
-    expect(await readCache(key)).toBeNull();
+    expect(await Effect.runPromise(readCache(key))).toBeNull();
     await browser.storage.local.set({ [key]: { scores: { porn: 'high' }, ts: 1 } });
-    expect(await readCache(key)).toBeNull();
+    expect(await Effect.runPromise(readCache(key))).toBeNull();
     await browser.storage.local.set({ [key]: { scores: { madeUpKey: 0.5 }, ts: 1 } });
-    expect(await readCache(key)).toBeNull();
-    // Versioned keys: anything stored under the previous scheme is ignored.
-    const previous = `${STORAGE_KEYS.scores}:v5:t:abc`;
+    expect(await Effect.runPromise(readCache(key))).toBeNull();
+    const previous = `${STORAGE_KEYS.scores}:v6:t:abc`;
     await browser.storage.local.set({ [previous]: { scores: { porn: 0.9 }, ts: 1 } });
-    expect(await readCache(previous)).toBeNull();
+    expect(await Effect.runPromise(readCache(previous))).toBeNull();
     const legacy = `${STORAGE_KEYS.scores}:t:abc`;
     await browser.storage.local.set({ [legacy]: { scores: { porn: 0.9 }, ts: 1 } });
-    expect(await readCache(legacy)).toBeNull();
+    expect(await Effect.runPromise(readCache(legacy))).toBeNull();
     await browser.storage.local.set({ [key]: { scores: { porn: 0.9 }, ts: 1 } });
-    expect(await readCache(key)).toEqual({ scores: { porn: 0.9 }, ts: 1 });
+    expect(await Effect.runPromise(readCache(key))).toEqual({ scores: { porn: 0.9 }, ts: 1 });
   });
 
-  it('reuses cached image scores without re-running inference', async () => {
-    nsfwProbe.predictions = [
-      { className: 'Porn', probability: 0.9 },
-      { className: 'Drawing', probability: 0.7 },
-      { className: 'Neutral', probability: 0.1 },
-    ];
-    const url = 'https://pbs.twimg.com/media/CacheKey?format=jpg';
-    const first = await imageScores([url]);
-    expect(first.scores.porn).toBe(0.9);
-    expect(first.scores.drawings).toBe(0.7);
-    expect(first.scores.hentai).toBeUndefined();
-    expect(nsfwProbe.loadCount).toBe(1);
-
-    const second = await imageScores([url]);
-    expect(second.scores).toEqual(first.scores);
-    expect(nsfwProbe.loadCount).toBe(1); // served entirely from cache
-  });
-
-  it('reuses cached text scores regardless of author', async () => {
+  it('reuses image category scores from the browser-message classifier', async () => {
+    fakeBrowser.reset();
     settings.current = baseSettings({
-      providerKeys: { vercel: 'test-key', typesafe: 'test-key', openrouter: '' },
+      enabled: {
+        ...baseSettings().enabled,
+        sexualText: false,
+        aiGenerated: false,
+      },
     });
+    const scores: Partial<Record<CategoryKey, number>> = { porn: 0.9, drawings: 0.7 };
+    const bg = installFakeBackground();
+    bg.imageRespond = () => ({ ok: true, scores });
+    const url = 'https://pbs.twimg.com/media/CacheKey?format=jpg';
+
+    const first = await Effect.runPromise(imageScores([url]));
+    expect(first).toEqual({ scores, errors: [] });
+    expect(bg.imageCalls).toHaveLength(1);
+
+    const second = await Effect.runPromise(imageScores([url]));
+    expect(second).toEqual(first);
+    expect(bg.imageCalls).toHaveLength(1);
+  });
+
+  it('ignores legacy model scores after the anime pipeline is installed', async () => {
+    fakeBrowser.reset();
+    settings.current = baseSettings();
+    const bg = installFakeBackground();
+    bg.imageRespond = () => ({ ok: true, scores: { sexy: 0.93 } });
+    const url = 'https://pbs.twimg.com/media/CacheKey?format=jpg';
+    await Effect.runPromise(imageScores([url]));
+    const stored = await browser.storage.local.get(null);
+    const entry = Object.entries(stored).find(([key]) => key.includes(':i:'))!;
+    const suffix = entry[0].slice(entry[0].lastIndexOf(':'));
+    await browser.storage.local.clear();
+    await browser.storage.local.set({
+      [`${STORAGE_KEYS.scores}:v7:i:nsfwjs/mobilenet_v2:d55a54c51f14380670064cc129b2ea51029c5e46${suffix}`]:
+        { scores: { sexy: 0.001 }, ts: Date.now() },
+    });
+    expect(await Effect.runPromise(imageScores([url]))).toEqual({
+      scores: { sexy: 0.93 },
+      errors: [],
+    });
+    expect(bg.imageCalls).toHaveLength(2);
+  });
+
+  it('preserves partial scores and retries an incomplete anime check without caching it', async () => {
+    fakeBrowser.reset();
+    settings.current = baseSettings();
+    const bg = installFakeBackground();
+    bg.imageRespond = () => ({
+      ok: true,
+      scores: { porn: 0.9 },
+      warning: 'Anime sensitivity check failed. Retry to complete it.',
+    });
+    const url = 'https://pbs.twimg.com/media/Partial?format=jpg';
+    expect(await Effect.runPromise(imageScores([url]))).toEqual({
+      scores: { porn: 0.9 },
+      errors: ['Image 1: Anime sensitivity check failed. Retry to complete it.'],
+    });
+    bg.imageRespond = () => ({ ok: true, scores: { porn: 0.9, sexy: 0.93 } });
+    const recovered = await Effect.runPromise(imageScores([url]));
+    expect(recovered).toEqual({ scores: { porn: 0.9, sexy: 0.93 }, errors: [] });
+    expect(await Effect.runPromise(imageScores([url]))).toEqual(recovered);
+    expect(bg.imageCalls).toHaveLength(2);
+  });
+
+  it('reuses cached sexual and local-AI scores across posts with identical text', async () => {
+    fakeBrowser.reset();
+    settings.current = textTaskSettings();
     const post = newPostStub('4000');
     const otherPost = newPostStub('4001', 'same text');
     const bg = installFakeBackground();
-    bg.respond = () => ({ ok: true, sexual: 0.4, ai: 0.2 });
+    bg.respond = () => ({ ok: true, sexual: 0.4 });
+    bg.aiRespond = () => ({ ok: true, scores: { aiGenerated: 0.2 } });
 
-    const first = await textScores(post, 'same text');
-    expect(first).toEqual({ sexualText: 0.4, aiGenerated: 0.2 });
-    const second = await textScores(otherPost, 'same text');
+    const first = await Effect.runPromise(textScores(post, 'same text'));
+    expect(first).toEqual({ scores: { sexualText: 0.4, aiGenerated: 0.2 }, errors: [] });
+    const second = await Effect.runPromise(textScores(otherPost, 'same text'));
     expect(second).toEqual(first);
     expect(bg.jevCalls).toHaveLength(1);
+    expect(bg.aiCalls).toHaveLength(1);
   });
-  it('does not reuse text scores after the provider changes', async () => {
+
+  it('re-evaluates sexual text for a new provider while reusing local AI text', async () => {
     fakeBrowser.reset();
-    settings.current = baseSettings({
-      providerKeys: { vercel: 'test-key', typesafe: 'test-key', openrouter: '' },
-      textProvider: 'vercel',
-    });
+    settings.current = textTaskSettings({ textProvider: 'vercel' });
     const post = newPostStub('4010');
     const bg = installFakeBackground();
-    bg.respond = () => ({ ok: true, sexual: 0.4, ai: 0.2 });
+    bg.respond = () => ({ ok: true, sexual: 0.4 });
+    bg.aiRespond = () => ({ ok: true, scores: { aiGenerated: 0.2 } });
 
-    await expect(textScores(post, 'provider-sensitive text')).resolves.toEqual({
-      sexualText: 0.4,
-      aiGenerated: 0.2,
+    await expect(Effect.runPromise(textScores(post, 'provider-sensitive text'))).resolves.toEqual({
+      scores: { sexualText: 0.4, aiGenerated: 0.2 },
+      errors: [],
     });
     settings.current = { ...settings.current, textProvider: 'typesafe' };
-    bg.respond = () => ({ ok: true, sexual: 0.8, ai: 0.7 });
-    await expect(textScores(post, 'provider-sensitive text')).resolves.toEqual({
-      sexualText: 0.8,
-      aiGenerated: 0.7,
+    bg.respond = () => ({ ok: true, sexual: 0.8 });
+    bg.aiRespond = () => ({ ok: true, scores: { aiGenerated: 0.95 } });
+    await expect(Effect.runPromise(textScores(post, 'provider-sensitive text'))).resolves.toEqual({
+      scores: { sexualText: 0.8, aiGenerated: 0.2 },
+      errors: [],
     });
     expect(bg.jevCalls).toHaveLength(2);
+    expect(bg.aiCalls).toHaveLength(1);
   });
 
-  it('does not cache a response after its provider configuration becomes obsolete', async () => {
+  it('rejects stale text results without discarding a valid local-AI cache entry', async () => {
     fakeBrowser.reset();
-    settings.current = baseSettings({
-      providerKeys: { vercel: 'synthetic-vercel', typesafe: 'synthetic-typesafe', openrouter: '' },
+    settings.current = textTaskSettings({
+      providerKeys: {
+        vercel: 'synthetic-vercel',
+        typesafe: 'synthetic-typesafe',
+        openrouter: '',
+      },
     });
     const post = newPostStub('4020');
     const bg = installFakeBackground();
-    const gate = Promise.withResolvers<{ ok: true; sexual: number; ai: number }>();
-    bg.respond = () => gate.promise;
-    const old = textScores(post, 'configuration-race');
+    const gate = Promise.withResolvers<{ ok: true; sexual: number }>();
+    const jevStarted = Promise.withResolvers<void>();
+    const aiStarted = Promise.withResolvers<void>();
+    bg.respond = () => {
+      jevStarted.resolve();
+      return gate.promise;
+    };
+    bg.aiRespond = () => {
+      aiStarted.resolve();
+      return { ok: true, scores: { aiGenerated: 0.2 } };
+    };
+    const old = Effect.runPromise(textScores(post, 'configuration-race'));
     const rejected = expect(old).rejects.toThrow('Text configuration changed');
-    await until(() => bg.jevCalls.length === 1);
+    await Promise.all([jevStarted.promise, aiStarted.promise]);
     settings.current = applySettingsChange(settings.current, {
       field: 'textProvider',
       value: 'typesafe',
     });
-    gate.resolve({ ok: true, sexual: 0.1, ai: 0.1 });
+    gate.resolve({ ok: true, sexual: 0.1 });
     await rejected;
+
     const stored = await browser.storage.local.get(null);
-    expect(Object.keys(stored).filter((key) => key.startsWith(STORAGE_KEYS.scores))).toEqual([]);
-    bg.respond = () => ({ ok: true, sexual: 0.9, ai: 0.2 });
-    await expect(textScores(post, 'configuration-race')).resolves.toEqual({
-      sexualText: 0.9,
-      aiGenerated: 0.2,
+    const cachedScores = Object.values(stored).flatMap((value) => {
+      if (typeof value !== 'object' || value === null || !('scores' in value)) return [];
+      const scores = value.scores;
+      return typeof scores === 'object' && scores !== null ? [scores] : [];
     });
-    settings.current = applySettingsChange(settings.current, {
-      field: 'textProvider',
-      value: 'vercel',
+    expect(cachedScores).toEqual([{ aiGenerated: 0.2 }]);
+
+    bg.respond = () => ({ ok: true, sexual: 0.9 });
+    bg.aiRespond = () => ({ ok: true, scores: { aiGenerated: 0.95 } });
+    await expect(Effect.runPromise(textScores(post, 'configuration-race'))).resolves.toEqual({
+      scores: { sexualText: 0.9, aiGenerated: 0.2 },
+      errors: [],
     });
-    bg.respond = () => ({ ok: true, sexual: 0.3, ai: 0.1 });
-    await expect(textScores(post, 'configuration-race')).resolves.toEqual({
-      sexualText: 0.3,
-      aiGenerated: 0.1,
-    });
-    expect(bg.jevCalls).toHaveLength(3);
+    expect(bg.jevCalls).toHaveLength(2);
+    expect(bg.aiCalls).toHaveLength(1);
   });
 });
+describe('runtime text task behavior', () => {
+  it('hides an AI-classified post without an API key when sexual text is disabled', async () => {
+    const configured = textTaskSettings({
+      providerKeys: { vercel: '', typesafe: '', openrouter: '' },
+    });
+    configured.enabled.sexualText = false;
+    configured.thresholds.aiGenerated = 0.65;
+    const test = await startRuntime(configured);
+    try {
+      test.bg.aiRespond = () => ({ ok: true, scores: { aiGenerated: 0.93 } });
+      const article = buildTweetArticle({
+        id: '4110',
+        text: 'A generated post that has an above-threshold local score.',
+      });
+      test.handle.discover();
 
-describe('NSFW class mapping', () => {
-  it('maps singular NSFWJS class names onto the drawing category', async () => {
-    nsfwProbe.predictions = [
-      { className: 'Drawing', probability: 0.55 },
-      { className: 'Porn', probability: 0.31 },
-      { className: 'Hentai', probability: 0.06 },
-      { className: 'Sexy', probability: 0.04 },
-      { className: 'Neutral', probability: 0.04 },
-    ];
-    const result = await imageScores(['https://pbs.twimg.com/media/Singular?format=jpg']);
-    expect(result.scores).toEqual({ drawings: 0.55, porn: 0.31, hentai: 0.06, sexy: 0.04 });
+      await until(
+        () => article.hasAttribute('data-jev-hidden') && test.handle.report().pending === 0,
+        'local AI score did not hide the post',
+      );
+      expect(test.handle.report()).toMatchObject({ blocked: 1, failed: 0, errors: [] });
+      expect(test.bg.jevCalls).toHaveLength(0);
+      expect(test.bg.aiCalls).toHaveLength(1);
+    } finally {
+      stopRuntime(test);
+    }
+  });
+
+  it('keeps a successful local-AI block when the sexual-text task fails', async () => {
+    const configured = textTaskSettings();
+    configured.thresholds.aiGenerated = 0.65;
+    const test = await startRuntime(configured);
+    try {
+      test.bg.respond = () => ({ ok: false, error: 'HTTP 401 unauthorized' });
+      test.bg.aiRespond = () => ({ ok: true, scores: { aiGenerated: 0.91 } });
+      const article = buildTweetArticle({
+        id: '4111',
+        text: 'A generated post whose remote sexual-text check is unavailable.',
+      });
+      test.handle.discover();
+
+      await until(
+        () =>
+          article.hasAttribute('data-jev-hidden') &&
+          test.handle.report().pending === 0 &&
+          test.handle.report().failed === 1,
+        'successful local score did not survive the failed remote task',
+      );
+      expect(test.handle.report()).toMatchObject({
+        blocked: 1,
+        failed: 1,
+        retrying: 0,
+        errors: ['Text: HTTP 401 unauthorized'],
+      });
+      expect(test.bg.aiCalls).toHaveLength(1);
+      expect(test.bg.jevCalls).toHaveLength(1);
+    } finally {
+      stopRuntime(test);
+    }
   });
 });
 
 describe('retry policy', () => {
   it('does not retry missing-key failures', async () => {
-    const test = await startRuntime({ providerKeys: { vercel: '', typesafe: '', openrouter: '' } });
+    const configured = textTaskSettings({
+      providerKeys: { vercel: '', typesafe: '', openrouter: '' },
+    });
+    configured.enabled.aiGenerated = false;
+    const test = await startRuntime(configured);
     const article = buildTweetArticle({ id: '4001', text: 'something to check' });
     test.handle.discover();
 
@@ -249,12 +385,12 @@ describe('retry policy', () => {
     for (let index = 0; index < 50; index++) {
       writes.push(
         browser.storage.local.set({
-          [`${STORAGE_KEYS.scores}:v6:seed:${index}`]: { scores: { porn: 0.5 }, ts: index },
+          [`${STORAGE_KEYS.scores}:v7:seed:${index}`]: { scores: { porn: 0.5 }, ts: index },
         }),
       );
     }
     await Promise.all(writes);
-    await evictCache(); // limit is 4000: nothing may be dropped
+    await Effect.runPromise(evictCache()); // limit is 4000: nothing may be dropped
     const stored = await browser.storage.local.get(null);
     const cacheKeys = Object.keys(stored).filter((key) => key.startsWith(STORAGE_KEYS.scores));
     expect(cacheKeys.length).toBe(50);

@@ -1,0 +1,2471 @@
+{
+  "schemaVersion": 1,
+  "executedAt": "2026-10-01T20:53:51.304Z",
+  "corpusId": "jev-image-candidate-2026-10-v1",
+  "split": {
+    "name": "fixed-evaluation",
+    "seed": "jev-image-benchmark-2026-v1",
+    "method": "Twelve CivitAI nsfwLevel=X records selected by ascending SHA-256(seed + filename), followed by six licensed Commons photos, six licensed ordinary illustrations, and the existing user-reported false positive. No model tuning uses these cases."
+  },
+  "threshold": 0.5,
+  "labelPolicy": {
+    "task": "sexualContent",
+    "yes": "CivitAI dataset nsfwLevel=X. This is a source-provided NSFW level, not an independent human claim that every image depicts a sex act or pornography.",
+    "no": "Nonsexual subject matter in the cited licensed photo/illustration, or the user-reported false-positive label for the existing local fixture.",
+    "drawingRule": "A drawing is not positive merely because it is drawn. All six ordinary illustration controls are labeled no; X-level content is positive from the dataset label, not from its medium."
+  },
+  "environment": {
+    "browser": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.0.0 Safari/537.36",
+    "hardwareConcurrency": 16,
+    "crossOriginIsolated": false,
+    "tfjsVersion": "4.22.0",
+    "tfjsBackend": "webgl",
+    "transformersJsVersion": "4.3.0",
+    "onnxRuntimeWebVersion": "1.31.0-dev.20260914-8d85527a0",
+    "wasmThreads": 1,
+    "caseCount": 25,
+    "os": "Linux 6.18.45-1-lts (x64)",
+    "cpu": "AMD Ryzen 7 7700 8-Core Processor",
+    "nsfwjsVersion": "4.4.0",
+    "browserModelCache": "fresh Chromium profile for this run under ignored benchmarks/.data; no prior browser model cache"
+  },
+  "datasetSelection": {
+    "url": "https://huggingface.co/datasets/wallstoneai/civitai-top-nsfw-images-with-metadata/resolve/4580a03472a54768a8d47a87822cab14e6a75996/prompts.json",
+    "revision": "4580a03472a54768a8d47a87822cab14e6a75996",
+    "selectedFilenames": [
+      "6453.jpeg",
+      "6041.jpeg",
+      "4187.jpeg",
+      "2681.jpeg",
+      "7.jpeg",
+      "5964.jpeg",
+      "2950.jpeg",
+      "159.jpeg",
+      "5920.jpeg",
+      "2825.jpeg",
+      "2601.jpeg",
+      "5600.jpeg"
+    ]
+  },
+  "assets": [
+    {
+      "caseId": "civitai-x-6453",
+      "path": "civitai/6453.jpeg",
+      "bytes": 102341,
+      "sha256": "6fec9627ecf300216e59cfbd208e044d73e10d8ab77a68bf991d5be0cd930894",
+      "cached": true,
+      "source": "https://huggingface.co/datasets/wallstoneai/civitai-top-nsfw-images-with-metadata/resolve/4580a03472a54768a8d47a87822cab14e6a75996/images/6453.jpeg"
+    },
+    {
+      "caseId": "civitai-x-6041",
+      "path": "civitai/6041.jpeg",
+      "bytes": 209472,
+      "sha256": "2a71e65a339be276d6ed9a67bfc96ac5c16b08295c53278c60815d6153470bb9",
+      "cached": true,
+      "source": "https://huggingface.co/datasets/wallstoneai/civitai-top-nsfw-images-with-metadata/resolve/4580a03472a54768a8d47a87822cab14e6a75996/images/6041.jpeg"
+    },
+    {
+      "caseId": "civitai-x-4187",
+      "path": "civitai/4187.jpeg",
+      "bytes": 88898,
+      "sha256": "8c0c15b8dd1265d7d09f3f0eb4b6212786b378129ed63264c14dbb515c157c89",
+      "cached": true,
+      "source": "https://huggingface.co/datasets/wallstoneai/civitai-top-nsfw-images-with-metadata/resolve/4580a03472a54768a8d47a87822cab14e6a75996/images/4187.jpeg"
+    },
+    {
+      "caseId": "civitai-x-2681",
+      "path": "civitai/2681.jpeg",
+      "bytes": 56001,
+      "sha256": "dc988c29d9682e81c72b28dc18319a44ea504a1f391f4fc1e7eca978616dc140",
+      "cached": true,
+      "source": "https://huggingface.co/datasets/wallstoneai/civitai-top-nsfw-images-with-metadata/resolve/4580a03472a54768a8d47a87822cab14e6a75996/images/2681.jpeg"
+    },
+    {
+      "caseId": "civitai-x-7",
+      "path": "civitai/7.jpeg",
+      "bytes": 503324,
+      "sha256": "466771b1dc967452ea6a1dc94be79e43d880d71aeb01e8484aa7dea2771caf2d",
+      "cached": true,
+      "source": "https://huggingface.co/datasets/wallstoneai/civitai-top-nsfw-images-with-metadata/resolve/4580a03472a54768a8d47a87822cab14e6a75996/images/7.jpeg"
+    },
+    {
+      "caseId": "civitai-x-5964",
+      "path": "civitai/5964.jpeg",
+      "bytes": 68514,
+      "sha256": "86e0d768a8c9f50ef7157af087ff284ffa4d64fe87a6d467e8f90972470b8daa",
+      "cached": true,
+      "source": "https://huggingface.co/datasets/wallstoneai/civitai-top-nsfw-images-with-metadata/resolve/4580a03472a54768a8d47a87822cab14e6a75996/images/5964.jpeg"
+    },
+    {
+      "caseId": "civitai-x-2950",
+      "path": "civitai/2950.jpeg",
+      "bytes": 105839,
+      "sha256": "df96bb7d7248314eae4793a0c25083fc534dfce73dd51b18204fe0eafb0cb968",
+      "cached": true,
+      "source": "https://huggingface.co/datasets/wallstoneai/civitai-top-nsfw-images-with-metadata/resolve/4580a03472a54768a8d47a87822cab14e6a75996/images/2950.jpeg"
+    },
+    {
+      "caseId": "civitai-x-159",
+      "path": "civitai/159.jpeg",
+      "bytes": 224673,
+      "sha256": "920c6c4419eb3a3aa81d197f34342cd66ac546507cdf36fa00ea9187c0adcdcd",
+      "cached": true,
+      "source": "https://huggingface.co/datasets/wallstoneai/civitai-top-nsfw-images-with-metadata/resolve/4580a03472a54768a8d47a87822cab14e6a75996/images/159.jpeg"
+    },
+    {
+      "caseId": "civitai-x-5920",
+      "path": "civitai/5920.jpeg",
+      "bytes": 100472,
+      "sha256": "536ee125ed633af60c19d5f4b7581cf5833ff7049f75806a16c967e15d5749e2",
+      "cached": true,
+      "source": "https://huggingface.co/datasets/wallstoneai/civitai-top-nsfw-images-with-metadata/resolve/4580a03472a54768a8d47a87822cab14e6a75996/images/5920.jpeg"
+    },
+    {
+      "caseId": "civitai-x-2825",
+      "path": "civitai/2825.jpeg",
+      "bytes": 337036,
+      "sha256": "bcc8b3b42bdb4d8fc2550344515ff6d1021fd4792dfe6abce6dd29723190e05e",
+      "cached": true,
+      "source": "https://huggingface.co/datasets/wallstoneai/civitai-top-nsfw-images-with-metadata/resolve/4580a03472a54768a8d47a87822cab14e6a75996/images/2825.jpeg"
+    },
+    {
+      "caseId": "civitai-x-2601",
+      "path": "civitai/2601.jpeg",
+      "bytes": 103485,
+      "sha256": "9b5b0acafc04921f5eea2e6367092f78a220cb89b6d8811bee1cc05eb05248b9",
+      "cached": true,
+      "source": "https://huggingface.co/datasets/wallstoneai/civitai-top-nsfw-images-with-metadata/resolve/4580a03472a54768a8d47a87822cab14e6a75996/images/2601.jpeg"
+    },
+    {
+      "caseId": "civitai-x-5600",
+      "path": "civitai/5600.jpeg",
+      "bytes": 145694,
+      "sha256": "188aae028cd4f79e47987b64341c37ced1a66619c7859fc5c3c5e8db1b0615f3",
+      "cached": true,
+      "source": "https://huggingface.co/datasets/wallstoneai/civitai-top-nsfw-images-with-metadata/resolve/4580a03472a54768a8d47a87822cab14e6a75996/images/5600.jpeg"
+    },
+    {
+      "caseId": "commons-malamute-photo",
+      "path": "commons/alaskan-malamute.jpg",
+      "bytes": 416871,
+      "sha256": "4eb7f712d8f6ea597ae05869d1e23a56ebaf1e5219323facb534561b57045605",
+      "cached": true,
+      "source": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7a/Alaskan_Malamute_R_Bartz.jpg/960px-Alaskan_Malamute_R_Bartz.jpg"
+    },
+    {
+      "caseId": "commons-whippets-photo",
+      "path": "commons/fireworks-whippets.jpg",
+      "bytes": 159799,
+      "sha256": "bd76834425337d834529e051af416deef0eab58caffc0ea5c2bad6f1f76cd508",
+      "cached": true,
+      "source": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/42/Fireworks_Whippets.jpg/960px-Fireworks_Whippets.jpg"
+    },
+    {
+      "caseId": "commons-castle-mountain-photo",
+      "path": "commons/castle-mountain.jpg",
+      "bytes": 233347,
+      "sha256": "8ea9e0d7599af239c9bbea258673d96d49ffb930d0f683f1b86562a3b9810bdc",
+      "cached": true,
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c0/Castle_Mountain.jpg/960px-Castle_Mountain.jpg"
+    },
+    {
+      "caseId": "commons-domestic-cat-photo",
+      "path": "commons/domestic-cat-portrait.jpg",
+      "bytes": 163089,
+      "sha256": "d2dc587b95859a10f317fa429c3d41313534ac4bc57bad1f66f0a2a74273d4ea",
+      "cached": true,
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/86/Domestic_cat_portrait.jpg/960px-Domestic_cat_portrait.jpg"
+    },
+    {
+      "caseId": "commons-narcissus-photo",
+      "path": "commons/narcissus-flower.jpg",
+      "bytes": 56743,
+      "sha256": "21b1ced3dc4a9bf485b8462e7b16850562c55c705613be58707662540c8874c1",
+      "cached": true,
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/dc/Flower_of_Narcissus_tazetta_at_Nagai_Park%2C_January_2024_-_1393.jpg/960px-Flower_of_Narcissus_tazetta_at_Nagai_Park%2C_January_2024_-_1393.jpg"
+    },
+    {
+      "caseId": "commons-gateway-arch-photo",
+      "path": "commons/gateway-arch.jpg",
+      "bytes": 199562,
+      "sha256": "8e7ec9a45df61b9218762f5b083c733a1fc461dee49a9c110c0a4f25fc2b076d",
+      "cached": true,
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/cf/Gateway_Arch_Missouri.jpg/960px-Gateway_Arch_Missouri.jpg"
+    },
+    {
+      "caseId": "commons-cartoon-dog",
+      "path": "commons/cartoon-dog.png",
+      "bytes": 17070,
+      "sha256": "c0dc53b379b92f28be8b121febeaf179d112742d47a5aadc7d6a63592155f5a3",
+      "cached": true,
+      "source": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/58/Cartoon_Dog_01.svg/500px-Cartoon_Dog_01.svg.png"
+    },
+    {
+      "caseId": "commons-cartoon-cat",
+      "path": "commons/cartoon-cat.png",
+      "bytes": 42081,
+      "sha256": "04113ebf6c8a2c27e4b7df07d6829d0a36d1f7a156e5165b987d0a0b638bd5dd",
+      "cached": true,
+      "source": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/94/Howtodraw-cartoon-cat-face_nevit_080.svg/500px-Howtodraw-cartoon-cat-face_nevit_080.svg.png"
+    },
+    {
+      "caseId": "commons-cartoon-rabbit",
+      "path": "commons/cartoon-rabbit.png",
+      "bytes": 33321,
+      "sha256": "21678a744b72d80eec53a4ead2142223132edaba6dc998303de47b2e384a8ce1",
+      "cached": true,
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d5/Howtodraw-cartoon-rabbit_nevit_077.svg/500px-Howtodraw-cartoon-rabbit_nevit_077.svg.png"
+    },
+    {
+      "caseId": "commons-cartoon-owl",
+      "path": "commons/cartoon-owl.png",
+      "bytes": 29105,
+      "sha256": "0ccce145334b84120d39d951fe2f53ad2bd9beae88bf3f8e479079ed0ff709ca",
+      "cached": true,
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/61/Howtodraw-cartoon-owl_nevit_078.svg/500px-Howtodraw-cartoon-owl_nevit_078.svg.png"
+    },
+    {
+      "caseId": "commons-cartoon-toucan",
+      "path": "commons/cartoon-toucan.png",
+      "bytes": 13769,
+      "sha256": "a9e467f0b5d2ea1273418b1084dfb48d67525f8f6098030768d0d4711403333c",
+      "cached": true,
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1e/Howtodraw-cartoon-toucan_nevit_073.svg/500px-Howtodraw-cartoon-toucan_nevit_073.svg.png"
+    },
+    {
+      "caseId": "commons-cartoon-cow",
+      "path": "commons/cartoon-cow.png",
+      "bytes": 34866,
+      "sha256": "247cc58b0eeaf3b23bc2b1177dd9c08ae77ca0fa48a6f3e1d74d247691d13070",
+      "cached": true,
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b4/Cow_in_SVG_%28vector%29.svg/500px-Cow_in_SVG_%28vector%29.svg.png"
+    },
+    {
+      "caseId": "reported-false-positive-trails-sky",
+      "path": "existing/false-positive-hentai-trails-sky-2nd.webp",
+      "bytes": 493108,
+      "sha256": "e69366ab53d15736c922c855a9eed13fc42e82d0ed7ec43c1e88e5d61f77cf96",
+      "source": "benchmarks/images/false-positive-hentai-trails-sky-2nd.webp",
+      "cached": true
+    }
+  ],
+  "modelArtifacts": {
+    "nsfwjsMobileNetV2": {
+      "bytes": 3600073,
+      "source": "nsfwjs@4.4.0 package files in node_modules/nsfwjs/dist/models/mobilenet_v2/"
+    },
+    "nsfwjsMobileNetV2Static": {
+      "id": "nsfwjs/mobilenet_v2",
+      "revision": "d55a54c51f14380670064cc129b2ea51029c5e46",
+      "files": [
+        {
+          "file": "model.json",
+          "url": "https://raw.githubusercontent.com/infinitered/nsfwjs/d55a54c51f14380670064cc129b2ea51029c5e46/models/mobilenet_v2/model.json",
+          "bytes": 128945
+        },
+        {
+          "file": "group1-shard1of1",
+          "url": "https://raw.githubusercontent.com/infinitered/nsfwjs/d55a54c51f14380670064cc129b2ea51029c5e46/models/mobilenet_v2/group1-shard1of1",
+          "bytes": 2619461
+        }
+      ],
+      "bytes": 2748406,
+      "source": "https://github.com/infinitered/nsfwjs/tree/d55a54c51f14380670064cc129b2ea51029c5e46/models/mobilenet_v2"
+    },
+    "taufiqdpMobileNetV4": {
+      "id": "taufiqdp/mobilenetv4_conv_small.e2400_r224_in1k_nsfw_classifier",
+      "revision": "504317ad62086f357c9c5f70cf983726ff47efdb",
+      "file": "mobilenetv4_conv_small.e2400_r224_in1k_nsfw_classifier.onnx",
+      "bytes": 9974311,
+      "sha256": "46995c000cb285d0c0a0e5b58cc618012ed2e649d326d4fddae910951848fc40"
+    },
+    "falconsaiOnnxQ4": {
+      "id": "onnx-community/nsfw_image_detection-ONNX",
+      "revision": "1ceb3c7fe1e9f3f2507e6df577437f23a9149fd5",
+      "file": "onnx/model_q4.onnx",
+      "bytes": 56757898,
+      "quantization": "q4"
+    }
+  },
+  "cases": [
+    {
+      "id": "civitai-x-6453",
+      "category": "dataset-x",
+      "labels": {
+        "sexualContent": "yes"
+      },
+      "provenance": "dataset-label",
+      "title": "CivitAI X-level image 6453",
+      "assetFile": "civitai/6453.jpeg",
+      "source": "https://huggingface.co/datasets/wallstoneai/civitai-top-nsfw-images-with-metadata/resolve/4580a03472a54768a8d47a87822cab14e6a75996/images/6453.jpeg",
+      "metadataFile": "https://huggingface.co/datasets/wallstoneai/civitai-top-nsfw-images-with-metadata/resolve/4580a03472a54768a8d47a87822cab14e6a75996/prompts.json",
+      "sourceLabel": "nsfwLevel=X",
+      "license": "Apache-2.0 declared by dataset uploader",
+      "sha256": "6fec9627ecf300216e59cfbd208e044d73e10d8ab77a68bf991d5be0cd930894",
+      "imageReference": "benchmarks/.data/image-model-comparison/fixtures/civitai/6453.jpeg",
+      "assetBytes": 102341,
+      "assetSha256": "6fec9627ecf300216e59cfbd208e044d73e10d8ab77a68bf991d5be0cd930894"
+    },
+    {
+      "id": "civitai-x-6041",
+      "category": "dataset-x",
+      "labels": {
+        "sexualContent": "yes"
+      },
+      "provenance": "dataset-label",
+      "title": "CivitAI X-level image 6041",
+      "assetFile": "civitai/6041.jpeg",
+      "source": "https://huggingface.co/datasets/wallstoneai/civitai-top-nsfw-images-with-metadata/resolve/4580a03472a54768a8d47a87822cab14e6a75996/images/6041.jpeg",
+      "metadataFile": "https://huggingface.co/datasets/wallstoneai/civitai-top-nsfw-images-with-metadata/resolve/4580a03472a54768a8d47a87822cab14e6a75996/prompts.json",
+      "sourceLabel": "nsfwLevel=X",
+      "license": "Apache-2.0 declared by dataset uploader",
+      "sha256": "2a71e65a339be276d6ed9a67bfc96ac5c16b08295c53278c60815d6153470bb9",
+      "imageReference": "benchmarks/.data/image-model-comparison/fixtures/civitai/6041.jpeg",
+      "assetBytes": 209472,
+      "assetSha256": "2a71e65a339be276d6ed9a67bfc96ac5c16b08295c53278c60815d6153470bb9"
+    },
+    {
+      "id": "civitai-x-4187",
+      "category": "dataset-x",
+      "labels": {
+        "sexualContent": "yes"
+      },
+      "provenance": "dataset-label",
+      "title": "CivitAI X-level image 4187",
+      "assetFile": "civitai/4187.jpeg",
+      "source": "https://huggingface.co/datasets/wallstoneai/civitai-top-nsfw-images-with-metadata/resolve/4580a03472a54768a8d47a87822cab14e6a75996/images/4187.jpeg",
+      "metadataFile": "https://huggingface.co/datasets/wallstoneai/civitai-top-nsfw-images-with-metadata/resolve/4580a03472a54768a8d47a87822cab14e6a75996/prompts.json",
+      "sourceLabel": "nsfwLevel=X",
+      "license": "Apache-2.0 declared by dataset uploader",
+      "sha256": "8c0c15b8dd1265d7d09f3f0eb4b6212786b378129ed63264c14dbb515c157c89",
+      "imageReference": "benchmarks/.data/image-model-comparison/fixtures/civitai/4187.jpeg",
+      "assetBytes": 88898,
+      "assetSha256": "8c0c15b8dd1265d7d09f3f0eb4b6212786b378129ed63264c14dbb515c157c89"
+    },
+    {
+      "id": "civitai-x-2681",
+      "category": "dataset-x",
+      "labels": {
+        "sexualContent": "yes"
+      },
+      "provenance": "dataset-label",
+      "title": "CivitAI X-level image 2681",
+      "assetFile": "civitai/2681.jpeg",
+      "source": "https://huggingface.co/datasets/wallstoneai/civitai-top-nsfw-images-with-metadata/resolve/4580a03472a54768a8d47a87822cab14e6a75996/images/2681.jpeg",
+      "metadataFile": "https://huggingface.co/datasets/wallstoneai/civitai-top-nsfw-images-with-metadata/resolve/4580a03472a54768a8d47a87822cab14e6a75996/prompts.json",
+      "sourceLabel": "nsfwLevel=X",
+      "license": "Apache-2.0 declared by dataset uploader",
+      "sha256": "dc988c29d9682e81c72b28dc18319a44ea504a1f391f4fc1e7eca978616dc140",
+      "imageReference": "benchmarks/.data/image-model-comparison/fixtures/civitai/2681.jpeg",
+      "assetBytes": 56001,
+      "assetSha256": "dc988c29d9682e81c72b28dc18319a44ea504a1f391f4fc1e7eca978616dc140"
+    },
+    {
+      "id": "civitai-x-7",
+      "category": "dataset-x",
+      "labels": {
+        "sexualContent": "yes"
+      },
+      "provenance": "dataset-label",
+      "title": "CivitAI X-level image 7",
+      "assetFile": "civitai/7.jpeg",
+      "source": "https://huggingface.co/datasets/wallstoneai/civitai-top-nsfw-images-with-metadata/resolve/4580a03472a54768a8d47a87822cab14e6a75996/images/7.jpeg",
+      "metadataFile": "https://huggingface.co/datasets/wallstoneai/civitai-top-nsfw-images-with-metadata/resolve/4580a03472a54768a8d47a87822cab14e6a75996/prompts.json",
+      "sourceLabel": "nsfwLevel=X",
+      "license": "Apache-2.0 declared by dataset uploader",
+      "sha256": "466771b1dc967452ea6a1dc94be79e43d880d71aeb01e8484aa7dea2771caf2d",
+      "imageReference": "benchmarks/.data/image-model-comparison/fixtures/civitai/7.jpeg",
+      "assetBytes": 503324,
+      "assetSha256": "466771b1dc967452ea6a1dc94be79e43d880d71aeb01e8484aa7dea2771caf2d"
+    },
+    {
+      "id": "civitai-x-5964",
+      "category": "dataset-x",
+      "labels": {
+        "sexualContent": "yes"
+      },
+      "provenance": "dataset-label",
+      "title": "CivitAI X-level image 5964",
+      "assetFile": "civitai/5964.jpeg",
+      "source": "https://huggingface.co/datasets/wallstoneai/civitai-top-nsfw-images-with-metadata/resolve/4580a03472a54768a8d47a87822cab14e6a75996/images/5964.jpeg",
+      "metadataFile": "https://huggingface.co/datasets/wallstoneai/civitai-top-nsfw-images-with-metadata/resolve/4580a03472a54768a8d47a87822cab14e6a75996/prompts.json",
+      "sourceLabel": "nsfwLevel=X",
+      "license": "Apache-2.0 declared by dataset uploader",
+      "sha256": "86e0d768a8c9f50ef7157af087ff284ffa4d64fe87a6d467e8f90972470b8daa",
+      "imageReference": "benchmarks/.data/image-model-comparison/fixtures/civitai/5964.jpeg",
+      "assetBytes": 68514,
+      "assetSha256": "86e0d768a8c9f50ef7157af087ff284ffa4d64fe87a6d467e8f90972470b8daa"
+    },
+    {
+      "id": "civitai-x-2950",
+      "category": "dataset-x",
+      "labels": {
+        "sexualContent": "yes"
+      },
+      "provenance": "dataset-label",
+      "title": "CivitAI X-level image 2950",
+      "assetFile": "civitai/2950.jpeg",
+      "source": "https://huggingface.co/datasets/wallstoneai/civitai-top-nsfw-images-with-metadata/resolve/4580a03472a54768a8d47a87822cab14e6a75996/images/2950.jpeg",
+      "metadataFile": "https://huggingface.co/datasets/wallstoneai/civitai-top-nsfw-images-with-metadata/resolve/4580a03472a54768a8d47a87822cab14e6a75996/prompts.json",
+      "sourceLabel": "nsfwLevel=X",
+      "license": "Apache-2.0 declared by dataset uploader",
+      "sha256": "df96bb7d7248314eae4793a0c25083fc534dfce73dd51b18204fe0eafb0cb968",
+      "imageReference": "benchmarks/.data/image-model-comparison/fixtures/civitai/2950.jpeg",
+      "assetBytes": 105839,
+      "assetSha256": "df96bb7d7248314eae4793a0c25083fc534dfce73dd51b18204fe0eafb0cb968"
+    },
+    {
+      "id": "civitai-x-159",
+      "category": "dataset-x",
+      "labels": {
+        "sexualContent": "yes"
+      },
+      "provenance": "dataset-label",
+      "title": "CivitAI X-level image 159",
+      "assetFile": "civitai/159.jpeg",
+      "source": "https://huggingface.co/datasets/wallstoneai/civitai-top-nsfw-images-with-metadata/resolve/4580a03472a54768a8d47a87822cab14e6a75996/images/159.jpeg",
+      "metadataFile": "https://huggingface.co/datasets/wallstoneai/civitai-top-nsfw-images-with-metadata/resolve/4580a03472a54768a8d47a87822cab14e6a75996/prompts.json",
+      "sourceLabel": "nsfwLevel=X",
+      "license": "Apache-2.0 declared by dataset uploader",
+      "sha256": "920c6c4419eb3a3aa81d197f34342cd66ac546507cdf36fa00ea9187c0adcdcd",
+      "imageReference": "benchmarks/.data/image-model-comparison/fixtures/civitai/159.jpeg",
+      "assetBytes": 224673,
+      "assetSha256": "920c6c4419eb3a3aa81d197f34342cd66ac546507cdf36fa00ea9187c0adcdcd"
+    },
+    {
+      "id": "civitai-x-5920",
+      "category": "dataset-x",
+      "labels": {
+        "sexualContent": "yes"
+      },
+      "provenance": "dataset-label",
+      "title": "CivitAI X-level image 5920",
+      "assetFile": "civitai/5920.jpeg",
+      "source": "https://huggingface.co/datasets/wallstoneai/civitai-top-nsfw-images-with-metadata/resolve/4580a03472a54768a8d47a87822cab14e6a75996/images/5920.jpeg",
+      "metadataFile": "https://huggingface.co/datasets/wallstoneai/civitai-top-nsfw-images-with-metadata/resolve/4580a03472a54768a8d47a87822cab14e6a75996/prompts.json",
+      "sourceLabel": "nsfwLevel=X",
+      "license": "Apache-2.0 declared by dataset uploader",
+      "sha256": "536ee125ed633af60c19d5f4b7581cf5833ff7049f75806a16c967e15d5749e2",
+      "imageReference": "benchmarks/.data/image-model-comparison/fixtures/civitai/5920.jpeg",
+      "assetBytes": 100472,
+      "assetSha256": "536ee125ed633af60c19d5f4b7581cf5833ff7049f75806a16c967e15d5749e2"
+    },
+    {
+      "id": "civitai-x-2825",
+      "category": "dataset-x",
+      "labels": {
+        "sexualContent": "yes"
+      },
+      "provenance": "dataset-label",
+      "title": "CivitAI X-level image 2825",
+      "assetFile": "civitai/2825.jpeg",
+      "source": "https://huggingface.co/datasets/wallstoneai/civitai-top-nsfw-images-with-metadata/resolve/4580a03472a54768a8d47a87822cab14e6a75996/images/2825.jpeg",
+      "metadataFile": "https://huggingface.co/datasets/wallstoneai/civitai-top-nsfw-images-with-metadata/resolve/4580a03472a54768a8d47a87822cab14e6a75996/prompts.json",
+      "sourceLabel": "nsfwLevel=X",
+      "license": "Apache-2.0 declared by dataset uploader",
+      "sha256": "bcc8b3b42bdb4d8fc2550344515ff6d1021fd4792dfe6abce6dd29723190e05e",
+      "imageReference": "benchmarks/.data/image-model-comparison/fixtures/civitai/2825.jpeg",
+      "assetBytes": 337036,
+      "assetSha256": "bcc8b3b42bdb4d8fc2550344515ff6d1021fd4792dfe6abce6dd29723190e05e"
+    },
+    {
+      "id": "civitai-x-2601",
+      "category": "dataset-x",
+      "labels": {
+        "sexualContent": "yes"
+      },
+      "provenance": "dataset-label",
+      "title": "CivitAI X-level image 2601",
+      "assetFile": "civitai/2601.jpeg",
+      "source": "https://huggingface.co/datasets/wallstoneai/civitai-top-nsfw-images-with-metadata/resolve/4580a03472a54768a8d47a87822cab14e6a75996/images/2601.jpeg",
+      "metadataFile": "https://huggingface.co/datasets/wallstoneai/civitai-top-nsfw-images-with-metadata/resolve/4580a03472a54768a8d47a87822cab14e6a75996/prompts.json",
+      "sourceLabel": "nsfwLevel=X",
+      "license": "Apache-2.0 declared by dataset uploader",
+      "sha256": "9b5b0acafc04921f5eea2e6367092f78a220cb89b6d8811bee1cc05eb05248b9",
+      "imageReference": "benchmarks/.data/image-model-comparison/fixtures/civitai/2601.jpeg",
+      "assetBytes": 103485,
+      "assetSha256": "9b5b0acafc04921f5eea2e6367092f78a220cb89b6d8811bee1cc05eb05248b9"
+    },
+    {
+      "id": "civitai-x-5600",
+      "category": "dataset-x",
+      "labels": {
+        "sexualContent": "yes"
+      },
+      "provenance": "dataset-label",
+      "title": "CivitAI X-level image 5600",
+      "assetFile": "civitai/5600.jpeg",
+      "source": "https://huggingface.co/datasets/wallstoneai/civitai-top-nsfw-images-with-metadata/resolve/4580a03472a54768a8d47a87822cab14e6a75996/images/5600.jpeg",
+      "metadataFile": "https://huggingface.co/datasets/wallstoneai/civitai-top-nsfw-images-with-metadata/resolve/4580a03472a54768a8d47a87822cab14e6a75996/prompts.json",
+      "sourceLabel": "nsfwLevel=X",
+      "license": "Apache-2.0 declared by dataset uploader",
+      "sha256": "188aae028cd4f79e47987b64341c37ced1a66619c7859fc5c3c5e8db1b0615f3",
+      "imageReference": "benchmarks/.data/image-model-comparison/fixtures/civitai/5600.jpeg",
+      "assetBytes": 145694,
+      "assetSha256": "188aae028cd4f79e47987b64341c37ced1a66619c7859fc5c3c5e8db1b0615f3"
+    },
+    {
+      "id": "commons-malamute-photo",
+      "category": "safe-photo",
+      "labels": {
+        "sexualContent": "no"
+      },
+      "provenance": "licensed-public-image",
+      "title": "Alaskan malamute in snow",
+      "assetFile": "commons/alaskan-malamute.jpg",
+      "source": "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7a/Alaskan_Malamute_R_Bartz.jpg/960px-Alaskan_Malamute_R_Bartz.jpg",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:Alaskan_Malamute_R_Bartz.jpg",
+      "creator": "Richard Bartz",
+      "license": "CC BY-SA 2.5",
+      "sha256": "4eb7f712d8f6ea597ae05869d1e23a56ebaf1e5219323facb534561b57045605",
+      "imageReference": "benchmarks/.data/image-model-comparison/fixtures/commons/alaskan-malamute.jpg",
+      "assetBytes": 416871,
+      "assetSha256": "4eb7f712d8f6ea597ae05869d1e23a56ebaf1e5219323facb534561b57045605"
+    },
+    {
+      "id": "commons-whippets-photo",
+      "category": "safe-photo",
+      "labels": {
+        "sexualContent": "no"
+      },
+      "provenance": "licensed-public-image",
+      "title": "Three whippets on grass",
+      "assetFile": "commons/fireworks-whippets.jpg",
+      "source": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/42/Fireworks_Whippets.jpg/960px-Fireworks_Whippets.jpg",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:Fireworks_Whippets.jpg",
+      "creator": "Winky (Flickr), attributed as Darien and Neil in structured metadata",
+      "license": "CC BY 2.0",
+      "sha256": "bd76834425337d834529e051af416deef0eab58caffc0ea5c2bad6f1f76cd508",
+      "imageReference": "benchmarks/.data/image-model-comparison/fixtures/commons/fireworks-whippets.jpg",
+      "assetBytes": 159799,
+      "assetSha256": "bd76834425337d834529e051af416deef0eab58caffc0ea5c2bad6f1f76cd508"
+    },
+    {
+      "id": "commons-castle-mountain-photo",
+      "category": "safe-photo",
+      "labels": {
+        "sexualContent": "no"
+      },
+      "provenance": "licensed-public-image",
+      "title": "Castle Mountain from Bow River bank",
+      "assetFile": "commons/castle-mountain.jpg",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c0/Castle_Mountain.jpg/960px-Castle_Mountain.jpg",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:Castle_Mountain.jpg",
+      "creator": "Jakub Fryš",
+      "license": "CC BY-SA 4.0",
+      "sha256": "8ea9e0d7599af239c9bbea258673d96d49ffb930d0f683f1b86562a3b9810bdc",
+      "imageReference": "benchmarks/.data/image-model-comparison/fixtures/commons/castle-mountain.jpg",
+      "assetBytes": 233347,
+      "assetSha256": "8ea9e0d7599af239c9bbea258673d96d49ffb930d0f683f1b86562a3b9810bdc"
+    },
+    {
+      "id": "commons-domestic-cat-photo",
+      "category": "safe-photo",
+      "labels": {
+        "sexualContent": "no"
+      },
+      "provenance": "licensed-public-image",
+      "title": "Domestic cat portrait",
+      "assetFile": "commons/domestic-cat-portrait.jpg",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/86/Domestic_cat_portrait.jpg/960px-Domestic_cat_portrait.jpg",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:Domestic_cat_portrait.jpg",
+      "creator": "The Roving Rokibul",
+      "license": "CC BY-SA 4.0",
+      "sha256": "d2dc587b95859a10f317fa429c3d41313534ac4bc57bad1f66f0a2a74273d4ea",
+      "imageReference": "benchmarks/.data/image-model-comparison/fixtures/commons/domestic-cat-portrait.jpg",
+      "assetBytes": 163089,
+      "assetSha256": "d2dc587b95859a10f317fa429c3d41313534ac4bc57bad1f66f0a2a74273d4ea"
+    },
+    {
+      "id": "commons-narcissus-photo",
+      "category": "safe-photo",
+      "labels": {
+        "sexualContent": "no"
+      },
+      "provenance": "licensed-public-image",
+      "title": "Narcissus flower at Nagai Park",
+      "assetFile": "commons/narcissus-flower.jpg",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/dc/Flower_of_Narcissus_tazetta_at_Nagai_Park%2C_January_2024_-_1393.jpg/960px-Flower_of_Narcissus_tazetta_at_Nagai_Park%2C_January_2024_-_1393.jpg",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:Flower_of_Narcissus_tazetta_at_Nagai_Park,_January_2024_-_1393.jpg",
+      "creator": "Laitche",
+      "license": "CC BY-SA 4.0",
+      "sha256": "21b1ced3dc4a9bf485b8462e7b16850562c55c705613be58707662540c8874c1",
+      "imageReference": "benchmarks/.data/image-model-comparison/fixtures/commons/narcissus-flower.jpg",
+      "assetBytes": 56743,
+      "assetSha256": "21b1ced3dc4a9bf485b8462e7b16850562c55c705613be58707662540c8874c1"
+    },
+    {
+      "id": "commons-gateway-arch-photo",
+      "category": "safe-photo",
+      "labels": {
+        "sexualContent": "no"
+      },
+      "provenance": "licensed-public-image",
+      "title": "Gateway Arch in St. Louis",
+      "assetFile": "commons/gateway-arch.jpg",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/cf/Gateway_Arch_Missouri.jpg/960px-Gateway_Arch_Missouri.jpg",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:Gateway_Arch_Missouri.jpg",
+      "creator": "frrreakgod",
+      "license": "CC BY-SA 4.0",
+      "sha256": "8e7ec9a45df61b9218762f5b083c733a1fc461dee49a9c110c0a4f25fc2b076d",
+      "imageReference": "benchmarks/.data/image-model-comparison/fixtures/commons/gateway-arch.jpg",
+      "assetBytes": 199562,
+      "assetSha256": "8e7ec9a45df61b9218762f5b083c733a1fc461dee49a9c110c0a4f25fc2b076d"
+    },
+    {
+      "id": "commons-cartoon-dog",
+      "category": "ordinary-illustration",
+      "labels": {
+        "sexualContent": "no"
+      },
+      "provenance": "licensed-public-image",
+      "title": "Cartoon dog",
+      "assetFile": "commons/cartoon-dog.png",
+      "source": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/58/Cartoon_Dog_01.svg/500px-Cartoon_Dog_01.svg.png",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:Cartoon_Dog_01.svg",
+      "creator": "Indrajit Das; derivative source credited to mcol at Openclipart",
+      "license": "CC BY-SA 4.0",
+      "sha256": "c0dc53b379b92f28be8b121febeaf179d112742d47a5aadc7d6a63592155f5a3",
+      "imageReference": "benchmarks/.data/image-model-comparison/fixtures/commons/cartoon-dog.png",
+      "assetBytes": 17070,
+      "assetSha256": "c0dc53b379b92f28be8b121febeaf179d112742d47a5aadc7d6a63592155f5a3"
+    },
+    {
+      "id": "commons-cartoon-cat",
+      "category": "ordinary-illustration",
+      "labels": {
+        "sexualContent": "no"
+      },
+      "provenance": "licensed-public-image",
+      "title": "Cartoon cat face",
+      "assetFile": "commons/cartoon-cat.png",
+      "source": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/94/Howtodraw-cartoon-cat-face_nevit_080.svg/500px-Howtodraw-cartoon-cat-face_nevit_080.svg.png",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:Howtodraw-cartoon-cat-face_nevit_080.svg",
+      "creator": "Nevit Dilmen",
+      "license": "CC BY-SA 3.0",
+      "sha256": "04113ebf6c8a2c27e4b7df07d6829d0a36d1f7a156e5165b987d0a0b638bd5dd",
+      "imageReference": "benchmarks/.data/image-model-comparison/fixtures/commons/cartoon-cat.png",
+      "assetBytes": 42081,
+      "assetSha256": "04113ebf6c8a2c27e4b7df07d6829d0a36d1f7a156e5165b987d0a0b638bd5dd"
+    },
+    {
+      "id": "commons-cartoon-rabbit",
+      "category": "ordinary-illustration",
+      "labels": {
+        "sexualContent": "no"
+      },
+      "provenance": "licensed-public-image",
+      "title": "Cartoon rabbit",
+      "assetFile": "commons/cartoon-rabbit.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d5/Howtodraw-cartoon-rabbit_nevit_077.svg/500px-Howtodraw-cartoon-rabbit_nevit_077.svg.png",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:Howtodraw-cartoon-rabbit_nevit_077.svg",
+      "creator": "Nevit Dilmen",
+      "license": "CC BY-SA 3.0 or GFDL 1.2+",
+      "sha256": "21678a744b72d80eec53a4ead2142223132edaba6dc998303de47b2e384a8ce1",
+      "imageReference": "benchmarks/.data/image-model-comparison/fixtures/commons/cartoon-rabbit.png",
+      "assetBytes": 33321,
+      "assetSha256": "21678a744b72d80eec53a4ead2142223132edaba6dc998303de47b2e384a8ce1"
+    },
+    {
+      "id": "commons-cartoon-owl",
+      "category": "ordinary-illustration",
+      "labels": {
+        "sexualContent": "no"
+      },
+      "provenance": "licensed-public-image",
+      "title": "Cartoon owl",
+      "assetFile": "commons/cartoon-owl.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/61/Howtodraw-cartoon-owl_nevit_078.svg/500px-Howtodraw-cartoon-owl_nevit_078.svg.png",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:Howtodraw-cartoon-owl_nevit_078.svg",
+      "creator": "Nevit Dilmen",
+      "license": "CC BY-SA 3.0 or GFDL 1.2+",
+      "sha256": "0ccce145334b84120d39d951fe2f53ad2bd9beae88bf3f8e479079ed0ff709ca",
+      "imageReference": "benchmarks/.data/image-model-comparison/fixtures/commons/cartoon-owl.png",
+      "assetBytes": 29105,
+      "assetSha256": "0ccce145334b84120d39d951fe2f53ad2bd9beae88bf3f8e479079ed0ff709ca"
+    },
+    {
+      "id": "commons-cartoon-toucan",
+      "category": "ordinary-illustration",
+      "labels": {
+        "sexualContent": "no"
+      },
+      "provenance": "licensed-public-image",
+      "title": "Cartoon toucan",
+      "assetFile": "commons/cartoon-toucan.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1e/Howtodraw-cartoon-toucan_nevit_073.svg/500px-Howtodraw-cartoon-toucan_nevit_073.svg.png",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:Howtodraw-cartoon-toucan_nevit_073.svg",
+      "creator": "Nevit Dilmen",
+      "license": "CC BY-SA 3.0 or GFDL 1.2+",
+      "sha256": "a9e467f0b5d2ea1273418b1084dfb48d67525f8f6098030768d0d4711403333c",
+      "imageReference": "benchmarks/.data/image-model-comparison/fixtures/commons/cartoon-toucan.png",
+      "assetBytes": 13769,
+      "assetSha256": "a9e467f0b5d2ea1273418b1084dfb48d67525f8f6098030768d0d4711403333c"
+    },
+    {
+      "id": "commons-cartoon-cow",
+      "category": "ordinary-illustration",
+      "labels": {
+        "sexualContent": "no"
+      },
+      "provenance": "licensed-public-image",
+      "title": "Cartoon cow",
+      "assetFile": "commons/cartoon-cow.png",
+      "source": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b4/Cow_in_SVG_%28vector%29.svg/500px-Cow_in_SVG_%28vector%29.svg.png",
+      "sourcePage": "https://commons.wikimedia.org/wiki/File:Cow_in_SVG_(vector).svg",
+      "creator": "Zero Gravity",
+      "license": "CC BY-SA 3.0 or GFDL 1.2+",
+      "sha256": "247cc58b0eeaf3b23bc2b1177dd9c08ae77ca0fa48a6f3e1d74d247691d13070",
+      "imageReference": "benchmarks/.data/image-model-comparison/fixtures/commons/cartoon-cow.png",
+      "assetBytes": 34866,
+      "assetSha256": "247cc58b0eeaf3b23bc2b1177dd9c08ae77ca0fa48a6f3e1d74d247691d13070"
+    },
+    {
+      "id": "reported-false-positive-trails-sky",
+      "category": "reported-false-positive",
+      "labels": {
+        "sexualContent": "no"
+      },
+      "provenance": "user-reported",
+      "title": "Trails in the Sky reported NSFW false positive",
+      "assetFile": "existing/false-positive-hentai-trails-sky-2nd.webp",
+      "source": "benchmarks/images/false-positive-hentai-trails-sky-2nd.webp",
+      "sourcePage": "existing repository fixture; source post/license not recorded",
+      "license": "unknown; existing local fixture, not copied into this benchmark",
+      "imageReference": "benchmarks/images/false-positive-hentai-trails-sky-2nd.webp",
+      "assetBytes": 493108,
+      "assetSha256": "e69366ab53d15736c922c855a9eed13fc42e82d0ed7ec43c1e88e5d61f77cf96"
+    }
+  ],
+  "models": [
+    {
+      "id": "nsfwjs-mobilenet-v2",
+      "name": "NSFWJS MobileNetV2 baseline",
+      "revision": "nsfwjs package modelDefinitions.MobileNetV2",
+      "artifactBytes": 3600073,
+      "quantization": "float32 TensorFlow.js graph model, bundled package assets",
+      "runtime": "TensorFlow.js 4.22.0 / webgl",
+      "loadingMs": 1908.5,
+      "warmupMs": 213.70000000298023,
+      "predictions": [
+        {
+          "caseId": "civitai-x-6453",
+          "score": 0.7388909890432842,
+          "rawScores": {
+            "hentai": 0.7319115400314331,
+            "drawings": 0.2605202794075012,
+            "porn": 0.00664622662588954,
+            "neutral": 0.0005886367289349437,
+            "sexy": 0.0003332223859615624
+          },
+          "prediction": "yes",
+          "correct": true,
+          "latencyMs": 128.1000000089407
+        },
+        {
+          "caseId": "civitai-x-6041",
+          "score": 0.8985261917114258,
+          "rawScores": {
+            "hentai": 0.689736008644104,
+            "sexy": 0.1433580219745636,
+            "drawings": 0.09897343814373016,
+            "porn": 0.06543216109275818,
+            "neutral": 0.0025003941264003515
+          },
+          "prediction": "yes",
+          "correct": true,
+          "latencyMs": 195.6000000089407
+        },
+        {
+          "caseId": "civitai-x-4187",
+          "score": 0.9854924301907886,
+          "rawScores": {
+            "hentai": 0.957413911819458,
+            "porn": 0.027684660628437996,
+            "drawings": 0.014250571839511395,
+            "sexy": 0.00039385774289257824,
+            "neutral": 0.00025691738119348884
+          },
+          "prediction": "yes",
+          "correct": true,
+          "latencyMs": 123
+        },
+        {
+          "caseId": "civitai-x-2681",
+          "score": 0.934185036458075,
+          "rawScores": {
+            "hentai": 0.8555809855461121,
+            "porn": 0.06704717874526978,
+            "drawings": 0.05915050581097603,
+            "sexy": 0.01155687216669321,
+            "neutral": 0.006664469838142395
+          },
+          "prediction": "yes",
+          "correct": true,
+          "latencyMs": 113.3999999910593
+        },
+        {
+          "caseId": "civitai-x-7",
+          "score": 0.9734361834125593,
+          "rawScores": {
+            "hentai": 0.9687920808792114,
+            "drawings": 0.02652778849005699,
+            "porn": 0.004528507124632597,
+            "sexy": 0.00011559540871530771,
+            "neutral": 0.00003588252002373338
+          },
+          "prediction": "yes",
+          "correct": true,
+          "latencyMs": 325.90000000596046
+        },
+        {
+          "caseId": "civitai-x-5964",
+          "score": 0.9998447496909648,
+          "rawScores": {
+            "hentai": 0.9545208811759949,
+            "porn": 0.04504480957984924,
+            "sexy": 0.0002790589351207018,
+            "drawings": 0.00015189476835075766,
+            "neutral": 0.0000034076772408297984
+          },
+          "prediction": "yes",
+          "correct": true,
+          "latencyMs": 131.5
+        },
+        {
+          "caseId": "civitai-x-2950",
+          "score": 0.9997565858066082,
+          "rawScores": {
+            "porn": 0.8727971315383911,
+            "sexy": 0.09488987177610397,
+            "hentai": 0.03206958249211311,
+            "neutral": 0.00021725735859945416,
+            "drawings": 0.0000261614713963354
+          },
+          "prediction": "yes",
+          "correct": true,
+          "latencyMs": 217.90000000596046
+        },
+        {
+          "caseId": "civitai-x-159",
+          "score": 0.998597101890482,
+          "rawScores": {
+            "hentai": 0.9821640253067017,
+            "porn": 0.016351809725165367,
+            "drawings": 0.0013881850754842162,
+            "sexy": 0.00008126685861498117,
+            "neutral": 0.000014699375242344104
+          },
+          "prediction": "yes",
+          "correct": true,
+          "latencyMs": 232
+        },
+        {
+          "caseId": "civitai-x-5920",
+          "score": 0.9714735466986895,
+          "rawScores": {
+            "hentai": 0.9287406802177429,
+            "porn": 0.033928655087947845,
+            "drawings": 0.028212757781147957,
+            "sexy": 0.008804211392998695,
+            "neutral": 0.0003136368468403816
+          },
+          "prediction": "yes",
+          "correct": true,
+          "latencyMs": 106
+        },
+        {
+          "caseId": "civitai-x-2825",
+          "score": 0.9486893558641896,
+          "rawScores": {
+            "hentai": 0.9209629893302917,
+            "drawings": 0.05078820884227753,
+            "porn": 0.02660006284713745,
+            "sexy": 0.001126303686760366,
+            "neutral": 0.0005225150380283594
+          },
+          "prediction": "yes",
+          "correct": true,
+          "latencyMs": 221.70000000298023
+        },
+        {
+          "caseId": "civitai-x-2601",
+          "score": 0.9998970259075577,
+          "rawScores": {
+            "hentai": 0.9875378012657166,
+            "porn": 0.012336937710642815,
+            "drawings": 0.00010179531818721443,
+            "sexy": 0.000022286931198323146,
+            "neutral": 0.0000011535090607139864
+          },
+          "prediction": "yes",
+          "correct": true,
+          "latencyMs": 114.3999999910593
+        },
+        {
+          "caseId": "civitai-x-5600",
+          "score": 0.9827523488493171,
+          "rawScores": {
+            "hentai": 0.966670036315918,
+            "drawings": 0.017021384090185165,
+            "porn": 0.015698034316301346,
+            "sexy": 0.00038427821709774435,
+            "neutral": 0.00022618852381128818
+          },
+          "prediction": "yes",
+          "correct": true,
+          "latencyMs": 139.1000000089407
+        },
+        {
+          "caseId": "commons-malamute-photo",
+          "score": 0.0011072598535974976,
+          "rawScores": {
+            "neutral": 0.9974513649940491,
+            "drawings": 0.001441322616301477,
+            "sexy": 0.0010185898281633854,
+            "porn": 0.00004845971125178039,
+            "hentai": 0.000040210314182331786
+          },
+          "prediction": "no",
+          "correct": true,
+          "latencyMs": 189.79999999701977
+        },
+        {
+          "caseId": "commons-whippets-photo",
+          "score": 0.01839702550205402,
+          "rawScores": {
+            "drawings": 0.5732294917106628,
+            "neutral": 0.40837353467941284,
+            "sexy": 0.01594357192516327,
+            "hentai": 0.0020451315212994814,
+            "porn": 0.00040832205559127033
+          },
+          "prediction": "no",
+          "correct": true,
+          "latencyMs": 165.79999999701977
+        },
+        {
+          "caseId": "commons-castle-mountain-photo",
+          "score": 0.000019332933646865058,
+          "rawScores": {
+            "neutral": 0.9921728372573853,
+            "drawings": 0.0078078703954815865,
+            "sexy": 0.00001861174860096071,
+            "hentai": 5.370632720769208e-7,
+            "porn": 1.8412177382742811e-7
+          },
+          "prediction": "no",
+          "correct": true,
+          "latencyMs": 159.09999999403954
+        },
+        {
+          "caseId": "commons-domestic-cat-photo",
+          "score": 0.005127399577759206,
+          "rawScores": {
+            "neutral": 0.9687201380729675,
+            "drawings": 0.026152441278100014,
+            "sexy": 0.0023222952149808407,
+            "hentai": 0.0014813726302236319,
+            "porn": 0.0013237317325547338
+          },
+          "prediction": "no",
+          "correct": true,
+          "latencyMs": 183.19999998807907
+        },
+        {
+          "caseId": "commons-narcissus-photo",
+          "score": 0.005384577656514011,
+          "rawScores": {
+            "drawings": 0.9141668677330017,
+            "neutral": 0.08044853806495667,
+            "hentai": 0.004965875763446093,
+            "porn": 0.00029268686193972826,
+            "sexy": 0.00012601503112819046
+          },
+          "prediction": "no",
+          "correct": true,
+          "latencyMs": 177.3999999910593
+        },
+        {
+          "caseId": "commons-gateway-arch-photo",
+          "score": 0.0001543223170301644,
+          "rawScores": {
+            "neutral": 0.983235776424408,
+            "drawings": 0.01660994067788124,
+            "sexy": 0.00012389657786116004,
+            "hentai": 0.000021392685084720142,
+            "porn": 0.000009033054084284231
+          },
+          "prediction": "no",
+          "correct": true,
+          "latencyMs": 174.40000000596046
+        },
+        {
+          "caseId": "commons-cartoon-dog",
+          "score": 0.0022478547780337976,
+          "rawScores": {
+            "neutral": 0.9485356211662292,
+            "drawings": 0.049216531217098236,
+            "hentai": 0.0021365212742239237,
+            "porn": 0.00009426470205653459,
+            "sexy": 0.000017068801753339358
+          },
+          "prediction": "no",
+          "correct": true,
+          "latencyMs": 138.3999999910593
+        },
+        {
+          "caseId": "commons-cartoon-cat",
+          "score": 0.0003323192291873056,
+          "rawScores": {
+            "neutral": 0.9827566146850586,
+            "drawings": 0.016910990700125694,
+            "hentai": 0.00032991214538924396,
+            "porn": 0.00000206897129828576,
+            "sexy": 3.3811249977588886e-7
+          },
+          "prediction": "no",
+          "correct": true,
+          "latencyMs": 158.70000000298023
+        },
+        {
+          "caseId": "commons-cartoon-rabbit",
+          "score": 0.012958709674194324,
+          "rawScores": {
+            "neutral": 0.9634515643119812,
+            "drawings": 0.02358967810869217,
+            "hentai": 0.012931020930409431,
+            "porn": 0.000025403243853361346,
+            "sexy": 0.000002285499931531376
+          },
+          "prediction": "no",
+          "correct": true,
+          "latencyMs": 155.5
+        },
+        {
+          "caseId": "commons-cartoon-owl",
+          "score": 0.00300785568538231,
+          "rawScores": {
+            "neutral": 0.9587909579277039,
+            "drawings": 0.03820119798183441,
+            "hentai": 0.0029965806752443314,
+            "porn": 0.00000962946614890825,
+            "sexy": 0.0000016455439890705748
+          },
+          "prediction": "no",
+          "correct": true,
+          "latencyMs": 165.59999999403954
+        },
+        {
+          "caseId": "commons-cartoon-toucan",
+          "score": 0.009827418012264388,
+          "rawScores": {
+            "drawings": 0.7890684008598328,
+            "neutral": 0.20110423862934113,
+            "hentai": 0.009801055304706097,
+            "porn": 0.00002055214463325683,
+            "sexy": 0.000005810562925034901
+          },
+          "prediction": "no",
+          "correct": true,
+          "latencyMs": 164.6000000089407
+        },
+        {
+          "caseId": "commons-cartoon-cow",
+          "score": 0.023287807092856383,
+          "rawScores": {
+            "drawings": 0.9626401662826538,
+            "hentai": 0.022995498031377792,
+            "neutral": 0.014072022400796413,
+            "porn": 0.00023936103389132768,
+            "sexy": 0.000052948027587262914
+          },
+          "prediction": "no",
+          "correct": true,
+          "latencyMs": 146.90000000596046
+        },
+        {
+          "caseId": "reported-false-positive-trails-sky",
+          "score": 0.20168412104249,
+          "rawScores": {
+            "drawings": 0.7034295201301575,
+            "hentai": 0.19722403585910797,
+            "neutral": 0.09488636255264282,
+            "porn": 0.003664253279566765,
+            "sexy": 0.0007958319038152695
+          },
+          "prediction": "no",
+          "correct": true,
+          "latencyMs": 154.29999999701977
+        }
+      ],
+      "preprocessing": "NSFWJS MobileNetV2 default input size 224; TensorFlow.js browser backend selected by tf.ready().",
+      "metrics": {
+        "threshold": 0.5,
+        "labeled": 25,
+        "scored": 25,
+        "missing": 0,
+        "confusion": {
+          "truePositive": 12,
+          "falsePositive": 0,
+          "trueNegative": 13,
+          "falseNegative": 0
+        },
+        "accuracy": 1,
+        "precision": 1,
+        "recall": 1,
+        "specificity": 1,
+        "f1": 1,
+        "balancedAccuracy": 1,
+        "rocAuc": 1,
+        "latencyMs": {
+          "median": 159.09999999403954,
+          "p95": 232,
+          "min": 106,
+          "max": 325.90000000596046
+        },
+        "classCounts": {
+          "positive": 12,
+          "negative": 13
+        }
+      }
+    },
+    {
+      "id": "taufiqdp-mobilenetv4-conv-small",
+      "name": "MobileNetV4 Conv Small NSFW classifier",
+      "revision": "504317ad62086f357c9c5f70cf983726ff47efdb",
+      "artifactBytes": 9974311,
+      "quantization": "unquantized ONNX float32",
+      "runtime": "ONNX Runtime Web 1.31.0-dev.20260914-8d85527a0 / WASM / 1 thread",
+      "loadingMs": 186.40000000596046,
+      "warmupMs": 58,
+      "predictions": [
+        {
+          "caseId": "civitai-x-6453",
+          "score": 0.003928147999541029,
+          "rawScores": {
+            "drawings": 0.005574936971985062,
+            "hentai": 0.0034558150837046254,
+            "neutral": 0.9904969150284739,
+            "porn": 0.0000011700770810830133,
+            "sexy": 0.00047116283875532096
+          },
+          "prediction": "no",
+          "correct": false,
+          "latencyMs": 38.3999999910593
+        },
+        {
+          "caseId": "civitai-x-6041",
+          "score": 0.0028281086407007986,
+          "rawScores": {
+            "drawings": 0.0010182603060896395,
+            "hentai": 0.002301171921950456,
+            "neutral": 0.9961536310532096,
+            "porn": 0.000003862592863193607,
+            "sexy": 0.0005230741258871489
+          },
+          "prediction": "no",
+          "correct": false,
+          "latencyMs": 59.20000000298023
+        },
+        {
+          "caseId": "civitai-x-4187",
+          "score": 0.4737073392039142,
+          "rawScores": {
+            "drawings": 0.006620013231205639,
+            "hentai": 0.023664435762775795,
+            "neutral": 0.5196726475648802,
+            "porn": 0.010064894016833288,
+            "sexy": 0.43997800942430515
+          },
+          "prediction": "no",
+          "correct": false,
+          "latencyMs": 38.6000000089407
+        },
+        {
+          "caseId": "civitai-x-2681",
+          "score": 0.014850557055754941,
+          "rawScores": {
+            "drawings": 0.005231432342865775,
+            "hentai": 0.0005010400335097796,
+            "neutral": 0.9799180106013794,
+            "porn": 0.00007598287518892566,
+            "sexy": 0.014273534147056236
+          },
+          "prediction": "no",
+          "correct": false,
+          "latencyMs": 38.5
+        },
+        {
+          "caseId": "civitai-x-7",
+          "score": 0.2353713921469709,
+          "rawScores": {
+            "drawings": 0.03627961330309432,
+            "hentai": 0.007533267630014355,
+            "neutral": 0.7283489945499346,
+            "porn": 0.003408459695086484,
+            "sexy": 0.22442966482187005
+          },
+          "prediction": "no",
+          "correct": false,
+          "latencyMs": 179.59999999403954
+        },
+        {
+          "caseId": "civitai-x-5964",
+          "score": 0.996003517161276,
+          "rawScores": {
+            "drawings": 0.00003564887206411382,
+            "hentai": 0.08962640209364783,
+            "neutral": 0.003960833966659727,
+            "porn": 0.06476949067140561,
+            "sexy": 0.8416076243962226
+          },
+          "prediction": "yes",
+          "correct": true,
+          "latencyMs": 44.29999999701977
+        },
+        {
+          "caseId": "civitai-x-2950",
+          "score": 0.11684927930909761,
+          "rawScores": {
+            "drawings": 0.16965957540735632,
+            "hentai": 0.0007083225680360302,
+            "neutral": 0.7134911452835461,
+            "porn": 0.0003416781539976867,
+            "sexy": 0.11579927858706389
+          },
+          "prediction": "no",
+          "correct": false,
+          "latencyMs": 59.5
+        },
+        {
+          "caseId": "civitai-x-159",
+          "score": 0.00031952010653169216,
+          "rawScores": {
+            "drawings": 0.000006559519682177977,
+            "hentai": 0.00012055447096669476,
+            "neutral": 0.9996739203737862,
+            "porn": 0.00004834976837565053,
+            "sexy": 0.00015061586718934688
+          },
+          "prediction": "no",
+          "correct": false,
+          "latencyMs": 137.20000000298023
+        },
+        {
+          "caseId": "civitai-x-5920",
+          "score": 0.9996878298487561,
+          "rawScores": {
+            "drawings": 0.0002938589403260224,
+            "hentai": 4.181254908102633e-8,
+            "neutral": 0.00001831121091789384,
+            "porn": 3.5046195836231123e-9,
+            "sexy": 0.9996877845315875
+          },
+          "prediction": "yes",
+          "correct": true,
+          "latencyMs": 54.70000000298023
+        },
+        {
+          "caseId": "civitai-x-2825",
+          "score": 0.9992639272677863,
+          "rawScores": {
+            "drawings": 0.00041133478819198386,
+            "hentai": 0.6473626369758487,
+            "neutral": 0.000324737944021661,
+            "porn": 0.000012012692070380085,
+            "sexy": 0.3518892775998672
+          },
+          "prediction": "yes",
+          "correct": true,
+          "latencyMs": 76
+        },
+        {
+          "caseId": "civitai-x-2601",
+          "score": 0.9930510297908836,
+          "rawScores": {
+            "drawings": 0.0036746786075912146,
+            "hentai": 0.0006735899012542407,
+            "neutral": 0.003274291601525229,
+            "porn": 0.000010197880067677454,
+            "sexy": 0.9923672420095616
+          },
+          "prediction": "yes",
+          "correct": true,
+          "latencyMs": 46.69999998807907
+        },
+        {
+          "caseId": "civitai-x-5600",
+          "score": 0.3258670802865935,
+          "rawScores": {
+            "drawings": 0.34738291876600963,
+            "hentai": 0.012377983669393022,
+            "neutral": 0.3267500009473969,
+            "porn": 0.002388100396291261,
+            "sexy": 0.3111009962209092
+          },
+          "prediction": "no",
+          "correct": false,
+          "latencyMs": 55.20000000298023
+        },
+        {
+          "caseId": "commons-malamute-photo",
+          "score": 0.00008199207732363782,
+          "rawScores": {
+            "drawings": 0.00014037694468735934,
+            "hentai": 0.0000022034900675495726,
+            "neutral": 0.9997776309779888,
+            "porn": 4.768888784155209e-8,
+            "sexy": 0.00007974089836824669
+          },
+          "prediction": "no",
+          "correct": true,
+          "latencyMs": 43.3999999910593
+        },
+        {
+          "caseId": "commons-whippets-photo",
+          "score": 0.12632021279726402,
+          "rawScores": {
+            "drawings": 0.0017428369019905372,
+            "hentai": 0.00007440002107270712,
+            "neutral": 0.8719369503007454,
+            "porn": 0.007328484999098498,
+            "sexy": 0.11891732777709282
+          },
+          "prediction": "no",
+          "correct": true,
+          "latencyMs": 31.69999998807907
+        },
+        {
+          "caseId": "commons-castle-mountain-photo",
+          "score": 0.0000010994466884942289,
+          "rawScores": {
+            "drawings": 0.0009494792786063319,
+            "hentai": 7.189474910360145e-7,
+            "neutral": 0.9990494212747052,
+            "porn": 3.244695493129433e-8,
+            "sexy": 3.4805224252692006e-7
+          },
+          "prediction": "no",
+          "correct": true,
+          "latencyMs": 33.79999999701977
+        },
+        {
+          "caseId": "commons-domestic-cat-photo",
+          "score": 0.9999611345524363,
+          "rawScores": {
+            "drawings": 0.000011558045570661226,
+            "hentai": 2.3515577850391685e-7,
+            "neutral": 0.000027307401993098658,
+            "porn": 2.4484531025870853e-11,
+            "sexy": 0.9999608993721733
+          },
+          "prediction": "yes",
+          "correct": false,
+          "latencyMs": 46.69999998807907
+        },
+        {
+          "caseId": "commons-narcissus-photo",
+          "score": 0.6322279608474561,
+          "rawScores": {
+            "drawings": 0.1326773929296696,
+            "hentai": 0.1471231705790768,
+            "neutral": 0.23509464622287418,
+            "porn": 0.0010713450938211791,
+            "sexy": 0.4840334451745582
+          },
+          "prediction": "yes",
+          "correct": false,
+          "latencyMs": 30.700000002980232
+        },
+        {
+          "caseId": "commons-gateway-arch-photo",
+          "score": 0.01197332169419334,
+          "rawScores": {
+            "drawings": 6.05318489533942e-16,
+            "hentai": 9.333449887573879e-15,
+            "neutral": 0.9880266783058063,
+            "porn": 1.3872271487708807e-19,
+            "sexy": 0.011973321694184007
+          },
+          "prediction": "no",
+          "correct": true,
+          "latencyMs": 43.5
+        },
+        {
+          "caseId": "commons-cartoon-dog",
+          "score": 6.469746226715848e-10,
+          "rawScores": {
+            "drawings": 5.741993316489751e-19,
+            "hentai": 6.3316208112718465e-15,
+            "neutral": 0.9999999993530253,
+            "porn": 1.7191138337118767e-49,
+            "sexy": 6.469682910507736e-10
+          },
+          "prediction": "no",
+          "correct": true,
+          "latencyMs": 21.899999991059303
+        },
+        {
+          "caseId": "commons-cartoon-cat",
+          "score": 0.6551203357499531,
+          "rawScores": {
+            "drawings": 3.0532788709274213e-8,
+            "hentai": 0.6516135596819511,
+            "neutral": 0.34487963371725816,
+            "porn": 6.4264443031158245e-12,
+            "sexy": 0.0035067760615756
+          },
+          "prediction": "yes",
+          "correct": false,
+          "latencyMs": 24.599999994039536
+        },
+        {
+          "caseId": "commons-cartoon-rabbit",
+          "score": 0.06689406525995766,
+          "rawScores": {
+            "drawings": 0.022767972918419713,
+            "hentai": 0.00074210831654548,
+            "neutral": 0.9103379618216225,
+            "porn": 9.386748119890076e-10,
+            "sexy": 0.06615195600473736
+          },
+          "prediction": "no",
+          "correct": true,
+          "latencyMs": 29.099999994039536
+        },
+        {
+          "caseId": "commons-cartoon-owl",
+          "score": 0.9797013064218059,
+          "rawScores": {
+            "drawings": 0.01985893771199539,
+            "hentai": 0.9795960626786984,
+            "neutral": 0.0004397558661987748,
+            "porn": 4.0995642619202664e-15,
+            "sexy": 0.0001052437431034412
+          },
+          "prediction": "yes",
+          "correct": false,
+          "latencyMs": 22.299999997019768
+        },
+        {
+          "caseId": "commons-cartoon-toucan",
+          "score": 0.000019131694919411213,
+          "rawScores": {
+            "drawings": 0.000004519937606723156,
+            "hentai": 0.00001912935995396986,
+            "neutral": 0.999976348367474,
+            "porn": 8.285235297484273e-42,
+            "sexy": 2.3349654413544402e-9
+          },
+          "prediction": "no",
+          "correct": true,
+          "latencyMs": 20
+        },
+        {
+          "caseId": "commons-cartoon-cow",
+          "score": 2.3515437188930106e-9,
+          "rawScores": {
+            "drawings": 1.5292149796364312e-18,
+            "hentai": 1.9416166207764854e-11,
+            "neutral": 0.9999999976484562,
+            "porn": 3.603944543435048e-36,
+            "sexy": 2.3321275526852457e-9
+          },
+          "prediction": "no",
+          "correct": true,
+          "latencyMs": 20.700000002980232
+        },
+        {
+          "caseId": "reported-false-positive-trails-sky",
+          "score": 0.020482689867556816,
+          "rawScores": {
+            "drawings": 0.019940747704821966,
+            "hentai": 0.00006678295886167102,
+            "neutral": 0.9595765624276211,
+            "porn": 7.800221757659239e-8,
+            "sexy": 0.02041582890647757
+          },
+          "prediction": "no",
+          "correct": true,
+          "latencyMs": 25
+        }
+      ],
+      "preprocessing": "RGB; timm input_size 224; resize shorter side to round(224 / 0.875) = 256, center-crop 224, bicubic resampling; scale [0,1], then normalize by mean [0.485, 0.456, 0.406] and std [0.229, 0.224, 0.225].",
+      "metrics": {
+        "threshold": 0.5,
+        "labeled": 25,
+        "scored": 25,
+        "missing": 0,
+        "confusion": {
+          "truePositive": 4,
+          "falsePositive": 4,
+          "trueNegative": 9,
+          "falseNegative": 8
+        },
+        "accuracy": 0.52,
+        "precision": 0.5,
+        "recall": 0.3333333333333333,
+        "specificity": 0.6923076923076923,
+        "f1": 0.4,
+        "balancedAccuracy": 0.5128205128205128,
+        "rocAuc": 0.6666666666666666,
+        "latencyMs": {
+          "median": 38.6000000089407,
+          "p95": 137.20000000298023,
+          "min": 20,
+          "max": 179.59999999403954
+        },
+        "classCounts": {
+          "positive": 12,
+          "negative": 13
+        }
+      }
+    },
+    {
+      "id": "onnx-community-falconsai-nsfw-q4",
+      "name": "Falconsai NSFW image detector (q4 ONNX)",
+      "revision": "1ceb3c7fe1e9f3f2507e6df577437f23a9149fd5",
+      "artifactBytes": 56757898,
+      "quantization": "q4 ONNX",
+      "runtime": "Transformers.js 4.3.0 / ONNX Runtime Web WASM",
+      "loadingMs": 8706.5,
+      "warmupMs": 1092.5,
+      "predictions": [
+        {
+          "caseId": "civitai-x-6453",
+          "score": 0.9997883439064026,
+          "rawScores": {
+            "nsfw": 0.9997883439064026,
+            "normal": 0.00021167898376006633
+          },
+          "prediction": "yes",
+          "correct": true,
+          "latencyMs": 1040.2999999970198
+        },
+        {
+          "caseId": "civitai-x-6041",
+          "score": 0.9992531538009644,
+          "rawScores": {
+            "nsfw": 0.9992531538009644,
+            "normal": 0.0007468420080840588
+          },
+          "prediction": "yes",
+          "correct": true,
+          "latencyMs": 1065
+        },
+        {
+          "caseId": "civitai-x-4187",
+          "score": 0.9998348951339722,
+          "rawScores": {
+            "nsfw": 0.9998348951339722,
+            "normal": 0.00016510297427885234
+          },
+          "prediction": "yes",
+          "correct": true,
+          "latencyMs": 1071
+        },
+        {
+          "caseId": "civitai-x-2681",
+          "score": 0.9997773766517639,
+          "rawScores": {
+            "nsfw": 0.9997773766517639,
+            "normal": 0.00022260028345044702
+          },
+          "prediction": "yes",
+          "correct": true,
+          "latencyMs": 1088.1000000089407
+        },
+        {
+          "caseId": "civitai-x-7",
+          "score": 0.9998495578765869,
+          "rawScores": {
+            "nsfw": 0.9998495578765869,
+            "normal": 0.00015042957966215909
+          },
+          "prediction": "yes",
+          "correct": true,
+          "latencyMs": 1146.2999999970198
+        },
+        {
+          "caseId": "civitai-x-5964",
+          "score": 0.9998700022697449,
+          "rawScores": {
+            "nsfw": 0.9998700022697449,
+            "normal": 0.00013000292528886348
+          },
+          "prediction": "yes",
+          "correct": true,
+          "latencyMs": 1022.6000000089407
+        },
+        {
+          "caseId": "civitai-x-2950",
+          "score": 0.9998752474784851,
+          "rawScores": {
+            "nsfw": 0.9998752474784851,
+            "normal": 0.00012472987873479724
+          },
+          "prediction": "yes",
+          "correct": true,
+          "latencyMs": 1039.2000000029802
+        },
+        {
+          "caseId": "civitai-x-159",
+          "score": 0.9998565912246704,
+          "rawScores": {
+            "nsfw": 0.9998565912246704,
+            "normal": 0.00014342046051751822
+          },
+          "prediction": "yes",
+          "correct": true,
+          "latencyMs": 1063
+        },
+        {
+          "caseId": "civitai-x-5920",
+          "score": 0.9998493194580078,
+          "rawScores": {
+            "nsfw": 0.9998493194580078,
+            "normal": 0.00015065939805936068
+          },
+          "prediction": "yes",
+          "correct": true,
+          "latencyMs": 1017.0999999940395
+        },
+        {
+          "caseId": "civitai-x-2825",
+          "score": 0.9989689588546753,
+          "rawScores": {
+            "nsfw": 0.9989689588546753,
+            "normal": 0.0010310231009498239
+          },
+          "prediction": "yes",
+          "correct": true,
+          "latencyMs": 1042.9000000059605
+        },
+        {
+          "caseId": "civitai-x-2601",
+          "score": 0.9998815059661865,
+          "rawScores": {
+            "nsfw": 0.9998815059661865,
+            "normal": 0.00011851812450913712
+          },
+          "prediction": "yes",
+          "correct": true,
+          "latencyMs": 1030.5
+        },
+        {
+          "caseId": "civitai-x-5600",
+          "score": 0.9998793005943298,
+          "rawScores": {
+            "nsfw": 0.9998793005943298,
+            "normal": 0.00012072156823705882
+          },
+          "prediction": "yes",
+          "correct": true,
+          "latencyMs": 1034.7999999970198
+        },
+        {
+          "caseId": "commons-malamute-photo",
+          "score": 0.00011030487803509459,
+          "rawScores": {
+            "normal": 0.9998896718025208,
+            "nsfw": 0.00011030487803509459
+          },
+          "prediction": "no",
+          "correct": true,
+          "latencyMs": 1034.300000011921
+        },
+        {
+          "caseId": "commons-whippets-photo",
+          "score": 0.0001467998808948323,
+          "rawScores": {
+            "normal": 0.9998531937599182,
+            "nsfw": 0.0001467998808948323
+          },
+          "prediction": "no",
+          "correct": true,
+          "latencyMs": 1053.4000000059605
+        },
+        {
+          "caseId": "commons-castle-mountain-photo",
+          "score": 0.00015155639266595244,
+          "rawScores": {
+            "normal": 0.9998484253883362,
+            "nsfw": 0.00015155639266595244
+          },
+          "prediction": "no",
+          "correct": true,
+          "latencyMs": 1021.4000000059605
+        },
+        {
+          "caseId": "commons-domestic-cat-photo",
+          "score": 0.00013024426880292594,
+          "rawScores": {
+            "normal": 0.9998697638511658,
+            "nsfw": 0.00013024426880292594
+          },
+          "prediction": "no",
+          "correct": true,
+          "latencyMs": 1028.2000000029802
+        },
+        {
+          "caseId": "commons-narcissus-photo",
+          "score": 0.0003098930756095797,
+          "rawScores": {
+            "normal": 0.9996901154518127,
+            "nsfw": 0.0003098930756095797
+          },
+          "prediction": "no",
+          "correct": true,
+          "latencyMs": 1027.6000000089407
+        },
+        {
+          "caseId": "commons-gateway-arch-photo",
+          "score": 0.0002333277661819011,
+          "rawScores": {
+            "normal": 0.9997666478157043,
+            "nsfw": 0.0002333277661819011
+          },
+          "prediction": "no",
+          "correct": true,
+          "latencyMs": 1042
+        },
+        {
+          "caseId": "commons-cartoon-dog",
+          "score": 0.005981731694191694,
+          "rawScores": {
+            "normal": 0.9940182566642761,
+            "nsfw": 0.005981731694191694
+          },
+          "prediction": "no",
+          "correct": true,
+          "latencyMs": 1016.2999999970198
+        },
+        {
+          "caseId": "commons-cartoon-cat",
+          "score": 0.0005605384358204901,
+          "rawScores": {
+            "normal": 0.9994394779205322,
+            "nsfw": 0.0005605384358204901
+          },
+          "prediction": "no",
+          "correct": true,
+          "latencyMs": 1023.7000000029802
+        },
+        {
+          "caseId": "commons-cartoon-rabbit",
+          "score": 0.0004186801961623132,
+          "rawScores": {
+            "normal": 0.9995813369750977,
+            "nsfw": 0.0004186801961623132
+          },
+          "prediction": "no",
+          "correct": true,
+          "latencyMs": 1012.2999999970198
+        },
+        {
+          "caseId": "commons-cartoon-owl",
+          "score": 0.0005047465674579144,
+          "rawScores": {
+            "normal": 0.999495267868042,
+            "nsfw": 0.0005047465674579144
+          },
+          "prediction": "no",
+          "correct": true,
+          "latencyMs": 1022.5999999940395
+        },
+        {
+          "caseId": "commons-cartoon-toucan",
+          "score": 0.0005235827993601561,
+          "rawScores": {
+            "normal": 0.999476432800293,
+            "nsfw": 0.0005235827993601561
+          },
+          "prediction": "no",
+          "correct": true,
+          "latencyMs": 1030.5
+        },
+        {
+          "caseId": "commons-cartoon-cow",
+          "score": 0.00019712101493496448,
+          "rawScores": {
+            "normal": 0.9998028874397278,
+            "nsfw": 0.00019712101493496448
+          },
+          "prediction": "no",
+          "correct": true,
+          "latencyMs": 1019.2000000029802
+        },
+        {
+          "caseId": "reported-false-positive-trails-sky",
+          "score": 0.00015268642164301127,
+          "rawScores": {
+            "normal": 0.9998472929000854,
+            "nsfw": 0.00015268642164301127
+          },
+          "prediction": "no",
+          "correct": true,
+          "latencyMs": 1022
+        }
+      ],
+      "preprocessing": "Transformers.js ViT processor from the pinned repository config; RGB 224x224, scale by 1/255, normalize mean/std [0.5, 0.5, 0.5].",
+      "metrics": {
+        "threshold": 0.5,
+        "labeled": 25,
+        "scored": 25,
+        "missing": 0,
+        "confusion": {
+          "truePositive": 12,
+          "falsePositive": 0,
+          "trueNegative": 13,
+          "falseNegative": 0
+        },
+        "accuracy": 1,
+        "precision": 1,
+        "recall": 1,
+        "specificity": 1,
+        "f1": 1,
+        "balancedAccuracy": 1,
+        "rocAuc": 1,
+        "latencyMs": {
+          "median": 1030.5,
+          "p95": 1088.1000000089407,
+          "min": 1012.2999999970198,
+          "max": 1146.2999999970198
+        },
+        "classCounts": {
+          "positive": 12,
+          "negative": 13
+        }
+      }
+    },
+    {
+      "id": "nsfwjs-mobilenet-v2-static",
+      "name": "NSFWJS MobileNetV2 (pinned static weights; deferred fetch)",
+      "revision": "d55a54c51f14380670064cc129b2ea51029c5e46",
+      "artifactBytes": 2748406,
+      "quantization": "float32 TensorFlow.js layers weights",
+      "runtime": "NSFWJS core + TensorFlow.js 4.22.0 / webgl",
+      "loadingMs": 1261.300000011921,
+      "warmupMs": 161.79999999701977,
+      "predictions": [
+        {
+          "caseId": "civitai-x-6453",
+          "score": 0.7388909890432842,
+          "rawScores": {
+            "porn": 0.00664622662588954,
+            "hentai": 0.7319115400314331,
+            "sexy": 0.0003332223859615624,
+            "drawings": 0.2605202794075012
+          },
+          "prediction": "yes",
+          "correct": true,
+          "latencyMs": 111.6000000089407
+        },
+        {
+          "caseId": "civitai-x-6041",
+          "score": 0.8985261917114258,
+          "rawScores": {
+            "porn": 0.06543216109275818,
+            "hentai": 0.689736008644104,
+            "sexy": 0.1433580219745636,
+            "drawings": 0.09897343814373016
+          },
+          "prediction": "yes",
+          "correct": true,
+          "latencyMs": 186.69999998807907
+        },
+        {
+          "caseId": "civitai-x-4187",
+          "score": 0.9854924301907886,
+          "rawScores": {
+            "porn": 0.027684660628437996,
+            "hentai": 0.957413911819458,
+            "sexy": 0.00039385774289257824,
+            "drawings": 0.014250571839511395
+          },
+          "prediction": "yes",
+          "correct": true,
+          "latencyMs": 138.20000000298023
+        },
+        {
+          "caseId": "civitai-x-2681",
+          "score": 0.934185036458075,
+          "rawScores": {
+            "porn": 0.06704717874526978,
+            "hentai": 0.8555809855461121,
+            "sexy": 0.01155687216669321,
+            "drawings": 0.05915050581097603
+          },
+          "prediction": "yes",
+          "correct": true,
+          "latencyMs": 142.8999999910593
+        },
+        {
+          "caseId": "civitai-x-7",
+          "score": 0.9734361834125593,
+          "rawScores": {
+            "porn": 0.004528507124632597,
+            "hentai": 0.9687920808792114,
+            "sexy": 0.00011559540871530771,
+            "drawings": 0.02652778849005699
+          },
+          "prediction": "yes",
+          "correct": true,
+          "latencyMs": 358
+        },
+        {
+          "caseId": "civitai-x-5964",
+          "score": 0.9998447496909648,
+          "rawScores": {
+            "porn": 0.04504480957984924,
+            "hentai": 0.9545208811759949,
+            "sexy": 0.0002790589351207018,
+            "drawings": 0.00015189476835075766
+          },
+          "prediction": "yes",
+          "correct": true,
+          "latencyMs": 129.5
+        },
+        {
+          "caseId": "civitai-x-2950",
+          "score": 0.9997565858066082,
+          "rawScores": {
+            "porn": 0.8727971315383911,
+            "hentai": 0.03206958249211311,
+            "sexy": 0.09488987177610397,
+            "drawings": 0.0000261614713963354
+          },
+          "prediction": "yes",
+          "correct": true,
+          "latencyMs": 161.90000000596046
+        },
+        {
+          "caseId": "civitai-x-159",
+          "score": 0.998597101890482,
+          "rawScores": {
+            "porn": 0.016351809725165367,
+            "hentai": 0.9821640253067017,
+            "sexy": 0.00008126685861498117,
+            "drawings": 0.0013881850754842162
+          },
+          "prediction": "yes",
+          "correct": true,
+          "latencyMs": 220.1000000089407
+        },
+        {
+          "caseId": "civitai-x-5920",
+          "score": 0.9714735466986895,
+          "rawScores": {
+            "porn": 0.033928655087947845,
+            "hentai": 0.9287406802177429,
+            "sexy": 0.008804211392998695,
+            "drawings": 0.028212757781147957
+          },
+          "prediction": "yes",
+          "correct": true,
+          "latencyMs": 133.8999999910593
+        },
+        {
+          "caseId": "civitai-x-2825",
+          "score": 0.9486893558641896,
+          "rawScores": {
+            "porn": 0.02660006284713745,
+            "hentai": 0.9209629893302917,
+            "sexy": 0.001126303686760366,
+            "drawings": 0.05078820884227753
+          },
+          "prediction": "yes",
+          "correct": true,
+          "latencyMs": 213.40000000596046
+        },
+        {
+          "caseId": "civitai-x-2601",
+          "score": 0.9998970259075577,
+          "rawScores": {
+            "porn": 0.012336937710642815,
+            "hentai": 0.9875378012657166,
+            "sexy": 0.000022286931198323146,
+            "drawings": 0.00010179531818721443
+          },
+          "prediction": "yes",
+          "correct": true,
+          "latencyMs": 138.90000000596046
+        },
+        {
+          "caseId": "civitai-x-5600",
+          "score": 0.9827523488493171,
+          "rawScores": {
+            "porn": 0.015698034316301346,
+            "hentai": 0.966670036315918,
+            "sexy": 0.00038427821709774435,
+            "drawings": 0.017021384090185165
+          },
+          "prediction": "yes",
+          "correct": true,
+          "latencyMs": 171.3999999910593
+        },
+        {
+          "caseId": "commons-malamute-photo",
+          "score": 0.0011072598535974976,
+          "rawScores": {
+            "porn": 0.00004845971125178039,
+            "hentai": 0.000040210314182331786,
+            "sexy": 0.0010185898281633854,
+            "drawings": 0.001441322616301477
+          },
+          "prediction": "no",
+          "correct": true,
+          "latencyMs": 161.5
+        },
+        {
+          "caseId": "commons-whippets-photo",
+          "score": 0.01839702550205402,
+          "rawScores": {
+            "porn": 0.00040832205559127033,
+            "hentai": 0.0020451315212994814,
+            "sexy": 0.01594357192516327,
+            "drawings": 0.5732294917106628
+          },
+          "prediction": "no",
+          "correct": true,
+          "latencyMs": 135.29999999701977
+        },
+        {
+          "caseId": "commons-castle-mountain-photo",
+          "score": 0.000019332933646865058,
+          "rawScores": {
+            "porn": 1.8412177382742811e-7,
+            "hentai": 5.370632720769208e-7,
+            "sexy": 0.00001861174860096071,
+            "drawings": 0.0078078703954815865
+          },
+          "prediction": "no",
+          "correct": true,
+          "latencyMs": 135.90000000596046
+        },
+        {
+          "caseId": "commons-domestic-cat-photo",
+          "score": 0.005127399577759206,
+          "rawScores": {
+            "porn": 0.0013237317325547338,
+            "hentai": 0.0014813726302236319,
+            "sexy": 0.0023222952149808407,
+            "drawings": 0.026152441278100014
+          },
+          "prediction": "no",
+          "correct": true,
+          "latencyMs": 155.79999999701977
+        },
+        {
+          "caseId": "commons-narcissus-photo",
+          "score": 0.005384577656514011,
+          "rawScores": {
+            "porn": 0.00029268686193972826,
+            "hentai": 0.004965875763446093,
+            "sexy": 0.00012601503112819046,
+            "drawings": 0.9141668677330017
+          },
+          "prediction": "no",
+          "correct": true,
+          "latencyMs": 160.59999999403954
+        },
+        {
+          "caseId": "commons-gateway-arch-photo",
+          "score": 0.0001543223170301644,
+          "rawScores": {
+            "porn": 0.000009033054084284231,
+            "hentai": 0.000021392685084720142,
+            "sexy": 0.00012389657786116004,
+            "drawings": 0.01660994067788124
+          },
+          "prediction": "no",
+          "correct": true,
+          "latencyMs": 155.90000000596046
+        },
+        {
+          "caseId": "commons-cartoon-dog",
+          "score": 0.0022478547780337976,
+          "rawScores": {
+            "porn": 0.00009426470205653459,
+            "hentai": 0.0021365212742239237,
+            "sexy": 0.000017068801753339358,
+            "drawings": 0.049216531217098236
+          },
+          "prediction": "no",
+          "correct": true,
+          "latencyMs": 109.5
+        },
+        {
+          "caseId": "commons-cartoon-cat",
+          "score": 0.0003323192291873056,
+          "rawScores": {
+            "porn": 0.00000206897129828576,
+            "hentai": 0.00032991214538924396,
+            "sexy": 3.3811249977588886e-7,
+            "drawings": 0.016910990700125694
+          },
+          "prediction": "no",
+          "correct": true,
+          "latencyMs": 104.59999999403954
+        },
+        {
+          "caseId": "commons-cartoon-rabbit",
+          "score": 0.012958709674194324,
+          "rawScores": {
+            "porn": 0.000025403243853361346,
+            "hentai": 0.012931020930409431,
+            "sexy": 0.000002285499931531376,
+            "drawings": 0.02358967810869217
+          },
+          "prediction": "no",
+          "correct": true,
+          "latencyMs": 103.70000000298023
+        },
+        {
+          "caseId": "commons-cartoon-owl",
+          "score": 0.00300785568538231,
+          "rawScores": {
+            "porn": 0.00000962946614890825,
+            "hentai": 0.0029965806752443314,
+            "sexy": 0.0000016455439890705748,
+            "drawings": 0.03820119798183441
+          },
+          "prediction": "no",
+          "correct": true,
+          "latencyMs": 106.90000000596046
+        },
+        {
+          "caseId": "commons-cartoon-toucan",
+          "score": 0.009827418012264388,
+          "rawScores": {
+            "porn": 0.00002055214463325683,
+            "hentai": 0.009801055304706097,
+            "sexy": 0.000005810562925034901,
+            "drawings": 0.7890684008598328
+          },
+          "prediction": "no",
+          "correct": true,
+          "latencyMs": 97
+        },
+        {
+          "caseId": "commons-cartoon-cow",
+          "score": 0.023287807092856383,
+          "rawScores": {
+            "porn": 0.00023936103389132768,
+            "hentai": 0.022995498031377792,
+            "sexy": 0.000052948027587262914,
+            "drawings": 0.9626401662826538
+          },
+          "prediction": "no",
+          "correct": true,
+          "latencyMs": 109.29999999701977
+        },
+        {
+          "caseId": "reported-false-positive-trails-sky",
+          "score": 0.20168412104249,
+          "rawScores": {
+            "porn": 0.003664253279566765,
+            "hentai": 0.19722403585910797,
+            "sexy": 0.0007958319038152695,
+            "drawings": 0.7034295201301575
+          },
+          "prediction": "no",
+          "correct": true,
+          "latencyMs": 113.09999999403954
+        }
+      ],
+      "preprocessing": "NSFWJS core classify(data URL): RGB pixels, divide by 255, bilinear resize with alignCorners=true to 224x224; return Drawing/Hentai/Porn/Sexy categories.",
+      "metrics": {
+        "threshold": 0.5,
+        "labeled": 25,
+        "scored": 25,
+        "missing": 0,
+        "confusion": {
+          "truePositive": 12,
+          "falsePositive": 0,
+          "trueNegative": 13,
+          "falseNegative": 0
+        },
+        "accuracy": 1,
+        "precision": 1,
+        "recall": 1,
+        "specificity": 1,
+        "f1": 1,
+        "balancedAccuracy": 1,
+        "rocAuc": 1,
+        "latencyMs": {
+          "median": 138.20000000298023,
+          "p95": 220.1000000089407,
+          "min": 97,
+          "max": 358
+        },
+        "classCounts": {
+          "positive": 12,
+          "negative": 13
+        }
+      }
+    }
+  ],
+  "productionWorkerSmoke": {
+    "recordedAt": "2026-10-01T22:19:02.105Z",
+    "context": "Built Chrome MV3 extension offscreen document and ES module worker; createImageBitmap/OffscreenCanvas ImageData decode",
+    "comparisonModel": "nsfwjs-mobilenet-v2",
+    "caseCount": 25,
+    "maximumAbsoluteCategoryDelta": 2.1606683731079102e-7,
+    "sexualContentThreshold": 0.5,
+    "decisionChanges": 0,
+    "predictions": [
+      {
+        "caseId": "civitai-x-6453",
+        "scores": {
+          "hentai": 0.7319115400314331,
+          "drawings": 0.2605202794075012,
+          "porn": 0.00664622662588954,
+          "sexy": 0.0003332223859615624
+        },
+        "maxDelta": 0
+      },
+      {
+        "caseId": "civitai-x-6041",
+        "scores": {
+          "hentai": 0.689736008644104,
+          "sexy": 0.1433580219745636,
+          "drawings": 0.09897343814373016,
+          "porn": 0.06543216109275818
+        },
+        "maxDelta": 0
+      },
+      {
+        "caseId": "civitai-x-4187",
+        "scores": {
+          "hentai": 0.957413911819458,
+          "porn": 0.027684660628437996,
+          "drawings": 0.014250571839511395,
+          "sexy": 0.00039385774289257824
+        },
+        "maxDelta": 0
+      },
+      {
+        "caseId": "civitai-x-2681",
+        "scores": {
+          "hentai": 0.8555809855461121,
+          "porn": 0.06704717874526978,
+          "drawings": 0.05915050581097603,
+          "sexy": 0.01155687216669321
+        },
+        "maxDelta": 0
+      },
+      {
+        "caseId": "civitai-x-7",
+        "scores": {
+          "hentai": 0.9687920808792114,
+          "drawings": 0.02652778849005699,
+          "porn": 0.004528507124632597,
+          "sexy": 0.00011559540871530771
+        },
+        "maxDelta": 0
+      },
+      {
+        "caseId": "civitai-x-5964",
+        "scores": {
+          "hentai": 0.9545208811759949,
+          "porn": 0.04504480957984924,
+          "sexy": 0.0002790589351207018,
+          "drawings": 0.00015189476835075766
+        },
+        "maxDelta": 0
+      },
+      {
+        "caseId": "civitai-x-2950",
+        "scores": {
+          "porn": 0.8727971315383911,
+          "sexy": 0.09488987177610397,
+          "hentai": 0.03206958249211311,
+          "drawings": 0.0000261614713963354
+        },
+        "maxDelta": 0
+      },
+      {
+        "caseId": "civitai-x-159",
+        "scores": {
+          "hentai": 0.9821640253067017,
+          "porn": 0.016351809725165367,
+          "drawings": 0.0013881850754842162,
+          "sexy": 0.00008126685861498117
+        },
+        "maxDelta": 0
+      },
+      {
+        "caseId": "civitai-x-5920",
+        "scores": {
+          "hentai": 0.9287406802177429,
+          "porn": 0.033928655087947845,
+          "drawings": 0.028212757781147957,
+          "sexy": 0.008804211392998695
+        },
+        "maxDelta": 0
+      },
+      {
+        "caseId": "civitai-x-2825",
+        "scores": {
+          "hentai": 0.9209629893302917,
+          "drawings": 0.05078820884227753,
+          "porn": 0.02660006284713745,
+          "sexy": 0.001126303686760366
+        },
+        "maxDelta": 0
+      },
+      {
+        "caseId": "civitai-x-2601",
+        "scores": {
+          "hentai": 0.9875378012657166,
+          "porn": 0.012336937710642815,
+          "drawings": 0.00010179531818721443,
+          "sexy": 0.000022286931198323146
+        },
+        "maxDelta": 0
+      },
+      {
+        "caseId": "civitai-x-5600",
+        "scores": {
+          "hentai": 0.966670036315918,
+          "drawings": 0.017021384090185165,
+          "porn": 0.015698034316301346,
+          "sexy": 0.00038427821709774435
+        },
+        "maxDelta": 0
+      },
+      {
+        "caseId": "commons-malamute-photo",
+        "scores": {
+          "drawings": 0.001441322616301477,
+          "sexy": 0.0010185898281633854,
+          "porn": 0.00004845971125178039,
+          "hentai": 0.000040210314182331786
+        },
+        "maxDelta": 0
+      },
+      {
+        "caseId": "commons-whippets-photo",
+        "scores": {
+          "drawings": 0.5732294917106628,
+          "sexy": 0.01594357192516327,
+          "hentai": 0.0020451315212994814,
+          "porn": 0.00040832205559127033
+        },
+        "maxDelta": 0
+      },
+      {
+        "caseId": "commons-castle-mountain-photo",
+        "scores": {
+          "drawings": 0.0078078703954815865,
+          "sexy": 0.00001861174860096071,
+          "hentai": 5.370632720769208e-7,
+          "porn": 1.8412177382742811e-7
+        },
+        "maxDelta": 0
+      },
+      {
+        "caseId": "commons-domestic-cat-photo",
+        "scores": {
+          "drawings": 0.026152441278100014,
+          "sexy": 0.0023222952149808407,
+          "hentai": 0.0014813726302236319,
+          "porn": 0.0013237317325547338
+        },
+        "maxDelta": 0
+      },
+      {
+        "caseId": "commons-narcissus-photo",
+        "scores": {
+          "drawings": 0.9141668677330017,
+          "hentai": 0.004965875763446093,
+          "porn": 0.00029268686193972826,
+          "sexy": 0.00012601503112819046
+        },
+        "maxDelta": 0
+      },
+      {
+        "caseId": "commons-gateway-arch-photo",
+        "scores": {
+          "drawings": 0.01660994067788124,
+          "sexy": 0.00012389657786116004,
+          "hentai": 0.000021392685084720142,
+          "porn": 0.000009033054084284231
+        },
+        "maxDelta": 0
+      },
+      {
+        "caseId": "commons-cartoon-dog",
+        "scores": {
+          "drawings": 0.049216315150260925,
+          "hentai": 0.002136520342901349,
+          "porn": 0.00009426596807315946,
+          "sexy": 0.000017069109162548557
+        },
+        "maxDelta": 2.1606683731079102e-7
+      },
+      {
+        "caseId": "commons-cartoon-cat",
+        "scores": {
+          "drawings": 0.016910990700125694,
+          "hentai": 0.00032991214538924396,
+          "porn": 0.00000206897129828576,
+          "sexy": 3.3811249977588886e-7
+        },
+        "maxDelta": 0
+      },
+      {
+        "caseId": "commons-cartoon-rabbit",
+        "scores": {
+          "drawings": 0.02358967810869217,
+          "hentai": 0.012931020930409431,
+          "porn": 0.000025403243853361346,
+          "sexy": 0.000002285499931531376
+        },
+        "maxDelta": 0
+      },
+      {
+        "caseId": "commons-cartoon-owl",
+        "scores": {
+          "drawings": 0.03820119798183441,
+          "hentai": 0.0029965806752443314,
+          "porn": 0.00000962946614890825,
+          "sexy": 0.0000016455439890705748
+        },
+        "maxDelta": 0
+      },
+      {
+        "caseId": "commons-cartoon-toucan",
+        "scores": {
+          "drawings": 0.7890684008598328,
+          "hentai": 0.009801055304706097,
+          "porn": 0.00002055214463325683,
+          "sexy": 0.000005810562925034901
+        },
+        "maxDelta": 0
+      },
+      {
+        "caseId": "commons-cartoon-cow",
+        "scores": {
+          "drawings": 0.9626401662826538,
+          "hentai": 0.022995498031377792,
+          "porn": 0.00023936103389132768,
+          "sexy": 0.000052948027587262914
+        },
+        "maxDelta": 0
+      },
+      {
+        "caseId": "reported-false-positive-trails-sky",
+        "scores": {
+          "drawings": 0.7034295201301575,
+          "hentai": 0.19722403585910797,
+          "porn": 0.003664253279566765,
+          "sexy": 0.0007958319038152695
+        },
+        "maxDelta": 0
+      }
+    ]
+  }
+}

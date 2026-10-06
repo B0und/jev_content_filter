@@ -1,5 +1,6 @@
 {
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "$schema": "./node_modules/@effect/tsgo/oxlint-schema.json",
+  "extends": ["./node_modules/@effect/tsgo/oxlint-presets/recommended.json"],
   "plugins": ["typescript", "react", "jsx-a11y", "import", "unicorn", "oxc"],
   "categories": { "correctness": "error" },
   "jsPlugins": [{ "name": "react-compiler", "specifier": "eslint-plugin-react-hooks" }],
@@ -18,6 +19,7 @@
     "typescript/no-explicit-any": "error",
     "typescript/no-floating-promises": "error",
     "no-debugger": "error",
+    "no-nested-ternary": "error",
     "react-compiler/static-components": "error",
     "react-compiler/use-memo": "error",
     "react-compiler/void-use-memo": "error",

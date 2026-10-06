@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Local AI text detector benchmark</title>
+  </head>
+  <body>
+    <main>
+      <h1>Local AI text detector benchmark</h1>
+      <p>Runs pinned q8 ONNX classifiers in Chromium using the CPU/WASM backend.</p>
+      <button id="run" type="button">Run 120 text cases</button>
+      <button id="download" type="button" disabled>Download results JSON</button>
+      <pre id="status">Loading corpus…</pre>
+      <pre id="summary"></pre>
+    </main>
+    <script type="module" src="./text-runner.js"></script>
+  </body>
+</html>

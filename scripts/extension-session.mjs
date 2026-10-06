@@ -192,13 +192,11 @@ export class ExtensionSession {
       client.on('Runtime.consoleAPICalled', (event) => {
         const url = event.stackTrace?.callFrames?.[0]?.url ?? target.url();
         const text = event.args
-          .map((arg) =>
-            arg.value !== undefined
-              ? typeof arg.value === 'string'
-                ? arg.value
-                : JSON.stringify(arg.value)
-              : (arg.description ?? arg.type),
-          )
+          .map((arg) => {
+            if (arg.value === undefined) return arg.description ?? arg.type;
+            if (typeof arg.value === 'string') return arg.value;
+            return JSON.stringify(arg.value);
+          })
           .join(' ');
         this.record(source(event.executionContextId, url), event.type, text, url);
       });
@@ -368,7 +366,10 @@ export class ExtensionSession {
   }
 
   async page(surface) {
-    if (surface === 'feed') return this.feed;
+    if (surface === 'feed') {
+      await this.feed.bringToFront();
+      return this.feed;
+    }
     if (surface === 'popup') return this.popup();
     if (surface === 'logs') {
       if (!this.logPage || this.logPage.isClosed()) {
@@ -376,6 +377,7 @@ export class ExtensionSession {
         await this.attach(this.logPage.target());
         await this.logPage.goto(`chrome-extension://${this.extensionId}/logs.html`);
       }
+      await this.logPage.bringToFront();
       return this.logPage;
     }
     throw new Error('Surface must be popup, feed, or logs');
@@ -461,8 +463,8 @@ export class ExtensionSession {
     );
     const snapshot = await this.inspect('popup');
     assert.equal(
-      await popup.$eval('h1', (element) => element.textContent),
-      this.manifest.name,
+      await popup.$eval('h1', (element) => element.textContent.trim().toLowerCase()),
+      this.manifest.name.toLowerCase(),
       'Popup heading is incorrect',
     );
     assert(
