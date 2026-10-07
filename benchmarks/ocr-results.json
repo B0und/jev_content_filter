@@ -593,22 +593,22 @@
     },
     {
       "id": "tesseract-adaptive",
-      "initMs": 238.6916530000001,
+      "initMs": 229.140717,
       "samples": [
         {
           "id": "large-light",
           "runs": [
             {
               "text": "English screenshot text inside a tweet\n\nThis sentence should be read from the image.\n\nSmall captions and screenshots need OCR.",
-              "ms": 221.19999998807907
+              "ms": 230.70000000298023
             },
             {
               "text": "English screenshot text inside a tweet\n\nThis sentence should be read from the image.\n\nSmall captions and screenshots need OCR.",
-              "ms": 158.6000000089407
+              "ms": 160.80000001192093
             },
             {
               "text": "English screenshot text inside a tweet\n\nThis sentence should be read from the image.\n\nSmall captions and screenshots need OCR.",
-              "ms": 159.5
+              "ms": 158.3999999910593
             }
           ]
         },
@@ -617,15 +617,15 @@
           "runs": [
             {
               "text": "Send me your nude photos tonight.\n\nAdults only: explicit sexual content.",
-              "ms": 172.29999999701977
+              "ms": 157.29999999701977
             },
             {
               "text": "Send me your nude photos tonight.\n\nAdults only: explicit sexual content.",
-              "ms": 131.59999999403954
+              "ms": 136
             },
             {
               "text": "Send me your nude photos tonight.\n\nAdults only: explicit sexual content.",
-              "ms": 128.20000000298023
+              "ms": 128.70000000298023
             }
           ]
         },
@@ -634,15 +634,15 @@
           "runs": [
             {
               "text": "Subscribe for explicit sex videos.\n\nThis text is embedded in an image.",
-              "ms": 60.3999999910593
+              "ms": 62.29999999701977
             },
             {
               "text": "Subscribe for explicit sex videos.\n\nThis text is embedded in an image.",
-              "ms": 63.29999999701977
+              "ms": 60.79999999701977
             },
             {
               "text": "Subscribe for explicit sex videos.\n\nThis text is embedded in an image.",
-              "ms": 60.1000000089407
+              "ms": 62.79999999701977
             }
           ]
         },
@@ -651,15 +651,15 @@
           "runs": [
             {
               "text": "Please stop sharing porn in the group.\n\nThe caption is small but still readable.",
-              "ms": 106.29999999701977
+              "ms": 105.70000000298023
             },
             {
               "text": "Please stop sharing porn in the group.\n\nThe caption is small but still readable.",
-              "ms": 105.29999999701977
+              "ms": 103.20000000298023
             },
             {
               "text": "Please stop sharing porn in the group.\n\nThe caption is small but still readable.",
-              "ms": 113.5
+              "ms": 114.80000001192093
             }
           ]
         },
@@ -668,15 +668,15 @@
           "runs": [
             {
               "text": "Naked photos and sexual fantasies.\n\nA compressed screenshot from a social feed.",
-              "ms": 90.29999999701977
+              "ms": 101.5
             },
             {
               "text": "Naked photos and sexual fantasies.\n\nA compressed screenshot from a social feed.",
-              "ms": 89.19999998807907
+              "ms": 89
             },
             {
               "text": "Naked photos and sexual fantasies.\n\nA compressed screenshot from a social feed.",
-              "ms": 89.09999999403954
+              "ms": 89.3999999910593
             }
           ]
         },
@@ -685,15 +685,15 @@
           "runs": [
             {
               "text": "A book club meets every Friday.\n\nBring a notebook and your favorite novel.",
-              "ms": 76.40000000596046
+              "ms": 78
             },
             {
               "text": "A book club meets every Friday.\n\nBring a notebook and your favorite novel.",
-              "ms": 76.40000000596046
+              "ms": 75.8999999910593
             },
             {
               "text": "A book club meets every Friday.\n\nBring a notebook and your favorite novel.",
-              "ms": 76.29999999701977
+              "ms": 75.40000000596046
             }
           ]
         },
@@ -702,15 +702,15 @@
           "runs": [
             {
               "text": "Explicit 5ех and\n\nnude pictures.\n\nA tilted caption insid\n\nea screenshot.",
-              "ms": 86
+              "ms": 84.6000000089407
             },
             {
               "text": "Explicit 5ех and\n\nnude pictures.\n\nA tilted caption insid\n\nea screenshot.",
-              "ms": 82.6000000089407
+              "ms": 84.70000000298023
             },
             {
               "text": "Explicit 5ех and\n\nnude pictures.\n\nA tilted caption insid\n\nea screenshot.",
-              "ms": 82.20000000298023
+              "ms": 83.59999999403954
             }
           ]
         },
@@ -718,16 +718,16 @@
           "id": "meme",
           "runs": [
             {
-              "text": "SEND NUDES\n\nNO SERIOUSEY SEND THI\n\nCAI PHOTOS",
-              "ms": 325.3999999910593
+              "text": "SIZNID) INTIRIES)\n\nNOISERIOUSIEYSSENDIFHEICATSREHOLOS\n\nSEND NUDES\n\nNO SERIOUSEY SEND THI\n\nCAI PHOTOS",
+              "ms": 326.79999999701977
             },
             {
-              "text": "SEND NUDES\n\nNO SERIOUSEY SEND THI\n\nCAI PHOTOS",
-              "ms": 321.40000000596046
+              "text": "SIZNID) INTIRIES)\n\nNOISERIOUSIEYSSENDIFHEICATSREHOLOS\n\nSEND NUDES\n\nNO SERIOUSEY SEND THI\n\nCAI PHOTOS",
+              "ms": 318.5
             },
             {
-              "text": "SEND NUDES\n\nNO SERIOUSEY SEND THI\n\nCAI PHOTOS",
-              "ms": 323.59999999403954
+              "text": "SIZNID) INTIRIES)\n\nNOISERIOUSIEYSSENDIFHEICATSREHOLOS\n\nSEND NUDES\n\nNO SERIOUSEY SEND THI\n\nCAI PHOTOS",
+              "ms": 324.5
             }
           ]
         },
@@ -736,15 +736,15 @@
           "runs": [
             {
               "text": "Sexual content appears inside images.\n\nCoffee and breakfast are ready.",
-              "ms": 73.6000000089407
+              "ms": 71.40000000596046
             },
             {
               "text": "Sexual content appears inside images.\n\nCoffee and breakfast are ready.",
-              "ms": 71.90000000596046
+              "ms": 70.5
             },
             {
               "text": "Sexual content appears inside images.\n\nCoffee and breakfast are ready.",
-              "ms": 72.59999999403954
+              "ms": 70.6000000089407
             }
           ]
         },
@@ -753,15 +753,15 @@
           "runs": [
             {
               "text": "Send me your nude photos tonight.",
-              "ms": 37.5
-            },
-            {
-              "text": "Send me your nude photos tonight.",
               "ms": 37.20000000298023
             },
             {
               "text": "Send me your nude photos tonight.",
-              "ms": 37.80000001192093
+              "ms": 36.8999999910593
+            },
+            {
+              "text": "Send me your nude photos tonight.",
+              "ms": 36.6000000089407
             }
           ]
         },
@@ -770,15 +770,15 @@
           "runs": [
             {
               "text": "Subscribe for explicit sex videos.",
-              "ms": 24.900000005960464
+              "ms": 24
             },
             {
               "text": "Subscribe for explicit sex videos.",
-              "ms": 24.099999994039536
+              "ms": 23.399999991059303
             },
             {
               "text": "Subscribe for explicit sex videos.",
-              "ms": 24.200000002980232
+              "ms": 25.100000008940697
             }
           ]
         },
@@ -787,15 +787,15 @@
           "runs": [
             {
               "text": "A book club meets every Friday.",
-              "ms": 31
+              "ms": 33.599999994039536
             },
             {
               "text": "A book club meets every Friday.",
-              "ms": 31.5
+              "ms": 33.29999999701977
             },
             {
               "text": "A book club meets every Friday.",
-              "ms": 31.19999998807907
+              "ms": 32.29999999701977
             }
           ]
         },
@@ -804,15 +804,15 @@
           "runs": [
             {
               "text": "Please stop sharing porn in the group.",
-              "ms": 59.3999999910593
+              "ms": 58.5
             },
             {
               "text": "Please stop sharing porn in the group.",
-              "ms": 59.79999999701977
+              "ms": 56.900000005960464
             },
             {
               "text": "Please stop sharing porn in the group.",
-              "ms": 58
+              "ms": 60.79999999701977
             }
           ]
         },
@@ -821,15 +821,15 @@
           "runs": [
             {
               "text": "",
-              "ms": 32.5
+              "ms": 33.20000000298023
             },
             {
               "text": "",
-              "ms": 29.799999997019768
+              "ms": 29.299999997019768
             },
             {
               "text": "",
-              "ms": 29.899999991059303
+              "ms": 29.299999997019768
             }
           ]
         }
@@ -838,14 +838,14 @@
         "screenshots": {
           "images": 9,
           "exact": 7,
-          "cer": 0.0121580547112462,
-          "wer": 0.05405405405405406,
+          "cer": 0.08966565349544073,
+          "wer": 0.08108108108108109,
           "termsFound": 12,
           "termCount": 13,
           "termRecall": 0.9230769230769231,
-          "warmMeanMs": 122.52222222255335,
-          "warmMedianMs": 89.19999998807907,
-          "warmP95Ms": 323.59999999403954
+          "warmMeanMs": 122.64444444494114,
+          "warmMedianMs": 89.3999999910593,
+          "warmP95Ms": 324.5
         },
         "singleLines": {
           "images": 4,
@@ -855,12 +855,12 @@
           "termsFound": 4,
           "termCount": 4,
           "termRecall": 1,
-          "warmMeanMs": 37.97499999962747,
-          "warmMedianMs": 37.20000000298023,
-          "warmP95Ms": 59.79999999701977
+          "warmMeanMs": 38.16249999962747,
+          "warmMedianMs": 36.6000000089407,
+          "warmP95Ms": 60.79999999701977
         },
         "noTextOutput": "",
-        "firstUseMs": 459.89165298807916
+        "firstUseMs": 459.8407170029802
       }
     },
     {
@@ -3324,6 +3324,7 @@
     "preprocessing": "Scale min(2,2048/maxEdge), white background, PNG. Adaptive recognizer is the shipped implementation.",
     "subset": "Nine multiline screenshots, four single-line crops, one no-text image. Synthetic diagnostic corpus; no real-world accuracy claim.",
     "scoring": "NFKC, lowercase, remove punctuation, collapse whitespace. Micro Levenshtein CER/WER; exact whole-word term matching.",
-    "florenceResume": "Seven cases before navigation interruption; remaining seven after fresh initialization. Two warm repetitions per case retained; HMR disabled in final runner."
+    "florenceResume": "Seven cases before navigation interruption; remaining seven after fresh initialization. Two warm repetitions per case retained; HMR disabled in final runner.",
+    "selectedTranscript": "Original text retained; a more confident differing contrast reading appended. CER/WER include the additional reading."
   }
 }

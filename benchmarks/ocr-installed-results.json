@@ -1,9 +1,9 @@
 {
-  "executedAt": "2026-10-07T09:23:23.694Z",
-  "generation": 10,
+  "executedAt": "2026-10-07T09:42:03.628Z",
+  "generation": 3,
   "lastCheck": {
     "ok": true,
-    "generation": 10,
+    "generation": 3,
     "errors": []
   },
   "samples": [
@@ -12,15 +12,15 @@
       "runs": [
         {
           "text": "English screenshot text inside a tweet\n\nThis sentence should be read from the image.\n\nSmall captions and screenshots need OCR.",
-          "ms": 188.79999999701977
+          "ms": 185
         },
         {
           "text": "English screenshot text inside a tweet\n\nThis sentence should be read from the image.\n\nSmall captions and screenshots need OCR.",
-          "ms": 157.6000000089407
+          "ms": 156.79999999701977
         },
         {
           "text": "English screenshot text inside a tweet\n\nThis sentence should be read from the image.\n\nSmall captions and screenshots need OCR.",
-          "ms": 154
+          "ms": 155.70000000298023
         }
       ]
     },
@@ -29,15 +29,15 @@
       "runs": [
         {
           "text": "Send me your nude photos tonight.\n\nAdults only: explicit sexual content.",
-          "ms": 130.70000000298023
+          "ms": 129.29999999701977
         },
         {
           "text": "Send me your nude photos tonight.\n\nAdults only: explicit sexual content.",
-          "ms": 128.90000000596046
+          "ms": 132.6000000089407
         },
         {
           "text": "Send me your nude photos tonight.\n\nAdults only: explicit sexual content.",
-          "ms": 130.8999999910593
+          "ms": 133.70000000298023
         }
       ]
     },
@@ -46,15 +46,15 @@
       "runs": [
         {
           "text": "Subscribe for explicit sex videos.\n\nThis text is embedded in an image.",
-          "ms": 62.400000005960464
+          "ms": 61.70000000298023
         },
         {
           "text": "Subscribe for explicit sex videos.\n\nThis text is embedded in an image.",
-          "ms": 60.20000000298023
+          "ms": 61.29999999701977
         },
         {
           "text": "Subscribe for explicit sex videos.\n\nThis text is embedded in an image.",
-          "ms": 60.29999999701977
+          "ms": 59.400000005960464
         }
       ]
     },
@@ -63,15 +63,15 @@
       "runs": [
         {
           "text": "Please stop sharing porn in the group.\n\nThe caption is small but still readable.",
-          "ms": 105.70000000298023
+          "ms": 109.5
         },
         {
           "text": "Please stop sharing porn in the group.\n\nThe caption is small but still readable.",
-          "ms": 106.5
+          "ms": 111.1000000089407
         },
         {
           "text": "Please stop sharing porn in the group.\n\nThe caption is small but still readable.",
-          "ms": 107.09999999403954
+          "ms": 105.8999999910593
         }
       ]
     },
@@ -80,15 +80,15 @@
       "runs": [
         {
           "text": "Naked photos and sexual fantasies.\n\nA compressed screenshot from a social feed.",
-          "ms": 90.1000000089407
+          "ms": 88.09999999403954
         },
         {
           "text": "Naked photos and sexual fantasies.\n\nA compressed screenshot from a social feed.",
-          "ms": 90.5
+          "ms": 87.40000000596046
         },
         {
           "text": "Naked photos and sexual fantasies.\n\nA compressed screenshot from a social feed.",
-          "ms": 88.59999999403954
+          "ms": 88.29999999701977
         }
       ]
     },
@@ -97,15 +97,15 @@
       "runs": [
         {
           "text": "A book club meets every Friday.\n\nBring a notebook and your favorite novel.",
-          "ms": 80.70000000298023
+          "ms": 80.6000000089407
         },
         {
           "text": "A book club meets every Friday.\n\nBring a notebook and your favorite novel.",
-          "ms": 78.09999999403954
+          "ms": 75.8999999910593
         },
         {
           "text": "A book club meets every Friday.\n\nBring a notebook and your favorite novel.",
-          "ms": 79.6000000089407
+          "ms": 76.30000001192093
         }
       ]
     },
@@ -114,15 +114,15 @@
       "runs": [
         {
           "text": "Explicit 5ех and\n\nnude pictures.\n\nA tilted caption insid\n\nea screenshot.",
-          "ms": 89.09999999403954
+          "ms": 84.20000000298023
         },
         {
           "text": "Explicit 5ех and\n\nnude pictures.\n\nA tilted caption insid\n\nea screenshot.",
-          "ms": 88.09999999403954
+          "ms": 83.3999999910593
         },
         {
           "text": "Explicit 5ех and\n\nnude pictures.\n\nA tilted caption insid\n\nea screenshot.",
-          "ms": 83.20000000298023
+          "ms": 82
         }
       ]
     },
@@ -130,16 +130,16 @@
       "id": "meme",
       "runs": [
         {
-          "text": "SEND NUDES\n\nNO SERIOUSEY SEND THI\n\nCAI PHOTOS",
-          "ms": 331.79999999701977
+          "text": "5) КВ) КОЛЮ) 35\n\nNOISERIOUSIEYSSENDIFHEICATSREHOLOS\n\nSEND NUDES\n\nNO SERIOUSEY SEND THI\n\nCAI PHOTOS",
+          "ms": 338.29999999701977
         },
         {
-          "text": "SEND NUDES\n\nNO SERIOUSEY SEND THI\n\nCAI PHOTOS",
-          "ms": 327.90000000596046
+          "text": "5) КВ) КОЛЮ) 35\n\nNOISERIOUSIEYSSENDIFHEICATSREHOLOS\n\nSEND NUDES\n\nNO SERIOUSEY SEND THI\n\nCAI PHOTOS",
+          "ms": 325.90000000596046
         },
         {
-          "text": "SEND NUDES\n\nNO SERIOUSEY SEND THI\n\nCAI PHOTOS",
-          "ms": 330.19999998807907
+          "text": "5) КВ) КОЛЮ) 35\n\nNOISERIOUSIEYSSENDIFHEICATSREHOLOS\n\nSEND NUDES\n\nNO SERIOUSEY SEND THI\n\nCAI PHOTOS",
+          "ms": 320.69999998807907
         }
       ]
     },
@@ -148,15 +148,15 @@
       "runs": [
         {
           "text": "Sexual content appears inside images.\n\nCoffee and breakfast are ready.",
-          "ms": 79.70000000298023
+          "ms": 74.29999999701977
         },
         {
           "text": "Sexual content appears inside images.\n\nCoffee and breakfast are ready.",
-          "ms": 78
+          "ms": 74.5
         },
         {
           "text": "Sexual content appears inside images.\n\nCoffee and breakfast are ready.",
-          "ms": 75.19999998807907
+          "ms": 73.1000000089407
         }
       ]
     }

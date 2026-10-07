@@ -7,7 +7,7 @@ and hashes are in [the results](../benchmarks/ocr-results.json).
 
 Use Tesseract.js 7 with the existing lazy English/Russian packs and a contrast
 retry for uncertain text. It meets the extension's size and MV3 constraints.
-The installed extension averaged **124 ms** across nine screenshot cases,
+The installed extension averaged **122 ms** across nine screenshot cases,
 including preprocessing and message round trips. No runtime or model files were
 added; the complete extension still builds to **38.81 MB uncompressed**.
 
@@ -17,8 +17,11 @@ larger. Keeping Tesseract is a constraint-based choice, not a claim that it read
 images better than Paddle.
 
 The selected retry separates bright lettering from its background when the first
-pass reports confidence below 80 and returns nonempty text. It keeps the result
-with higher confidence. Confidence is an engine heuristic, not a probability.
+pass reports confidence below 80 and returns nonempty text. It retains the complete
+first transcript and appends a differing, more confident contrast reading.
+This preserves dim words that thresholding can erase. A failed optional retry
+returns the original reading and releases its worker for the next request.
+Confidence is an engine heuristic, not a probability.
 This recovers `SEND NUDES` from the outlined caption the original pipeline missed.
 It still misreads `sex` as mixed Cyrillic/Latin `5ех` in the tilted case.
 Automatic rotation was also tried and made that case worse, so it is excluded.
@@ -35,7 +38,7 @@ accuracy: factual discussion can contain these terms without being sexual bait.
 | Engine/configuration                           |       CER | Terms recovered |  Warm mean |   Warm p95 | First use¹ |
 | ---------------------------------------------- | --------: | --------------: | ---------: | ---------: | ---------: |
 | Tesseract original, English + Russian best-int |     3.65% |           11/13 |     106 ms |     185 ms |     457 ms |
-| **Tesseract selected, contrast retry**         | **1.22%** |       **12/13** | **123 ms** | **324 ms** | **460 ms** |
+| **Tesseract selected, contrast retry**         | **8.97%** |       **12/13** | **123 ms** | **325 ms** | **460 ms** |
 | Tesseract English best-int                     |     3.19% |           12/13 |      95 ms |     151 ms |     351 ms |
 | Tesseract English fast                         |     2.43% |           12/13 |      71 ms |     122 ms |     290 ms |
 | PaddleOCR v5 mobile                            |        0% |           13/13 |     467 ms |     765 ms |   2,213 ms |
@@ -45,6 +48,10 @@ accuracy: factual discussion can contain these terms without being sexual bait.
 | Scribe quality, combined                       |     5.93% |            9/13 |     104 ms |     173 ms |     864 ms |
 | TrOCR small printed q8, whole screenshots²     |   129.03% |            0/13 |     799 ms |   1,421 ms |   1,924 ms |
 | Florence-2 base ft q8, `<OCR>`                 |     3.50% |           12/13 |   6,878 ms |   7,026 ms |   9,299 ms |
+
+The selected output retains both readings on the outlined image. Extra first-pass
+garble increases its CER; the retry improves term recovery, not transcript
+cleanliness. Other images in this corpus retain a single reading.
 
 ¹ Initialization plus the first large screenshot, with model/language bytes
 already on disk and served locally into a fresh browser context. These are cold
@@ -130,7 +137,7 @@ seven completed after reinitialization; each retains two warm samples. HMR is
 disabled in the final runner.
 
 [Installed-extension timings](../benchmarks/ocr-installed-results.json) averaged
-123.6 ms across 18 warm requests for nine screenshots. They bypass the text cache,
+122.4 ms across 18 warm requests for nine screenshots. They bypass the text cache,
 include preprocessing and extension message round trips, and exclude image
 fetching and provider classification. Browser tests verify that an innocent
 caption is filtered when its image contains the outlined wording, and that the

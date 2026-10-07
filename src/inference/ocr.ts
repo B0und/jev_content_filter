@@ -84,7 +84,12 @@ async function recognizeImage(dataUrl: string, languages: ReadonlyArray<string>)
       workerLanguages = languageKey;
       await worker.setParameters({ tessedit_pageseg_mode: PSM.SPARSE_TEXT });
     }
-    return await recognizeOcrImage(worker, image);
+    const activeWorker = worker;
+    return await recognizeOcrImage(activeWorker, image, async () => {
+      worker = undefined;
+      workerLanguages = '';
+      await activeWorker.terminate();
+    });
   } catch (error) {
     const failed = worker;
     worker = undefined;
