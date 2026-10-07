@@ -301,7 +301,11 @@ function normalizeNsfwjsScores(value: unknown): NsfwjsScores {
 
 function matchingTaskValue(record: Record<string, unknown>, previousTaskKey?: string): unknown {
   if (Object.hasOwn(record, 'contentMatch')) return record.contentMatch;
-  return previousTaskKey ? record[previousTaskKey] : undefined;
+  if (previousTaskKey && Object.hasOwn(record, previousTaskKey)) return record[previousTaskKey];
+  const candidates = Object.keys(record).filter(
+    (key) => ![...SCORE_KEYS, 'nsfwjs', 'explicit', 'review', 'reviews'].includes(key),
+  );
+  return candidates.length === 1 ? record[candidates[0]!] : undefined;
 }
 
 function normalizeReview(value: unknown, previousTaskKey?: string): PredictionReview {

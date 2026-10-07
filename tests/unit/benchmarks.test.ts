@@ -137,6 +137,37 @@ describe('benchmark metrics', () => {
 });
 
 describe('benchmark data migration', () => {
+  it.each([undefined, { extraThreshold: 0.3, anotherThreshold: 0.7 }])(
+    'restores a renamed task from saved values when threshold metadata is missing or ambiguous: %j',
+    (thresholds) => {
+      const restored = normalizeBenchmarkState({
+        cases: [{ ...cases[0], labels: { archivedQuestion: 'no', aiGenerated: 'yes' } }],
+        thresholds,
+        solutions: [
+          {
+            id: 'saved-run',
+            name: 'Saved run',
+            predictions: {
+              sample: {
+                archivedQuestion: 0.2,
+                aiGenerated: 0.8,
+                nsfwjs: { porn: 0.1, hentai: 0.2, sexy: 0.3, drawings: 0.4 },
+                review: { archivedQuestion: 'right', aiGenerated: 'wrong', porn: 'right' },
+              },
+            },
+          },
+        ],
+      });
+      expect(restored.cases[0]!.labels).toEqual({ contentMatch: 'no', aiGenerated: 'yes' });
+      expect(restored.solutions[0]!.predictions.sample).toMatchObject({
+        contentMatch: 0.2,
+        aiGenerated: 0.8,
+        nsfwjs: { porn: 0.1, hentai: 0.2, sexy: 0.3, drawings: 0.4 },
+        review: { contentMatch: 'right', aiGenerated: 'wrong', porn: 'right' },
+      });
+    },
+  );
+
   it('preserves a renamed matching task without hardcoding its former name', () => {
     const restored = normalizeBenchmarkState({
       cases: [{ ...cases[0], labels: { archivedQuestion: 'no', aiGenerated: 'yes' } }],
