@@ -7,10 +7,11 @@ import { browserEffect, BrowserError } from '../platform/browser';
 import {
   CATEGORY_KEYS,
   STORAGE_KEYS,
-  type CategoryKey,
+  textDecisionSignature,
+  type ScoreKey,
   type TextProvider,
 } from '../filtering/types';
-import { CategoryKeySchema } from '../filtering/schemas';
+import { ScoreKeySchema } from '../filtering/schemas';
 import { settings, type Post } from './state';
 import { canonicalMediaUrl } from './dom';
 import { OCR_PIPELINE_REVISION, ocrImageUrl } from '../inference/ocr-policy';
@@ -19,7 +20,7 @@ import { IMAGE_PIPELINE_REVISION, SELECTED_MODELS } from '../inference/model-cat
 const JevReplySchema = Schema.Union([
   Schema.Struct({
     ok: Schema.Literal(true),
-    sexual: Schema.Finite,
+    custom: Schema.Record(Schema.String, Schema.Finite),
     provider: Schema.String,
     revision: Schema.Finite,
   }),
@@ -46,10 +47,7 @@ let cacheWrites = 0;
 const CachedProbabilitySchema = Schema.Finite.pipe(
   Schema.check(Schema.isGreaterThanOrEqualTo(0), Schema.isLessThanOrEqualTo(1)),
 );
-const CachedScoresSchema = Schema.Record(
-  CategoryKeySchema,
-  Schema.optionalKey(CachedProbabilitySchema),
-);
+const CachedScoresSchema = Schema.Record(Schema.String, CachedProbabilitySchema);
 const CachedScoreEntrySchema = Schema.Struct({
   scores: CachedScoresSchema,
   ts: Schema.Finite,
@@ -57,11 +55,11 @@ const CachedScoreEntrySchema = Schema.Struct({
 const CachedTimestampEntrySchema = Schema.Struct({ ts: Schema.Finite });
 const isCachedScoreEntry = Schema.is(CachedScoreEntrySchema);
 const isCachedTimestampEntry = Schema.is(CachedTimestampEntrySchema);
-const isCategoryKey = Schema.is(CategoryKeySchema);
+const isCategoryKey = Schema.is(ScoreKeySchema);
 
 type CacheIdentity =
   | { task: 'image' | 'imageText'; url: string }
-  | { task: 'sexualText'; provider: TextProvider; text: string }
+  | { task: 'textFilters'; provider: TextProvider; signature: string; text: string }
   | { task: 'aiText'; text: string };
 
 /** Build the single versioned cache key for every classifier input. */
@@ -80,9 +78,9 @@ function cacheKey(identity: CacheIdentity): string {
       revision = OCR_PIPELINE_REVISION;
       input = canonicalMediaUrl(identity.url);
       break;
-    case 'sexualText':
+    case 'textFilters':
       kind = 't';
-      revision = `${identity.provider}:${OCR_PIPELINE_REVISION}`;
+      revision = `${identity.provider}:${hash64(identity.signature)}:${OCR_PIPELINE_REVISION}`;
       input = identity.text;
       break;
     case 'aiText': {
@@ -124,7 +122,7 @@ export const readCache = Effect.fnUntraced(function* (key: string) {
 
 export const writeCache = Effect.fnUntraced(function* (
   key: string,
-  scores: Partial<Record<CategoryKey, number>>,
+  scores: Partial<Record<ScoreKey, number>>,
 ) {
   const shouldEvict = yield* Effect.sync(() => ++cacheWrites % 250 === 0);
   const timestamp = yield* Clock.currentTimeMillis;
@@ -217,7 +215,7 @@ export const textScores = Effect.fnUntraced(function* (
   text: string,
   urls: string[] = [],
 ): Effect.fn.Return<
-  { scores: Partial<Record<CategoryKey, number>>; errors: string[] },
+  { scores: Partial<Record<ScoreKey, number>>; errors: string[] },
   BrowserError | ClassificationError
 > {
   const current = settings.current;
@@ -225,13 +223,14 @@ export const textScores = Effect.fnUntraced(function* (
   const revision = current.textConfigRevision;
   const extractionErrors: string[] = [];
   const jobs: Array<
-    Effect.Effect<Partial<Record<CategoryKey, number>>, BrowserError | ClassificationError>
+    Effect.Effect<Partial<Record<ScoreKey, number>>, BrowserError | ClassificationError>
   > = [];
   jobs.push(
     Effect.gen(function* () {
       const ocr = yield* imageText(urls);
       extractionErrors.push(...ocr.errors);
-      if (!current.enabled.sexualText) return {};
+      const filters = current.textFilters.filter((filter) => filter.enabled);
+      if (!filters.length) return {};
       const combined = [
         text && `Tweet text:\n${text}`,
         ...ocr.texts.map((words, index) => `Text in attached image ${index + 1}:\n${words}`),
@@ -240,12 +239,18 @@ export const textScores = Effect.fnUntraced(function* (
         .join('\n\n');
       if (!combined) return {};
       const input = ocr.texts.length ? combined : text;
-      const key = cacheKey({ task: 'sexualText', provider, text: input });
+      const key = cacheKey({
+        task: 'textFilters',
+        provider,
+        signature: textDecisionSignature(current.textFilters),
+        text: input,
+      });
       const cached = yield* readCache(key);
-      if (cached?.scores.sexualText !== undefined) return { sexualText: cached.scores.sexualText };
+      if (cached && filters.every((filter) => cached.scores[`custom:${filter.id}`] !== undefined))
+        return cached.scores;
       if (
         !settings.current.masterEnabled ||
-        !settings.current.enabled.sexualText ||
+        !settings.current.textFilters.some((filter) => filter.enabled) ||
         settings.current.textProvider !== provider ||
         settings.current.textConfigRevision !== revision
       )
@@ -253,9 +258,9 @@ export const textScores = Effect.fnUntraced(function* (
       if (!settings.current.providerKeys[provider])
         return yield* new ClassificationError({
           message:
-            'Add an API key in the Text tab to check sexual text. Local AI-written-text detection does not need a key.',
+            'Add an API key in the Text tab to check Jev text filters. Local AI-written-text detection does not need a key.',
         });
-      const rawReply: unknown = yield* browserEffect('classify sexual text', () =>
+      const rawReply: unknown = yield* browserEffect('classify text filters', () =>
         browser.runtime.sendMessage({
           type: 'jev',
           tweetId: post.id,
@@ -272,9 +277,13 @@ export const textScores = Effect.fnUntraced(function* (
       if (!reply.ok) return yield* new ClassificationError({ message: reply.error });
       if (reply.provider !== provider || reply.revision !== revision)
         return yield* new ClassificationError({ message: 'Text configuration changed.' });
-      if (!Number.isFinite(reply.sexual) || reply.sexual < 0 || reply.sexual > 1)
-        return yield* new ClassificationError({ message: 'Invalid text scores.' });
-      const scores = { sexualText: reply.sexual };
+      const scores: Partial<Record<ScoreKey, number>> = {};
+      for (const filter of filters) {
+        const score = reply.custom[filter.id];
+        if (score === undefined || !Number.isFinite(score) || score < 0 || score > 1)
+          return yield* new ClassificationError({ message: 'Invalid text scores.' });
+        scores[`custom:${filter.id}`] = score;
+      }
       if (
         ocr.errors.length === 0 &&
         settings.current.textProvider === provider &&
@@ -317,7 +326,7 @@ export const textScores = Effect.fnUntraced(function* (
     settings.current.textConfigRevision !== revision
   )
     return yield* new ClassificationError({ message: 'Text configuration changed.' });
-  const scores: Partial<Record<CategoryKey, number>> = {};
+  const scores: Partial<Record<ScoreKey, number>> = {};
   const errors: string[] = [...extractionErrors];
   for (const outcome of outcomes) {
     if (outcome._tag === 'Failure') errors.push(message(outcome.failure));
@@ -340,10 +349,10 @@ export const imageScores = Effect.fnUntraced(function* (urls: string[]) {
 const classifyImages = Effect.fnUntraced(function* (
   urls: string[],
 ): Effect.fn.Return<
-  { scores: Partial<Record<CategoryKey, number>>; errors: string[] },
+  { scores: Partial<Record<ScoreKey, number>>; errors: string[] },
   BrowserError | ClassificationError
 > {
-  const scores: Partial<Record<CategoryKey, number>> = {};
+  const scores: Partial<Record<ScoreKey, number>> = {};
   const errors: string[] = [];
   const misses: Array<{ url: string; index: number }> = [];
   for (let index = 0; index < urls.length; index++) {

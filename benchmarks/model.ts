@@ -2,7 +2,7 @@ import { Predicate } from 'effect';
 
 export type BenchmarkModality = 'image' | 'text';
 export type TruthValue = 'yes' | 'no' | 'unknown';
-export type BenchmarkTask = 'sexualContent' | 'aiGenerated';
+export type BenchmarkTask = 'contentMatch' | 'aiGenerated';
 export type BenchmarkProvenance = 'synthetic-ai' | 'user-reported' | 'user-provided' | 'unknown';
 export type NsfwjsTask = 'porn' | 'hentai' | 'sexy' | 'drawings';
 export type ScoreKey = BenchmarkTask | NsfwjsTask;
@@ -10,7 +10,7 @@ export type SolutionKind = 'llm' | 'nsfwjs' | 'other';
 export type ReviewVerdict = 'unreviewed' | 'right' | 'wrong';
 export type PredictionReview = Record<ScoreKey, ReviewVerdict>;
 export interface BenchmarkLabels {
-  sexualContent: TruthValue;
+  contentMatch: TruthValue;
   aiGenerated: TruthValue;
 }
 
@@ -34,7 +34,7 @@ export interface NsfwjsScores {
 }
 
 export interface Prediction {
-  sexualContent: number | null;
+  contentMatch: number | null;
   aiGenerated: number | null;
   nsfwjs: NsfwjsScores;
   review: PredictionReview;
@@ -49,7 +49,7 @@ export interface BenchmarkSolution {
 }
 
 export interface BenchmarkThresholds {
-  sexualContent: number;
+  contentMatch: number;
   aiGenerated: number;
   nsfwjs: number;
 }
@@ -82,12 +82,12 @@ export interface ManualReviewMetrics {
 }
 
 export const TASK_LABELS: Record<BenchmarkTask, string> = {
-  sexualContent: 'Sexual content',
+  contentMatch: 'Content match',
   aiGenerated: 'AI-generated',
 };
-export const SEXUAL_CONTENT_POLICY =
-  'Positive: explicit sexual content, lewd innuendo, heavily implied sexual content, and engagement bait designed to arouse. ' +
-  'Negative: factual health, news, and relationship discussion without sexual solicitation or arousal-focused framing.';
+export const CONTENT_MATCH_POLICY =
+  'Positive: explicit acts, lewd innuendo, heavily implied intimate activity, and engagement bait designed to arouse. ' +
+  'Negative: factual health, news, and relationship discussion without explicit solicitation or arousal-focused framing.';
 export const PROVENANCE_LABELS: Record<BenchmarkProvenance, string> = {
   'synthetic-ai': 'Synthetic · AI-authored',
   'user-reported': 'User-reported',
@@ -106,7 +106,7 @@ export const SOLUTION_KIND_LABELS: Record<SolutionKind, string> = {
   other: 'Other',
 };
 const SCORE_KEYS: ScoreKey[] = [
-  'sexualContent',
+  'contentMatch',
   'aiGenerated',
   'porn',
   'hentai',
@@ -122,29 +122,29 @@ export function initialBenchmarkState(): BenchmarkState {
         modality: 'image',
         title: 'Trails in the Sky — reported false positive',
         imageUrl: './images/false-positive-hentai-trails-sky-2nd.webp',
-        labels: { sexualContent: 'unknown', aiGenerated: 'unknown' },
+        labels: { contentMatch: 'unknown', aiGenerated: 'unknown' },
         provenance: 'user-reported',
         notes:
-          'User-reported NSFWJS false positive. Sexual content remains unknown until reviewed under the broader policy.',
+          'User-reported NSFWJS false positive. Content match remains unknown until reviewed under the broader policy.',
         createdAt: '2026-09-19T17:36:19.000Z',
       },
       {
         id: 'ordinary-anime-drawing-control',
         modality: 'image',
-        title: 'Anime action illustration — nonsexual control',
+        title: 'Anime action illustration — ordinary control',
         imageUrl: './images/HSfziiNasAAPoDe',
-        labels: { sexualContent: 'no', aiGenerated: 'unknown' },
+        labels: { contentMatch: 'no', aiGenerated: 'unknown' },
         provenance: 'unknown',
         notes:
-          'Bundled anime-style action illustration with no sexual solicitation or arousal framing. Image authorship is unknown.',
+          'Bundled anime-style action illustration with no explicit solicitation or arousal framing. Image authorship is unknown.',
         createdAt: '2026-09-29T00:00:00.000Z',
       },
       {
-        id: 'text-sexual-solicitation',
+        id: 'text-explicit-solicitation',
         modality: 'text',
-        title: 'Direct sexual solicitation',
+        title: 'Direct explicit solicitation',
         text: 'I want to have sex with you tonight. DM me if you want the details.',
-        labels: { sexualContent: 'yes', aiGenerated: 'yes' },
+        labels: { contentMatch: 'yes', aiGenerated: 'yes' },
         provenance: 'synthetic-ai',
         notes:
           'Synthetic AI-authored benchmark text. Positive because it directly solicits sex; AI origin is recorded provenance, not a style judgment.',
@@ -155,7 +155,7 @@ export function initialBenchmarkState(): BenchmarkState {
         modality: 'text',
         title: 'Suggestive innuendo',
         text: 'I asked if she wanted to stay over; she smiled and said, “Only if you can keep up after midnight.”',
-        labels: { sexualContent: 'yes', aiGenerated: 'yes' },
+        labels: { contentMatch: 'yes', aiGenerated: 'yes' },
         provenance: 'synthetic-ai',
         notes:
           'Synthetic AI-authored benchmark text. Positive for lewd innuendo rather than an explicit description.',
@@ -166,32 +166,32 @@ export function initialBenchmarkState(): BenchmarkState {
         modality: 'text',
         title: 'Arousal-focused engagement bait',
         text: 'This outfit leaves just enough to the imagination—tap for the reveal and tell me what you would do if I were beside you.',
-        labels: { sexualContent: 'yes', aiGenerated: 'yes' },
+        labels: { contentMatch: 'yes', aiGenerated: 'yes' },
         provenance: 'synthetic-ai',
         notes:
-          'Synthetic AI-authored benchmark text. Positive because it uses sexualized bait to solicit attention and replies.',
+          'Synthetic AI-authored benchmark text. Positive because it uses suggestive bait to solicit attention and replies.',
         createdAt: '2026-09-29T00:00:00.000Z',
       },
       {
-        id: 'text-sexual-health-guide',
+        id: 'text-reproductive-health-guide',
         modality: 'text',
-        title: 'Factual sexual-health guidance',
+        title: 'Factual reproductive-health guidance',
         text: 'The clinic’s guide covers HPV vaccination, STI screening, and when to ask a clinician for advice.',
-        labels: { sexualContent: 'no', aiGenerated: 'yes' },
+        labels: { contentMatch: 'no', aiGenerated: 'yes' },
         provenance: 'synthetic-ai',
         notes:
-          'Synthetic AI-authored benchmark text. Negative: factual sexual-health information without solicitation or arousal framing.',
+          'Synthetic AI-authored benchmark text. Negative: factual reproductive-health information without solicitation or arousal framing.',
         createdAt: '2026-09-29T00:00:00.000Z',
       },
       {
-        id: 'text-sexual-health-news',
+        id: 'text-reproductive-health-news',
         modality: 'text',
-        title: 'Sexual-health service news',
-        text: 'The city health department opened two sexual-health clinics; its bulletin lists testing hours and vaccination availability.',
-        labels: { sexualContent: 'no', aiGenerated: 'yes' },
+        title: 'Explicit-health service news',
+        text: 'The city health department opened two reproductive-health clinics; its bulletin lists testing hours and vaccination availability.',
+        labels: { contentMatch: 'no', aiGenerated: 'yes' },
         provenance: 'synthetic-ai',
         notes:
-          'Synthetic AI-authored benchmark text. Negative: factual public-health news is not sexual solicitation.',
+          'Synthetic AI-authored benchmark text. Negative: factual public-health news is not explicit solicitation.',
         createdAt: '2026-09-29T00:00:00.000Z',
       },
       {
@@ -199,10 +199,10 @@ export function initialBenchmarkState(): BenchmarkState {
         modality: 'text',
         title: 'Relationship and consent advice',
         text: 'A couples counselor recommends checking in about consent, comfort, and boundaries before either partner takes a new step.',
-        labels: { sexualContent: 'no', aiGenerated: 'yes' },
+        labels: { contentMatch: 'no', aiGenerated: 'yes' },
         provenance: 'synthetic-ai',
         notes:
-          'Synthetic AI-authored benchmark text. Negative: non-erotic relationship advice should not be blocked as sexual content.',
+          'Synthetic AI-authored benchmark text. Negative: non-erotic relationship advice should not be blocked as explicit content.',
         createdAt: '2026-09-29T00:00:00.000Z',
       },
       {
@@ -210,7 +210,7 @@ export function initialBenchmarkState(): BenchmarkState {
         modality: 'text',
         title: 'Borderline after-hours teaser',
         text: 'They said the last chapter is “better after dark” and told me not to ask what happens next.',
-        labels: { sexualContent: 'unknown', aiGenerated: 'yes' },
+        labels: { contentMatch: 'unknown', aiGenerated: 'yes' },
         provenance: 'synthetic-ai',
         notes:
           'Synthetic AI-authored borderline case. Intentionally unknown until human review: it may be playful innuendo or an ordinary story teaser.',
@@ -221,7 +221,7 @@ export function initialBenchmarkState(): BenchmarkState {
         modality: 'text',
         title: 'Borderline clinic campaign teaser',
         text: 'Our new clinic series has hot takes on personal questions—watch tonight and share the post.',
-        labels: { sexualContent: 'unknown', aiGenerated: 'yes' },
+        labels: { contentMatch: 'unknown', aiGenerated: 'yes' },
         provenance: 'synthetic-ai',
         notes:
           'Synthetic AI-authored borderline case. Intentionally unknown until human review: “hot takes” may be ordinary health promotion or arousal-focused bait.',
@@ -229,7 +229,7 @@ export function initialBenchmarkState(): BenchmarkState {
       },
     ],
     solutions: [],
-    thresholds: { sexualContent: 0.5, aiGenerated: 0.5, nsfwjs: 0.5 },
+    thresholds: { contentMatch: 0.5, aiGenerated: 0.5, nsfwjs: 0.5 },
     selectedCaseId: 'false-positive-hentai-trails-sky-2nd',
   };
 }
@@ -260,7 +260,7 @@ export function emptyNsfwjsScores(): NsfwjsScores {
 
 export function emptyPredictionReview(): PredictionReview {
   return {
-    sexualContent: 'unreviewed',
+    contentMatch: 'unreviewed',
     aiGenerated: 'unreviewed',
     porn: 'unreviewed',
     hentai: 'unreviewed',
@@ -271,7 +271,7 @@ export function emptyPredictionReview(): PredictionReview {
 
 export function emptyPrediction(): Prediction {
   return {
-    sexualContent: null,
+    contentMatch: null,
     aiGenerated: null,
     nsfwjs: emptyNsfwjsScores(),
     review: emptyPredictionReview(),
@@ -299,13 +299,22 @@ function normalizeNsfwjsScores(value: unknown): NsfwjsScores {
   };
 }
 
-function normalizeReview(value: unknown): PredictionReview {
+function matchingTaskValue(record: Record<string, unknown>, previousTaskKey?: string): unknown {
+  if (Object.hasOwn(record, 'contentMatch')) return record.contentMatch;
+  if (previousTaskKey && Object.hasOwn(record, previousTaskKey)) return record[previousTaskKey];
+  const candidates = Object.keys(record).filter(
+    (key) => ![...SCORE_KEYS, 'nsfwjs', 'explicit', 'review', 'reviews'].includes(key),
+  );
+  return candidates.length === 1 ? record[candidates[0]!] : undefined;
+}
+
+function normalizeReview(value: unknown, previousTaskKey?: string): PredictionReview {
   if (!Predicate.isObject(value)) return emptyPredictionReview();
   const review = value;
   const verdict = (entry: unknown): ReviewVerdict =>
     entry === 'right' || entry === 'wrong' ? entry : 'unreviewed';
   return {
-    sexualContent: verdict(review.sexualContent),
+    contentMatch: verdict(matchingTaskValue(review, previousTaskKey)),
     aiGenerated: verdict(review.aiGenerated),
     porn: verdict(review.porn),
     hentai: verdict(review.hentai),
@@ -314,20 +323,20 @@ function normalizeReview(value: unknown): PredictionReview {
   };
 }
 
-function normalizePrediction(value: unknown): Prediction {
+function normalizePrediction(value: unknown, previousTaskKey?: string): Prediction {
   if (!Predicate.isObject(value)) return emptyPrediction();
   const prediction = value;
-  const sexualContent = score(prediction.sexualContent);
+  const contentMatch = score(matchingTaskValue(prediction, previousTaskKey));
   const aiGenerated = score(prediction.aiGenerated);
   const nsfwjs = normalizeNsfwjsScores(prediction.nsfwjs ?? prediction);
-  const review = normalizeReview(prediction.review ?? prediction.reviews);
-  if (sexualContent === null) review.sexualContent = 'unreviewed';
+  const review = normalizeReview(prediction.review ?? prediction.reviews, previousTaskKey);
+  if (contentMatch === null) review.contentMatch = 'unreviewed';
   if (aiGenerated === null) review.aiGenerated = 'unreviewed';
   if (nsfwjs.porn === null) review.porn = 'unreviewed';
   if (nsfwjs.hentai === null) review.hentai = 'unreviewed';
   if (nsfwjs.sexy === null) review.sexy = 'unreviewed';
   if (nsfwjs.drawings === null) review.drawings = 'unreviewed';
-  return { sexualContent, aiGenerated, nsfwjs, review };
+  return { contentMatch, aiGenerated, nsfwjs, review };
 }
 
 function benchmarkProvenance(value: unknown): BenchmarkProvenance {
@@ -339,23 +348,23 @@ function benchmarkProvenance(value: unknown): BenchmarkProvenance {
     : 'unknown';
 }
 
-function normalizeCase(value: unknown): BenchmarkCase | null {
+function normalizeCase(value: unknown, previousTaskKey?: string): BenchmarkCase | null {
   if (!Predicate.isObject(value)) return null;
   const item = value;
   if (typeof item.id !== 'string' || typeof item.title !== 'string') return null;
   const labels = Predicate.isObject(item.labels) ? item.labels : null;
-  let sexualContent: TruthValue = 'unknown';
+  let contentMatch: TruthValue = 'unknown';
   if (labels) {
-    if (Object.prototype.hasOwnProperty.call(labels, 'sexualContent'))
-      sexualContent = truthValue(labels.sexualContent);
-    else if (labels.explicit === 'yes') sexualContent = 'yes';
+    const savedLabel = matchingTaskValue(labels, previousTaskKey);
+    if (savedLabel !== undefined) contentMatch = truthValue(savedLabel);
+    else if (labels.explicit === 'yes') contentMatch = 'yes';
   }
   const modality = item.modality === 'text' ? 'text' : 'image';
   const normalized: BenchmarkCase = {
     id: item.id,
     modality,
     title: item.title,
-    labels: { sexualContent, aiGenerated: labels ? truthValue(labels.aiGenerated) : 'unknown' },
+    labels: { contentMatch, aiGenerated: labels ? truthValue(labels.aiGenerated) : 'unknown' },
     provenance: benchmarkProvenance(item.provenance),
     notes: typeof item.notes === 'string' ? item.notes : '',
     createdAt: typeof item.createdAt === 'string' ? item.createdAt : new Date().toISOString(),
@@ -369,7 +378,7 @@ function solutionKind(value: unknown): SolutionKind {
   return value === 'llm' || value === 'nsfwjs' || value === 'other' ? value : 'other';
 }
 
-function normalizeSolution(value: unknown): BenchmarkSolution | null {
+function normalizeSolution(value: unknown, previousTaskKey?: string): BenchmarkSolution | null {
   if (!Predicate.isObject(value)) return null;
   const item = value;
   if (typeof item.id !== 'string' || typeof item.name !== 'string') return null;
@@ -382,7 +391,7 @@ function normalizeSolution(value: unknown): BenchmarkSolution | null {
     predictions: Object.fromEntries(
       Object.entries(rawPredictions).map(([caseId, prediction]) => [
         caseId,
-        normalizePrediction(prediction),
+        normalizePrediction(prediction, previousTaskKey),
       ]),
     ),
   };
@@ -392,15 +401,22 @@ export function normalizeBenchmarkState(value: unknown): BenchmarkState {
   const fallback = initialBenchmarkState();
   if (!Predicate.isObject(value)) return fallback;
   const state = value;
+  const rawThresholds = Predicate.isObject(state.thresholds) ? state.thresholds : {};
+  const previousTaskKeys = Object.keys(rawThresholds).filter(
+    (key) => !['contentMatch', 'aiGenerated', 'nsfwjs', 'explicit'].includes(key),
+  );
+  // Older snapshots used a different name for the sole content-matching task.
+  const previousTaskKey = previousTaskKeys.length === 1 ? previousTaskKeys[0] : undefined;
   const cases = Array.isArray(state.cases)
-    ? state.cases.map(normalizeCase).filter((item): item is BenchmarkCase => item !== null)
+    ? state.cases
+        .map((item) => normalizeCase(item, previousTaskKey))
+        .filter((item): item is BenchmarkCase => item !== null)
     : fallback.cases;
   const solutions = Array.isArray(state.solutions)
     ? state.solutions
-        .map(normalizeSolution)
+        .map((item) => normalizeSolution(item, previousTaskKey))
         .filter((item): item is BenchmarkSolution => item !== null)
     : fallback.solutions;
-  const rawThresholds = Predicate.isObject(state.thresholds) ? state.thresholds : {};
   const selectedCaseId =
     typeof state.selectedCaseId === 'string' &&
     cases.some((item) => item.id === state.selectedCaseId)
@@ -410,7 +426,9 @@ export function normalizeBenchmarkState(value: unknown): BenchmarkState {
     cases,
     solutions,
     thresholds: {
-      sexualContent: score(rawThresholds.sexualContent) ?? fallback.thresholds.sexualContent,
+      contentMatch:
+        score(matchingTaskValue(rawThresholds, previousTaskKey)) ??
+        fallback.thresholds.contentMatch,
       aiGenerated: score(rawThresholds.aiGenerated) ?? fallback.thresholds.aiGenerated,
       nsfwjs: score(rawThresholds.nsfwjs) ?? fallback.thresholds.nsfwjs,
     },
@@ -423,7 +441,7 @@ export function predictionFor(solution: BenchmarkSolution, caseId: string): Pred
 }
 
 export function predictionScore(prediction: Prediction, task: ScoreKey): number | null {
-  return task === 'sexualContent' || task === 'aiGenerated'
+  return task === 'contentMatch' || task === 'aiGenerated'
     ? prediction[task]
     : prediction.nsfwjs[task];
 }

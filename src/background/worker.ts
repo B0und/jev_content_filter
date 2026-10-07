@@ -304,7 +304,12 @@ export class BackgroundWorker extends Context.Service<BackgroundWorker, Backgrou
         }
 
         const outcome = yield* Effect.result(
-          evaluateText({ provider: request.provider, apiKey, text: request.text }),
+          evaluateText({
+            provider: request.provider,
+            apiKey,
+            text: request.text,
+            filters: settings?.textFilters ?? [],
+          }),
         );
         const current = yield* Ref.get(settingsState);
         if (isStaleSettings(current, request.provider, request.revision)) {

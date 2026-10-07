@@ -1,6 +1,34 @@
 import type { ModelStatuses } from '../inference/contracts';
+import presets from './presets.json' with { type: 'json' };
 
-export type CategoryKey = 'porn' | 'hentai' | 'sexy' | 'drawings' | 'sexualText' | 'aiGenerated';
+export type CategoryKey = 'porn' | 'hentai' | 'sexy' | 'drawings' | 'aiGenerated';
+export type ScoreKey = CategoryKey | `custom:${string}`;
+export interface TextFilter {
+  id: string;
+  name: string;
+  instructions: string;
+  enabled: boolean;
+  threshold: number;
+}
+/** Only active questions affect decisions; labels and cutoffs are application policy. */
+export function textDecisionSignature(filters: TextFilter[]): string {
+  return JSON.stringify(
+    filters
+      .filter((filter) => filter.enabled)
+      .map(({ id, instructions }) => ({ id, instructions }))
+      .sort((a, b) => a.id.localeCompare(b.id)),
+  );
+}
+export function textFilterKey(id: string): `custom:${string}` {
+  return `custom:${id}`;
+}
+export function scoreLabel(key: string, filters: TextFilter[] = []): string {
+  if (key.startsWith('custom:'))
+    return filters.find((filter) => textFilterKey(filter.id) === key)?.name ?? 'Custom text filter';
+  return CATEGORY_KEYS.some((category) => category === key)
+    ? CATEGORY_LABELS[key as CategoryKey]
+    : 'Text filter';
+}
 export type TextProvider = 'vercel' | 'typesafe' | 'openrouter';
 export const TEXT_PROVIDER_LABELS: Record<TextProvider, string> = {
   vercel: 'Vercel AI Gateway',
@@ -13,12 +41,13 @@ export function isTextProvider(value: unknown): value is TextProvider {
 }
 
 export interface Settings {
+  textFilters: TextFilter[];
   masterEnabled: boolean;
   /** Provider that evaluates the text questions. */
   textProvider: TextProvider;
   /** Credentials never move between providers. */
   providerKeys: Record<TextProvider, string>;
-  /** Incremented when the selected provider or its credential changes. */
+  /** Incremented when active custom questions, the selected provider, or its credential changes. */
   textConfigRevision: number;
   enabled: Record<CategoryKey, boolean>;
   /** Probability cutoff, 0..1. Lower blocks more. */
@@ -26,6 +55,9 @@ export interface Settings {
 }
 
 export type SettingsChange =
+  | { field: 'textFilter'; value: TextFilter }
+  | { field: 'patchTextFilter'; id: string; value: Partial<Omit<TextFilter, 'id'>> }
+  | { field: 'deleteTextFilter'; id: string }
   | { field: 'masterEnabled'; value: boolean }
   | { field: 'textProvider'; value: TextProvider }
   | { field: 'providerKey'; provider: TextProvider; value: string }
@@ -45,7 +77,8 @@ export interface BlockedEntry {
   snippet: string;
   surface: string;
   ts: number;
-  reasons: Array<{ key: CategoryKey; score: number }>;
+  /** History keeps reason identifiers even when their filters no longer exist. */
+  reasons: Array<{ key: string; label?: string; score: number }>;
 }
 export interface TabReport {
   /** Currently attached posts; pending and error fields use the same live scope. */
@@ -77,7 +110,12 @@ export type BgRequest =
   | { type: 'open-logs'; errors: boolean }
   | { type: 'tab-stats'; blocked: number };
 export type JevReply =
-  | { ok: true; sexual: number; provider: TextProvider; revision: number }
+  | {
+      ok: true;
+      custom: Record<string, number>;
+      provider: TextProvider;
+      revision: number;
+    }
   | { ok: false; error: string; stale?: boolean };
 export type SettingsReply = { ok: true; settings: Settings } | { ok: false; error: string };
 export const STORAGE_KEYS = {
@@ -94,21 +132,14 @@ export const CATEGORY_LABELS: Record<CategoryKey, string> = {
   hentai: 'Hentai',
   sexy: 'Suggestive images',
   drawings: 'Drawings / anime',
-  sexualText: 'Sexual text',
   aiGenerated: 'AI-written text',
 };
-export const CATEGORY_KEYS: CategoryKey[] = [
-  'porn',
-  'hentai',
-  'sexy',
-  'drawings',
-  'sexualText',
-  'aiGenerated',
-];
+export const CATEGORY_KEYS: CategoryKey[] = ['porn', 'hentai', 'sexy', 'drawings', 'aiGenerated'];
 export const IMAGE_KEYS: CategoryKey[] = ['porn', 'hentai', 'sexy', 'drawings'];
-export const TEXT_KEYS: CategoryKey[] = ['sexualText', 'aiGenerated'];
+export const TEXT_KEYS: CategoryKey[] = ['aiGenerated'];
 export function defaultSettings(): Settings {
   return {
+    textFilters: presets.map((filter) => ({ ...filter })),
     masterEnabled: true,
     textProvider: 'vercel',
     providerKeys: { vercel: '', typesafe: '', openrouter: '' },
@@ -118,7 +149,6 @@ export function defaultSettings(): Settings {
       hentai: true,
       sexy: true,
       drawings: true,
-      sexualText: true,
       aiGenerated: true,
     },
     thresholds: {
@@ -126,7 +156,6 @@ export function defaultSettings(): Settings {
       hentai: 0.6,
       sexy: 0.65,
       drawings: 0.7,
-      sexualText: 0.65,
       aiGenerated: 0.65,
     },
   };

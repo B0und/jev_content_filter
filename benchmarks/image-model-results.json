@@ -9,9 +9,9 @@
   },
   "threshold": 0.5,
   "labelPolicy": {
-    "task": "sexualContent",
+    "task": "contentMatch",
     "yes": "CivitAI dataset nsfwLevel=X. This is a source-provided NSFW level, not an independent human claim that every image depicts a sex act or pornography.",
-    "no": "Nonsexual subject matter in the cited licensed photo/illustration, or the user-reported false-positive label for the existing local fixture.",
+    "no": "Ordinary subject matter in the cited licensed photo/illustration, or the user-reported false-positive label for the existing local fixture.",
     "drawingRule": "A drawing is not positive merely because it is drawn. All six ordinary illustration controls are labeled no; X-level content is positive from the dataset label, not from its medium."
   },
   "environment": {
@@ -292,7 +292,7 @@
       "id": "civitai-x-6453",
       "category": "dataset-x",
       "labels": {
-        "sexualContent": "yes"
+        "contentMatch": "yes"
       },
       "provenance": "dataset-label",
       "title": "CivitAI X-level image 6453",
@@ -310,7 +310,7 @@
       "id": "civitai-x-6041",
       "category": "dataset-x",
       "labels": {
-        "sexualContent": "yes"
+        "contentMatch": "yes"
       },
       "provenance": "dataset-label",
       "title": "CivitAI X-level image 6041",
@@ -328,7 +328,7 @@
       "id": "civitai-x-4187",
       "category": "dataset-x",
       "labels": {
-        "sexualContent": "yes"
+        "contentMatch": "yes"
       },
       "provenance": "dataset-label",
       "title": "CivitAI X-level image 4187",
@@ -346,7 +346,7 @@
       "id": "civitai-x-2681",
       "category": "dataset-x",
       "labels": {
-        "sexualContent": "yes"
+        "contentMatch": "yes"
       },
       "provenance": "dataset-label",
       "title": "CivitAI X-level image 2681",
@@ -364,7 +364,7 @@
       "id": "civitai-x-7",
       "category": "dataset-x",
       "labels": {
-        "sexualContent": "yes"
+        "contentMatch": "yes"
       },
       "provenance": "dataset-label",
       "title": "CivitAI X-level image 7",
@@ -382,7 +382,7 @@
       "id": "civitai-x-5964",
       "category": "dataset-x",
       "labels": {
-        "sexualContent": "yes"
+        "contentMatch": "yes"
       },
       "provenance": "dataset-label",
       "title": "CivitAI X-level image 5964",
@@ -400,7 +400,7 @@
       "id": "civitai-x-2950",
       "category": "dataset-x",
       "labels": {
-        "sexualContent": "yes"
+        "contentMatch": "yes"
       },
       "provenance": "dataset-label",
       "title": "CivitAI X-level image 2950",
@@ -418,7 +418,7 @@
       "id": "civitai-x-159",
       "category": "dataset-x",
       "labels": {
-        "sexualContent": "yes"
+        "contentMatch": "yes"
       },
       "provenance": "dataset-label",
       "title": "CivitAI X-level image 159",
@@ -436,7 +436,7 @@
       "id": "civitai-x-5920",
       "category": "dataset-x",
       "labels": {
-        "sexualContent": "yes"
+        "contentMatch": "yes"
       },
       "provenance": "dataset-label",
       "title": "CivitAI X-level image 5920",
@@ -454,7 +454,7 @@
       "id": "civitai-x-2825",
       "category": "dataset-x",
       "labels": {
-        "sexualContent": "yes"
+        "contentMatch": "yes"
       },
       "provenance": "dataset-label",
       "title": "CivitAI X-level image 2825",
@@ -472,7 +472,7 @@
       "id": "civitai-x-2601",
       "category": "dataset-x",
       "labels": {
-        "sexualContent": "yes"
+        "contentMatch": "yes"
       },
       "provenance": "dataset-label",
       "title": "CivitAI X-level image 2601",
@@ -490,7 +490,7 @@
       "id": "civitai-x-5600",
       "category": "dataset-x",
       "labels": {
-        "sexualContent": "yes"
+        "contentMatch": "yes"
       },
       "provenance": "dataset-label",
       "title": "CivitAI X-level image 5600",
@@ -508,7 +508,7 @@
       "id": "commons-malamute-photo",
       "category": "safe-photo",
       "labels": {
-        "sexualContent": "no"
+        "contentMatch": "no"
       },
       "provenance": "licensed-public-image",
       "title": "Alaskan malamute in snow",
@@ -526,7 +526,7 @@
       "id": "commons-whippets-photo",
       "category": "safe-photo",
       "labels": {
-        "sexualContent": "no"
+        "contentMatch": "no"
       },
       "provenance": "licensed-public-image",
       "title": "Three whippets on grass",
@@ -544,7 +544,7 @@
       "id": "commons-castle-mountain-photo",
       "category": "safe-photo",
       "labels": {
-        "sexualContent": "no"
+        "contentMatch": "no"
       },
       "provenance": "licensed-public-image",
       "title": "Castle Mountain from Bow River bank",
@@ -562,7 +562,7 @@
       "id": "commons-domestic-cat-photo",
       "category": "safe-photo",
       "labels": {
-        "sexualContent": "no"
+        "contentMatch": "no"
       },
       "provenance": "licensed-public-image",
       "title": "Domestic cat portrait",
@@ -580,7 +580,7 @@
       "id": "commons-narcissus-photo",
       "category": "safe-photo",
       "labels": {
-        "sexualContent": "no"
+        "contentMatch": "no"
       },
       "provenance": "licensed-public-image",
       "title": "Narcissus flower at Nagai Park",
@@ -598,7 +598,7 @@
       "id": "commons-gateway-arch-photo",
       "category": "safe-photo",
       "labels": {
-        "sexualContent": "no"
+        "contentMatch": "no"
       },
       "provenance": "licensed-public-image",
       "title": "Gateway Arch in St. Louis",
@@ -616,7 +616,7 @@
       "id": "commons-cartoon-dog",
       "category": "ordinary-illustration",
       "labels": {
-        "sexualContent": "no"
+        "contentMatch": "no"
       },
       "provenance": "licensed-public-image",
       "title": "Cartoon dog",
@@ -634,7 +634,7 @@
       "id": "commons-cartoon-cat",
       "category": "ordinary-illustration",
       "labels": {
-        "sexualContent": "no"
+        "contentMatch": "no"
       },
       "provenance": "licensed-public-image",
       "title": "Cartoon cat face",
@@ -652,7 +652,7 @@
       "id": "commons-cartoon-rabbit",
       "category": "ordinary-illustration",
       "labels": {
-        "sexualContent": "no"
+        "contentMatch": "no"
       },
       "provenance": "licensed-public-image",
       "title": "Cartoon rabbit",
@@ -670,7 +670,7 @@
       "id": "commons-cartoon-owl",
       "category": "ordinary-illustration",
       "labels": {
-        "sexualContent": "no"
+        "contentMatch": "no"
       },
       "provenance": "licensed-public-image",
       "title": "Cartoon owl",
@@ -688,7 +688,7 @@
       "id": "commons-cartoon-toucan",
       "category": "ordinary-illustration",
       "labels": {
-        "sexualContent": "no"
+        "contentMatch": "no"
       },
       "provenance": "licensed-public-image",
       "title": "Cartoon toucan",
@@ -706,7 +706,7 @@
       "id": "commons-cartoon-cow",
       "category": "ordinary-illustration",
       "labels": {
-        "sexualContent": "no"
+        "contentMatch": "no"
       },
       "provenance": "licensed-public-image",
       "title": "Cartoon cow",
@@ -724,7 +724,7 @@
       "id": "reported-false-positive-trails-sky",
       "category": "reported-false-positive",
       "labels": {
-        "sexualContent": "no"
+        "contentMatch": "no"
       },
       "provenance": "user-reported",
       "title": "Trails in the Sky reported NSFW false positive",
@@ -2213,7 +2213,7 @@
     "comparisonModel": "nsfwjs-mobilenet-v2",
     "caseCount": 25,
     "maximumAbsoluteCategoryDelta": 2.1606683731079102e-7,
-    "sexualContentThreshold": 0.5,
+    "contentMatchThreshold": 0.5,
     "decisionChanges": 0,
     "predictions": [
       {

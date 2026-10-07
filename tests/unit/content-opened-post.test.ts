@@ -14,7 +14,7 @@ import {
   until,
 } from './support';
 
-const explicit = () => ({ ok: true as const, sexual: 0.9 });
+const explicit = () => ({ ok: true as const, custom: { 'preset-1': 0.9 } });
 
 describe('opened post', () => {
   afterEach(() => {
@@ -81,7 +81,7 @@ describe('opened post', () => {
 
   it('does not log a scan completed while detached, but logs on reattachment', async () => {
     const test = await startRuntime();
-    const response = Promise.withResolvers<{ ok: true; sexual: number }>();
+    const response = Promise.withResolvers<{ ok: true; custom: Record<string, number> }>();
     test.bg.respond = () => response.promise;
     const article = buildTweetArticle({ id: '2023', text: 'explicit detached post' });
     test.handle.discover();

@@ -21,14 +21,14 @@ export async function runJevComparison({
         abortSignal: AbortSignal.timeout(15000),
         state: { tweet_text: item.text },
         questions: {
-          sexual: {
+          contentMatch: {
             type: 'boolean',
             instructions:
-              'Does this tweet contain explicit sexual content, lewd innuendo, heavily implied sexual content, or engagement bait designed to arouse?',
+              'Does this tweet contain explicit acts, lewd innuendo, heavily implied intimate activity, or engagement bait designed to arouse?',
             criteria: {
-              true: 'Lewd imagery descriptions, sexual innuendo, thirst traps, or gooner-bait phrasing',
+              true: 'Lewd imagery descriptions, explicit innuendo, thirst traps, or gooner-bait phrasing',
               false:
-                'Ordinary non-sexual content, even if it discusses news, health, or relationships factually',
+                'Ordinary content, even if it discusses news, health, or relationships factually',
             },
           },
           ai: {

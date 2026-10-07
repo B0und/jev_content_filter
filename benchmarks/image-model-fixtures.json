@@ -8,9 +8,9 @@
     "method": "Twelve CivitAI nsfwLevel=X records selected by ascending SHA-256(seed + filename), followed by six licensed Commons photos, six licensed ordinary illustrations, and the existing user-reported false positive. No model tuning uses these cases."
   },
   "labelPolicy": {
-    "task": "sexualContent",
+    "task": "contentMatch",
     "yes": "CivitAI dataset nsfwLevel=X. This is a source-provided NSFW level, not an independent human claim that every image depicts a sex act or pornography.",
-    "no": "Nonsexual subject matter in the cited licensed photo/illustration, or the user-reported false-positive label for the existing local fixture.",
+    "no": "Ordinary subject matter in the cited licensed photo/illustration, or the user-reported false-positive label for the existing local fixture.",
     "drawingRule": "A drawing is not positive merely because it is drawn. All six ordinary illustration controls are labeled no; X-level content is positive from the dataset label, not from its medium."
   },
   "sources": {
@@ -33,7 +33,7 @@
     {
       "id": "civitai-x-6453",
       "category": "dataset-x",
-      "labels": { "sexualContent": "yes" },
+      "labels": { "contentMatch": "yes" },
       "provenance": "dataset-label",
       "title": "CivitAI X-level image 6453",
       "assetFile": "civitai/6453.jpeg",
@@ -46,7 +46,7 @@
     {
       "id": "civitai-x-6041",
       "category": "dataset-x",
-      "labels": { "sexualContent": "yes" },
+      "labels": { "contentMatch": "yes" },
       "provenance": "dataset-label",
       "title": "CivitAI X-level image 6041",
       "assetFile": "civitai/6041.jpeg",
@@ -59,7 +59,7 @@
     {
       "id": "civitai-x-4187",
       "category": "dataset-x",
-      "labels": { "sexualContent": "yes" },
+      "labels": { "contentMatch": "yes" },
       "provenance": "dataset-label",
       "title": "CivitAI X-level image 4187",
       "assetFile": "civitai/4187.jpeg",
@@ -72,7 +72,7 @@
     {
       "id": "civitai-x-2681",
       "category": "dataset-x",
-      "labels": { "sexualContent": "yes" },
+      "labels": { "contentMatch": "yes" },
       "provenance": "dataset-label",
       "title": "CivitAI X-level image 2681",
       "assetFile": "civitai/2681.jpeg",
@@ -85,7 +85,7 @@
     {
       "id": "civitai-x-7",
       "category": "dataset-x",
-      "labels": { "sexualContent": "yes" },
+      "labels": { "contentMatch": "yes" },
       "provenance": "dataset-label",
       "title": "CivitAI X-level image 7",
       "assetFile": "civitai/7.jpeg",
@@ -98,7 +98,7 @@
     {
       "id": "civitai-x-5964",
       "category": "dataset-x",
-      "labels": { "sexualContent": "yes" },
+      "labels": { "contentMatch": "yes" },
       "provenance": "dataset-label",
       "title": "CivitAI X-level image 5964",
       "assetFile": "civitai/5964.jpeg",
@@ -111,7 +111,7 @@
     {
       "id": "civitai-x-2950",
       "category": "dataset-x",
-      "labels": { "sexualContent": "yes" },
+      "labels": { "contentMatch": "yes" },
       "provenance": "dataset-label",
       "title": "CivitAI X-level image 2950",
       "assetFile": "civitai/2950.jpeg",
@@ -124,7 +124,7 @@
     {
       "id": "civitai-x-159",
       "category": "dataset-x",
-      "labels": { "sexualContent": "yes" },
+      "labels": { "contentMatch": "yes" },
       "provenance": "dataset-label",
       "title": "CivitAI X-level image 159",
       "assetFile": "civitai/159.jpeg",
@@ -137,7 +137,7 @@
     {
       "id": "civitai-x-5920",
       "category": "dataset-x",
-      "labels": { "sexualContent": "yes" },
+      "labels": { "contentMatch": "yes" },
       "provenance": "dataset-label",
       "title": "CivitAI X-level image 5920",
       "assetFile": "civitai/5920.jpeg",
@@ -150,7 +150,7 @@
     {
       "id": "civitai-x-2825",
       "category": "dataset-x",
-      "labels": { "sexualContent": "yes" },
+      "labels": { "contentMatch": "yes" },
       "provenance": "dataset-label",
       "title": "CivitAI X-level image 2825",
       "assetFile": "civitai/2825.jpeg",
@@ -163,7 +163,7 @@
     {
       "id": "civitai-x-2601",
       "category": "dataset-x",
-      "labels": { "sexualContent": "yes" },
+      "labels": { "contentMatch": "yes" },
       "provenance": "dataset-label",
       "title": "CivitAI X-level image 2601",
       "assetFile": "civitai/2601.jpeg",
@@ -176,7 +176,7 @@
     {
       "id": "civitai-x-5600",
       "category": "dataset-x",
-      "labels": { "sexualContent": "yes" },
+      "labels": { "contentMatch": "yes" },
       "provenance": "dataset-label",
       "title": "CivitAI X-level image 5600",
       "assetFile": "civitai/5600.jpeg",
@@ -189,7 +189,7 @@
     {
       "id": "commons-malamute-photo",
       "category": "safe-photo",
-      "labels": { "sexualContent": "no" },
+      "labels": { "contentMatch": "no" },
       "provenance": "licensed-public-image",
       "title": "Alaskan malamute in snow",
       "assetFile": "commons/alaskan-malamute.jpg",
@@ -202,7 +202,7 @@
     {
       "id": "commons-whippets-photo",
       "category": "safe-photo",
-      "labels": { "sexualContent": "no" },
+      "labels": { "contentMatch": "no" },
       "provenance": "licensed-public-image",
       "title": "Three whippets on grass",
       "assetFile": "commons/fireworks-whippets.jpg",
@@ -215,7 +215,7 @@
     {
       "id": "commons-castle-mountain-photo",
       "category": "safe-photo",
-      "labels": { "sexualContent": "no" },
+      "labels": { "contentMatch": "no" },
       "provenance": "licensed-public-image",
       "title": "Castle Mountain from Bow River bank",
       "assetFile": "commons/castle-mountain.jpg",
@@ -228,7 +228,7 @@
     {
       "id": "commons-domestic-cat-photo",
       "category": "safe-photo",
-      "labels": { "sexualContent": "no" },
+      "labels": { "contentMatch": "no" },
       "provenance": "licensed-public-image",
       "title": "Domestic cat portrait",
       "assetFile": "commons/domestic-cat-portrait.jpg",
@@ -241,7 +241,7 @@
     {
       "id": "commons-narcissus-photo",
       "category": "safe-photo",
-      "labels": { "sexualContent": "no" },
+      "labels": { "contentMatch": "no" },
       "provenance": "licensed-public-image",
       "title": "Narcissus flower at Nagai Park",
       "assetFile": "commons/narcissus-flower.jpg",
@@ -254,7 +254,7 @@
     {
       "id": "commons-gateway-arch-photo",
       "category": "safe-photo",
-      "labels": { "sexualContent": "no" },
+      "labels": { "contentMatch": "no" },
       "provenance": "licensed-public-image",
       "title": "Gateway Arch in St. Louis",
       "assetFile": "commons/gateway-arch.jpg",
@@ -267,7 +267,7 @@
     {
       "id": "commons-cartoon-dog",
       "category": "ordinary-illustration",
-      "labels": { "sexualContent": "no" },
+      "labels": { "contentMatch": "no" },
       "provenance": "licensed-public-image",
       "title": "Cartoon dog",
       "assetFile": "commons/cartoon-dog.png",
@@ -280,7 +280,7 @@
     {
       "id": "commons-cartoon-cat",
       "category": "ordinary-illustration",
-      "labels": { "sexualContent": "no" },
+      "labels": { "contentMatch": "no" },
       "provenance": "licensed-public-image",
       "title": "Cartoon cat face",
       "assetFile": "commons/cartoon-cat.png",
@@ -293,7 +293,7 @@
     {
       "id": "commons-cartoon-rabbit",
       "category": "ordinary-illustration",
-      "labels": { "sexualContent": "no" },
+      "labels": { "contentMatch": "no" },
       "provenance": "licensed-public-image",
       "title": "Cartoon rabbit",
       "assetFile": "commons/cartoon-rabbit.png",
@@ -306,7 +306,7 @@
     {
       "id": "commons-cartoon-owl",
       "category": "ordinary-illustration",
-      "labels": { "sexualContent": "no" },
+      "labels": { "contentMatch": "no" },
       "provenance": "licensed-public-image",
       "title": "Cartoon owl",
       "assetFile": "commons/cartoon-owl.png",
@@ -319,7 +319,7 @@
     {
       "id": "commons-cartoon-toucan",
       "category": "ordinary-illustration",
-      "labels": { "sexualContent": "no" },
+      "labels": { "contentMatch": "no" },
       "provenance": "licensed-public-image",
       "title": "Cartoon toucan",
       "assetFile": "commons/cartoon-toucan.png",
@@ -332,7 +332,7 @@
     {
       "id": "commons-cartoon-cow",
       "category": "ordinary-illustration",
-      "labels": { "sexualContent": "no" },
+      "labels": { "contentMatch": "no" },
       "provenance": "licensed-public-image",
       "title": "Cartoon cow",
       "assetFile": "commons/cartoon-cow.png",
@@ -345,7 +345,7 @@
     {
       "id": "reported-false-positive-trails-sky",
       "category": "reported-false-positive",
-      "labels": { "sexualContent": "no" },
+      "labels": { "contentMatch": "no" },
       "provenance": "user-reported",
       "title": "Trails in the Sky reported NSFW false positive",
       "assetFile": "existing/false-positive-hentai-trails-sky-2nd.webp",

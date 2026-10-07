@@ -23,7 +23,7 @@ test('recovers outlined sexual wording inside an image through the installed ext
     await route.fulfill({
       json: {
         answers: {
-          sexual: {
+          'custom:preset-1': {
             type: 'boolean',
             probability: decoded.state.tweet_text.includes('SEND NUDES') ? 0.99 : 0.01,
           },
@@ -101,7 +101,10 @@ test('reads Russian and English screenshot text locally and filters an innocent 
     await route.fulfill({
       json: {
         answers: {
-          sexual: { type: 'boolean', probability: text.includes('сосать твой член') ? 0.99 : 0.01 },
+          'custom:preset-1': {
+            type: 'boolean',
+            probability: text.includes('сосать твой член') ? 0.99 : 0.01,
+          },
         },
       },
     });

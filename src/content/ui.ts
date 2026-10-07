@@ -3,7 +3,14 @@
 import { Clock, Effect } from 'effect';
 import { browserEffect, browserRuntime } from '../platform/browser';
 import type { ContentScriptContext } from 'wxt/utils/content-script-context';
-import { CATEGORY_LABELS, IMAGE_KEYS, TEXT_KEYS, type CategoryKey } from '../filtering/types';
+import {
+  CATEGORY_LABELS,
+  scoreLabel,
+  IMAGE_KEYS,
+  TEXT_KEYS,
+  type CategoryKey,
+  type ScoreKey,
+} from '../filtering/types';
 import { updateSettings } from '../filtering/settings';
 import { message } from './classify';
 import { headerCarets, insertHost } from './dom';
@@ -157,6 +164,8 @@ export function isDark(element: Element): boolean {
 
 export function renderAll(): void {
   for (const [article, binding] of bindings) render(article, binding);
+  const openPost = openPostId ? posts.get(openPostId) : undefined;
+  if (openPost) renderPanel(openPost);
 }
 
 export function renderPost(post: Post): Array<Effect.Effect<void>> {
@@ -197,7 +206,7 @@ function renderPostAtUiBoundary(post: Post): void {
 
 function logBlocked(
   post: Post,
-  reasons: Array<{ key: CategoryKey; score: number }>,
+  reasons: Array<{ key: ScoreKey; label?: string; score: number }>,
   snippet: string,
   target: 'post' | 'preview',
 ): Effect.Effect<void> {
@@ -526,6 +535,13 @@ function renderPanel(post: Post): void {
   for (const [name, value] of Object.entries(vars)) host.style.setProperty(name, value);
   // Preserve focus across rebuilds (countdown ticks re-render the panel);
   // threshold inputs are found again by category instead of label escaping.
+  const drafts = [...root.querySelectorAll<HTMLInputElement>('[data-jev-cat]')]
+    .filter((input) => input.value !== input.defaultValue)
+    .map((input) => ({
+      category: input.dataset.jevCat,
+      value: input.value,
+      saved: input.defaultValue,
+    }));
   const focusedCategory = panelFocusCategory;
   panelFocusCategory = null;
   root.replaceChildren();
@@ -536,11 +552,14 @@ function renderPanel(post: Post): void {
   panel.className = 'panel';
   panel.tabIndex = -1;
   const reason = hits(post)
-    .map((h) => `${CATEGORY_LABELS[h.key]} ${(h.score * 100).toFixed(0)}%`)
+    .map((h) => `${scoreLabel(h.key, settings.current.textFilters)} ${(h.score * 100).toFixed(0)}%`)
     .join(', ');
   const previewReason = previewBlocked(post)
     ? previewHits(post)
-        .map((h) => `${CATEGORY_LABELS[h.key]} ${(h.score * 100).toFixed(0)}%`)
+        .map(
+          (h) =>
+            `${scoreLabel(h.key, settings.current.textFilters)} ${(h.score * 100).toFixed(0)}%`,
+        )
         .join(', ')
     : '';
   const head = element(
@@ -568,7 +587,10 @@ function renderPanel(post: Post): void {
   }
   // Text categories — shown when the post has text and the category is enabled.
   const visibleTextKeys = TEXT_KEYS.filter((key) => settings.current.enabled[key]);
-  if (post.text && visibleTextKeys.length > 0) {
+  if (
+    (post.text || post.previewText) &&
+    (visibleTextKeys.length > 0 || settings.current.textFilters.some((filter) => filter.enabled))
+  ) {
     const groupLabel = element('div', 'Text');
     groupLabel.className = 'group-label';
     panel.append(groupLabel);
@@ -578,6 +600,26 @@ function renderPanel(post: Post): void {
     textTable.append(heading);
     for (const key of visibleTextKeys) {
       textTable.append(buildCategoryRow(post, key));
+    }
+    for (const filter of settings.current.textFilters.filter((item) => item.enabled)) {
+      const row = element('tr');
+      const score = post.scores[`custom:${filter.id}`];
+      const previewScore = post.previewScores[`custom:${filter.id}`];
+      const values: string[] = [];
+      if (post.text)
+        values.push(`Post ${score === undefined ? 'not checked' : `${(score * 100).toFixed(1)}%`}`);
+      if (post.previewText)
+        values.push(
+          `Preview ${previewScore === undefined ? 'not checked' : `${(previewScore * 100).toFixed(1)}%`}`,
+        );
+      row.append(element('td', filter.name), element('td', values.join(' · ')));
+      const cell = element('td');
+      cell.append(
+        thresholdInput(post, `custom:${filter.id}`, filter.threshold),
+        document.createTextNode('%'),
+      );
+      row.append(cell);
+      textTable.append(row);
     }
     panel.append(textTable);
   }
@@ -626,6 +668,10 @@ function renderPanel(post: Post): void {
     panel.style.left = `${panelPos.left}px`;
     panel.style.top = `${panelPos.top}px`;
   }
+  for (const draft of drafts) {
+    const input = root.querySelector<HTMLInputElement>(`[data-jev-cat="${draft.category}"]`);
+    if (input?.defaultValue === draft.saved) input.value = draft.value;
+  }
   if (focusedCategory) {
     const restored = root.querySelector<HTMLInputElement>(`[data-jev-cat="${focusedCategory}"]`);
     restored?.focus();
@@ -662,7 +708,7 @@ function retryText(post: Post): Text {
 function buildCategoryRow(
   post: Post,
   key: CategoryKey,
-  scores: Partial<Record<CategoryKey, number>> = post.scores,
+  scores: Partial<Record<ScoreKey, number>> = post.scores,
 ): HTMLElement {
   const row = element('tr');
   const score = scores[key];
@@ -671,32 +717,52 @@ function buildCategoryRow(
     element('td', score === undefined ? 'Not checked' : `${(score * 100).toFixed(1)}%`),
   );
   const cell = element('td');
+  cell.append(
+    thresholdInput(post, key, settings.current.thresholds[key]),
+    document.createTextNode('%'),
+  );
+  row.append(cell);
+  return row;
+}
+
+function thresholdInput(post: Post, key: ScoreKey, threshold: number): HTMLInputElement {
   const input = element('input');
   input.type = 'number';
   input.min = '0';
   input.max = '100';
   input.step = '0.1';
-  input.value = String(Number((settings.current.thresholds[key] * 100).toFixed(1)));
-  input.setAttribute('aria-label', `${CATEGORY_LABELS[key]} threshold percent`);
+  input.defaultValue = String(Number((threshold * 100).toFixed(1)));
+  input.setAttribute(
+    'aria-label',
+    `${scoreLabel(key, settings.current.textFilters)} threshold percent`,
+  );
   input.setAttribute('data-jev-cat', key);
   input.addEventListener('change', () => {
     if (!input.validity.valid || input.value === '') return;
+    const filter = settings.current.textFilters.find((item) => `custom:${item.id}` === key);
+    if (key.startsWith('custom:') && !filter) return;
     void browserRuntime
       .runPromise(
-        updateSettings({
-          field: 'threshold',
-          category: key,
-          value: input.valueAsNumber / 100,
-        }),
+        updateSettings(
+          filter
+            ? {
+                field: 'patchTextFilter',
+                id: filter.id,
+                value: { threshold: input.valueAsNumber / 100 },
+              }
+            : {
+                field: 'threshold',
+                category: key as CategoryKey,
+                value: input.valueAsNumber / 100,
+              },
+        ),
       )
       .catch((error: unknown) => {
         post.errors.push(`Settings: ${message(error)}`);
         renderPostAtUiBoundary(post);
       });
   });
-  cell.append(input, document.createTextNode('%'));
-  row.append(cell);
-  return row;
+  return input;
 }
 
 export function closePanelIfOpen(): void {

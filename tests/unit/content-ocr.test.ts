@@ -24,7 +24,6 @@ function configured() {
     providerKeys: { vercel: 'test-key', typesafe: '', openrouter: '' },
     enabled: {
       ...current.enabled,
-      sexualText: true,
       aiGenerated: false,
       porn: false,
       hentai: false,
@@ -39,7 +38,10 @@ afterEach(clearFeed);
 it('blocks image-only posts through sexual text with all visual categories off', async () => {
   const test = await startRuntime(configured());
   test.bg.ocrRespond = () => Effect.succeed(explicitText);
-  test.bg.respond = ({ text }) => ({ ok: true, sexual: text.includes(explicitText) ? 0.99 : 0.01 });
+  test.bg.respond = ({ text }) => ({
+    ok: true,
+    custom: { 'preset-1': text.includes(explicitText) ? 0.99 : 0.01 },
+  });
   const article = buildTweetArticle({ id: '8100', text: '', images: [imageUrl] });
   test.handle.discover();
   await until(() => article.hasAttribute('data-jev-hidden'), 'image words were not filtered');
@@ -75,13 +77,40 @@ it('combines caption and all image text, caches size variants, and keeps AI inpu
   expect(bg.jevCalls).toHaveLength(1);
 });
 
+it('scores image words against custom rules and reuses OCR when their instructions change', async () => {
+  const bg = installFakeBackground();
+  settings.current = configured();
+  settings.current.textFilters = [
+    {
+      id: 'advertising',
+      name: 'Advertising',
+      instructions: 'Promotional offers',
+      enabled: true,
+      threshold: 0.65,
+    },
+  ];
+  bg.ocrRespond = () => Effect.succeed('Limited promotional offer');
+  bg.respond = () => ({ ok: true, custom: { advertising: 0.9 } });
+  const post = newPostStub('8108');
+  const first = await Effect.runPromise(textScores(post, '', [imageUrl]));
+  expect(first.scores).toEqual({ 'custom:advertising': 0.9 });
+  expect(bg.jevCalls[0]?.text).toContain('Limited promotional offer');
+  settings.current.textFilters[0]!.instructions = 'Political advertising';
+  settings.current.textConfigRevision++;
+  bg.respond = () => ({ ok: true, custom: { advertising: 0.01 } });
+  const second = await Effect.runPromise(textScores(post, '', [imageUrl]));
+  expect(second.scores).toEqual({ 'custom:advertising': 0.01 });
+  expect(bg.jevCalls).toHaveLength(2);
+  expect(bg.ocrCalls).toHaveLength(1);
+});
+
 it('reports failed extraction while checking the caption and retries without caching the failure', async () => {
   const bg = installFakeBackground();
   settings.current = configured();
   bg.ocrRespond = () => Effect.fail(new OcrError({ message: 'OCR unavailable' }));
   const post = newPostStub('8102');
   const first = await Effect.runPromise(textScores(post, 'Caption', [imageUrl]));
-  expect(first.scores.sexualText).toBe(0.01);
+  expect(first.scores['custom:preset-1']).toBe(0.01);
   expect(first.errors).toContain('Image text: OCR unavailable');
   bg.ocrRespond = () => Effect.succeed(explicitText);
   await Effect.runPromise(textScores(post, 'Caption', [imageUrl]));
@@ -92,7 +121,10 @@ it('reports failed extraction while checking the caption and retries without cac
 it('rechecks sexual text when a new image arrives after a safe caption', async () => {
   const test = await startRuntime(configured());
   test.bg.ocrRespond = () => Effect.succeed(explicitText);
-  test.bg.respond = ({ text }) => ({ ok: true, sexual: text.includes(explicitText) ? 0.99 : 0.01 });
+  test.bg.respond = ({ text }) => ({
+    ok: true,
+    custom: { 'preset-1': text.includes(explicitText) ? 0.99 : 0.01 },
+  });
   const article = buildTweetArticle({ id: '8103', text: 'Дегустация' });
   test.handle.discover();
   await until(() => test.bg.jevCalls.length === 1 && test.handle.report().pending === 0);
@@ -110,7 +142,10 @@ it('rechecks sexual text when a new image arrives after a safe caption', async (
 it('checks text in link preview images even without preview text', async () => {
   const test = await startRuntime(configured());
   test.bg.ocrRespond = () => Effect.succeed(explicitText);
-  test.bg.respond = ({ text }) => ({ ok: true, sexual: text.includes(explicitText) ? 0.99 : 0.01 });
+  test.bg.respond = ({ text }) => ({
+    ok: true,
+    custom: { 'preset-1': text.includes(explicitText) ? 0.99 : 0.01 },
+  });
   const article = buildTweetArticle({ id: '8104', text: 'A link' });
   const card = document.createElement('div');
   card.setAttribute('data-testid', 'card.wrapper');
@@ -130,12 +165,12 @@ it('checks text in link preview images even without preview text', async () => {
 it('always reads image words with sexual text disabled and caches empty extraction', async () => {
   const bg = installFakeBackground();
   settings.current = configured();
-  settings.current.enabled.sexualText = false;
+  settings.current.textFilters[0]!.enabled = false;
   settings.current.enabled.aiGenerated = true;
   const post = newPostStub('8105');
   await Effect.runPromise(textScores(post, 'Caption', [imageUrl]));
   expect(bg.ocrCalls).toHaveLength(1);
-  settings.current.enabled.sexualText = true;
+  settings.current.textFilters[0]!.enabled = true;
   await Effect.runPromise(textScores(post, 'Caption', [imageUrl]));
   await Effect.runPromise(textScores(post, 'Another caption', [imageUrl]));
   expect(bg.ocrCalls).toHaveLength(1);
@@ -144,7 +179,7 @@ it('always reads image words with sexual text disabled and caches empty extracti
 
 it('runs OCR for image-only posts with every classifier disabled and no provider key', async () => {
   const current = configured();
-  current.enabled.sexualText = false;
+  current.textFilters[0]!.enabled = false;
   current.providerKeys.vercel = '';
   const test = await startRuntime(current);
   const article = buildTweetArticle({ id: '8106', images: [imageUrl] });
@@ -167,7 +202,7 @@ it('does not send image words after sexual-text checks are disabled mid-scan', a
     });
   const pending = Effect.runPromise(textScores(newPostStub('8107'), 'Caption', [imageUrl]));
   await until(() => bg.ocrCalls.length === 1);
-  settings.current.enabled.sexualText = false;
+  settings.current.textFilters[0]!.enabled = false;
   gate.resolve(explicitText);
   await expect(pending).resolves.toEqual({ scores: {}, errors: [] });
   expect(bg.jevCalls).toHaveLength(0);

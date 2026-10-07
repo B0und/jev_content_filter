@@ -6,14 +6,14 @@ import { useVirtualizer, type VirtualItem } from '@tanstack/react-virtual';
 import {
   CATEGORY_KEYS,
   CATEGORY_LABELS,
+  scoreLabel,
   type BlockedEntry,
-  type CategoryKey,
 } from '../../filtering/types';
 import { logsState, type ErrorRow } from './state';
 import './logs.css';
 
 type Tab = 'blocked' | 'errors';
-type ReasonFilter = 'all' | CategoryKey;
+type ReasonFilter = string;
 
 const TABS: readonly Tab[] = ['blocked', 'errors'];
 
@@ -24,10 +24,6 @@ const REASON_OPTIONS: Array<{ value: ReasonFilter; label: string }> = [
 
 function isTab(value: string): value is Tab {
   return TABS.some((tab) => tab === value);
-}
-
-function isReasonFilter(value: string): value is ReasonFilter {
-  return value === 'all' || CATEGORY_KEYS.some((key) => key === value);
 }
 
 function subscribeHash(listener: () => void) {
@@ -115,7 +111,7 @@ function BlockedRow(props: {
       </span>
       <span className="col-reasons">
         {entry.reasons
-          .map((r) => `${CATEGORY_LABELS[r.key]} ${(r.score * 100).toFixed(0)}%`)
+          .map((r) => `${r.label ?? scoreLabel(r.key)} ${(r.score * 100).toFixed(0)}%`)
           .join(', ')}
       </span>
       <span className="col-snippet">{entry.snippet}</span>
@@ -196,6 +192,15 @@ function VirtualList(props: {
   );
 }
 
+function logReasonOptions(log: BlockedEntry[]) {
+  const storedReasons = new Map<string, string>();
+  for (const entry of log)
+    for (const reason of entry.reasons)
+      if (!REASON_OPTIONS.some((option) => option.value === reason.key))
+        storedReasons.set(reason.key, reason.label ?? scoreLabel(reason.key));
+  return [...REASON_OPTIONS, ...Array.from(storedReasons, ([value, label]) => ({ value, label }))];
+}
+
 export function App() {
   const tab = useSyncExternalStore(subscribeHash, currentTab, currentTab);
   const [filter, setFilter] = useState<ReasonFilter>('all');
@@ -207,6 +212,7 @@ export function App() {
   const { log, errors, unblocked, unblocking, loadError, actionError, busyAction } = snapshot;
   useEffect(() => logsState.start(), []);
 
+  const reasonOptions = logReasonOptions(log);
   const filtered =
     filter === 'all' ? log : log.filter((entry) => entry.reasons.some((r) => r.key === filter));
 
@@ -255,10 +261,14 @@ export function App() {
           <div className="logs-controls">
             {tab === 'blocked' && (
               <Select.Root<ReasonFilter>
-                items={REASON_OPTIONS}
+                items={reasonOptions}
                 value={filter}
                 onValueChange={(value) => {
-                  if (typeof value === 'string' && isReasonFilter(value)) setFilter(value);
+                  if (
+                    typeof value === 'string' &&
+                    reasonOptions.some((option) => option.value === value)
+                  )
+                    setFilter(value);
                 }}
               >
                 <Select.Trigger className="filter-trigger" aria-label="Filter by reason">
@@ -267,7 +277,7 @@ export function App() {
                 <Select.Portal>
                   <Select.Positioner className="filter-positioner">
                     <Select.Popup className="filter-popup">
-                      {REASON_OPTIONS.map((option) => (
+                      {reasonOptions.map((option) => (
                         <Select.Item
                           key={option.value}
                           value={option.value}
