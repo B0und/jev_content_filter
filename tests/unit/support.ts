@@ -16,7 +16,7 @@ import {
   type Settings,
   type TabReport,
 } from '../../src/filtering/types';
-import type { InferenceReply } from '../../src/inference/contracts';
+import { OcrError, encodeOcrReply, type InferenceReply } from '../../src/inference/contracts';
 import { newPost, type Post } from '../../src/content/state';
 import { applySettingsChange, loadSettings } from '../../src/filtering/settings';
 import { BgRequestSchema } from '../../src/filtering/schemas';
@@ -57,6 +57,11 @@ export interface FakeBackground {
     type: 'classify-image';
     url: string;
   }) => InferenceReply | Promise<InferenceReply>;
+  ocrRespond: (request: {
+    type: 'extract-image-text';
+    url: string;
+  }) => Effect.Effect<string, OcrError>;
+  ocrCalls: Array<{ type: 'extract-image-text'; url: string }>;
   jevCalls: Array<{ tweetId: string; text: string }>;
   aiCalls: Array<{ type: 'classify-ai'; text: string }>;
   imageCalls: Array<{ type: 'classify-image'; url: string }>;
@@ -66,6 +71,7 @@ export interface FakeBackground {
   stats: number[];
 }
 
+/** Install deterministic provider and OCR replies while recording outgoing requests. */
 export function installFakeBackground(): FakeBackground {
   const bg: FakeBackground = {
     respond: () => ({ ok: true, custom: { 'preset-1': 0.01 } }),
@@ -74,6 +80,8 @@ export function installFakeBackground(): FakeBackground {
       ok: true,
       scores: { porn: 0.01, hentai: 0.01, sexy: 0.01, drawings: 0.01 },
     }),
+    ocrRespond: () => Effect.succeed(''),
+    ocrCalls: [],
     jevCalls: [],
     aiCalls: [],
     imageCalls: [],
@@ -106,6 +114,12 @@ export function installFakeBackground(): FakeBackground {
       if (request.type === 'classify-ai') {
         bg.aiCalls.push(request);
         void (async () => sendResponse(await bg.aiRespond(request)))();
+        return true;
+      }
+      if (request.type === 'extract-image-text') {
+        bg.ocrCalls.push(request);
+        void (async () =>
+          sendResponse(await Effect.runPromise(encodeOcrReply(bg.ocrRespond(request)))))();
         return true;
       }
       if (request.type === 'classify-image') {

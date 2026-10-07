@@ -1,0 +1,46 @@
+{
+  "executedAt": "2026-10-07T09:21:17.465Z",
+  "browser": "Chrome/153.0.8010.12",
+  "result": {
+    "initialized": false,
+    "error": "Evaluating a string as JavaScript violates the following Content Security Policy directive because 'unsafe-eval' is not an allowed source of script: script-src 'self' 'wasm-unsafe-eval'\".\n\nFunction (<anonymous>)"
+  },
+  "errors": [
+    "Evaluating a string as JavaScript violates the following Content Security Policy directive because 'unsafe-eval' is not an allowed source of script: script-src 'self' 'wasm-unsafe-eval'\".\n\nFunction (<anonymous>)"
+  ],
+  "files": [
+    {
+      "path": "assets/ocr-extension-probe-BpvCmqga.js",
+      "bytes": 10479163
+    },
+    {
+      "path": "assets/ort.wasm.min-CAEgipHY.js",
+      "bytes": 48077
+    },
+    {
+      "path": "assets/worker-entry-C9UNuyOJ-EhIzhVdm.js",
+      "bytes": 11341486
+    },
+    {
+      "path": "background.js",
+      "bytes": 43
+    },
+    {
+      "path": "manifest.json",
+      "bytes": 216
+    },
+    {
+      "path": "ocr-extension-probe.html",
+      "bytes": 235
+    },
+    {
+      "path": "ort/ort-wasm-simd-threaded.mjs",
+      "bytes": 24381
+    },
+    {
+      "path": "ort/ort-wasm-simd-threaded.wasm",
+      "bytes": 14239897
+    }
+  ],
+  "bytes": 36133498
+}

@@ -80,13 +80,14 @@ function mediaSource(element: HTMLImageElement | HTMLVideoElement): string {
     : element.currentSrc || element.src;
 }
 
+/** Restrict image discovery to supported X media and preview URLs. */
 function isFilterableMediaUrl(url: string): boolean {
   if (!url) return false;
   try {
     const parsed = new URL(url, location.origin);
     return (
       parsed.hostname.toLowerCase() === 'pbs.twimg.com' &&
-      FILTERABLE_MEDIA_PATH.test(parsed.pathname)
+      (FILTERABLE_MEDIA_PATH.test(parsed.pathname) || parsed.pathname.startsWith('/card_img/'))
     );
   } catch {
     return false;

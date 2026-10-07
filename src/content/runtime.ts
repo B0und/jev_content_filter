@@ -209,11 +209,11 @@ class ContentSession extends Context.Service<ContentSession, ContentSessionApi>(
               TEXT_KEYS.some((key) => settings.current.enabled[key]) ||
               settings.current.textFilters.some((filter) => filter.enabled);
             const imageEnabled = IMAGE_KEYS.some((key) => settings.current.enabled[key]);
-            const textNeeded = !post.textDone && !!post.text && textEnabled;
+            const textNeeded =
+              !post.textDone && ((!!post.text && textEnabled) || post.urls.length > 0);
             const imagesNeeded = !post.imagesDone && post.urls.length > 0 && imageEnabled;
             const previewNeeded =
-              !post.previewDone &&
-              ((!!post.previewUrl && imageEnabled) || (!!post.previewText && textEnabled));
+              !post.previewDone && (!!post.previewUrl || (!!post.previewText && textEnabled));
             if (!textNeeded && !imagesNeeded && !previewNeeded) return;
             const version = post.version;
             const text = post.text;
@@ -265,7 +265,7 @@ class ContentSession extends Context.Service<ContentSession, ContentSessionApi>(
               );
 
             const jobs: Array<Effect.Effect<unknown>> = [];
-            if (textNeeded) jobs.push(part('text', textScores(post, text)));
+            if (textNeeded) jobs.push(part('text', textScores(post, text, urls)));
             if (imagesNeeded) jobs.push(part('images', imageScores(urls)));
             if (previewNeeded) {
               const previewImage =
@@ -273,8 +273,8 @@ class ContentSession extends Context.Service<ContentSession, ContentSessionApi>(
                   ? capture(imageScores([previewUrl]))
                   : Effect.succeed({ value: { scores: {}, errors: [] } } as const);
               const previewTextResult =
-                previewText && textEnabled
-                  ? capture(textScores(post, previewText))
+                (previewText && textEnabled) || previewUrl
+                  ? capture(textScores(post, previewText, previewUrl ? [previewUrl] : []))
                   : Effect.succeed({ value: { scores: {}, errors: [] } } as const);
               const previewWork = Effect.gen(function* () {
                 const [image, textResult] = yield* Effect.all([previewImage, previewTextResult], {
@@ -381,6 +381,11 @@ class ContentSession extends Context.Service<ContentSession, ContentSessionApi>(
                 }
                 if (!sameUrls(post.urls, content.urls)) {
                   post.urls = content.urls;
+                  post.textDone = false;
+                  post.partErrors.text = [];
+                  post.logged = false;
+                  for (const key of textScoreKeys(post))
+                    if (key.startsWith('custom:')) delete post.scores[key];
                   post.imagesDone = false;
                   post.partErrors.images = [];
                   for (const key of IMAGE_KEYS) delete post.scores[key];

@@ -31,15 +31,20 @@
     "@tensorflow/tfjs": "^4.22.0",
     "ai": "7.0.128",
     "effect": "^4.0.0-rc.118",
+    "image-dimensions": "2.6.0",
     "nsfwjs": "^4.4.0",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "tesseract.js": "7.0.0"
   },
   "devDependencies": {
     "@babel/core": "^7.29.7",
     "@effect/tsgo": "0.47.1",
+    "@paddleocr/paddleocr-js": "^0.4.2",
     "@playwright/test": "^1.63.0",
     "@rolldown/plugin-babel": "^0.2.4",
+    "@tesseract.js-data/eng": "1.0.0",
+    "@tesseract.js-data/rus": "1.0.0",
     "@types/babel__core": "^7.20.5",
     "@types/chrome": "^0.3.0",
     "@types/node": "^24.13.5",
@@ -55,6 +60,7 @@
     "oxlint-tsgolint": "7.0.2003",
     "puppeteer-core": "^25.12.0",
     "react-doctor": "^0.9.14",
+    "scribe.js-ocr": "^0.16.1",
     "typescript": "7.0.2",
     "vitest": "^5.0.1",
     "wxt": "^0.21.4"

@@ -98,6 +98,7 @@ export type BgRequest =
   | { type: 'jev'; tweetId: string; text: string; provider: TextProvider; revision: number }
   | { type: 'update-settings'; change: SettingsChange }
   | { type: 'classify-image'; url: string }
+  | { type: 'extract-image-text'; url: string }
   | { type: 'classify-ai'; text: string }
   | { type: 'load-model'; kind: 'image' | 'aiText' }
   | { type: 'local-model-status'; models: ModelStatuses }

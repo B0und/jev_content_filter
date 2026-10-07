@@ -53,6 +53,7 @@ void test(
       artifacts: path.join(project, 'artifacts'),
       profile: path.join(project, 'profile'),
       headless: true,
+      ocrDataRoot: root,
     });
     t.after(async () => {
       await session.close();

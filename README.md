@@ -77,6 +77,7 @@ React follows [You Might Not Need an Effect](https://react.dev/learn/you-might-n
 ## Filtering behavior
 
 - Lower thresholds block more content. Thresholds are probabilities between 0 and 1; the popup displays percentages.
+- Custom text filters read post text and text in attached images and link previews. English and Russian OCR runs locally with a bundled Tesseract.js core; language data is downloaded from the pinned Tesseract data host on first use and cached in the browser's IndexedDB, so adding another language does not add its traineddata to the extension package. The first use of an uncached language needs network access; later OCR uses the local cache. While filtering is active, OCR reads every discovered post and preview image, including posts without captions, even when all classifiers are disabled or no provider key is configured. Sending the extracted words to Jev still requires enabled text filters and a provider key. OCR results are cached per image. Failed extraction is reported and retried, while caption and visual checks can still complete. Small, stylized, or obscured lettering can be missed. AI-written-text checks use the caption only.
 - The AI-written score is a classifier estimate, not proof of authorship.
 - Drawings includes ordinary anime and illustrations, not only explicit content. Disable that category if you want ordinary illustrations to remain visible.
 - Link previews have separate scores and can be hidden without hiding the post.

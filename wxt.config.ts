@@ -15,6 +15,24 @@ export default defineConfig({
           relativeDest: `ort/${name}`,
         });
       }
+      files.push({
+        absoluteSrc: resolve(wxt.config.root, 'node_modules/tesseract.js/dist/worker.min.js'),
+        relativeDest: 'ocr/worker.min.js',
+      });
+      const core = 'tesseract-core-simd-lstm.wasm.js';
+      files.push({
+        absoluteSrc: resolve(wxt.config.root, 'node_modules/tesseract.js-core', core),
+        relativeDest: `ocr/${core}`,
+      });
+      for (const dependency of ['tesseract.js', 'tesseract.js-core']) {
+        files.push({
+          absoluteSrc: resolve(
+            wxt.config.root,
+            `node_modules/${dependency}/${dependency === 'tesseract.js' ? 'LICENSE.md' : 'LICENSE'}`,
+          ),
+          relativeDest: `ocr/${dependency}.LICENSE`,
+        });
+      }
     },
   },
   vite: () => ({
@@ -57,6 +75,7 @@ export default defineConfig({
       'https://*.huggingface.co/*',
       'https://*.hf.co/*',
       'https://raw.githubusercontent.com/infinitered/nsfwjs/*',
+      'https://raw.githubusercontent.com/naptha/tessdata/*',
     ],
   },
 });

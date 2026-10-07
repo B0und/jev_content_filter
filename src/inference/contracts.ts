@@ -1,3 +1,4 @@
+import { Effect } from 'effect';
 import * as Schema from 'effect/Schema';
 import { CATEGORY_KEYS } from '../filtering/types';
 
@@ -42,6 +43,11 @@ export const InferenceRequestSchema = Schema.Union([
   }),
   Schema.Struct({
     target: Schema.Literal('local-inference'),
+    operation: Schema.Literal('ocr'),
+    dataUrl: Schema.String,
+  }),
+  Schema.Struct({
+    target: Schema.Literal('local-inference'),
     operation: Schema.Literal('aiText'),
     text: Schema.String,
   }),
@@ -56,3 +62,20 @@ export const InferenceReplySchema = Schema.Union([
   Schema.Struct({ ok: Schema.Literal(false), error: Schema.String }),
 ]);
 export type InferenceReply = typeof InferenceReplySchema.Type;
+
+export class OcrError extends Schema.TaggedError<OcrError>()('OcrError', {
+  message: Schema.String,
+}) {}
+
+// Browser messages cannot carry a running Effect. Encode its Result only here,
+// then restore the success/error channels immediately on the receiving side.
+export const OcrReplyCodec = Schema.toCodecJson(Schema.Result(Schema.String, OcrError));
+/** Encode the typed OCR error channel for a browser message boundary. */
+export const encodeOcrReply = Effect.fnUntraced(function* (
+  work: Effect.Effect<string, { readonly message: string }>,
+) {
+  const result = yield* Effect.result(
+    work.pipe(Effect.mapError((error) => new OcrError({ message: error.message }))),
+  );
+  return yield* Schema.encodeEffect(OcrReplyCodec)(result);
+});

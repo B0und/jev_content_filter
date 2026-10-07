@@ -33,18 +33,20 @@ const PROVIDER_DETAILS: Record<
   vercel: {
     keyLabel: 'Vercel AI Gateway API key',
     placeholder: 'vck_…',
-    description: 'Post text is sent to Jev through Vercel AI Gateway to check your text filters.',
+    description:
+      'Post text and words read locally from images are sent to Jev through Vercel AI Gateway to check your text filters.',
   },
   typesafe: {
     keyLabel: 'TypeSafe API key',
     placeholder: 'Paste your TypeSafe key',
-    description: "Post text is sent to Jev's Decisions API to check your text filters.",
+    description:
+      "Post text and words read locally from images are sent to Jev's Decisions API to check your text filters.",
   },
   openrouter: {
     keyLabel: 'OpenRouter API key',
     placeholder: 'Paste your OpenRouter key',
     description:
-      "Post text is sent to Jev through OpenRouter's Decisions API to check your text filters.",
+      "Post text and words read locally from images are sent to Jev through OpenRouter's Decisions API to check your text filters.",
   },
 };
 
@@ -421,7 +423,8 @@ function ProviderSettings({ settings, report }: { settings: Settings; report: Ta
     <details className="diagnostics">
       <summary>Jev provider and scan details</summary>
       <p className="provider-scope">
-        Your text filters use this provider and key. AI-written-text checks run locally.
+        Your text filters include words in images (English and Russian) and use this provider and
+        key. AI-written-text checks run locally.
       </p>
       {report && (
         <p className="scan-details">

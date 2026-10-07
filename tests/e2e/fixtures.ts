@@ -110,6 +110,19 @@ export const test = base.extend<{
           body: await readFile('mock/pbs.twimg.com/media/landscape.png'),
         });
       }
+      if (
+        url.hostname === 'raw.githubusercontent.com' &&
+        url.pathname.includes('/naptha/tessdata/')
+      ) {
+        const language = path.basename(url.pathname).replace('.traineddata.gz', '');
+        if (!['eng', 'rus'].includes(language)) return route.abort();
+        return route.fulfill({
+          contentType: 'application/gzip',
+          body: await readFile(
+            `node_modules/@tesseract.js-data/${language}/4.0.0_best_int/${language}.traineddata.gz`,
+          ),
+        });
+      }
       return route.abort();
     });
     await provide(context);

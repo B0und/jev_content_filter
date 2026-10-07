@@ -11,6 +11,7 @@ const BG_REQUEST_TYPES: Record<string, true> = {
   jev: true,
   'update-settings': true,
   'classify-image': true,
+  'extract-image-text': true,
   'classify-ai': true,
   'load-model': true,
   'local-model-status': true,

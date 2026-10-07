@@ -9,11 +9,13 @@ import {
   STORAGE_KEYS,
   textDecisionSignature,
   type ScoreKey,
+  type TextProvider,
 } from '../filtering/types';
 import { ScoreKeySchema } from '../filtering/schemas';
 import { settings, type Post } from './state';
 import { canonicalMediaUrl } from './dom';
-import { InferenceReplySchema } from '../inference/contracts';
+import { OCR_PIPELINE_REVISION, ocrImageUrl } from '../inference/ocr-policy';
+import { InferenceReplySchema, OcrReplyCodec } from '../inference/contracts';
 import { IMAGE_PIPELINE_REVISION, SELECTED_MODELS } from '../inference/model-catalog';
 const JevReplySchema = Schema.Union([
   Schema.Struct({
@@ -54,6 +56,44 @@ const CachedTimestampEntrySchema = Schema.Struct({ ts: Schema.Finite });
 const isCachedScoreEntry = Schema.is(CachedScoreEntrySchema);
 const isCachedTimestampEntry = Schema.is(CachedTimestampEntrySchema);
 const isCategoryKey = Schema.is(ScoreKeySchema);
+
+type CacheIdentity =
+  | { task: 'image' | 'imageText'; url: string }
+  | { task: 'textFilters'; provider: TextProvider; signature: string; text: string }
+  | { task: 'aiText'; text: string };
+
+/** Build the single versioned cache key for every classifier input. */
+function cacheKey(identity: CacheIdentity): string {
+  let kind: string;
+  let revision: string;
+  let input: string;
+  switch (identity.task) {
+    case 'image':
+      kind = 'i';
+      revision = IMAGE_PIPELINE_REVISION;
+      input = canonicalMediaUrl(identity.url);
+      break;
+    case 'imageText':
+      kind = 'o';
+      revision = OCR_PIPELINE_REVISION;
+      input = canonicalMediaUrl(identity.url);
+      break;
+    case 'textFilters':
+      kind = 't';
+      revision = `${identity.provider}:${hash64(identity.signature)}:${OCR_PIPELINE_REVISION}`;
+      input = identity.text;
+      break;
+    case 'aiText': {
+      kind = 'a';
+      const descriptor = SELECTED_MODELS.aiText;
+      revision = `${descriptor.id}:${descriptor.revision}`;
+      input = identity.text;
+      break;
+    }
+  }
+  return `${CACHE_PREFIX}${kind}:${revision}:${hash64(input)}`;
+}
+
 /** 64-bit-ish FNV-1a + djb2 pair, base36: collisions become vanishingly unlikely. */
 function hash64(input: string): string {
   let h1 = 0x811c9dc5;
@@ -128,11 +168,52 @@ export function canRetry(error: string): boolean {
 /** Give up on a post after this many failed scans, whatever the error. */
 export const MAX_RETRIES = 5;
 
+const CachedImageTextSchema = Schema.Struct({ text: Schema.String, ts: Schema.Finite });
+const imageTextLock = Semaphore.makeUnsafe(1);
+/** Serialize image extraction, caching successful readings and retaining errors for retry. */
+const imageText = Effect.fnUntraced(function* (urls: string[]) {
+  const texts: string[] = [];
+  const errors: string[] = [];
+  for (const url of urls) {
+    const outcome = yield* Effect.result(
+      imageTextLock.withPermits(1)(
+        Effect.gen(function* () {
+          const key = cacheKey({ task: 'imageText', url });
+          const stored = yield* browserEffect('read image text cache', () =>
+            browser.storage.local.get(key),
+          );
+          if (Schema.is(CachedImageTextSchema)(stored[key])) return stored[key].text;
+          const raw: unknown = yield* browserEffect('read text in image locally', () =>
+            browser.runtime.sendMessage({ type: 'extract-image-text', url: ocrImageUrl(url) }),
+          );
+          const words = yield* Schema.decodeUnknownEffect(OcrReplyCodec)(raw).pipe(
+            Effect.flatMap(Effect.fromResult),
+            Effect.mapError(
+              (cause) => new ClassificationError({ message: `Image text: ${cause.message}` }),
+            ),
+          );
+          const ts = yield* Clock.currentTimeMillis;
+          yield* browserEffect('cache image text', () =>
+            browser.storage.local.set({ [key]: { text: words, ts } }),
+          ).pipe(Effect.ignore);
+          if (++cacheWrites % 250 === 0) yield* evictCache();
+          return words;
+        }),
+      ),
+    );
+    if (outcome._tag === 'Failure') errors.push(message(outcome.failure));
+    else if (outcome.success.trim()) texts.push(outcome.success.trim());
+  }
+  return { texts, errors };
+});
+
 // --- Text scores ------------------------------------------------------------
 
+/** Check captions and image words while rejecting results from obsolete provider settings. */
 export const textScores = Effect.fnUntraced(function* (
   post: Post,
   text: string,
+  urls: string[] = [],
 ): Effect.fn.Return<
   { scores: Partial<Record<ScoreKey, number>>; errors: string[] },
   BrowserError | ClassificationError
@@ -140,54 +221,82 @@ export const textScores = Effect.fnUntraced(function* (
   const current = settings.current;
   const provider = current.textProvider;
   const revision = current.textConfigRevision;
+  const extractionErrors: string[] = [];
   const jobs: Array<
     Effect.Effect<Partial<Record<ScoreKey, number>>, BrowserError | ClassificationError>
   > = [];
-  if (current.textFilters.some((filter) => filter.enabled))
+  jobs.push(
+    Effect.gen(function* () {
+      const ocr = yield* imageText(urls);
+      extractionErrors.push(...ocr.errors);
+      const filters = current.textFilters.filter((filter) => filter.enabled);
+      if (!filters.length) return {};
+      const combined = [
+        text && `Tweet text:\n${text}`,
+        ...ocr.texts.map((words, index) => `Text in attached image ${index + 1}:\n${words}`),
+      ]
+        .filter(Boolean)
+        .join('\n\n');
+      if (!combined) return {};
+      const input = ocr.texts.length ? combined : text;
+      const key = cacheKey({
+        task: 'textFilters',
+        provider,
+        signature: textDecisionSignature(current.textFilters),
+        text: input,
+      });
+      const cached = yield* readCache(key);
+      if (cached && filters.every((filter) => cached.scores[`custom:${filter.id}`] !== undefined))
+        return cached.scores;
+      if (
+        !settings.current.masterEnabled ||
+        !settings.current.textFilters.some((filter) => filter.enabled) ||
+        settings.current.textProvider !== provider ||
+        settings.current.textConfigRevision !== revision
+      )
+        return {};
+      if (!settings.current.providerKeys[provider])
+        return yield* new ClassificationError({
+          message:
+            'Add an API key in the Text tab to check Jev text filters. Local AI-written-text detection does not need a key.',
+        });
+      const rawReply: unknown = yield* browserEffect('classify text filters', () =>
+        browser.runtime.sendMessage({
+          type: 'jev',
+          tweetId: post.id,
+          text: input,
+          provider,
+          revision,
+        }),
+      );
+      const reply = yield* Schema.decodeUnknownEffect(JevReplySchema)(rawReply).pipe(
+        Effect.mapError(
+          () => new ClassificationError({ message: 'Invalid text classification response.' }),
+        ),
+      );
+      if (!reply.ok) return yield* new ClassificationError({ message: reply.error });
+      if (reply.provider !== provider || reply.revision !== revision)
+        return yield* new ClassificationError({ message: 'Text configuration changed.' });
+      const scores: Partial<Record<ScoreKey, number>> = {};
+      for (const filter of filters) {
+        const score = reply.custom[filter.id];
+        if (score === undefined || !Number.isFinite(score) || score < 0 || score > 1)
+          return yield* new ClassificationError({ message: 'Invalid text scores.' });
+        scores[`custom:${filter.id}`] = score;
+      }
+      if (
+        ocr.errors.length === 0 &&
+        settings.current.textProvider === provider &&
+        settings.current.textConfigRevision === revision
+      )
+        yield* writeCache(key, scores);
+      return scores;
+    }),
+  );
+  if (current.enabled.aiGenerated && text)
     jobs.push(
       Effect.gen(function* () {
-        const key = `${CACHE_PREFIX}t:${provider}:${hash64(textDecisionSignature(current.textFilters))}:${hash64(text)}`;
-        const cached = yield* readCache(key);
-        if (
-          cached &&
-          current.textFilters
-            .filter((filter) => filter.enabled)
-            .every((filter) => cached.scores[`custom:${filter.id}`] !== undefined)
-        )
-          return cached.scores;
-        if (!current.providerKeys[provider])
-          return yield* new ClassificationError({
-            message:
-              'Add an API key in the Text tab to check Jev text filters. Local AI-written-text detection does not need a key.',
-          });
-        const rawReply: unknown = yield* browserEffect('classify text filters', () =>
-          browser.runtime.sendMessage({ type: 'jev', tweetId: post.id, text, provider, revision }),
-        );
-        const reply = yield* Schema.decodeUnknownEffect(JevReplySchema)(rawReply).pipe(
-          Effect.mapError(
-            () => new ClassificationError({ message: 'Invalid text classification response.' }),
-          ),
-        );
-        if (!reply.ok) return yield* new ClassificationError({ message: reply.error });
-        if (reply.provider !== provider || reply.revision !== revision)
-          return yield* new ClassificationError({ message: 'Text configuration changed.' });
-        const scores: Partial<Record<ScoreKey, number>> = {};
-        for (const filter of current.textFilters.filter((item) => item.enabled)) {
-          scores[`custom:${filter.id}`] = reply.custom[filter.id]!;
-        }
-        if (
-          settings.current.textProvider === provider &&
-          settings.current.textConfigRevision === revision
-        )
-          yield* writeCache(key, scores);
-        return scores;
-      }),
-    );
-  if (current.enabled.aiGenerated)
-    jobs.push(
-      Effect.gen(function* () {
-        const descriptor = SELECTED_MODELS.aiText;
-        const key = `${CACHE_PREFIX}a:${descriptor.id}:${descriptor.revision}:${hash64(text)}`;
+        const key = cacheKey({ task: 'aiText', text });
         const cached = yield* readCache(key);
         if (cached?.scores.aiGenerated !== undefined)
           return { aiGenerated: cached.scores.aiGenerated };
@@ -218,7 +327,7 @@ export const textScores = Effect.fnUntraced(function* (
   )
     return yield* new ClassificationError({ message: 'Text configuration changed.' });
   const scores: Partial<Record<ScoreKey, number>> = {};
-  const errors: string[] = [];
+  const errors: string[] = [...extractionErrors];
   for (const outcome of outcomes) {
     if (outcome._tag === 'Failure') errors.push(message(outcome.failure));
     else Object.assign(scores, outcome.success);
@@ -236,6 +345,7 @@ export const imageScores = Effect.fnUntraced(function* (urls: string[]) {
   return yield* Semaphore.withPermit(imageInference, classifyImages(urls));
 });
 
+/** Combine cached and freshly inferred image scores, retaining individual extraction errors. */
 const classifyImages = Effect.fnUntraced(function* (
   urls: string[],
 ): Effect.fn.Return<
@@ -247,9 +357,7 @@ const classifyImages = Effect.fnUntraced(function* (
   const misses: Array<{ url: string; index: number }> = [];
   for (let index = 0; index < urls.length; index++) {
     const url = urls[index] ?? '';
-    const cached = yield* readCache(
-      `${CACHE_PREFIX}i:${IMAGE_PIPELINE_REVISION}:${hash64(canonicalMediaUrl(url))}`,
-    );
+    const cached = yield* readCache(cacheKey({ task: 'image', url }));
     if (cached) {
       for (const category of CATEGORY_KEYS) {
         const value = cached.scores[category];
@@ -287,10 +395,7 @@ const classifyImages = Effect.fnUntraced(function* (
       errors.push(`Image ${miss.index + 1}: ${outcome.warning}`);
       continue; // Preserve available scores, but retry the incomplete check instead of caching it.
     }
-    yield* writeCache(
-      `${CACHE_PREFIX}i:${IMAGE_PIPELINE_REVISION}:${hash64(canonicalMediaUrl(miss.url))}`,
-      imageScores,
-    );
+    yield* writeCache(cacheKey({ task: 'image', url: miss.url }), imageScores);
   }
   return { scores, errors };
 });

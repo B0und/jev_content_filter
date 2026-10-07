@@ -4,6 +4,8 @@ import { browser } from 'wxt/browser';
 import { BrowserError, browserEffect } from '../platform/browser';
 import {
   InferenceReplySchema,
+  OcrReplyCodec,
+  OcrError,
   type InferenceRequest,
   type InferenceReply,
   type ModelKind,
@@ -45,4 +47,16 @@ export const warmLocalModels = Effect.fn('warmLocalModels')(function* (models: M
   });
   if (!reply.ok)
     return yield* new BrowserError({ operation: 'load local models', cause: reply.error });
+});
+
+/** Request OCR through the offscreen document and restore its typed error channel. */
+export const runLocalOcr = Effect.fn('runLocalOcr')(function* (dataUrl: string) {
+  yield* ensureDocument;
+  const raw: unknown = yield* browserEffect('request local OCR', () =>
+    browser.runtime.sendMessage({ target: 'local-inference', operation: 'ocr', dataUrl }),
+  );
+  const result = yield* Schema.decodeUnknownEffect(OcrReplyCodec)(raw).pipe(
+    Effect.mapError((cause) => new OcrError({ message: cause.message })),
+  );
+  return yield* Effect.fromResult(result);
 });
