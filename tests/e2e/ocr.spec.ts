@@ -1,8 +1,64 @@
 import * as Schema from 'effect/Schema';
+import { readFile } from 'node:fs/promises';
 import { OcrReplyCodec } from '../../src/inference/contracts';
 import { test, expect, remoteSettings } from './fixtures';
 
 const EvaluationSchema = Schema.Struct({ state: Schema.Struct({ tweet_text: Schema.String }) });
+
+test('recovers outlined sexual wording inside an image through the installed extension', async ({
+  context,
+  extensionId,
+  page,
+}) => {
+  await context.route('https://pbs.twimg.com/media/outlined-ocr*', async (route) =>
+    route.fulfill({
+      contentType: 'image/png',
+      body: await readFile('benchmarks/ocr-fixtures/meme.png'),
+    }),
+  );
+  const inputs: string[] = [];
+  await context.route('https://ai-gateway.vercel.sh/**', async (route) => {
+    const decoded = Schema.decodeUnknownSync(EvaluationSchema)(route.request().postDataJSON());
+    inputs.push(decoded.state.tweet_text);
+    await route.fulfill({
+      json: {
+        answers: {
+          sexual: {
+            type: 'boolean',
+            probability: decoded.state.tweet_text.includes('SEND NUDES') ? 0.99 : 0.01,
+          },
+        },
+      },
+    });
+  });
+  const popup = await context.newPage();
+  await popup.goto(`chrome-extension://${extensionId}/popup.html`);
+  const reply: unknown = await popup.evaluate(() =>
+    chrome.runtime.sendMessage({
+      type: 'extract-image-text',
+      url: 'https://pbs.twimg.com/media/outlined-ocr.png',
+    }),
+  );
+  expect(Schema.decodeUnknownSync(OcrReplyCodec)(reply)).toMatchObject({
+    _tag: 'Success',
+    success: expect.stringContaining('SEND NUDES'),
+  });
+  await page.goto('https://x.com/home');
+  await page.evaluate(() => {
+    const article = document.createElement('article');
+    article.dataset.testid = 'tweet';
+    article.dataset.post = 'outlined-ocr';
+    article.innerHTML =
+      '<div data-testid="User-Name">OCR test</div><a href="/test/status/9003"><time>Now</time></a><div data-testid="tweetText">A harmless caption</div><img src="https://pbs.twimg.com/media/outlined-ocr.png">';
+    document.body.append(article);
+  });
+  await expect(page.locator('[data-post="outlined-ocr"]')).toHaveAttribute('data-jev-hidden', '', {
+    timeout: 30000,
+  });
+  expect(
+    inputs.some((text) => text.includes('A harmless caption') && text.includes('SEND NUDES')),
+  ).toBe(true);
+});
 
 test('reads Russian and English screenshot text locally and filters an innocent caption', async ({
   page,

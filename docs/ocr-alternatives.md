@@ -1,82 +1,137 @@
-# Browser OCR options
+# Browser OCR benchmark and decision
 
-Research date: 2026-10-06
+Measured October 7, 2026. Exact UTC timestamps, outputs, timings, asset sizes,
+and hashes are in [the results](../benchmarks/ocr-results.json).
 
-## Recommendation
+## Decision
 
-Keep Tesseract.js for this extension and move its language data out of the
-package. The current workload is short text in social-media screenshots, where
-the extension needs a permissive license, predictable MV3/WASM behavior, and
-language packs that can be downloaded only when needed. Tesseract.js supports
-more than 100 languages, runs in the browser through WebAssembly, reuses one
-worker for multiple images, and caches traineddata in IndexedDB:
+Use Tesseract.js 7 with the existing lazy English/Russian packs and a contrast
+retry for uncertain text. It meets the extension's size and MV3 constraints.
+The installed extension averaged **124 ms** across nine screenshot cases,
+including preprocessing and message round trips. No runtime or model files were
+added; the complete extension still builds to **38.81 MB uncompressed**.
 
-- [Tesseract.js README](https://github.com/naptha/tesseract.js/blob/master/README.md)
-- [Tesseract.js FAQ: traineddata caching](https://github.com/naptha/tesseract.js/blob/master/docs/faq.md)
+PaddleOCR PP-OCRv6 tiny wins text accuracy on this corpus. Its stock SDK fails
+in an actual MV3 extension, however, and its runtime packaging is substantially
+larger. Keeping Tesseract is a constraint-based choice, not a claim that it reads
+images better than Paddle.
 
-This branch packages one SIMD LSTM core and downloads the selected
-`traineddata.gz` files from a pinned `naptha/tessdata` commit. The data is not
-executable code. The test-only language packages remain dev dependencies so
-browser tests can serve deterministic responses without adding them to the
-extension output.
+The selected retry separates bright lettering from its background when the first
+pass reports confidence below 80 and returns nonempty text. It keeps the result
+with higher confidence. Confidence is an engine heuristic, not a probability.
+This recovers `SEND NUDES` from the outlined caption the original pipeline missed.
+It still misreads `sex` as mixed Cyrillic/Latin `5ех` in the tilted case.
+Automatic rotation was also tried and made that case worse, so it is excluded.
 
-## Alternatives considered
+## Measured results
 
-### PaddleOCR.js
+Chromium 153.0.8010.12, Linux 6.18.54-2-lts, AMD Ryzen 7 7700. One OCR worker / one
+ONNX thread. Three sequential runs per image; this table averages repetitions two
+and three across nine multiline screenshots. CER is normalized character error
+rate; lower is better. Terms measure exact recovery of 13 occurrences of `nude`,
+`nudes`, `naked`, `sex`, `sexual`, `explicit`, or `porn`. This is not classifier
+accuracy: factual discussion can contain these terms without being sexual bait.
 
-PaddleOCR now has an official browser SDK, `@paddleocr/paddleocr-js`. It runs
-PP-OCR pipelines with ONNX Runtime Web, supports model selection by language,
-and reports detection/recognition/total timing metrics. Its docs also describe a
-worker mode and custom model archives:
+| Engine/configuration                           |       CER | Terms recovered |  Warm mean |   Warm p95 | First use¹ |
+| ---------------------------------------------- | --------: | --------------: | ---------: | ---------: | ---------: |
+| Tesseract original, English + Russian best-int |     3.65% |           11/13 |     106 ms |     185 ms |     457 ms |
+| **Tesseract selected, contrast retry**         | **1.22%** |       **12/13** | **123 ms** | **324 ms** | **460 ms** |
+| Tesseract English best-int                     |     3.19% |           12/13 |      95 ms |     151 ms |     351 ms |
+| Tesseract English fast                         |     2.43% |           12/13 |      71 ms |     122 ms |     290 ms |
+| PaddleOCR v5 mobile                            |        0% |           13/13 |     467 ms |     765 ms |   2,213 ms |
+| PaddleOCR v6 tiny                              |        0% |           13/13 |     264 ms |     449 ms |   1,410 ms |
+| PaddleOCR v6 small                             |     0.15% |           12/13 |     813 ms |   1,389 ms |   2,524 ms |
+| Scribe speed, LSTM                             |     5.93% |            9/13 |      62 ms |      99 ms |     768 ms |
+| Scribe quality, combined                       |     5.93% |            9/13 |     104 ms |     173 ms |     864 ms |
+| TrOCR small printed q8, whole screenshots²     |   129.03% |            0/13 |     799 ms |   1,421 ms |   1,924 ms |
+| Florence-2 base ft q8, `<OCR>`                 |     3.50% |           12/13 |   6,878 ms |   7,026 ms |   9,299 ms |
 
-- [PaddleOCR browser deployment](https://github.com/PaddlePaddle/PaddleOCR/blob/main/docs/version3.x/inference_deployment/cross_platform/browser.md)
-- [PaddleOCR.js SDK README](https://github.com/PaddlePaddle/PaddleOCR/blob/main/paddleocr-js/packages/core/README.md)
+¹ Initialization plus the first large screenshot, with model/language bytes
+already on disk and served locally into a fresh browser context. These are cold
+worker/model initialization times, **not internet download times**. Scribe also
+loads local fonts and supporting files on first use.
 
-PaddleOCR.js is the most promising candidate to benchmark next. It brings a
-detector and recognizer pipeline, OpenCV.js, and model archives. The extension
-already has ONNX Runtime, so some runtime code may be reusable. We have not
-measured its added package size, English screenshot accuracy, or latency here.
-Those measurements are needed before calling it better than Tesseract for this
-workload.
+² [TrOCR expects a single text line](https://huggingface.co/microsoft/trocr-small-printed).
+Its whole-image row is a compatibility diagnostic, not a fair accuracy ranking.
+On four separate line crops it averaged 624 ms, read 2/4 lines exactly, had 25%
+CER, and recovered 3/4 terms. All Tesseract, Paddle, and Scribe configurations read
+those four lines exactly. Florence read 1/4 exactly.
 
-### Scribe.js
+On the no-text image, Tesseract and Scribe returned empty text. Paddle v5 returned
+`•`; Paddle v6, TrOCR, and Florence returned `0` or `1`. This is a small negative
+control, not a measured false-positive rate.
 
-Scribe.js claims generally better accuracy than Tesseract.js and adds layout and
-PDF features. Its own comparison says Tesseract.js is smaller and faster for
-PNG/JPEG extraction, while Scribe's quality mode is often 40–90% slower than its
-speed mode. Scribe.js is AGPL-3.0, so adopting it would require reviewing the
-extension's distribution license:
+## Downloads and extension compatibility
 
-- [Scribe.js comparison with Tesseract.js](https://github.com/scribeocr/scribe.js/blob/master/docs/scribe_vs_tesseract.md)
+Sizes are decimal MB. Downloads are separate from executable package files.
+Benchmark dependencies are dev-only and absent from the extension.
 
-### Transformers.js image-to-text models
+| Candidate          |                                  On-demand model data | Runtime considerations                                                     |
+| ------------------ | ----------------------------------------------------: | -------------------------------------------------------------------------- |
+| Tesseract best-int |           2.95 MB English; 2.68 MB Russian separately | Existing 3.90 MB SIMD LSTM core + 0.11 MB worker; IndexedDB language cache |
+| Tesseract fast     |                                       1.98 MB English | Same core; misses outlined lettering without preprocessing                 |
+| Paddle v5 mobile   |               21.54 MB detector + recognizer archives | OpenCV, ONNX, and SDK worker; MV3 CSP failure                              |
+| Paddle v6 tiny     |                6.32 MB detector + recognizer archives | Same runtime/CSP issue                                                     |
+| Paddle v6 small    |               31.21 MB detector + recognizer archives | Same runtime/CSP issue                                                     |
+| TrOCR q8           |          63.61 MB ONNX weights, plus tokenizer/config | Needs line detection/crops; already-installed Transformers/ONNX runtime    |
+| Florence q8        |         274.97 MB ONNX weights, plus tokenizer/config | Already-installed runtime, but seconds per image                           |
+| Scribe 0.16.1      | 10.92 MB local combined English traineddata used here | Document/fonts/worker machinery; AGPL-3.0; no accuracy gain here           |
 
-Transformers.js supports an `image-to-text` pipeline and browser-side model
-caching. Modern OCR-capable vision-language models are substantially larger
-than a short-text OCR engine, and the JavaScript support/model combination needs
-to be validated for MV3 workers before adoption:
+The [Paddle MV3 probe](../benchmarks/ocr-extension-results.json) bundles the actual
+SDK, installs it in Chromium, and records the CSP error. OpenCV 4.10.0-release.1
+calls `new Function` during initialization. `wasm-unsafe-eval` does not permit it;
+see the [Chrome CSP reference](https://developer.chrome.com/docs/extensions/reference/manifest/content-security-policy).
 
-- [Transformers.js supported pipelines](https://github.com/huggingface/transformers.js/blob/main/packages/transformers/docs/source/pipelines.md)
-- [Transformers.js model caching](https://github.com/huggingface/transformers.js/blob/main/packages/transformers/docs/source/pipelines.md#the-basics)
+The default standalone probe was 64.80 MB uncompressed. A
+[WASM-only external-runtime build](../benchmarks/ocr-extension-results-wasm.json)
+reduced that to 36.13 MB but still failed CSP. That build contains a 10.48 MB main
+bundle, an unused 11.34 MB SDK worker, and a 14.24 MB ONNX runtime. These are
+measured standalone sizes, not unavoidable minimum sizes or the exact increment
+to this extension. Runtime sharing and removing unused worker assets could reduce
+them further. A sandbox or compatible OpenCV build would still be needed.
 
-## Follow-up benchmark
+The [Paddle SDK](https://github.com/PaddlePaddle/PaddleOCR/blob/main/paddleocr-js/packages/core/README.md)
+defines the measured v5/v6 configurations. Its v5 English configuration uses
+multilingual mobile models; its loader does not itself add persistent caching.
+[Scribe's API](https://github.com/scribeocr/scribe.js/blob/master/docs/API.md)
+defines the LSTM/combined modes. [Florence's browser model card](https://huggingface.co/onnx-community/Florence-2-base-ft)
+provides its full-image OCR API. Tesseract's
+[FAQ](https://github.com/naptha/tesseract.js/blob/master/docs/faq.md)
+describes the language-data cache retained by the selected implementation.
 
-If Tesseract misses too much text on real posts, compare the current path with
-PaddleOCR.js on a fixed corpus of English screenshots (small text, stylized
-fonts, dark backgrounds, rotated text, and memes). Record first-use download
-time, warm recognition time, output quality, extension package size, and memory
-use before switching engines.
+## Reproduction and limits
 
-## Measured Tesseract latency
+```sh
+npm ci
+node benchmarks/ocr-benchmark.mjs
+node benchmarks/ocr-metrics.mjs benchmarks/ocr-results-all.json
+node benchmarks/ocr-extension-probe.mjs
+node benchmarks/ocr-extension-probe.mjs --wasm
+node scripts/extension-agent.mjs start
+node benchmarks/ocr-installed.mjs
+```
 
-On 2026-10-07, the installed Chromium extension recognized a synthetic
-1100 × 420 English screenshot containing three lines of 36 px Arial text.
-Six sequential requests took 294, 255, 255, 248, 246, and 248 ms, averaging
-258 ms. All requests returned the expected text. The OCR worker and English
-and Russian language packs were already loaded. Requests went directly to
-the offscreen inference document, bypassing the extracted-text cache.
+Downloads are cached in ignored `benchmarks/.data/ocr`; model revisions are pinned.
+The committed [PNG/JPEG corpus](../benchmarks/ocr-fixtures) fixes the pixels across
+machines. Generation instructions and ground truth remain in
+[the runner](../benchmarks/ocr-runner.js). Every engine receives the same white
+background and PNG preprocessing, scaled by `min(2, 2048 / maxEdge)`.
 
-This measures preprocessing, recognition, and extension message round trips
-on this machine. It excludes image download, first-use model initialization,
-language download, queue waiting, and Jev classification. It is a sample for
-one screenshot, not a general average across real X images.
+The 14 images comprise nine multiline screenshots, four line crops, and one
+negative control. They cover 14–36 px text, light/dark backgrounds, low contrast,
+JPEG compression, serif text, a five-degree tilt, and outlined lettering.
+They are synthetic diagnostics, not a representative or held-out X dataset.
+The contrast retry was developed on this corpus and needs validation on real
+posts. These results do not establish provider accuracy, memory peaks, laptop
+performance, or multilingual ranking.
+
+Florence was interrupted by a development reload after seven cases. The remaining
+seven completed after reinitialization; each retains two warm samples. HMR is
+disabled in the final runner.
+
+[Installed-extension timings](../benchmarks/ocr-installed-results.json) averaged
+123.6 ms across 18 warm requests for nine screenshots. They bypass the text cache,
+include preprocessing and extension message round trips, and exclude image
+fetching and provider classification. Browser tests verify that an innocent
+caption is filtered when its image contains the outlined wording, and that the
+original Russian/English extraction still works.

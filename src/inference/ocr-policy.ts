@@ -1,6 +1,6 @@
 // Include language data, engine, and preprocessing changes in OCR cache identity.
 export const OCR_PIPELINE_REVISION =
-  'tesseract-7-best-int-simd-remote-806cd9adc8c6e8abc11c782db1818c990576bebc-v3';
+  'tesseract-7-best-int-simd-remote-806cd9adc8c6e8abc11c782db1818c990576bebc-contrast-v4';
 
 /** Read text from a larger media variant while retaining the canonical cache identity. */
 export function ocrImageUrl(url: string): string {

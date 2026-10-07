@@ -2,6 +2,7 @@ import { Effect } from 'effect';
 import { OcrError } from './contracts';
 import { imageDimensionsFromData } from 'image-dimensions';
 import { createWorker, OEM, PSM, type Worker } from 'tesseract.js';
+import { recognizeOcrImage } from './ocr-image';
 
 let worker: Worker | undefined;
 const MAX_SOURCE_PIXELS = 4096 * 4096;
@@ -83,8 +84,7 @@ async function recognizeImage(dataUrl: string, languages: ReadonlyArray<string>)
       workerLanguages = languageKey;
       await worker.setParameters({ tessedit_pageseg_mode: PSM.SPARSE_TEXT });
     }
-    const { data } = await worker.recognize(image);
-    return data.text.trim();
+    return await recognizeOcrImage(worker, image);
   } catch (error) {
     const failed = worker;
     worker = undefined;

@@ -270,7 +270,6 @@ export class ExtensionSession {
           JSON.stringify({
             answers: {
               sexual: { type: 'boolean', probability: text.includes('BLOCK_TEXT') ? 0.99 : 0.01 },
-              ai: { type: 'boolean', probability: 0.02 },
             },
           }),
         );

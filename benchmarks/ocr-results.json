@@ -1,0 +1,3329 @@
+{
+  "executedAt": "2026-10-07T09:01:46.768Z",
+  "environment": {
+    "cpu": "AMD Ryzen 7 7700 8-Core Processor",
+    "os": "6.18.54-2-lts",
+    "browser": "153.0.8010.12",
+    "threads": 1,
+    "transformersJs": "4.3.0",
+    "paddleSdk": "0.4.2",
+    "opencvJs": "4.10.0-release.1",
+    "scribeJs": "0.16.1",
+    "tesseractJs": "7.0.0",
+    "tesseractCore": "7.0.0"
+  },
+  "assets": [
+    {
+      "name": "PP-OCRv6_tiny_det_onnx_infer.tar",
+      "url": "https://paddle-model-ecology.bj.bcebos.com/paddlex/official_inference_model/paddle3.0.0/PP-OCRv6_tiny_det_onnx_infer.tar",
+      "bytes": 1792000,
+      "sha256": "ff6ab415b0a6e0c488550f2fb5d5046f1719848df220b2dc21b56402a65bc05d"
+    },
+    {
+      "name": "eng-lstm-fast.traineddata.gz",
+      "url": "https://raw.githubusercontent.com/naptha/tessdata/806cd9adc8c6e8abc11c782db1818c990576bebc/4.0.0_fast/eng.traineddata.gz",
+      "bytes": 1984273,
+      "sha256": "18c1ac52b75e35d44735fb6c2a60acfaf23033524653200738e98f0243edb75b"
+    },
+    {
+      "name": "PP-OCRv6_tiny_rec_onnx_infer.tar",
+      "url": "https://paddle-model-ecology.bj.bcebos.com/paddlex/official_inference_model/paddle3.0.0/PP-OCRv6_tiny_rec_onnx_infer.tar",
+      "bytes": 4526080,
+      "sha256": "1e13b22717b1edd89d4cde4fda272b6c17d5b505c97c2baea99da1a3a2d54b29"
+    },
+    {
+      "name": "PP-OCRv5_mobile_det_onnx_infer.tar",
+      "url": "https://paddle-model-ecology.bj.bcebos.com/paddlex/official_inference_model/paddle3.0.0/PP-OCRv5_mobile_det_onnx_infer.tar",
+      "bytes": 4843520,
+      "sha256": "781056046c9ed77a15c94681605db6a0f62317c2e9cce6931c71da2478d4bc30"
+    },
+    {
+      "name": "PP-OCRv6_small_det_onnx_infer.tar",
+      "url": "https://paddle-model-ecology.bj.bcebos.com/paddlex/official_inference_model/paddle3.0.0/PP-OCRv6_small_det_onnx_infer.tar",
+      "bytes": 9891840,
+      "sha256": "d218f6fbf0f1c23d2161bd6ac7f5eaa6104fa89955c09290497e31008e2618e4"
+    },
+    {
+      "name": "PP-OCRv6_small_rec_onnx_infer.tar",
+      "url": "https://paddle-model-ecology.bj.bcebos.com/paddlex/official_inference_model/paddle3.0.0/PP-OCRv6_small_rec_onnx_infer.tar",
+      "bytes": 21319680,
+      "sha256": "d267ab077a44a0eedb1ea8f8c542d263f211de8e9d7a029bf9fcfff7e5a88fb1"
+    },
+    {
+      "name": "PP-OCRv5_mobile_rec_onnx_infer.tar",
+      "url": "https://paddle-model-ecology.bj.bcebos.com/paddlex/official_inference_model/paddle3.0.0/PP-OCRv5_mobile_rec_onnx_infer.tar",
+      "bytes": 16701440,
+      "sha256": "f7e792bc836f36e7ef895ad47c426d75b0b75b1650caa6d63fe9418441ffba8c"
+    },
+    {
+      "name": "onnx-community--Florence-2-base-ft--config.json",
+      "url": "https://huggingface.co/onnx-community/Florence-2-base-ft/resolve/e88a44eaf3791a35eae0c5a47b3dbcd36e67eb6f/config.json",
+      "bytes": 5432,
+      "sha256": "d90c22ed72eb55291f183fcd9b98ebd3bd3d92bfcffb6c7f6e1606085e793525"
+    },
+    {
+      "name": "onnx-community--Florence-2-base-ft--generation_config.json",
+      "url": "https://huggingface.co/onnx-community/Florence-2-base-ft/resolve/e88a44eaf3791a35eae0c5a47b3dbcd36e67eb6f/generation_config.json",
+      "bytes": 292,
+      "sha256": "7b8eb17bbd6cf8a07f619ad83ae03881eff05b6b9237bab89005b40e77783c29"
+    },
+    {
+      "name": "onnx-community--Florence-2-base-ft--preprocessor_config.json",
+      "url": "https://huggingface.co/onnx-community/Florence-2-base-ft/resolve/e88a44eaf3791a35eae0c5a47b3dbcd36e67eb6f/preprocessor_config.json",
+      "bytes": 2673,
+      "sha256": "c892857e34a7082284983a7717717d39c9bf7e574f1f41d80d4c918c97502efa"
+    },
+    {
+      "name": "Xenova--trocr-small-printed--preprocessor_config.json",
+      "url": "https://huggingface.co/Xenova/trocr-small-printed/resolve/56c1626ea0b4aab378f3228235be2e824d4256bd/preprocessor_config.json",
+      "bytes": 465,
+      "sha256": "70da3434c33eedb3b56caf4067851741dfeed02f67576dcc3c6407c2533bfaf0"
+    },
+    {
+      "name": "Xenova--trocr-small-printed--config.json",
+      "url": "https://huggingface.co/Xenova/trocr-small-printed/resolve/56c1626ea0b4aab378f3228235be2e824d4256bd/config.json",
+      "bytes": 4511,
+      "sha256": "b36468b138f10b13bb220468753006805a2dcfe0457eaae795e107581fc1903a"
+    },
+    {
+      "name": "Xenova--trocr-small-printed--generation_config.json",
+      "url": "https://huggingface.co/Xenova/trocr-small-printed/resolve/56c1626ea0b4aab378f3228235be2e824d4256bd/generation_config.json",
+      "bytes": 185,
+      "sha256": "cce308da91e0d656e07404c70d4b9c9f5839d426f679eff6fda6dcc0e727e3b6"
+    },
+    {
+      "name": "onnx-community--Florence-2-base-ft--tokenizer_config.json",
+      "url": "https://huggingface.co/onnx-community/Florence-2-base-ft/resolve/e88a44eaf3791a35eae0c5a47b3dbcd36e67eb6f/tokenizer_config.json",
+      "bytes": 197658,
+      "sha256": "d8e64607233cb53b619fb46664f6cad08176c26e0e8735b2d30d888364f19600"
+    },
+    {
+      "name": "Xenova--trocr-small-printed--tokenizer_config.json",
+      "url": "https://huggingface.co/Xenova/trocr-small-printed/resolve/56c1626ea0b4aab378f3228235be2e824d4256bd/tokenizer_config.json",
+      "bytes": 471,
+      "sha256": "ce50304582ca15b925982e96dfe56548ddbaba89b584e73176d6bb3a5a0b4713"
+    },
+    {
+      "name": "onnx-community--Florence-2-base-ft--tokenizer.json",
+      "url": "https://huggingface.co/onnx-community/Florence-2-base-ft/resolve/e88a44eaf3791a35eae0c5a47b3dbcd36e67eb6f/tokenizer.json",
+      "bytes": 2297961,
+      "sha256": "d69dcdb2323e124ac4f800cb9863ddccea0d7bb11e16125e8df3bd60f2f8aeac"
+    },
+    {
+      "name": "Xenova--trocr-small-printed--tokenizer.json",
+      "url": "https://huggingface.co/Xenova/trocr-small-printed/resolve/56c1626ea0b4aab378f3228235be2e824d4256bd/tokenizer.json",
+      "bytes": 4494727,
+      "sha256": "68bcb5468c854362a615f3d2ff6a5e4091a85f4c8198993ed9a30afe0b143737"
+    },
+    {
+      "name": "Xenova--trocr-small-printed--onnx--decoder_model_merged_quantized.onnx",
+      "url": "https://huggingface.co/Xenova/trocr-small-printed/resolve/56c1626ea0b4aab378f3228235be2e824d4256bd/onnx/decoder_model_merged_quantized.onnx",
+      "bytes": 40527613,
+      "sha256": "f05fa0cb7db72c5c751c0d15a2dc53a61a43376b4af3567a85f0ed72280bcc2f"
+    },
+    {
+      "name": "onnx-community--Florence-2-base-ft--onnx--decoder_model_merged_quantized.onnx",
+      "url": "https://huggingface.co/onnx-community/Florence-2-base-ft/resolve/e88a44eaf3791a35eae0c5a47b3dbcd36e67eb6f/onnx/decoder_model_merged_quantized.onnx",
+      "bytes": 98177697,
+      "sha256": "f22f52f980c33df0efa15932c2f3db6d9d3595ce6387eca938b8cfe23dc4c641"
+    },
+    {
+      "name": "onnx-community--Florence-2-base-ft--onnx--vision_encoder_quantized.onnx",
+      "url": "https://huggingface.co/onnx-community/Florence-2-base-ft/resolve/e88a44eaf3791a35eae0c5a47b3dbcd36e67eb6f/onnx/vision_encoder_quantized.onnx",
+      "bytes": 93746540,
+      "sha256": "3b79d54f23f666f731549db23cb070c35a979ce19cbd9720e90e67a78dc9768c"
+    },
+    {
+      "name": "Xenova--trocr-small-printed--onnx--encoder_model_quantized.onnx",
+      "url": "https://huggingface.co/Xenova/trocr-small-printed/resolve/56c1626ea0b4aab378f3228235be2e824d4256bd/onnx/encoder_model_quantized.onnx",
+      "bytes": 23082940,
+      "sha256": "860ea3477531f21904fdc6060872ecc4ea3e51714f3fa6a859f998f35941350b"
+    },
+    {
+      "name": "onnx-community--Florence-2-base-ft--onnx--embed_tokens_quantized.onnx",
+      "url": "https://huggingface.co/onnx-community/Florence-2-base-ft/resolve/e88a44eaf3791a35eae0c5a47b3dbcd36e67eb6f/onnx/embed_tokens_quantized.onnx",
+      "bytes": 39390433,
+      "sha256": "6b2258db1c8ee9b160576ccde3cd3814d83a2edaed0dd1c6ca9ff3c38fa62214"
+    },
+    {
+      "name": "onnx-community--Florence-2-base-ft--onnx--encoder_model_quantized.onnx",
+      "url": "https://huggingface.co/onnx-community/Florence-2-base-ft/resolve/e88a44eaf3791a35eae0c5a47b3dbcd36e67eb6f/onnx/encoder_model_quantized.onnx",
+      "bytes": 43651493,
+      "sha256": "f4ad7a68f1fb875d3bcf735ea14a7021b7ba7e83baf7cf10289881b4ed6d9b85"
+    }
+  ],
+  "cases": [
+    {
+      "id": "large-light",
+      "lines": [
+        "English screenshot text inside a tweet",
+        "This sentence should be read from the image.",
+        "Small captions and screenshots need OCR."
+      ],
+      "size": 36,
+      "width": 1100,
+      "expected": "English screenshot text inside a tweet This sentence should be read from the image. Small captions and screenshots need OCR.",
+      "imageFile": "benchmarks/ocr-fixtures/large-light.png",
+      "imageSha256": "50c1a65037af1aac86e3dc0f42d3108b7d6d23287ef7b27d6b69ac0eaf365af4",
+      "imageBytes": 36096
+    },
+    {
+      "id": "dark-caption",
+      "lines": ["Send me your nude photos tonight.", "Adults only: explicit sexual content."],
+      "size": 28,
+      "dark": true,
+      "width": 850,
+      "expected": "Send me your nude photos tonight. Adults only: explicit sexual content.",
+      "imageFile": "benchmarks/ocr-fixtures/dark-caption.png",
+      "imageSha256": "ed0624c72f6c998665b0108b44ea863249d1e80cfd4f3ec47d17e76f73e03e45",
+      "imageBytes": 20792
+    },
+    {
+      "id": "small-light",
+      "lines": ["Subscribe for explicit sex videos.", "This text is embedded in an image."],
+      "size": 14,
+      "width": 550,
+      "expected": "Subscribe for explicit sex videos. This text is embedded in an image.",
+      "imageFile": "benchmarks/ocr-fixtures/small-light.png",
+      "imageSha256": "ff5318a70c35577dfbabfe7fddd36a35cfb0ed5e195b15be9701f7169ea6fb77",
+      "imageBytes": 9434
+    },
+    {
+      "id": "small-dark",
+      "lines": [
+        "Please stop sharing porn in the group.",
+        "The caption is small but still readable."
+      ],
+      "size": 14,
+      "dark": true,
+      "width": 550,
+      "expected": "Please stop sharing porn in the group. The caption is small but still readable.",
+      "imageFile": "benchmarks/ocr-fixtures/small-dark.png",
+      "imageSha256": "8890ccb99a021f4f15d9da79a1b33897bd474ad5d49520e5138c189e4fce291c",
+      "imageBytes": 11153
+    },
+    {
+      "id": "jpeg-caption",
+      "lines": [
+        "Naked photos and sexual fantasies.",
+        "A compressed screenshot from a social feed."
+      ],
+      "size": 22,
+      "jpeg": true,
+      "width": 740,
+      "expected": "Naked photos and sexual fantasies. A compressed screenshot from a social feed.",
+      "imageFile": "benchmarks/ocr-fixtures/jpeg-caption.jpg",
+      "imageSha256": "fb86df5d793d24c1183e4e0eb411e42bcca72cec8eb39beffa62d14eda03b874",
+      "imageBytes": 6559
+    },
+    {
+      "id": "serif",
+      "lines": ["A book club meets every Friday.", "Bring a notebook and your favorite novel."],
+      "size": 24,
+      "font": "Georgia",
+      "width": 800,
+      "expected": "A book club meets every Friday. Bring a notebook and your favorite novel.",
+      "imageFile": "benchmarks/ocr-fixtures/serif.png",
+      "imageSha256": "5f6c792e69d236ee95756c4e0a0316ea8fa3932216a2b9dd414c905a42b4c5c1",
+      "imageBytes": 14343
+    },
+    {
+      "id": "rotated",
+      "lines": ["Explicit sex and nude pictures.", "A tilted caption inside a screenshot."],
+      "size": 26,
+      "angle": -5,
+      "width": 850,
+      "expected": "Explicit sex and nude pictures. A tilted caption inside a screenshot.",
+      "imageFile": "benchmarks/ocr-fixtures/rotated.png",
+      "imageSha256": "8f4af1fbae4473ca09892c3e6c7377be1972783979ce20bdcd3f61aad6b9b508",
+      "imageBytes": 21963
+    },
+    {
+      "id": "meme",
+      "lines": ["SEND NUDES", "NO SERIOUSLY SEND THE CAT PHOTOS"],
+      "size": 30,
+      "font": "Impact",
+      "outlined": true,
+      "width": 780,
+      "expected": "SEND NUDES NO SERIOUSLY SEND THE CAT PHOTOS",
+      "imageFile": "benchmarks/ocr-fixtures/meme.png",
+      "imageSha256": "113043228481995180b52be97ed6f6d4e0a64bd76306960eb69397dd88eb4946",
+      "imageBytes": 27005
+    },
+    {
+      "id": "low-contrast",
+      "lines": ["Sexual content appears inside images.", "Coffee and breakfast are ready."],
+      "size": 20,
+      "contrast": true,
+      "width": 770,
+      "expected": "Sexual content appears inside images. Coffee and breakfast are ready.",
+      "imageFile": "benchmarks/ocr-fixtures/low-contrast.png",
+      "imageSha256": "12145119dcfa088365f9847335653f2d95239baad27688a4d975da4f7c5484ee",
+      "imageBytes": 12450
+    },
+    {
+      "id": "single-printed",
+      "lines": ["Send me your nude photos tonight."],
+      "size": 28,
+      "width": 650,
+      "singleLine": true,
+      "expected": "Send me your nude photos tonight.",
+      "imageFile": "benchmarks/ocr-fixtures/single-printed.png",
+      "imageSha256": "3aec81a02da8f8eab744608637d728f94b8b8a6a4d19376a3978d1eac013c628",
+      "imageBytes": 7835
+    },
+    {
+      "id": "single-small",
+      "lines": ["Subscribe for explicit sex videos."],
+      "size": 14,
+      "width": 360,
+      "singleLine": true,
+      "expected": "Subscribe for explicit sex videos.",
+      "imageFile": "benchmarks/ocr-fixtures/single-small.png",
+      "imageSha256": "ba3e2f254963668762a87fae2139ad40131587f72eab29152011f1c19e4697e4",
+      "imageBytes": 3695
+    },
+    {
+      "id": "single-serif",
+      "lines": ["A book club meets every Friday."],
+      "size": 24,
+      "font": "Georgia",
+      "width": 510,
+      "singleLine": true,
+      "expected": "A book club meets every Friday.",
+      "imageFile": "benchmarks/ocr-fixtures/single-serif.png",
+      "imageSha256": "ca02c8a98bfe616e4e355c48a85b66f941a22424b50258525427196e10f9289e",
+      "imageBytes": 5792
+    },
+    {
+      "id": "single-dark",
+      "lines": ["Please stop sharing porn in the group."],
+      "size": 20,
+      "dark": true,
+      "width": 570,
+      "singleLine": true,
+      "expected": "Please stop sharing porn in the group.",
+      "imageFile": "benchmarks/ocr-fixtures/single-dark.png",
+      "imageSha256": "99031edd949f2d20d5b83a9269782f8a3969d4133a485f60d0b57089a38e7304",
+      "imageBytes": 6920
+    },
+    {
+      "id": "no-text",
+      "lines": [],
+      "size": 20,
+      "width": 800,
+      "expected": "",
+      "imageFile": "benchmarks/ocr-fixtures/no-text.png",
+      "imageSha256": "1ffe343c2b686e11b4af44c217e819ccc44c0e03adf7e9d90c1f4032d7b2c0a9",
+      "imageBytes": 5057
+    }
+  ],
+  "engines": [
+    {
+      "id": "tesseract-current",
+      "initMs": 244.84507299999677,
+      "samples": [
+        {
+          "id": "large-light",
+          "runs": [
+            {
+              "text": "English screenshot text inside a tweet\n\nThis sentence should be read from the image.\n\nSmall captions and screenshots need OCR.",
+              "ms": 212
+            },
+            {
+              "text": "English screenshot text inside a tweet\n\nThis sentence should be read from the image.\n\nSmall captions and screenshots need OCR.",
+              "ms": 157.09999999403954
+            },
+            {
+              "text": "English screenshot text inside a tweet\n\nThis sentence should be read from the image.\n\nSmall captions and screenshots need OCR.",
+              "ms": 153
+            }
+          ]
+        },
+        {
+          "id": "dark-caption",
+          "runs": [
+            {
+              "text": "Send me your nude photos tonight.\n\nAdults only: explicit sexual content.",
+              "ms": 129.79999999701977
+            },
+            {
+              "text": "Send me your nude photos tonight.\n\nAdults only: explicit sexual content.",
+              "ms": 129.40000000596046
+            },
+            {
+              "text": "Send me your nude photos tonight.\n\nAdults only: explicit sexual content.",
+              "ms": 131.3999999910593
+            }
+          ]
+        },
+        {
+          "id": "small-light",
+          "runs": [
+            {
+              "text": "Subscribe for explicit sex videos.\n\nThis text is embedded in an image.",
+              "ms": 59.5
+            },
+            {
+              "text": "Subscribe for explicit sex videos.\n\nThis text is embedded in an image.",
+              "ms": 58.599999994039536
+            },
+            {
+              "text": "Subscribe for explicit sex videos.\n\nThis text is embedded in an image.",
+              "ms": 58.5
+            }
+          ]
+        },
+        {
+          "id": "small-dark",
+          "runs": [
+            {
+              "text": "Please stop sharing porn in the group.\n\nThe caption is small but still readable.",
+              "ms": 105.5
+            },
+            {
+              "text": "Please stop sharing porn in the group.\n\nThe caption is small but still readable.",
+              "ms": 104.59999999403954
+            },
+            {
+              "text": "Please stop sharing porn in the group.\n\nThe caption is small but still readable.",
+              "ms": 104.5
+            }
+          ]
+        },
+        {
+          "id": "jpeg-caption",
+          "runs": [
+            {
+              "text": "Naked photos and sexual fantasies.\n\nA compressed screenshot from a social feed.",
+              "ms": 87.6000000089407
+            },
+            {
+              "text": "Naked photos and sexual fantasies.\n\nA compressed screenshot from a social feed.",
+              "ms": 87.59999999403954
+            },
+            {
+              "text": "Naked photos and sexual fantasies.\n\nA compressed screenshot from a social feed.",
+              "ms": 88.79999999701977
+            }
+          ]
+        },
+        {
+          "id": "serif",
+          "runs": [
+            {
+              "text": "A book club meets every Friday.\n\nBring a notebook and your favorite novel.",
+              "ms": 76.90000000596046
+            },
+            {
+              "text": "A book club meets every Friday.\n\nBring a notebook and your favorite novel.",
+              "ms": 77.30000001192093
+            },
+            {
+              "text": "A book club meets every Friday.\n\nBring a notebook and your favorite novel.",
+              "ms": 77.20000000298023
+            }
+          ]
+        },
+        {
+          "id": "rotated",
+          "runs": [
+            {
+              "text": "Explicit 5ех and\n\nnude pictures.\n\nA tilted caption insid\n\nea screenshot.",
+              "ms": 85.79999999701977
+            },
+            {
+              "text": "Explicit 5ех and\n\nnude pictures.\n\nA tilted caption insid\n\nea screenshot.",
+              "ms": 83.90000000596046
+            },
+            {
+              "text": "Explicit 5ех and\n\nnude pictures.\n\nA tilted caption insid\n\nea screenshot.",
+              "ms": 83.29999999701977
+            }
+          ]
+        },
+        {
+          "id": "meme",
+          "runs": [
+            {
+              "text": "SIZNID) INTIRIES)\n\nNOISERIOUSIEYSSENDIFHEICATSREHOLOS",
+              "ms": 183.20000000298023
+            },
+            {
+              "text": "SIZNID) INTIRIES)\n\nNOISERIOUSIEYSSENDIFHEICATSREHOLOS",
+              "ms": 185.1000000089407
+            },
+            {
+              "text": "SIZNID) INTIRIES)\n\nNOISERIOUSIEYSSENDIFHEICATSREHOLOS",
+              "ms": 180.79999999701977
+            }
+          ]
+        },
+        {
+          "id": "low-contrast",
+          "runs": [
+            {
+              "text": "Sexual content appears inside images.\n\nCoffee and breakfast are ready.",
+              "ms": 73.20000000298023
+            },
+            {
+              "text": "Sexual content appears inside images.\n\nCoffee and breakfast are ready.",
+              "ms": 72.20000000298023
+            },
+            {
+              "text": "Sexual content appears inside images.\n\nCoffee and breakfast are ready.",
+              "ms": 74.59999999403954
+            }
+          ]
+        },
+        {
+          "id": "single-printed",
+          "runs": [
+            {
+              "text": "Send me your nude photos tonight.",
+              "ms": 37.70000000298023
+            },
+            {
+              "text": "Send me your nude photos tonight.",
+              "ms": 38.79999999701977
+            },
+            {
+              "text": "Send me your nude photos tonight.",
+              "ms": 38.79999999701977
+            }
+          ]
+        },
+        {
+          "id": "single-small",
+          "runs": [
+            {
+              "text": "Subscribe for explicit sex videos.",
+              "ms": 25.400000005960464
+            },
+            {
+              "text": "Subscribe for explicit sex videos.",
+              "ms": 24.700000002980232
+            },
+            {
+              "text": "Subscribe for explicit sex videos.",
+              "ms": 26
+            }
+          ]
+        },
+        {
+          "id": "single-serif",
+          "runs": [
+            {
+              "text": "A book club meets every Friday.",
+              "ms": 30.900000005960464
+            },
+            {
+              "text": "A book club meets every Friday.",
+              "ms": 31.5
+            },
+            {
+              "text": "A book club meets every Friday.",
+              "ms": 31.599999994039536
+            }
+          ]
+        },
+        {
+          "id": "single-dark",
+          "runs": [
+            {
+              "text": "Please stop sharing porn in the group.",
+              "ms": 59.20000000298023
+            },
+            {
+              "text": "Please stop sharing porn in the group.",
+              "ms": 58.099999994039536
+            },
+            {
+              "text": "Please stop sharing porn in the group.",
+              "ms": 58.20000000298023
+            }
+          ]
+        },
+        {
+          "id": "no-text",
+          "runs": [
+            {
+              "text": "",
+              "ms": 31.100000008940697
+            },
+            {
+              "text": "",
+              "ms": 29.700000002980232
+            },
+            {
+              "text": "",
+              "ms": 29.600000008940697
+            }
+          ]
+        }
+      ],
+      "metrics": {
+        "screenshots": {
+          "images": 9,
+          "exact": 7,
+          "cer": 0.0364741641337386,
+          "wer": 0.0990990990990991,
+          "termsFound": 11,
+          "termCount": 13,
+          "termRecall": 0.8461538461538461,
+          "warmMeanMs": 105.99444444394774,
+          "warmMedianMs": 88.79999999701977,
+          "warmP95Ms": 185.1000000089407
+        },
+        "singleLines": {
+          "images": 4,
+          "exact": 4,
+          "cer": 0,
+          "wer": 0,
+          "termsFound": 4,
+          "termCount": 4,
+          "termRecall": 1,
+          "warmMeanMs": 38.462499998509884,
+          "warmMedianMs": 38.79999999701977,
+          "warmP95Ms": 58.20000000298023
+        },
+        "noTextOutput": "",
+        "firstUseMs": 456.8450729999968
+      }
+    },
+    {
+      "id": "tesseract-adaptive",
+      "initMs": 238.6916530000001,
+      "samples": [
+        {
+          "id": "large-light",
+          "runs": [
+            {
+              "text": "English screenshot text inside a tweet\n\nThis sentence should be read from the image.\n\nSmall captions and screenshots need OCR.",
+              "ms": 221.19999998807907
+            },
+            {
+              "text": "English screenshot text inside a tweet\n\nThis sentence should be read from the image.\n\nSmall captions and screenshots need OCR.",
+              "ms": 158.6000000089407
+            },
+            {
+              "text": "English screenshot text inside a tweet\n\nThis sentence should be read from the image.\n\nSmall captions and screenshots need OCR.",
+              "ms": 159.5
+            }
+          ]
+        },
+        {
+          "id": "dark-caption",
+          "runs": [
+            {
+              "text": "Send me your nude photos tonight.\n\nAdults only: explicit sexual content.",
+              "ms": 172.29999999701977
+            },
+            {
+              "text": "Send me your nude photos tonight.\n\nAdults only: explicit sexual content.",
+              "ms": 131.59999999403954
+            },
+            {
+              "text": "Send me your nude photos tonight.\n\nAdults only: explicit sexual content.",
+              "ms": 128.20000000298023
+            }
+          ]
+        },
+        {
+          "id": "small-light",
+          "runs": [
+            {
+              "text": "Subscribe for explicit sex videos.\n\nThis text is embedded in an image.",
+              "ms": 60.3999999910593
+            },
+            {
+              "text": "Subscribe for explicit sex videos.\n\nThis text is embedded in an image.",
+              "ms": 63.29999999701977
+            },
+            {
+              "text": "Subscribe for explicit sex videos.\n\nThis text is embedded in an image.",
+              "ms": 60.1000000089407
+            }
+          ]
+        },
+        {
+          "id": "small-dark",
+          "runs": [
+            {
+              "text": "Please stop sharing porn in the group.\n\nThe caption is small but still readable.",
+              "ms": 106.29999999701977
+            },
+            {
+              "text": "Please stop sharing porn in the group.\n\nThe caption is small but still readable.",
+              "ms": 105.29999999701977
+            },
+            {
+              "text": "Please stop sharing porn in the group.\n\nThe caption is small but still readable.",
+              "ms": 113.5
+            }
+          ]
+        },
+        {
+          "id": "jpeg-caption",
+          "runs": [
+            {
+              "text": "Naked photos and sexual fantasies.\n\nA compressed screenshot from a social feed.",
+              "ms": 90.29999999701977
+            },
+            {
+              "text": "Naked photos and sexual fantasies.\n\nA compressed screenshot from a social feed.",
+              "ms": 89.19999998807907
+            },
+            {
+              "text": "Naked photos and sexual fantasies.\n\nA compressed screenshot from a social feed.",
+              "ms": 89.09999999403954
+            }
+          ]
+        },
+        {
+          "id": "serif",
+          "runs": [
+            {
+              "text": "A book club meets every Friday.\n\nBring a notebook and your favorite novel.",
+              "ms": 76.40000000596046
+            },
+            {
+              "text": "A book club meets every Friday.\n\nBring a notebook and your favorite novel.",
+              "ms": 76.40000000596046
+            },
+            {
+              "text": "A book club meets every Friday.\n\nBring a notebook and your favorite novel.",
+              "ms": 76.29999999701977
+            }
+          ]
+        },
+        {
+          "id": "rotated",
+          "runs": [
+            {
+              "text": "Explicit 5ех and\n\nnude pictures.\n\nA tilted caption insid\n\nea screenshot.",
+              "ms": 86
+            },
+            {
+              "text": "Explicit 5ех and\n\nnude pictures.\n\nA tilted caption insid\n\nea screenshot.",
+              "ms": 82.6000000089407
+            },
+            {
+              "text": "Explicit 5ех and\n\nnude pictures.\n\nA tilted caption insid\n\nea screenshot.",
+              "ms": 82.20000000298023
+            }
+          ]
+        },
+        {
+          "id": "meme",
+          "runs": [
+            {
+              "text": "SEND NUDES\n\nNO SERIOUSEY SEND THI\n\nCAI PHOTOS",
+              "ms": 325.3999999910593
+            },
+            {
+              "text": "SEND NUDES\n\nNO SERIOUSEY SEND THI\n\nCAI PHOTOS",
+              "ms": 321.40000000596046
+            },
+            {
+              "text": "SEND NUDES\n\nNO SERIOUSEY SEND THI\n\nCAI PHOTOS",
+              "ms": 323.59999999403954
+            }
+          ]
+        },
+        {
+          "id": "low-contrast",
+          "runs": [
+            {
+              "text": "Sexual content appears inside images.\n\nCoffee and breakfast are ready.",
+              "ms": 73.6000000089407
+            },
+            {
+              "text": "Sexual content appears inside images.\n\nCoffee and breakfast are ready.",
+              "ms": 71.90000000596046
+            },
+            {
+              "text": "Sexual content appears inside images.\n\nCoffee and breakfast are ready.",
+              "ms": 72.59999999403954
+            }
+          ]
+        },
+        {
+          "id": "single-printed",
+          "runs": [
+            {
+              "text": "Send me your nude photos tonight.",
+              "ms": 37.5
+            },
+            {
+              "text": "Send me your nude photos tonight.",
+              "ms": 37.20000000298023
+            },
+            {
+              "text": "Send me your nude photos tonight.",
+              "ms": 37.80000001192093
+            }
+          ]
+        },
+        {
+          "id": "single-small",
+          "runs": [
+            {
+              "text": "Subscribe for explicit sex videos.",
+              "ms": 24.900000005960464
+            },
+            {
+              "text": "Subscribe for explicit sex videos.",
+              "ms": 24.099999994039536
+            },
+            {
+              "text": "Subscribe for explicit sex videos.",
+              "ms": 24.200000002980232
+            }
+          ]
+        },
+        {
+          "id": "single-serif",
+          "runs": [
+            {
+              "text": "A book club meets every Friday.",
+              "ms": 31
+            },
+            {
+              "text": "A book club meets every Friday.",
+              "ms": 31.5
+            },
+            {
+              "text": "A book club meets every Friday.",
+              "ms": 31.19999998807907
+            }
+          ]
+        },
+        {
+          "id": "single-dark",
+          "runs": [
+            {
+              "text": "Please stop sharing porn in the group.",
+              "ms": 59.3999999910593
+            },
+            {
+              "text": "Please stop sharing porn in the group.",
+              "ms": 59.79999999701977
+            },
+            {
+              "text": "Please stop sharing porn in the group.",
+              "ms": 58
+            }
+          ]
+        },
+        {
+          "id": "no-text",
+          "runs": [
+            {
+              "text": "",
+              "ms": 32.5
+            },
+            {
+              "text": "",
+              "ms": 29.799999997019768
+            },
+            {
+              "text": "",
+              "ms": 29.899999991059303
+            }
+          ]
+        }
+      ],
+      "metrics": {
+        "screenshots": {
+          "images": 9,
+          "exact": 7,
+          "cer": 0.0121580547112462,
+          "wer": 0.05405405405405406,
+          "termsFound": 12,
+          "termCount": 13,
+          "termRecall": 0.9230769230769231,
+          "warmMeanMs": 122.52222222255335,
+          "warmMedianMs": 89.19999998807907,
+          "warmP95Ms": 323.59999999403954
+        },
+        "singleLines": {
+          "images": 4,
+          "exact": 4,
+          "cer": 0,
+          "wer": 0,
+          "termsFound": 4,
+          "termCount": 4,
+          "termRecall": 1,
+          "warmMeanMs": 37.97499999962747,
+          "warmMedianMs": 37.20000000298023,
+          "warmP95Ms": 59.79999999701977
+        },
+        "noTextOutput": "",
+        "firstUseMs": 459.89165298807916
+      }
+    },
+    {
+      "id": "tesseract-best",
+      "initMs": 141.08909700000004,
+      "samples": [
+        {
+          "id": "large-light",
+          "runs": [
+            {
+              "text": "English screenshot text inside a tweet\n\nThis sentence should be read from the image.\n\nSmall captions and screenshots need OCR.",
+              "ms": 209.5
+            },
+            {
+              "text": "English screenshot text inside a tweet\n\nThis sentence should be read from the image.\n\nSmall captions and screenshots need OCR.",
+              "ms": 151.40000000596046
+            },
+            {
+              "text": "English screenshot text inside a tweet\n\nThis sentence should be read from the image.\n\nSmall captions and screenshots need OCR.",
+              "ms": 149.59999999403954
+            }
+          ]
+        },
+        {
+          "id": "dark-caption",
+          "runs": [
+            {
+              "text": "Send me your nude photos tonight.\n\nAdults only: explicit sexual content.",
+              "ms": 126.80000001192093
+            },
+            {
+              "text": "Send me your nude photos tonight.\n\nAdults only: explicit sexual content.",
+              "ms": 126
+            },
+            {
+              "text": "Send me your nude photos tonight.\n\nAdults only: explicit sexual content.",
+              "ms": 127.20000000298023
+            }
+          ]
+        },
+        {
+          "id": "small-light",
+          "runs": [
+            {
+              "text": "Subscribe for explicit sex videos.\n\nThis text is embedded in an image.",
+              "ms": 60.099999994039536
+            },
+            {
+              "text": "Subscribe for explicit sex videos.\n\nThis text is embedded in an image.",
+              "ms": 58.29999999701977
+            },
+            {
+              "text": "Subscribe for explicit sex videos.\n\nThis text is embedded in an image.",
+              "ms": 59.5
+            }
+          ]
+        },
+        {
+          "id": "small-dark",
+          "runs": [
+            {
+              "text": "Please stop sharing porn in the group.\n\nThe caption is small but still readable.",
+              "ms": 106.3999999910593
+            },
+            {
+              "text": "Please stop sharing porn in the group.\n\nThe caption is small but still readable.",
+              "ms": 106.70000000298023
+            },
+            {
+              "text": "Please stop sharing porn in the group.\n\nThe caption is small but still readable.",
+              "ms": 105.40000000596046
+            }
+          ]
+        },
+        {
+          "id": "jpeg-caption",
+          "runs": [
+            {
+              "text": "Naked photos and sexual fantasies.\n\nA compressed screenshot from a social feed.",
+              "ms": 87.8999999910593
+            },
+            {
+              "text": "Naked photos and sexual fantasies.\n\nA compressed screenshot from a social feed.",
+              "ms": 87.09999999403954
+            },
+            {
+              "text": "Naked photos and sexual fantasies.\n\nA compressed screenshot from a social feed.",
+              "ms": 86.8999999910593
+            }
+          ]
+        },
+        {
+          "id": "serif",
+          "runs": [
+            {
+              "text": "A book club meets every Friday.\n\nBring a notebook and your favorite novel.",
+              "ms": 77
+            },
+            {
+              "text": "A book club meets every Friday.\n\nBring a notebook and your favorite novel.",
+              "ms": 75.79999999701977
+            },
+            {
+              "text": "A book club meets every Friday.\n\nBring a notebook and your favorite novel.",
+              "ms": 75.70000000298023
+            }
+          ]
+        },
+        {
+          "id": "rotated",
+          "runs": [
+            {
+              "text": "Explicit seX and\n\nnude pictures.\n\nA tilted caption insid\n\nea screenshot.",
+              "ms": 73.6000000089407
+            },
+            {
+              "text": "Explicit seX and\n\nnude pictures.\n\nA tilted caption insid\n\nea screenshot.",
+              "ms": 79.5
+            },
+            {
+              "text": "Explicit seX and\n\nnude pictures.\n\nA tilted caption insid\n\nea screenshot.",
+              "ms": 73.09999999403954
+            }
+          ]
+        },
+        {
+          "id": "meme",
+          "runs": [
+            {
+              "text": "SIZNID) INTIRIES)\n\nNOISERIOUSIEYSSENDIFHEICATSREHOLOS",
+              "ms": 97.5
+            },
+            {
+              "text": "SIZNID) INTIRIES)\n\nNOISERIOUSIEYSSENDIFHEICATSREHOLOS",
+              "ms": 96.90000000596046
+            },
+            {
+              "text": "SIZNID) INTIRIES)\n\nNOISERIOUSIEYSSENDIFHEICATSREHOLOS",
+              "ms": 99.09999999403954
+            }
+          ]
+        },
+        {
+          "id": "low-contrast",
+          "runs": [
+            {
+              "text": "Sexual content appears inside images.\n\nCoffee and breakfast are ready.",
+              "ms": 72.09999999403954
+            },
+            {
+              "text": "Sexual content appears inside images.\n\nCoffee and breakfast are ready.",
+              "ms": 70.90000000596046
+            },
+            {
+              "text": "Sexual content appears inside images.\n\nCoffee and breakfast are ready.",
+              "ms": 73
+            }
+          ]
+        },
+        {
+          "id": "single-printed",
+          "runs": [
+            {
+              "text": "Send me your nude photos tonight.",
+              "ms": 37
+            },
+            {
+              "text": "Send me your nude photos tonight.",
+              "ms": 38.20000000298023
+            },
+            {
+              "text": "Send me your nude photos tonight.",
+              "ms": 36.30000001192093
+            }
+          ]
+        },
+        {
+          "id": "single-small",
+          "runs": [
+            {
+              "text": "Subscribe for explicit sex videos.",
+              "ms": 24
+            },
+            {
+              "text": "Subscribe for explicit sex videos.",
+              "ms": 24.200000002980232
+            },
+            {
+              "text": "Subscribe for explicit sex videos.",
+              "ms": 24
+            }
+          ]
+        },
+        {
+          "id": "single-serif",
+          "runs": [
+            {
+              "text": "A book club meets every Friday.",
+              "ms": 30.700000002980232
+            },
+            {
+              "text": "A book club meets every Friday.",
+              "ms": 30.399999991059303
+            },
+            {
+              "text": "A book club meets every Friday.",
+              "ms": 30.69999998807907
+            }
+          ]
+        },
+        {
+          "id": "single-dark",
+          "runs": [
+            {
+              "text": "Please stop sharing porn in the group.",
+              "ms": 57.5
+            },
+            {
+              "text": "Please stop sharing porn in the group.",
+              "ms": 57.599999994039536
+            },
+            {
+              "text": "Please stop sharing porn in the group.",
+              "ms": 58
+            }
+          ]
+        },
+        {
+          "id": "no-text",
+          "runs": [
+            {
+              "text": "",
+              "ms": 29.69999998807907
+            },
+            {
+              "text": "",
+              "ms": 30.5
+            },
+            {
+              "text": "",
+              "ms": 29.400000005960464
+            }
+          ]
+        }
+      ],
+      "metrics": {
+        "screenshots": {
+          "images": 9,
+          "exact": 7,
+          "cer": 0.031914893617021274,
+          "wer": 0.09009009009009009,
+          "termsFound": 12,
+          "termCount": 13,
+          "termRecall": 0.9230769230769231,
+          "warmMeanMs": 94.56111111077998,
+          "warmMedianMs": 87.09999999403954,
+          "warmP95Ms": 151.40000000596046
+        },
+        "singleLines": {
+          "images": 4,
+          "exact": 4,
+          "cer": 0,
+          "wer": 0,
+          "termsFound": 4,
+          "termCount": 4,
+          "termRecall": 1,
+          "warmMeanMs": 37.42499999888241,
+          "warmMedianMs": 36.30000001192093,
+          "warmP95Ms": 58
+        },
+        "noTextOutput": "",
+        "firstUseMs": 350.58909700000004
+      }
+    },
+    {
+      "id": "tesseract-fast",
+      "initMs": 113.81145899999683,
+      "samples": [
+        {
+          "id": "large-light",
+          "runs": [
+            {
+              "text": "English screenshot text inside a tweet\n\nThis sentence should be read from the image.\n\nSmall captions and screenshots need OCR.",
+              "ms": 175.70000000298023
+            },
+            {
+              "text": "English screenshot text inside a tweet\n\nThis sentence should be read from the image.\n\nSmall captions and screenshots need OCR.",
+              "ms": 121.69999998807907
+            },
+            {
+              "text": "English screenshot text inside a tweet\n\nThis sentence should be read from the image.\n\nSmall captions and screenshots need OCR.",
+              "ms": 119.29999999701977
+            }
+          ]
+        },
+        {
+          "id": "dark-caption",
+          "runs": [
+            {
+              "text": "Send me your nude photos tonight.\n\nAdults only: explicit sexual content.",
+              "ms": 90.79999999701977
+            },
+            {
+              "text": "Send me your nude photos tonight.\n\nAdults only: explicit sexual content.",
+              "ms": 88.79999999701977
+            },
+            {
+              "text": "Send me your nude photos tonight.\n\nAdults only: explicit sexual content.",
+              "ms": 90
+            }
+          ]
+        },
+        {
+          "id": "small-light",
+          "runs": [
+            {
+              "text": "Subscribe for explicit sex videos.\n\nThis text is embedded in an image.",
+              "ms": 43.900000005960464
+            },
+            {
+              "text": "Subscribe for explicit sex videos.\n\nThis text is embedded in an image.",
+              "ms": 42.29999999701977
+            },
+            {
+              "text": "Subscribe for explicit sex videos.\n\nThis text is embedded in an image.",
+              "ms": 42.79999999701977
+            }
+          ]
+        },
+        {
+          "id": "small-dark",
+          "runs": [
+            {
+              "text": "Please stop sharing porn in the group.\n\nThe caption is small but still readable.",
+              "ms": 70.90000000596046
+            },
+            {
+              "text": "Please stop sharing porn in the group.\n\nThe caption is small but still readable.",
+              "ms": 68.19999998807907
+            },
+            {
+              "text": "Please stop sharing porn in the group.\n\nThe caption is small but still readable.",
+              "ms": 69.59999999403954
+            }
+          ]
+        },
+        {
+          "id": "jpeg-caption",
+          "runs": [
+            {
+              "text": "Naked photos and sexual fantasies.\n\nA compressed screenshot from a social feed.",
+              "ms": 65.1000000089407
+            },
+            {
+              "text": "Naked photos and sexual fantasies.\n\nA compressed screenshot from a social feed.",
+              "ms": 64.40000000596046
+            },
+            {
+              "text": "Naked photos and sexual fantasies.\n\nA compressed screenshot from a social feed.",
+              "ms": 66.40000000596046
+            }
+          ]
+        },
+        {
+          "id": "serif",
+          "runs": [
+            {
+              "text": "A book club meets every Friday.\n\nBring a notebook and your favorite novel.",
+              "ms": 58.5
+            },
+            {
+              "text": "A book club meets every Friday.\n\nBring a notebook and your favorite novel.",
+              "ms": 56.3999999910593
+            },
+            {
+              "text": "A book club meets every Friday.\n\nBring a notebook and your favorite novel.",
+              "ms": 57
+            }
+          ]
+        },
+        {
+          "id": "rotated",
+          "runs": [
+            {
+              "text": "Explicit Sex and\n\nnude pictures.\n\nA tilted caption insid\n\nea screenshot.",
+              "ms": 63.20000000298023
+            },
+            {
+              "text": "Explicit Sex and\n\nnude pictures.\n\nA tilted caption insid\n\nea screenshot.",
+              "ms": 61.5
+            },
+            {
+              "text": "Explicit Sex and\n\nnude pictures.\n\nA tilted caption insid\n\nea screenshot.",
+              "ms": 64.5
+            }
+          ]
+        },
+        {
+          "id": "meme",
+          "runs": [
+            {
+              "text": "SJAINID) INMUIDI ES)\n\nNO SERIOUSIEY SEND WHE CATS PHOMOS",
+              "ms": 77.69999998807907
+            },
+            {
+              "text": "SJAINID) INMUIDI ES)\n\nNO SERIOUSIEY SEND WHE CATS PHOMOS",
+              "ms": 73.40000000596046
+            },
+            {
+              "text": "SJAINID) INMUIDI ES)\n\nNO SERIOUSIEY SEND WHE CATS PHOMOS",
+              "ms": 73.8999999910593
+            }
+          ]
+        },
+        {
+          "id": "low-contrast",
+          "runs": [
+            {
+              "text": "Sexual content appears inside images.\n\nCoffee and breakfast are ready.",
+              "ms": 54.900000005960464
+            },
+            {
+              "text": "Sexual content appears inside images.\n\nCoffee and breakfast are ready.",
+              "ms": 54.3999999910593
+            },
+            {
+              "text": "Sexual content appears inside images.\n\nCoffee and breakfast are ready.",
+              "ms": 54.70000000298023
+            }
+          ]
+        },
+        {
+          "id": "single-printed",
+          "runs": [
+            {
+              "text": "Send me your nude photos tonight.",
+              "ms": 28
+            },
+            {
+              "text": "Send me your nude photos tonight.",
+              "ms": 29.799999997019768
+            },
+            {
+              "text": "Send me your nude photos tonight.",
+              "ms": 27.600000008940697
+            }
+          ]
+        },
+        {
+          "id": "single-small",
+          "runs": [
+            {
+              "text": "Subscribe for explicit sex videos.",
+              "ms": 17.19999998807907
+            },
+            {
+              "text": "Subscribe for explicit sex videos.",
+              "ms": 16.80000001192093
+            },
+            {
+              "text": "Subscribe for explicit sex videos.",
+              "ms": 16.5
+            }
+          ]
+        },
+        {
+          "id": "single-serif",
+          "runs": [
+            {
+              "text": "A book club meets every Friday.",
+              "ms": 22.80000001192093
+            },
+            {
+              "text": "A book club meets every Friday.",
+              "ms": 22.5
+            },
+            {
+              "text": "A book club meets every Friday.",
+              "ms": 23.5
+            }
+          ]
+        },
+        {
+          "id": "single-dark",
+          "runs": [
+            {
+              "text": "Please stop sharing porn in the group.",
+              "ms": 37.69999998807907
+            },
+            {
+              "text": "Please stop sharing porn in the group.",
+              "ms": 37.3999999910593
+            },
+            {
+              "text": "Please stop sharing porn in the group.",
+              "ms": 38
+            }
+          ]
+        },
+        {
+          "id": "no-text",
+          "runs": [
+            {
+              "text": "",
+              "ms": 29.5
+            },
+            {
+              "text": "",
+              "ms": 30.100000008940697
+            },
+            {
+              "text": "",
+              "ms": 29
+            }
+          ]
+        }
+      ],
+      "metrics": {
+        "screenshots": {
+          "images": 9,
+          "exact": 7,
+          "cer": 0.0243161094224924,
+          "wer": 0.08108108108108109,
+          "termsFound": 12,
+          "termCount": 13,
+          "termRecall": 0.9230769230769231,
+          "warmMeanMs": 70.51666666401758,
+          "warmMedianMs": 66.40000000596046,
+          "warmP95Ms": 121.69999998807907
+        },
+        "singleLines": {
+          "images": 4,
+          "exact": 4,
+          "cer": 0,
+          "wer": 0,
+          "termsFound": 4,
+          "termCount": 4,
+          "termRecall": 1,
+          "warmMeanMs": 26.512500001117587,
+          "warmMedianMs": 27.600000008940697,
+          "warmP95Ms": 38
+        },
+        "noTextOutput": "",
+        "firstUseMs": 289.51145900297706
+      }
+    },
+    {
+      "id": "paddle-v5",
+      "initMs": 1332.6697189999977,
+      "samples": [
+        {
+          "id": "large-light",
+          "runs": [
+            {
+              "text": "English screenshot text inside a tweet\nThis sentence should be read from the image.\nSmall captions and screenshots need OCR.",
+              "ms": 880.5
+            },
+            {
+              "text": "English screenshot text inside a tweet\nThis sentence should be read from the image.\nSmall captions and screenshots need OCR.",
+              "ms": 765.2999999970198
+            },
+            {
+              "text": "English screenshot text inside a tweet\nThis sentence should be read from the image.\nSmall captions and screenshots need OCR.",
+              "ms": 728.4000000059605
+            }
+          ]
+        },
+        {
+          "id": "dark-caption",
+          "runs": [
+            {
+              "text": "Send me your nude photos tonight.\nAdults only: explicit sexual content.",
+              "ms": 438
+            },
+            {
+              "text": "Send me your nude photos tonight.\nAdults only: explicit sexual content.",
+              "ms": 438.90000000596046
+            },
+            {
+              "text": "Send me your nude photos tonight.\nAdults only: explicit sexual content.",
+              "ms": 435.20000000298023
+            }
+          ]
+        },
+        {
+          "id": "small-light",
+          "runs": [
+            {
+              "text": "Subscribe for explicit sex videos.\nThis text is embedded in an image.",
+              "ms": 348.5
+            },
+            {
+              "text": "Subscribe for explicit sex videos.\nThis text is embedded in an image.",
+              "ms": 354.90000000596046
+            },
+            {
+              "text": "Subscribe for explicit sex videos.\nThis text is embedded in an image.",
+              "ms": 350.29999999701977
+            }
+          ]
+        },
+        {
+          "id": "small-dark",
+          "runs": [
+            {
+              "text": "Please stop sharing porn in the group.\nThe caption is small but still readable.",
+              "ms": 375.59999999403954
+            },
+            {
+              "text": "Please stop sharing porn in the group.\nThe caption is small but still readable.",
+              "ms": 372.09999999403954
+            },
+            {
+              "text": "Please stop sharing porn in the group.\nThe caption is small but still readable.",
+              "ms": 368.40000000596046
+            }
+          ]
+        },
+        {
+          "id": "jpeg-caption",
+          "runs": [
+            {
+              "text": "Naked photos and sexual fantasies.\nA compressed screenshot from a social feed.",
+              "ms": 461
+            },
+            {
+              "text": "Naked photos and sexual fantasies.\nA compressed screenshot from a social feed.",
+              "ms": 452.29999999701977
+            },
+            {
+              "text": "Naked photos and sexual fantasies.\nA compressed screenshot from a social feed.",
+              "ms": 462.79999999701977
+            }
+          ]
+        },
+        {
+          "id": "serif",
+          "runs": [
+            {
+              "text": "A book club meets every Friday.\nBring a notebook and your favorite novel.",
+              "ms": 454.69999998807907
+            },
+            {
+              "text": "A book club meets every Friday.\nBring a notebook and your favorite novel.",
+              "ms": 460.6000000089407
+            },
+            {
+              "text": "A book club meets every Friday.\nBring a notebook and your favorite novel.",
+              "ms": 450.5
+            }
+          ]
+        },
+        {
+          "id": "rotated",
+          "runs": [
+            {
+              "text": "Explicit sex and nude pictures.\nA tilted caption inside a screenshot.",
+              "ms": 430.90000000596046
+            },
+            {
+              "text": "Explicit sex and nude pictures.\nA tilted caption inside a screenshot.",
+              "ms": 429
+            },
+            {
+              "text": "Explicit sex and nude pictures.\nA tilted caption inside a screenshot.",
+              "ms": 421.90000000596046
+            }
+          ]
+        },
+        {
+          "id": "meme",
+          "runs": [
+            {
+              "text": "SEND NUDES\nNO SERIOUSLY SEND THE CAT PHOTOS",
+              "ms": 500.30000001192093
+            },
+            {
+              "text": "SEND NUDES\nNO SERIOUSLY SEND THE CAT PHOTOS",
+              "ms": 507.1000000089407
+            },
+            {
+              "text": "SEND NUDES\nNO SERIOUSLY SEND THE CAT PHOTOS",
+              "ms": 503.29999999701977
+            }
+          ]
+        },
+        {
+          "id": "low-contrast",
+          "runs": [
+            {
+              "text": "Sexual content appears inside images.\nCoffee and breakfast are ready.",
+              "ms": 457.29999999701977
+            },
+            {
+              "text": "Sexual content appears inside images.\nCoffee and breakfast are ready.",
+              "ms": 450
+            },
+            {
+              "text": "Sexual content appears inside images.\nCoffee and breakfast are ready.",
+              "ms": 454.8999999910593
+            }
+          ]
+        },
+        {
+          "id": "single-printed",
+          "runs": [
+            {
+              "text": "Send me your nude photos tonight.",
+              "ms": 158
+            },
+            {
+              "text": "Send me your nude photos tonight.",
+              "ms": 159.6000000089407
+            },
+            {
+              "text": "Send me your nude photos tonight.",
+              "ms": 157.70000000298023
+            }
+          ]
+        },
+        {
+          "id": "single-small",
+          "runs": [
+            {
+              "text": "Subscribe for explicit sex videos.",
+              "ms": 106
+            },
+            {
+              "text": "Subscribe for explicit sex videos.",
+              "ms": 105.70000000298023
+            },
+            {
+              "text": "Subscribe for explicit sex videos.",
+              "ms": 105.5
+            }
+          ]
+        },
+        {
+          "id": "single-serif",
+          "runs": [
+            {
+              "text": "A book club meets every Friday.",
+              "ms": 136.29999999701977
+            },
+            {
+              "text": "A book club meets every Friday.",
+              "ms": 135.70000000298023
+            },
+            {
+              "text": "A book club meets every Friday.",
+              "ms": 135
+            }
+          ]
+        },
+        {
+          "id": "single-dark",
+          "runs": [
+            {
+              "text": "Please\nstop\nsharing\nporn in the\ngroup.",
+              "ms": 277.70000000298023
+            },
+            {
+              "text": "Please\nstop\nsharing\nporn in the\ngroup.",
+              "ms": 275.80000001192093
+            },
+            {
+              "text": "Please\nstop\nsharing\nporn in the\ngroup.",
+              "ms": 276.59999999403954
+            }
+          ]
+        },
+        {
+          "id": "no-text",
+          "runs": [
+            {
+              "text": "•",
+              "ms": 276.80000001192093
+            },
+            {
+              "text": "•",
+              "ms": 278.79999999701977
+            },
+            {
+              "text": "•",
+              "ms": 274.5
+            }
+          ]
+        }
+      ],
+      "metrics": {
+        "screenshots": {
+          "images": 9,
+          "exact": 9,
+          "cer": 0,
+          "wer": 0,
+          "termsFound": 13,
+          "termCount": 13,
+          "termRecall": 1,
+          "warmMeanMs": 466.99444444560345,
+          "warmMedianMs": 450.5,
+          "warmP95Ms": 765.2999999970198
+        },
+        "singleLines": {
+          "images": 4,
+          "exact": 4,
+          "cer": 0,
+          "wer": 0,
+          "termsFound": 4,
+          "termCount": 4,
+          "termRecall": 1,
+          "warmMeanMs": 168.95000000298023,
+          "warmMedianMs": 157.70000000298023,
+          "warmP95Ms": 276.59999999403954
+        },
+        "noTextOutput": "•",
+        "firstUseMs": 2213.1697189999977
+      }
+    },
+    {
+      "id": "paddle-v6-tiny",
+      "initMs": 854.8060580000019,
+      "samples": [
+        {
+          "id": "large-light",
+          "runs": [
+            {
+              "text": "English screenshot text inside a tweet\nThis sentence should be read from the image.\nSmall captions and screenshots need OCR.",
+              "ms": 555.2000000029802
+            },
+            {
+              "text": "English screenshot text inside a tweet\nThis sentence should be read from the image.\nSmall captions and screenshots need OCR.",
+              "ms": 449.29999999701977
+            },
+            {
+              "text": "English screenshot text inside a tweet\nThis sentence should be read from the image.\nSmall captions and screenshots need OCR.",
+              "ms": 445.1000000089407
+            }
+          ]
+        },
+        {
+          "id": "dark-caption",
+          "runs": [
+            {
+              "text": "Send me your nude photos tonight.\nAdults only: explicit sexual content.",
+              "ms": 258.69999998807907
+            },
+            {
+              "text": "Send me your nude photos tonight.\nAdults only: explicit sexual content.",
+              "ms": 260.90000000596046
+            },
+            {
+              "text": "Send me your nude photos tonight.\nAdults only: explicit sexual content.",
+              "ms": 260.1000000089407
+            }
+          ]
+        },
+        {
+          "id": "small-light",
+          "runs": [
+            {
+              "text": "Subscribe for explicit sex videos.\nThis text is embedded in an image.",
+              "ms": 184
+            },
+            {
+              "text": "Subscribe for explicit sex videos.\nThis text is embedded in an image.",
+              "ms": 184
+            },
+            {
+              "text": "Subscribe for explicit sex videos.\nThis text is embedded in an image.",
+              "ms": 179.80000001192093
+            }
+          ]
+        },
+        {
+          "id": "small-dark",
+          "runs": [
+            {
+              "text": "Please stop sharing porn in the group.\nThe caption is small but still readable.",
+              "ms": 189
+            },
+            {
+              "text": "Please stop sharing porn in the group.\nThe caption is small but still readable.",
+              "ms": 190.59999999403954
+            },
+            {
+              "text": "Please stop sharing porn in the group.\nThe caption is small but still readable.",
+              "ms": 189.29999999701977
+            }
+          ]
+        },
+        {
+          "id": "jpeg-caption",
+          "runs": [
+            {
+              "text": "Naked photos and sexual fantasies.\nA compressed screenshot from a social feed.",
+              "ms": 256.5
+            },
+            {
+              "text": "Naked photos and sexual fantasies.\nA compressed screenshot from a social feed.",
+              "ms": 252.69999998807907
+            },
+            {
+              "text": "Naked photos and sexual fantasies.\nA compressed screenshot from a social feed.",
+              "ms": 252.70000000298023
+            }
+          ]
+        },
+        {
+          "id": "serif",
+          "runs": [
+            {
+              "text": "A book club meets every Friday.\nBring a notebook and your favorite novel",
+              "ms": 258.29999999701977
+            },
+            {
+              "text": "A book club meets every Friday.\nBring a notebook and your favorite novel",
+              "ms": 259.79999999701977
+            },
+            {
+              "text": "A book club meets every Friday.\nBring a notebook and your favorite novel",
+              "ms": 254.79999999701977
+            }
+          ]
+        },
+        {
+          "id": "rotated",
+          "runs": [
+            {
+              "text": "Explicit sex and nude pictures.\nA tilted caption inside a screenshot",
+              "ms": 259.70000000298023
+            },
+            {
+              "text": "Explicit sex and nude pictures.\nA tilted caption inside a screenshot",
+              "ms": 259.5
+            },
+            {
+              "text": "Explicit sex and nude pictures.\nA tilted caption inside a screenshot",
+              "ms": 258.40000000596046
+            }
+          ]
+        },
+        {
+          "id": "meme",
+          "runs": [
+            {
+              "text": "SEND NUDES\nNO SERIOUSLY SEND THE CAT PHOTOS",
+              "ms": 274.80000001192093
+            },
+            {
+              "text": "SEND NUDES\nNO SERIOUSLY SEND THE CAT PHOTOS",
+              "ms": 271.20000000298023
+            },
+            {
+              "text": "SEND NUDES\nNO SERIOUSLY SEND THE CAT PHOTOS",
+              "ms": 280.09999999403954
+            }
+          ]
+        },
+        {
+          "id": "low-contrast",
+          "runs": [
+            {
+              "text": "Sexual content appears inside images.\nCoffee and breakfast are ready.",
+              "ms": 251.20000000298023
+            },
+            {
+              "text": "Sexual content appears inside images.\nCoffee and breakfast are ready.",
+              "ms": 245.5
+            },
+            {
+              "text": "Sexual content appears inside images.\nCoffee and breakfast are ready.",
+              "ms": 250.40000000596046
+            }
+          ]
+        },
+        {
+          "id": "single-printed",
+          "runs": [
+            {
+              "text": "Send me your nude photos tonight.",
+              "ms": 117.29999999701977
+            },
+            {
+              "text": "Send me your nude photos tonight.",
+              "ms": 115.90000000596046
+            },
+            {
+              "text": "Send me your nude photos tonight.",
+              "ms": 112
+            }
+          ]
+        },
+        {
+          "id": "single-small",
+          "runs": [
+            {
+              "text": "Subscribe for explicit sex videos.",
+              "ms": 42.20000000298023
+            },
+            {
+              "text": "Subscribe for explicit sex videos.",
+              "ms": 41.79999999701977
+            },
+            {
+              "text": "Subscribe for explicit sex videos.",
+              "ms": 41.29999999701977
+            }
+          ]
+        },
+        {
+          "id": "single-serif",
+          "runs": [
+            {
+              "text": "A book club meets every Friday",
+              "ms": 70.3999999910593
+            },
+            {
+              "text": "A book club meets every Friday",
+              "ms": 70.20000000298023
+            },
+            {
+              "text": "A book club meets every Friday",
+              "ms": 71.1000000089407
+            }
+          ]
+        },
+        {
+          "id": "single-dark",
+          "runs": [
+            {
+              "text": "Please stop sharing porn in the group.",
+              "ms": 66.19999998807907
+            },
+            {
+              "text": "Please stop sharing porn in the group.",
+              "ms": 67.20000000298023
+            },
+            {
+              "text": "Please stop sharing porn in the group.",
+              "ms": 67.59999999403954
+            }
+          ]
+        },
+        {
+          "id": "no-text",
+          "runs": [
+            {
+              "text": "0",
+              "ms": 202.1000000089407
+            },
+            {
+              "text": "0",
+              "ms": 196.90000000596046
+            },
+            {
+              "text": "0",
+              "ms": 193
+            }
+          ]
+        }
+      ],
+      "metrics": {
+        "screenshots": {
+          "images": 9,
+          "exact": 9,
+          "cer": 0,
+          "wer": 0,
+          "termsFound": 13,
+          "termCount": 13,
+          "termRecall": 1,
+          "warmMeanMs": 263.56666666766006,
+          "warmMedianMs": 258.40000000596046,
+          "warmP95Ms": 449.29999999701977
+        },
+        "singleLines": {
+          "images": 4,
+          "exact": 4,
+          "cer": 0,
+          "wer": 0,
+          "termsFound": 4,
+          "termCount": 4,
+          "termRecall": 1,
+          "warmMeanMs": 73.38750000111759,
+          "warmMedianMs": 70.20000000298023,
+          "warmP95Ms": 115.90000000596046
+        },
+        "noTextOutput": "0",
+        "firstUseMs": 1410.0060580029822
+      }
+    },
+    {
+      "id": "paddle-v6-small",
+      "initMs": 992.8227000000043,
+      "samples": [
+        {
+          "id": "large-light",
+          "runs": [
+            {
+              "text": "English screenshot text inside a tweet\nThis sentence should be read from the image.\nSmall captions and screenshots need OCR.",
+              "ms": 1531.0999999940395
+            },
+            {
+              "text": "English screenshot text inside a tweet\nThis sentence should be read from the image.\nSmall captions and screenshots need OCR.",
+              "ms": 1378.7000000029802
+            },
+            {
+              "text": "English screenshot text inside a tweet\nThis sentence should be read from the image.\nSmall captions and screenshots need OCR.",
+              "ms": 1389.2000000029802
+            }
+          ]
+        },
+        {
+          "id": "dark-caption",
+          "runs": [
+            {
+              "text": "Send me your nude photos tonight.\nAdults only: explicit sexual content.",
+              "ms": 791.6999999880791
+            },
+            {
+              "text": "Send me your nude photos tonight.\nAdults only: explicit sexual content.",
+              "ms": 788.9000000059605
+            },
+            {
+              "text": "Send me your nude photos tonight.\nAdults only: explicit sexual content.",
+              "ms": 779.5
+            }
+          ]
+        },
+        {
+          "id": "small-light",
+          "runs": [
+            {
+              "text": "Subscribe for explicit sex videos.\nThis text is embedded in an image.",
+              "ms": 588.5
+            },
+            {
+              "text": "Subscribe for explicit sex videos.\nThis text is embedded in an image.",
+              "ms": 580.4000000059605
+            },
+            {
+              "text": "Subscribe for explicit sex videos.\nThis text is embedded in an image.",
+              "ms": 581.4000000059605
+            }
+          ]
+        },
+        {
+          "id": "small-dark",
+          "runs": [
+            {
+              "text": "Please stop sharing porn in the group.\nThe caption is small but still readable.",
+              "ms": 614.0999999940395
+            },
+            {
+              "text": "Please stop sharing porn in the group.\nThe caption is small but still readable.",
+              "ms": 610.3999999910593
+            },
+            {
+              "text": "Please stop sharing porn in the group.\nThe caption is small but still readable.",
+              "ms": 626
+            }
+          ]
+        },
+        {
+          "id": "jpeg-caption",
+          "runs": [
+            {
+              "text": "Naked photos and sexual fantasies.\nA compressed screenshot from a social feed.",
+              "ms": 751.7000000029802
+            },
+            {
+              "text": "Naked photos and sexual fantasies.\nA compressed screenshot from a social feed.",
+              "ms": 756.2000000029802
+            },
+            {
+              "text": "Naked photos and sexual fantasies.\nA compressed screenshot from a social feed.",
+              "ms": 754.3999999910593
+            }
+          ]
+        },
+        {
+          "id": "serif",
+          "runs": [
+            {
+              "text": "A book club meets every Friday.\nBring a notebook and your favorite novel.",
+              "ms": 826.5999999940395
+            },
+            {
+              "text": "A book club meets every Friday.\nBring a notebook and your favorite novel.",
+              "ms": 811.9000000059605
+            },
+            {
+              "text": "A book club meets every Friday.\nBring a notebook and your favorite novel.",
+              "ms": 799.7000000029802
+            }
+          ]
+        },
+        {
+          "id": "rotated",
+          "runs": [
+            {
+              "text": "Explicit sex and nude pictures.\nA tilted caption inside a screenshot.",
+              "ms": 752
+            },
+            {
+              "text": "Explicit sex and nude pictures.\nA tilted caption inside a screenshot.",
+              "ms": 762
+            },
+            {
+              "text": "Explicit sex and nude pictures.\nA tilted caption inside a screenshot.",
+              "ms": 765.7000000029802
+            }
+          ]
+        },
+        {
+          "id": "meme",
+          "runs": [
+            {
+              "text": "SENDNUDES\nNO SERIOUSLY SEND THE CAT PHOTOS",
+              "ms": 880.2000000029802
+            },
+            {
+              "text": "SENDNUDES\nNO SERIOUSLY SEND THE CAT PHOTOS",
+              "ms": 874.5
+            },
+            {
+              "text": "SENDNUDES\nNO SERIOUSLY SEND THE CAT PHOTOS",
+              "ms": 870.5
+            }
+          ]
+        },
+        {
+          "id": "low-contrast",
+          "runs": [
+            {
+              "text": "Sexual content appears inside images.\nCoffee and breakfast are ready.",
+              "ms": 766.9000000059605
+            },
+            {
+              "text": "Sexual content appears inside images.\nCoffee and breakfast are ready.",
+              "ms": 751.7000000029802
+            },
+            {
+              "text": "Sexual content appears inside images.\nCoffee and breakfast are ready.",
+              "ms": 747.2000000029802
+            }
+          ]
+        },
+        {
+          "id": "single-printed",
+          "runs": [
+            {
+              "text": "Send me your nude photos tonight.",
+              "ms": 281.8999999910593
+            },
+            {
+              "text": "Send me your nude photos tonight.",
+              "ms": 280.29999999701977
+            },
+            {
+              "text": "Send me your nude photos tonight.",
+              "ms": 279.90000000596046
+            }
+          ]
+        },
+        {
+          "id": "single-small",
+          "runs": [
+            {
+              "text": "Subscribe for explicit sex videos.",
+              "ms": 149.79999999701977
+            },
+            {
+              "text": "Subscribe for explicit sex videos.",
+              "ms": 149.1000000089407
+            },
+            {
+              "text": "Subscribe for explicit sex videos.",
+              "ms": 151.09999999403954
+            }
+          ]
+        },
+        {
+          "id": "single-serif",
+          "runs": [
+            {
+              "text": "A book club meets every Friday.",
+              "ms": 234.1000000089407
+            },
+            {
+              "text": "A book club meets every Friday.",
+              "ms": 233.40000000596046
+            },
+            {
+              "text": "A book club meets every Friday.",
+              "ms": 233.8999999910593
+            }
+          ]
+        },
+        {
+          "id": "single-dark",
+          "runs": [
+            {
+              "text": "Please stop sharing porn in the group.",
+              "ms": 238.09999999403954
+            },
+            {
+              "text": "Please stop sharing porn in the group.",
+              "ms": 235.59999999403954
+            },
+            {
+              "text": "Please stop sharing porn in the group.",
+              "ms": 241.59999999403954
+            }
+          ]
+        },
+        {
+          "id": "no-text",
+          "runs": [
+            {
+              "text": "0",
+              "ms": 521.1999999880791
+            },
+            {
+              "text": "0",
+              "ms": 517.3000000119209
+            },
+            {
+              "text": "0",
+              "ms": 515.5
+            }
+          ]
+        }
+      ],
+      "metrics": {
+        "screenshots": {
+          "images": 9,
+          "exact": 8,
+          "cer": 0.001519756838905775,
+          "wer": 0.018018018018018018,
+          "termsFound": 12,
+          "termCount": 13,
+          "termRecall": 0.9230769230769231,
+          "warmMeanMs": 812.6833333348235,
+          "warmMedianMs": 765.7000000029802,
+          "warmP95Ms": 1389.2000000029802
+        },
+        "singleLines": {
+          "images": 4,
+          "exact": 4,
+          "cer": 0,
+          "wer": 0,
+          "termsFound": 4,
+          "termCount": 4,
+          "termRecall": 1,
+          "warmMeanMs": 225.6124999988824,
+          "warmMedianMs": 235.59999999403954,
+          "warmP95Ms": 280.29999999701977
+        },
+        "noTextOutput": "0",
+        "firstUseMs": 2523.922699994044
+      }
+    },
+    {
+      "id": "scribe-speed",
+      "initMs": 117.3936249999997,
+      "samples": [
+        {
+          "id": "large-light",
+          "runs": [
+            {
+              "text": "English screenshot text inside a tweet This sentence should be read from the image.\nSmall captions and screenshots need OCR.",
+              "ms": 651.1000000089407
+            },
+            {
+              "text": "English screenshot text inside a tweet This sentence should be read from the image.\nSmall captions and screenshots need OCR.",
+              "ms": 98.70000000298023
+            },
+            {
+              "text": "English screenshot text inside a tweet This sentence should be read from the image.\nSmall captions and screenshots need OCR.",
+              "ms": 92.59999999403954
+            }
+          ]
+        },
+        {
+          "id": "dark-caption",
+          "runs": [
+            {
+              "text": "Send me your nude photos tonight.\nAdults only: explicit sexual content.",
+              "ms": 76.5
+            },
+            {
+              "text": "Send me your nude photos tonight.\nAdults only: explicit sexual content.",
+              "ms": 74.90000000596046
+            },
+            {
+              "text": "Send me your nude photos tonight.\nAdults only: explicit sexual content.",
+              "ms": 74.79999999701977
+            }
+          ]
+        },
+        {
+          "id": "small-light",
+          "runs": [
+            {
+              "text": "Subscribe for explicit sex videos. This text is embedded in an image.",
+              "ms": 37.3999999910593
+            },
+            {
+              "text": "Subscribe for explicit sex videos. This text is embedded in an image.",
+              "ms": 37.5
+            },
+            {
+              "text": "Subscribe for explicit sex videos. This text is embedded in an image.",
+              "ms": 37.29999999701977
+            }
+          ]
+        },
+        {
+          "id": "small-dark",
+          "runs": [
+            {
+              "text": "Please stop sharing porn in the group. The caption is small but still readable.",
+              "ms": 61.30000001192093
+            },
+            {
+              "text": "Please stop sharing porn in the group. The caption is small but still readable.",
+              "ms": 81.5
+            },
+            {
+              "text": "Please stop sharing porn in the group. The caption is small but still readable.",
+              "ms": 64.70000000298023
+            }
+          ]
+        },
+        {
+          "id": "jpeg-caption",
+          "runs": [
+            {
+              "text": "Naked photos and sexual fantasies.\nA compressed screenshot from a social feed.",
+              "ms": 50.900000005960464
+            },
+            {
+              "text": "Naked photos and sexual fantasies.\nA compressed screenshot from a social feed.",
+              "ms": 50.1000000089407
+            },
+            {
+              "text": "Naked photos and sexual fantasies.\nA compressed screenshot from a social feed.",
+              "ms": 50.599999994039536
+            }
+          ]
+        },
+        {
+          "id": "serif",
+          "runs": [
+            {
+              "text": "A book club meets every Friday.\nBring a notebook and your favorite novel.",
+              "ms": 49.20000000298023
+            },
+            {
+              "text": "A book club meets every Friday.\nBring a notebook and your favorite novel.",
+              "ms": 47.900000005960464
+            },
+            {
+              "text": "A book club meets every Friday.\nBring a notebook and your favorite novel.",
+              "ms": 48.099999994039536
+            }
+          ]
+        },
+        {
+          "id": "rotated",
+          "runs": [
+            {
+              "text": "CAPHUIL STA allu 11iduc pituidico.\nA tilted caption inside a screenshot.",
+              "ms": 79.59999999403954
+            },
+            {
+              "text": "CAPHUIL STA allu 11iduc pituidico.\nA tilted caption inside a screenshot.",
+              "ms": 76.5
+            },
+            {
+              "text": "CAPHUIL STA allu 11iduc pituidico.\nA tilted caption inside a screenshot.",
+              "ms": 75.1000000089407
+            }
+          ]
+        },
+        {
+          "id": "meme",
+          "runs": [
+            {
+              "text": "SIZNID INIUIDIES NOISERIOUSTESSENDEFHEICATNRHOMOS",
+              "ms": 58.1000000089407
+            },
+            {
+              "text": "SIZNID INIUIDIES NOISERIOUSTESSENDEFHEICATNRHOMOS",
+              "ms": 56.599999994039536
+            },
+            {
+              "text": "SIZNID INIUIDIES NOISERIOUSTESSENDEFHEICATNRHOMOS",
+              "ms": 55.79999999701977
+            }
+          ]
+        },
+        {
+          "id": "low-contrast",
+          "runs": [
+            {
+              "text": "Sexual content appears inside images.\nCoffee and breakfast are ready.",
+              "ms": 44.79999999701977
+            },
+            {
+              "text": "Sexual content appears inside images.\nCoffee and breakfast are ready.",
+              "ms": 44.30000001192093
+            },
+            {
+              "text": "Sexual content appears inside images.\nCoffee and breakfast are ready.",
+              "ms": 45.900000005960464
+            }
+          ]
+        },
+        {
+          "id": "single-printed",
+          "runs": [
+            {
+              "text": "Send me your nude photos tonight.",
+              "ms": 23.30000001192093
+            },
+            {
+              "text": "Send me your nude photos tonight.",
+              "ms": 23.19999998807907
+            },
+            {
+              "text": "Send me your nude photos tonight.",
+              "ms": 22.80000001192093
+            }
+          ]
+        },
+        {
+          "id": "single-small",
+          "runs": [
+            {
+              "text": "Subscribe for explicit sex videos.",
+              "ms": 15
+            },
+            {
+              "text": "Subscribe for explicit sex videos.",
+              "ms": 15.700000002980232
+            },
+            {
+              "text": "Subscribe for explicit sex videos.",
+              "ms": 15.799999997019768
+            }
+          ]
+        },
+        {
+          "id": "single-serif",
+          "runs": [
+            {
+              "text": "A book club meets every Friday.",
+              "ms": 20.400000005960464
+            },
+            {
+              "text": "A book club meets every Friday.",
+              "ms": 19.5
+            },
+            {
+              "text": "A book club meets every Friday.",
+              "ms": 19.700000002980232
+            }
+          ]
+        },
+        {
+          "id": "single-dark",
+          "runs": [
+            {
+              "text": "Please stop sharing porn in the group.",
+              "ms": 33.5
+            },
+            {
+              "text": "Please stop sharing porn in the group.",
+              "ms": 33.70000000298023
+            },
+            {
+              "text": "Please stop sharing porn in the group.",
+              "ms": 33.5
+            }
+          ]
+        },
+        {
+          "id": "no-text",
+          "runs": [
+            {
+              "text": "",
+              "ms": 21.5
+            },
+            {
+              "text": "",
+              "ms": 20.799999997019768
+            },
+            {
+              "text": "",
+              "ms": 28.899999991059303
+            }
+          ]
+        }
+      ],
+      "metrics": {
+        "screenshots": {
+          "images": 9,
+          "exact": 7,
+          "cer": 0.05927051671732523,
+          "wer": 0.11711711711711711,
+          "termsFound": 9,
+          "termCount": 13,
+          "termRecall": 0.6923076923076923,
+          "warmMeanMs": 61.827777778936756,
+          "warmMedianMs": 56.599999994039536,
+          "warmP95Ms": 98.70000000298023
+        },
+        "singleLines": {
+          "images": 4,
+          "exact": 4,
+          "cer": 0,
+          "wer": 0,
+          "termsFound": 4,
+          "termCount": 4,
+          "termRecall": 1,
+          "warmMeanMs": 22.987500000745058,
+          "warmMedianMs": 22.80000001192093,
+          "warmP95Ms": 33.70000000298023
+        },
+        "noTextOutput": "",
+        "firstUseMs": 768.4936250089404
+      }
+    },
+    {
+      "id": "scribe-quality",
+      "initMs": 115.45089700000062,
+      "samples": [
+        {
+          "id": "large-light",
+          "runs": [
+            {
+              "text": "English screenshot text inside a tweet This sentence should be read from the image.\nSmall captions and screenshots need OCR.",
+              "ms": 748.4000000059605
+            },
+            {
+              "text": "English screenshot text inside a tweet This sentence should be read from the image.\nSmall captions and screenshots need OCR.",
+              "ms": 166.1000000089407
+            },
+            {
+              "text": "English screenshot text inside a tweet This sentence should be read from the image.\nSmall captions and screenshots need OCR.",
+              "ms": 172.80000001192093
+            }
+          ]
+        },
+        {
+          "id": "dark-caption",
+          "runs": [
+            {
+              "text": "Send me your nude photos tonight.\nAdults only: explicit sexual content.",
+              "ms": 107.40000000596046
+            },
+            {
+              "text": "Send me your nude photos tonight.\nAdults only: explicit sexual content.",
+              "ms": 106.69999998807907
+            },
+            {
+              "text": "Send me your nude photos tonight.\nAdults only: explicit sexual content.",
+              "ms": 116.5
+            }
+          ]
+        },
+        {
+          "id": "small-light",
+          "runs": [
+            {
+              "text": "Subscribe for explicit sex videos. This text is embedded in an image.",
+              "ms": 81.5
+            },
+            {
+              "text": "Subscribe for explicit sex videos. This text is embedded in an image.",
+              "ms": 78.69999998807907
+            },
+            {
+              "text": "Subscribe for explicit sex videos. This text is embedded in an image.",
+              "ms": 80.80000001192093
+            }
+          ]
+        },
+        {
+          "id": "small-dark",
+          "runs": [
+            {
+              "text": "Please stop sharing porn in the group. The caption is small but still readable.",
+              "ms": 107.5
+            },
+            {
+              "text": "Please stop sharing porn in the group. The caption is small but still readable.",
+              "ms": 105
+            },
+            {
+              "text": "Please stop sharing porn in the group. The caption is small but still readable.",
+              "ms": 103.79999999701977
+            }
+          ]
+        },
+        {
+          "id": "jpeg-caption",
+          "runs": [
+            {
+              "text": "Naked photos and sexual fantasies.\nA compressed screenshot from a social feed.",
+              "ms": 91.79999999701977
+            },
+            {
+              "text": "Naked photos and sexual fantasies.\nA compressed screenshot from a social feed.",
+              "ms": 87.79999999701977
+            },
+            {
+              "text": "Naked photos and sexual fantasies.\nA compressed screenshot from a social feed.",
+              "ms": 90.5
+            }
+          ]
+        },
+        {
+          "id": "serif",
+          "runs": [
+            {
+              "text": "A book club meets every Friday.\nBring a notebook and your favorite novel.",
+              "ms": 83.09999999403954
+            },
+            {
+              "text": "A book club meets every Friday.\nBring a notebook and your favorite novel.",
+              "ms": 91.1000000089407
+            },
+            {
+              "text": "A book club meets every Friday.\nBring a notebook and your favorite novel.",
+              "ms": 79.29999999701977
+            }
+          ]
+        },
+        {
+          "id": "rotated",
+          "runs": [
+            {
+              "text": "CAPHUIL STA allu 11iduc pituidico.\nA tilted caption inside a screenshot.",
+              "ms": 141.19999998807907
+            },
+            {
+              "text": "CAPHUIL STA allu 11iduc pituidico.\nA tilted caption inside a screenshot.",
+              "ms": 132.8999999910593
+            },
+            {
+              "text": "CAPHUIL STA allu 11iduc pituidico.\nA tilted caption inside a screenshot.",
+              "ms": 131.20000000298023
+            }
+          ]
+        },
+        {
+          "id": "meme",
+          "runs": [
+            {
+              "text": "SIZNID INIUIDIES NOISERIOUSTESSENDEFHEICATNRHOMOS",
+              "ms": 93.59999999403954
+            },
+            {
+              "text": "SIZNID INIUIDIES NOISERIOUSTESSENDEFHEICATNRHOMOS",
+              "ms": 89.3999999910593
+            },
+            {
+              "text": "SIZNID INIUIDIES NOISERIOUSTESSENDEFHEICATNRHOMOS",
+              "ms": 89.6000000089407
+            }
+          ]
+        },
+        {
+          "id": "low-contrast",
+          "runs": [
+            {
+              "text": "Sexual content appears inside images.\nCoffee and breakfast are ready.",
+              "ms": 95.6000000089407
+            },
+            {
+              "text": "Sexual content appears inside images.\nCoffee and breakfast are ready.",
+              "ms": 77.70000000298023
+            },
+            {
+              "text": "Sexual content appears inside images.\nCoffee and breakfast are ready.",
+              "ms": 75.70000000298023
+            }
+          ]
+        },
+        {
+          "id": "single-printed",
+          "runs": [
+            {
+              "text": "Send me your nude photos tonight.",
+              "ms": 38.599999994039536
+            },
+            {
+              "text": "Send me your nude photos tonight.",
+              "ms": 38.400000005960464
+            },
+            {
+              "text": "Send me your nude photos tonight.",
+              "ms": 40.69999998807907
+            }
+          ]
+        },
+        {
+          "id": "single-small",
+          "runs": [
+            {
+              "text": "Subscribe for explicit sex videos.",
+              "ms": 39.5
+            },
+            {
+              "text": "Subscribe for explicit sex videos.",
+              "ms": 40.5
+            },
+            {
+              "text": "Subscribe for explicit sex videos.",
+              "ms": 39.5
+            }
+          ]
+        },
+        {
+          "id": "single-serif",
+          "runs": [
+            {
+              "text": "A book club meets every Friday.",
+              "ms": 32.1000000089407
+            },
+            {
+              "text": "A book club meets every Friday.",
+              "ms": 33.400000005960464
+            },
+            {
+              "text": "A book club meets every Friday.",
+              "ms": 33.3999999910593
+            }
+          ]
+        },
+        {
+          "id": "single-dark",
+          "runs": [
+            {
+              "text": "Please stop sharing porn in the group.",
+              "ms": 49
+            },
+            {
+              "text": "Please stop sharing porn in the group.",
+              "ms": 53.79999999701977
+            },
+            {
+              "text": "Please stop sharing porn in the group.",
+              "ms": 47
+            }
+          ]
+        },
+        {
+          "id": "no-text",
+          "runs": [
+            {
+              "text": "",
+              "ms": 31.200000002980232
+            },
+            {
+              "text": "",
+              "ms": 30.099999994039536
+            },
+            {
+              "text": "",
+              "ms": 31
+            }
+          ]
+        }
+      ],
+      "metrics": {
+        "screenshots": {
+          "images": 9,
+          "exact": 7,
+          "cer": 0.05927051671732523,
+          "wer": 0.11711711711711711,
+          "termsFound": 9,
+          "termCount": 13,
+          "termRecall": 0.6923076923076923,
+          "warmMeanMs": 104.2000000004967,
+          "warmMedianMs": 91.1000000089407,
+          "warmP95Ms": 172.80000001192093
+        },
+        "singleLines": {
+          "images": 4,
+          "exact": 4,
+          "cer": 0,
+          "wer": 0,
+          "termsFound": 4,
+          "termCount": 4,
+          "termRecall": 1,
+          "warmMeanMs": 40.837499998509884,
+          "warmMedianMs": 40.5,
+          "warmP95Ms": 53.79999999701977
+        },
+        "noTextOutput": "",
+        "firstUseMs": 863.8508970059611
+      }
+    },
+    {
+      "id": "trocr",
+      "initMs": 1120.299808,
+      "samples": [
+        {
+          "id": "large-light",
+          "runs": [
+            {
+              "text": "SIMS MARISHABLES SUBJECTABLE FOR RECEIPT FOR AN OFFER",
+              "ms": 804.0999999940395
+            },
+            {
+              "text": "SIMS MARISHABLES SUBJECTABLE FOR RECEIPT FOR AN OFFER",
+              "ms": 710.5
+            },
+            {
+              "text": "SIMS MARISHABLES SUBJECTABLE FOR RECEIPT FOR AN OFFER",
+              "ms": 701.2999999970198
+            }
+          ]
+        },
+        {
+          "id": "dark-caption",
+          "runs": [
+            {
+              "text": "SEE BACK OF RECEIPT FOR AN OFFER",
+              "ms": 626.9000000059605
+            },
+            {
+              "text": "SEE BACK OF RECEIPT FOR AN OFFER",
+              "ms": 611.5999999940395
+            },
+            {
+              "text": "SEE BACK OF RECEIPT FOR AN OFFER",
+              "ms": 621.5
+            }
+          ]
+        },
+        {
+          "id": "small-light",
+          "runs": [
+            {
+              "text": "******",
+              "ms": 571.2999999970198
+            },
+            {
+              "text": "******",
+              "ms": 567.2999999970198
+            },
+            {
+              "text": "******",
+              "ms": 562.7999999970198
+            }
+          ]
+        },
+        {
+          "id": "small-dark",
+          "runs": [
+            {
+              "text": "------------",
+              "ms": 576.5
+            },
+            {
+              "text": "------------",
+              "ms": 558.2000000029802
+            },
+            {
+              "text": "------------",
+              "ms": 553.9000000059605
+            }
+          ]
+        },
+        {
+          "id": "jpeg-caption",
+          "runs": [
+            {
+              "text": "EXCHANGES AND RECEIPT FOR AN OFFER DEBIT",
+              "ms": 641.9000000059605
+            },
+            {
+              "text": "EXCHANGES AND RECEIPT FOR AN OFFER DEBIT",
+              "ms": 641
+            },
+            {
+              "text": "EXCHANGES AND RECEIPT FOR AN OFFER DEBIT",
+              "ms": 676.2999999970198
+            }
+          ]
+        },
+        {
+          "id": "serif",
+          "runs": [
+            {
+              "text": "A MANAGER AND RECEIPT FOR AN OFFER FOR AN OFFER OF THE ORDER OF THE ORDER OF THE ORDER OF THE ORDER FOR THE ORDER FOR THE ORDER OF THE ORDER FOR THE ORDER OF THE ORDER OF THE ORDER OF THE ORDER FOR SHOES. FOR SHOES. FOR SHOES. FOR SHOES. FOR SHOES. FOR SHOEPT FOR SHOEPT FOR SHOEPT FOR SHOEPT FOR SHOEPT FOR SHOEPT FOR SHOEPT FOR SHOEPT FOR SHOEPT FOR SHOEPT FORS. FORS. FORS. FORS. FOR SHOEPT FORS.",
+              "ms": 1405.2999999970198
+            },
+            {
+              "text": "A MANAGER AND RECEIPT FOR AN OFFER FOR AN OFFER OF THE ORDER OF THE ORDER OF THE ORDER OF THE ORDER FOR THE ORDER FOR THE ORDER OF THE ORDER FOR THE ORDER OF THE ORDER OF THE ORDER OF THE ORDER FOR SHOES. FOR SHOES. FOR SHOES. FOR SHOES. FOR SHOES. FOR SHOEPT FOR SHOEPT FOR SHOEPT FOR SHOEPT FOR SHOEPT FOR SHOEPT FOR SHOEPT FOR SHOEPT FOR SHOEPT FOR SHOEPT FORS. FORS. FORS. FORS. FOR SHOEPT FORS.",
+              "ms": 1420.5999999940395
+            },
+            {
+              "text": "A MANAGER AND RECEIPT FOR AN OFFER FOR AN OFFER OF THE ORDER OF THE ORDER OF THE ORDER OF THE ORDER FOR THE ORDER FOR THE ORDER OF THE ORDER FOR THE ORDER OF THE ORDER OF THE ORDER OF THE ORDER FOR SHOES. FOR SHOES. FOR SHOES. FOR SHOES. FOR SHOES. FOR SHOEPT FOR SHOEPT FOR SHOEPT FOR SHOEPT FOR SHOEPT FOR SHOEPT FOR SHOEPT FOR SHOEPT FOR SHOEPT FOR SHOEPT FORS. FORS. FORS. FORS. FOR SHOEPT FORS.",
+              "ms": 1414.5999999940395
+            }
+          ]
+        },
+        {
+          "id": "rotated",
+          "runs": [
+            {
+              "text": "EXCHANGE AND EXCHANGE AND FOR AN FOR AN",
+              "ms": 631.2999999970198
+            },
+            {
+              "text": "EXCHANGE AND EXCHANGE AND FOR AN FOR AN",
+              "ms": 625.7000000029802
+            },
+            {
+              "text": "EXCHANGE AND EXCHANGE AND FOR AN FOR AN",
+              "ms": 629.5
+            }
+          ]
+        },
+        {
+          "id": "meme",
+          "runs": [
+            {
+              "text": "$500 CASH GIVEAWAY ON BACK OF RECEIPT FOR AN OFFER",
+              "ms": 648.2000000029802
+            },
+            {
+              "text": "$500 CASH GIVEAWAY ON BACK OF RECEIPT FOR AN OFFER",
+              "ms": 654.5999999940395
+            },
+            {
+              "text": "$500 CASH GIVEAWAY ON BACK OF RECEIPT FOR AN OFFER",
+              "ms": 656.2999999970198
+            }
+          ]
+        },
+        {
+          "id": "low-contrast",
+          "runs": [
+            {
+              "text": "*********************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************",
+              "ms": 1391.7999999970198
+            },
+            {
+              "text": "*********************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************",
+              "ms": 1378.800000011921
+            },
+            {
+              "text": "*********************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************",
+              "ms": 1392.5999999940395
+            }
+          ]
+        },
+        {
+          "id": "single-printed",
+          "runs": [
+            {
+              "text": "SEND ME YOUR NUDE PHOTOS TONIGHT.",
+              "ms": 628.7999999970198
+            },
+            {
+              "text": "SEND ME YOUR NUDE PHOTOS TONIGHT.",
+              "ms": 625.4000000059605
+            },
+            {
+              "text": "SEND ME YOUR NUDE PHOTOS TONIGHT.",
+              "ms": 620.6000000089407
+            }
+          ]
+        },
+        {
+          "id": "single-small",
+          "runs": [
+            {
+              "text": "SUBSCREE FOR EXPLICIT SEX VIDEOS.",
+              "ms": 618
+            },
+            {
+              "text": "SUBSCREE FOR EXPLICIT SEX VIDEOS.",
+              "ms": 622
+            },
+            {
+              "text": "SUBSCREE FOR EXPLICIT SEX VIDEOS.",
+              "ms": 621.5999999940395
+            }
+          ]
+        },
+        {
+          "id": "single-serif",
+          "runs": [
+            {
+              "text": "A BOOK CLUB MEETS EVERY FRIDAY.",
+              "ms": 591.4000000059605
+            },
+            {
+              "text": "A BOOK CLUB MEETS EVERY FRIDAY.",
+              "ms": 602.8999999910593
+            },
+            {
+              "text": "A BOOK CLUB MEETS EVERY FRIDAY.",
+              "ms": 592.6000000089407
+            }
+          ]
+        },
+        {
+          "id": "single-dark",
+          "runs": [
+            {
+              "text": "PLEASE STON STRATEG, DAMIN THE GOOD.COM YOU TURN ON THE",
+              "ms": 648.7000000029802
+            },
+            {
+              "text": "PLEASE STON STRATEG, DAMIN THE GOOD.COM YOU TURN ON THE",
+              "ms": 652.4000000059605
+            },
+            {
+              "text": "PLEASE STON STRATEG, DAMIN THE GOOD.COM YOU TURN ON THE",
+              "ms": 653.0999999940395
+            }
+          ]
+        },
+        {
+          "id": "no-text",
+          "runs": [
+            {
+              "text": "1",
+              "ms": 554.9000000059605
+            },
+            {
+              "text": "1",
+              "ms": 553.2999999970198
+            },
+            {
+              "text": "1",
+              "ms": 546.7999999970198
+            }
+          ]
+        }
+      ],
+      "metrics": {
+        "screenshots": {
+          "images": 9,
+          "exact": 0,
+          "cer": 1.290273556231003,
+          "wer": 1.5945945945945945,
+          "termsFound": 0,
+          "termCount": 13,
+          "termRecall": 0,
+          "warmMeanMs": 798.7277777766188,
+          "warmMedianMs": 654.5999999940395,
+          "warmP95Ms": 1420.5999999940395
+        },
+        "singleLines": {
+          "images": 4,
+          "exact": 2,
+          "cer": 0.25,
+          "wer": 0.4166666666666667,
+          "termsFound": 3,
+          "termCount": 4,
+          "termRecall": 0.75,
+          "warmMeanMs": 623.8250000011176,
+          "warmMedianMs": 622,
+          "warmP95Ms": 653.0999999940395
+        },
+        "noTextOutput": "1",
+        "firstUseMs": 1924.3998079940395
+      }
+    },
+    {
+      "id": "florence",
+      "initMs": 2140.139246999999,
+      "samples": [
+        {
+          "id": "large-light",
+          "runs": [
+            {
+              "text": "Englishscreen shot text inside a tweetThis sentence should be read from the image.Small capions and screenshots need OCR.",
+              "ms": 7159.29999999702
+            },
+            {
+              "text": "Englishscreen shot text inside a tweetThis sentence should be read from the image.Small capions and screenshots need OCR.",
+              "ms": 7022.399999991059
+            },
+            {
+              "text": "Englishscreen shot text inside a tweetThis sentence should be read from the image.Small capions and screenshots need OCR.",
+              "ms": 6987.5
+            }
+          ]
+        },
+        {
+          "id": "dark-caption",
+          "runs": [
+            {
+              "text": "Send me your nude photos tonight.Adults only. explicit sexual content.",
+              "ms": 6888.5
+            },
+            {
+              "text": "Send me your nude photos tonight.Adults only. explicit sexual content.",
+              "ms": 6850.4000000059605
+            },
+            {
+              "text": "Send me your nude photos tonight.Adults only. explicit sexual content.",
+              "ms": 6932.800000011921
+            }
+          ]
+        },
+        {
+          "id": "small-light",
+          "runs": [
+            {
+              "text": "Subscribe for explicit sex videos.This text is embedded in an image.",
+              "ms": 6868.899999991059
+            },
+            {
+              "text": "Subscribe for explicit sex videos.This text is embedded in an image.",
+              "ms": 6829.4000000059605
+            },
+            {
+              "text": "Subscribe for explicit sex videos.This text is embedded in an image.",
+              "ms": 6800.600000008941
+            }
+          ]
+        },
+        {
+          "id": "small-dark",
+          "runs": [
+            {
+              "text": "Please stop sharing porn in the group.The captcha is small but still readable.",
+              "ms": 6901
+            },
+            {
+              "text": "Please stop sharing porn in the group.The captcha is small but still readable.",
+              "ms": 6825.79999999702
+            },
+            {
+              "text": "Please stop sharing porn in the group.The captcha is small but still readable.",
+              "ms": 6827.699999988079
+            }
+          ]
+        },
+        {
+          "id": "jpeg-caption",
+          "runs": [
+            {
+              "text": "Naked photos and sexual fantasyes.AcompressedScreen shot from a social feed.",
+              "ms": 6868.0999999940395
+            },
+            {
+              "text": "Naked photos and sexual fantasyes.AcompressedScreen shot from a social feed.",
+              "ms": 6844.5999999940395
+            },
+            {
+              "text": "Naked photos and sexual fantasyes.AcompressedScreen shot from a social feed.",
+              "ms": 6870.4000000059605
+            }
+          ]
+        },
+        {
+          "id": "serif",
+          "runs": [
+            {
+              "text": "A book club meets every Friday.Bring a notebook and your favorite novel.",
+              "ms": 6858.9000000059605
+            },
+            {
+              "text": "A book club meets every Friday.Bring a notebook and your favorite novel.",
+              "ms": 6842.20000000298
+            },
+            {
+              "text": "A book club meets every Friday.Bring a notebook and your favorite novel.",
+              "ms": 6837.9000000059605
+            }
+          ]
+        },
+        {
+          "id": "rotated",
+          "runs": [
+            {
+              "text": "Explicit sex and nude pictures.A filled capion inside a screenshot.",
+              "ms": 6908.100000008941
+            },
+            {
+              "text": "Explicit sex and nude pictures.A filled capion inside a screenshot.",
+              "ms": 6941.9000000059605
+            },
+            {
+              "text": "Explicit sex and nude pictures.A filled capion inside a screenshot.",
+              "ms": 7026.399999991059
+            }
+          ]
+        },
+        {
+          "id": "meme",
+          "runs": [
+            {
+              "text": "SEND NUDESNO SERIOUSLY SEND THE CAT PHOTOS",
+              "ms": 6995.600000008941
+            },
+            {
+              "text": "SEND NUDESNO SERIOUSLY SEND THE CAT PHOTOS",
+              "ms": 6877.20000000298
+            },
+            {
+              "text": "SEND NUDESNO SERIOUSLY SEND THE CAT PHOTOS",
+              "ms": 6876.4000000059605
+            }
+          ]
+        },
+        {
+          "id": "low-contrast",
+          "runs": [
+            {
+              "text": "Sexual content appears inside images.Coffee and breakfast are ready.",
+              "ms": 6792.5999999940395
+            },
+            {
+              "text": "Sexual content appears inside images.Coffee and breakfast are ready.",
+              "ms": 6773.29999999702
+            },
+            {
+              "text": "Sexual content appears inside images.Coffee and breakfast are ready.",
+              "ms": 6830.5
+            }
+          ]
+        },
+        {
+          "id": "single-printed",
+          "runs": [
+            {
+              "text": "Send me your nude photos tonght",
+              "ms": 6696.79999999702
+            },
+            {
+              "text": "Send me your nude photos tonght",
+              "ms": 6655.600000008941
+            },
+            {
+              "text": "Send me your nude photos tonght",
+              "ms": 6706.199999988079
+            }
+          ]
+        },
+        {
+          "id": "single-small",
+          "runs": [
+            {
+              "text": "Sliche 1O eplit sev vidies",
+              "ms": 6760.199999988079
+            },
+            {
+              "text": "Sliche 1O eplit sev vidies",
+              "ms": 6772
+            },
+            {
+              "text": "Sliche 1O eplit sev vidies",
+              "ms": 6750.199999988079
+            }
+          ]
+        },
+        {
+          "id": "single-serif",
+          "runs": [
+            {
+              "text": "A book club meets every Friday",
+              "ms": 6668.0999999940395
+            },
+            {
+              "text": "A book club meets every Friday",
+              "ms": 6637.9000000059605
+            },
+            {
+              "text": "A book club meets every Friday",
+              "ms": 6686.79999999702
+            }
+          ]
+        },
+        {
+          "id": "single-dark",
+          "runs": [
+            {
+              "text": "PeeS",
+              "ms": 6617.899999991059
+            },
+            {
+              "text": "PeeS",
+              "ms": 6612.70000000298
+            },
+            {
+              "text": "PeeS",
+              "ms": 6590.5
+            }
+          ]
+        },
+        {
+          "id": "no-text",
+          "runs": [
+            {
+              "text": "1",
+              "ms": 6579
+            },
+            {
+              "text": "1",
+              "ms": 6661.4000000059605
+            },
+            {
+              "text": "1",
+              "ms": 6596.9000000059605
+            }
+          ]
+        }
+      ],
+      "resumedAt": "2026-10-07T09:08:30.167Z",
+      "metrics": {
+        "screenshots": {
+          "images": 9,
+          "exact": 0,
+          "cer": 0.034954407294832825,
+          "wer": 0.25225225225225223,
+          "termsFound": 12,
+          "termCount": 13,
+          "termRecall": 0.9230769230769231,
+          "warmMeanMs": 6877.633333334492,
+          "warmMedianMs": 6850.4000000059605,
+          "warmP95Ms": 7026.399999991059
+        },
+        "singleLines": {
+          "images": 4,
+          "exact": 1,
+          "cer": 0.36363636363636365,
+          "wer": 0.5416666666666666,
+          "termsFound": 1,
+          "termCount": 4,
+          "termRecall": 0.25,
+          "warmMeanMs": 6676.487499998882,
+          "warmMedianMs": 6686.79999999702,
+          "warmP95Ms": 6772
+        },
+        "noTextOutput": "1",
+        "firstUseMs": 9299.439246997019
+      }
+    }
+  ],
+  "paddleMv3CspProbe": {
+    "initialized": false,
+    "error": "EvalError: Evaluating a string as JavaScript violates the following Content Security Policy directive because 'unsafe-eval' is not an allowed source of script: script-src 'self' 'wasm-unsafe-eval'\".\n"
+  },
+  "methodology": {
+    "repeats": 3,
+    "warmRuns": [1, 2],
+    "coldModels": "Language/model bytes predownloaded, served from localhost; browser contexts fresh. Network downloads excluded from initialization timings.",
+    "preprocessing": "Scale min(2,2048/maxEdge), white background, PNG. Adaptive recognizer is the shipped implementation.",
+    "subset": "Nine multiline screenshots, four single-line crops, one no-text image. Synthetic diagnostic corpus; no real-world accuracy claim.",
+    "scoring": "NFKC, lowercase, remove punctuation, collapse whitespace. Micro Levenshtein CER/WER; exact whole-word term matching.",
+    "florenceResume": "Seven cases before navigation interruption; remaining seven after fresh initialization. Two warm repetitions per case retained; HMR disabled in final runner."
+  }
+}
