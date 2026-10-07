@@ -37,6 +37,7 @@ export interface PopupState {
   update: (change: SettingsChange, editorId?: string) => Promise<boolean>;
   dismissEditorError: (id: string) => void;
   openLogs: () => void;
+  openWorkspace: () => void;
   retryModel: (kind: ModelKind) => void;
 }
 
@@ -50,6 +51,7 @@ export interface PopupStateDependencies {
   loadTabReport: (tabId: number) => Effect.Effect<unknown, BrowserError>;
   subscribeStorage: (listener: (area: string, keys: ReadonlySet<string>) => void) => () => void;
   openLogs: Effect.Effect<unknown, BrowserError>;
+  openWorkspace: Effect.Effect<unknown, BrowserError>;
 }
 
 type OptimisticEdit = {
@@ -151,7 +153,8 @@ export function createPopupState(dependencies: PopupStateDependencies): PopupSta
     };
 
     const refreshReport = (tabId: number | undefined) => {
-      if (tabId === undefined) return Effect.void;
+      if (tabId === undefined)
+        return Effect.sync(() => publish({ report: null, missingScript: true }));
       return reportReadLock.withPermits(1)(
         dependencies.loadTabReport(tabId).pipe(
           Effect.tap((value) =>
@@ -300,6 +303,16 @@ export function createPopupState(dependencies: PopupStateDependencies): PopupSta
       ),
     );
   }
+  /** Open a persistent editor and expose navigation failures through the shared status. */
+  function openWorkspace(): void {
+    browserRuntime.runFork(
+      dependencies.openWorkspace.pipe(
+        Effect.catch((cause) =>
+          Effect.sync(() => publish({ error: `Could not open workspace: ${String(cause)}` })),
+        ),
+      ),
+    );
+  }
   function retryModel(kind: ModelKind): void {
     publish({
       models: {
@@ -333,6 +346,7 @@ export function createPopupState(dependencies: PopupStateDependencies): PopupSta
     update,
     dismissEditorError,
     openLogs,
+    openWorkspace,
     retryModel,
   };
 }
@@ -371,9 +385,17 @@ const browserDependencies: PopupStateDependencies = {
       ),
     ),
   updateSettings,
-  findActiveTab: browserEffect('find active tab', () =>
-    browser.tabs.query({ active: true, currentWindow: true }).then((tabs) => tabs[0]?.id),
-  ),
+  findActiveTab: browserEffect('find active tab', async () => {
+    const source = new URLSearchParams(location.search).get('tab');
+    const tabId = source === null ? undefined : Number(source);
+    if (tabId !== undefined && Schema.is(Schema.Int)(tabId) && tabId >= 0) return tabId;
+    const tabs = await browser.tabs.query(
+      location.pathname === '/options.html'
+        ? { url: ['https://x.com/*', 'https://twitter.com/*'], currentWindow: true }
+        : { active: true, currentWindow: true },
+    );
+    return tabs.find((tab) => tab.active)?.id ?? tabs[0]?.id;
+  }),
   loadTabReport: (tabId) =>
     browserEffect('read tab report', () => browser.tabs.sendMessage(tabId, { type: 'get-report' })),
   subscribeStorage: (listener) => {
@@ -382,6 +404,14 @@ const browserDependencies: PopupStateDependencies = {
     browser.storage.onChanged.addListener(onChanged);
     return () => browser.storage.onChanged.removeListener(onChanged);
   },
+  openWorkspace: Effect.gen(function* () {
+    const tabs = yield* browserEffect('find workspace source tab', () =>
+      browser.tabs.query({ active: true, currentWindow: true }),
+    );
+    const url = new URL(browser.runtime.getURL('/options.html'));
+    if (tabs[0]?.id !== undefined) url.searchParams.set('tab', String(tabs[0].id));
+    yield* browserEffect('open filter workspace', () => browser.tabs.create({ url: url.href }));
+  }),
   openLogs: browserEffect('open logs', () =>
     browser.tabs.create({ url: browser.runtime.getURL('/logs.html') }),
   ),

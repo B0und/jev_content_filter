@@ -1,0 +1,146 @@
+import { test, expect, remoteSettings } from './fixtures';
+import * as Schema from 'effect/Schema';
+import { SettingsSchema } from '../../src/filtering/schemas';
+
+test('the popup keeps everyday controls in view and separates setup from filters', async ({
+  context,
+  extensionId,
+  setSettings,
+}) => {
+  const settings = remoteSettings();
+  settings.providerKeys.vercel = 'test-only-not-a-real-key';
+  await setSettings(settings);
+  const popup = await context.newPage();
+  await popup.setViewportSize({ width: 460, height: 590 });
+  await popup.goto(`chrome-extension://${extensionId}/popup.html`);
+  await expect(popup.getByRole('tab', { name: 'Filters', exact: true })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  await expect(popup.getByRole('button', { name: 'Add text filter', exact: true })).toBeVisible();
+  await expect(popup.getByLabel('Vercel AI Gateway API key')).toBeHidden();
+  const customToggle = popup.getByRole('switch', { name: 'Enable Content filter', exact: true });
+  await popup.locator('.custom-filter label').click();
+  await expect(customToggle).not.toBeChecked();
+  await popup.locator('.custom-filter label').click();
+  await expect(customToggle).toBeChecked();
+  const footer = await popup.locator('.popup-footer').boundingBox();
+  for (const name of ['Content filter threshold', 'AI-written text threshold']) {
+    const slider = await popup.getByRole('slider', { name, exact: true }).boundingBox();
+    expect(slider!.y + slider!.height).toBeLessThanOrEqual(footer!.y);
+  }
+  expect(await popup.evaluate(() => document.documentElement.scrollWidth)).toBe(460);
+  await popup.getByRole('tab', { name: 'Filters', exact: true }).focus();
+  await popup.keyboard.press('ArrowRight');
+  await expect(popup.getByRole('tab', { name: 'Images', exact: true })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  await popup.keyboard.press('ArrowRight');
+  await expect(popup.getByLabel('Vercel AI Gateway API key')).toBeVisible();
+  await expect(popup.locator('.model-card')).toHaveCount(2);
+  const before = await popup.locator('.popup-header').boundingBox();
+  await popup.locator('.settings-panel').hover();
+  await popup.mouse.wheel(0, 800);
+  expect((await popup.locator('.popup-header').boundingBox())!.y).toBe(before!.y);
+  expect((await popup.locator('.popup-footer').boundingBox())!.y).toBe(footer!.y);
+});
+
+for (const count of [1, 20]) {
+  test(`deleting among ${count} filters offers undo with saved controls and useful focus`, async ({
+    context,
+    extensionId,
+    setSettings,
+    worker,
+  }) => {
+    const settings = remoteSettings();
+    const original = { ...settings.textFilters[0]!, enabled: false, threshold: 0.372 };
+    settings.textFilters = [
+      original,
+      ...Array.from({ length: count - 1 }, (_, index) => ({
+        ...original,
+        id: `other-${index}`,
+        name: `Other ${index}`,
+      })),
+    ];
+    await setSettings(settings);
+    const popup = await context.newPage();
+    await popup.goto(`chrome-extension://${extensionId}/popup.html`);
+    await popup.getByRole('button', { name: `Delete ${original.name}`, exact: true }).click();
+    await expect(popup.locator('.custom-filter')).toHaveCount(count - 1);
+    await expect(popup.getByRole('button', { name: 'Undo', exact: true })).toBeFocused();
+    await popup.keyboard.press('Enter');
+    await expect(popup.locator('.custom-filter')).toHaveCount(count);
+    await expect(
+      count === 20
+        ? popup.getByRole('tab', { name: 'Filters', exact: true })
+        : popup.getByRole('button', { name: 'Add text filter', exact: true }),
+    ).toBeFocused();
+    await expect(
+      popup.getByRole('switch', { name: `Enable ${original.name}`, exact: true }),
+    ).not.toBeChecked();
+    await expect
+      .poll(async () => {
+        const raw = await worker.evaluate(
+          async () => (await chrome.storage.local.get('settings')).settings,
+        );
+        return Schema.decodeUnknownSync(SettingsSchema)(raw).textFilters;
+      })
+      .toEqual(expect.arrayContaining(settings.textFilters));
+  });
+}
+
+test('the workspace retains the originating feed and shares saved filter controls', async ({
+  page,
+  context,
+  extensionId,
+  worker,
+}) => {
+  await page.goto('https://x.com/home');
+  await expect(page.locator('[data-jev-host]')).toHaveCount(3);
+  const tabId = await worker.evaluate(
+    async () => (await chrome.tabs.query({ url: 'https://x.com/home' }))[0]!.id!,
+  );
+  const workspace = await context.newPage();
+  await workspace.goto(`chrome-extension://${extensionId}/options.html?tab=${tabId}`);
+  await expect(workspace.locator('.workspace')).toBeVisible();
+  await expect(workspace.getByRole('region', { name: 'Current tab status' })).not.toContainText(
+    'No filter connected',
+  );
+  await expect.poll(async () => workspace.locator('.counters').innerText()).toMatch(/\d+ hidden/);
+  await workspace.getByRole('spinbutton', { name: 'Content filter threshold percent' }).fill('72');
+  await workspace
+    .getByRole('spinbutton', { name: 'Content filter threshold percent' })
+    .press('Tab');
+  const popup = await context.newPage();
+  await popup.goto(`chrome-extension://${extensionId}/popup.html`);
+  await expect(
+    popup.getByRole('spinbutton', { name: 'Content filter threshold percent' }),
+  ).toHaveValue('72');
+  await workspace.getByRole('tab', { name: 'Filters', exact: true }).focus();
+  await workspace.keyboard.press('ArrowDown');
+  await expect(workspace.getByRole('tab', { name: 'Images', exact: true })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  await workspace.getByRole('tab', { name: 'Filters', exact: true }).click();
+  await workspace.getByRole('button', { name: 'Add text filter' }).click();
+  await workspace.getByLabel('Filter name', { exact: true }).fill('Garden');
+  await workspace.getByLabel('What should be hidden?').fill('Posts about the garden');
+  await expect(workspace.getByLabel('Block at probability (%)')).toHaveCount(0);
+  await popup.getByRole('tab', { name: 'Settings', exact: true }).click();
+  await expect(workspace.getByLabel('Filter name', { exact: true })).toHaveValue('Garden');
+  await workspace.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(workspace.getByRole('button', { name: 'Add text filter' })).toBeFocused();
+});
+
+test('opening the workspace without an X tab reports an unavailable feed', async ({
+  context,
+  extensionId,
+}) => {
+  const workspace = await context.newPage();
+  await workspace.goto(`chrome-extension://${extensionId}/options.html`);
+  await expect(workspace.getByRole('region', { name: 'Current tab status' })).toContainText(
+    'No filter connected',
+  );
+});

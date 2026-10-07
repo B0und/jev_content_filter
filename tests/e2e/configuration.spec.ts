@@ -26,7 +26,7 @@ test('upgrading settings without a filter list does not send text with a saved p
   ).toBeVisible();
   const popup = await context.newPage();
   await popup.goto(`chrome-extension://${extensionId}/popup.html`);
-  await popup.getByRole('tab', { name: 'Text', exact: true }).click();
+  await popup.getByRole('tab', { name: 'Filters', exact: true }).click();
   await expect(
     popup.getByRole('button', { name: 'Delete Content filter', exact: true }),
   ).toHaveCount(0);
@@ -150,8 +150,8 @@ test('provider switches isolate credentials and restore each providers own key',
   await expect(post.getByRole('button', { name: 'Allowed', exact: true })).toBeVisible();
   const popup = await context.newPage();
   await popup.goto(`chrome-extension://${extensionId}/popup.html`);
-  await popup.getByRole('tab', { name: 'Text', exact: true }).click();
-  await popup.getByText('Jev provider and scan details', { exact: true }).click();
+  await popup.getByRole('tab', { name: 'Filters', exact: true }).click();
+  await popup.getByRole('tab', { name: 'Settings', exact: true }).click();
   await popup.locator('#text-provider').selectOption('typesafe');
   await expect(popup.locator('#gateway-key')).toHaveValue('');
   await expect(post.getByRole('button', { name: 'Not fully checked', exact: true })).toBeVisible();
@@ -212,8 +212,8 @@ test('rapid credential edits survive popup close and independent windows preserv
   worker,
 }) => {
   await page.goto(`chrome-extension://${extensionId}/popup.html`);
-  await page.getByRole('tab', { name: 'Text', exact: true }).click();
-  await page.getByText('Jev provider and scan details', { exact: true }).click();
+  await page.getByRole('tab', { name: 'Filters', exact: true }).click();
+  await page.getByRole('tab', { name: 'Settings', exact: true }).click();
   const input = page.locator('#gateway-key');
   await input.fill('');
   await input.pressSequentially('synthetic-fast-key', { delay: 0 });
@@ -240,8 +240,8 @@ test('rapid credential edits survive popup close and independent windows preserv
     second.goto(`chrome-extension://${extensionId}/popup.html`),
   ]);
   await Promise.all([
-    first.getByRole('tab', { name: 'Text', exact: true }).click(),
-    second.getByRole('tab', { name: 'Text', exact: true }).click(),
+    first.getByRole('tab', { name: 'Filters', exact: true }).click(),
+    second.getByRole('tab', { name: 'Filters', exact: true }).click(),
   ]);
   await second.getByRole('switch', { name: 'Enable AI-written text', exact: true }).click();
   await expect(

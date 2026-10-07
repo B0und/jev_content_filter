@@ -255,7 +255,7 @@ test('classifies an image with the downloaded local model and applies its measur
   });
 
   await popup.getByRole('tab', { name: 'Images', exact: true }).click();
-  await expect(popup.getByText('Ready on this device', { exact: true })).toBeVisible({
+  await expect(popup.locator('.engine-ready:visible')).toBeVisible({
     timeout: 60_000,
   });
   const pornThreshold = popup.getByLabel('Porn threshold percent', {
@@ -311,8 +311,8 @@ test('classifies AI-written text locally without credentials and rebuilds its wo
 
   const popup = await context.newPage();
   await popup.goto(`chrome-extension://${extensionId}/popup.html`);
-  await popup.getByRole('tab', { name: 'Text', exact: true }).click();
-  await expect(popup.getByText('Ready on this device', { exact: true })).toBeVisible({
+  await popup.getByRole('tab', { name: 'Filters', exact: true }).click();
+  await expect(popup.locator('.engine-ready:visible')).toBeVisible({
     timeout: 90_000,
   });
   const threshold = popup.getByLabel('AI-written text threshold percent', {
@@ -339,8 +339,8 @@ test('classifies AI-written text locally without credentials and rebuilds its wo
 
   const reopenedPopup = await context.newPage();
   await reopenedPopup.goto(`chrome-extension://${extensionId}/popup.html`);
-  await reopenedPopup.getByRole('tab', { name: 'Text', exact: true }).click();
-  await expect(reopenedPopup.getByText('Ready on this device', { exact: true })).toBeVisible({
+  await reopenedPopup.getByRole('tab', { name: 'Filters', exact: true }).click();
+  await expect(reopenedPopup.locator('.engine-ready:visible')).toBeVisible({
     timeout: 90_000,
   });
   const reopenedThreshold = reopenedPopup.getByLabel('AI-written text threshold percent', {
@@ -551,8 +551,8 @@ test('persists popup edits and supports keyboard log filtering and clearing', as
   await expect(page.locator('[data-post="102"]')).toBeHidden();
   const popup = await context.newPage();
   await popup.goto(`chrome-extension://${extensionId}/popup.html`);
-  await popup.getByRole('tab', { name: 'Text', exact: true }).click();
-  await popup.getByText('Jev provider and scan details', { exact: true }).click();
+  await popup.getByRole('tab', { name: 'Filters', exact: true }).click();
+  await popup.getByRole('tab', { name: 'Settings', exact: true }).click();
   const provider = popup.getByRole('combobox');
   await expect(provider).toHaveValue('vercel');
   const key = popup.getByLabel('Vercel AI Gateway API key');
@@ -569,13 +569,14 @@ test('persists popup edits and supports keyboard log filtering and clearing', as
   await expect(popup.getByLabel('TypeSafe API key')).toBeVisible();
   await provider.selectOption('vercel');
   await expect(popup.getByLabel('Vercel AI Gateway API key')).toBeVisible();
+  await popup.getByRole('tab', { name: 'Filters', exact: true }).click();
   await popup.getByRole('button', { name: 'Edit', exact: true }).click();
   const threshold = popup.getByRole('spinbutton', { name: 'Content filter threshold percent' });
   await threshold.fill('45');
   await threshold.press('Tab');
   await popup.getByRole('button', { name: 'Save filter', exact: true }).click();
   await popup.reload();
-  await popup.getByRole('tab', { name: 'Text', exact: true }).click();
+  await popup.getByRole('tab', { name: 'Filters', exact: true }).click();
   await popup.getByRole('button', { name: 'Edit', exact: true }).click();
   await expect(
     popup.getByRole('spinbutton', { name: 'Content filter threshold percent' }),

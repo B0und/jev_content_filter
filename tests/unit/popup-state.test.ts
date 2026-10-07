@@ -49,6 +49,7 @@ function popupDependencies(
     loadTabReport: () => Effect.void,
     subscribeStorage: () => () => {},
     openLogs: Effect.void,
+    openWorkspace: Effect.void,
     ...overrides,
   };
 }
@@ -59,6 +60,27 @@ interface WriteRequest {
 }
 
 describe('popup settings state', () => {
+  it('reports an unavailable feed when no source tab exists', async () => {
+    const state = createPopupState(popupDependencies());
+    const stop = state.start();
+    await whenSnapshot(state, () => state.getSnapshot().missingScript);
+    expect(state.getSnapshot().report).toBeNull();
+    stop();
+  });
+
+  it('exposes workspace navigation failures', async () => {
+    const state = createPopupState(
+      popupDependencies({
+        openWorkspace: Effect.fail(
+          new BrowserError({ operation: 'open workspace', cause: 'blocked' }),
+        ),
+      }),
+    );
+    state.openWorkspace();
+    await whenSnapshot(state, () => Boolean(state.getSnapshot().error));
+    expect(state.getSnapshot().error).toContain('Could not open workspace');
+  });
+
   it('keeps overlapping optimistic edits visible through notifications and response reordering', async () => {
     let stored = defaultSettings();
     let reads = 0;
