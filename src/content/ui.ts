@@ -353,7 +353,7 @@ export function render(article: HTMLElement, binding: Binding): void {
   ].join('|');
   if (binding.renderState === signature) return;
   binding.renderState = signature;
-  button.innerHTML = blocked(post) ? BLOCKED_SVG : EYE_SVG;
+  button.innerHTML = blocked(post) && !binding.revealed ? BLOCKED_SVG : EYE_SVG;
   button.classList.toggle('pending', !!post.pending || post.retryAt !== null);
   button.classList.toggle('warn', post.errors.length > 0 && !post.pending);
   buttonPosts.set(button, post);
@@ -616,6 +616,10 @@ function renderPanel(post: Post): void {
   const panel = element('div');
   panel.className = 'panel';
   panel.tabIndex = -1;
+  const revealed = [...bindings.values()].some(
+    (binding) => binding.post === post && binding.revealed,
+  );
+  const panelState = revealed && blocked(post) ? 'Shown temporarily' : stateOf(post);
   const reason = hits(post)
     .map((h) => `${scoreLabel(h.key, settings.current.textFilters)} ${(h.score * 100).toFixed(0)}%`)
     .join(', ');
@@ -629,7 +633,7 @@ function renderPanel(post: Post): void {
     : '';
   const head = element(
     'div',
-    `${stateOf(post)}${reason ? ` · ${reason}` : ''}${previewReason && !reason ? ` · ${previewReason} (link preview)` : ''}`,
+    `${panelState}${reason ? ` · ${reason}` : ''}${previewReason && !reason ? ` · ${previewReason} (link preview)` : ''}`,
   );
   head.className = 'head';
   const imageCount = post.urls.length + (post.previewUrl ? 1 : 0);
@@ -723,9 +727,6 @@ function renderPanel(post: Post): void {
       )
       .catch(() => {});
   });
-  const revealed = [...bindings.values()].some(
-    (binding) => binding.post === post && binding.revealed,
-  );
   if (revealed && blocked(post)) {
     const hide = element('button', 'Hide again');
     hide.type = 'button';

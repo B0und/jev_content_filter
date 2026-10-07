@@ -702,7 +702,7 @@ function Threshold({
         type="number"
         min="0"
         max="100"
-        step="1"
+        step="0.1"
         value={draft}
         disabled={!enabled}
         aria-label={`${label} threshold percent`}
