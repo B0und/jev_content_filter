@@ -8,13 +8,12 @@ import {
   CATEGORY_LABELS,
   scoreLabel,
   type BlockedEntry,
-  type ScoreKey,
 } from '../../filtering/types';
 import { logsState, type ErrorRow } from './state';
 import './logs.css';
 
 type Tab = 'blocked' | 'errors';
-type ReasonFilter = 'all' | ScoreKey;
+type ReasonFilter = string;
 
 const TABS: readonly Tab[] = ['blocked', 'errors'];
 
@@ -25,14 +24,6 @@ const REASON_OPTIONS: Array<{ value: ReasonFilter; label: string }> = [
 
 function isTab(value: string): value is Tab {
   return TABS.some((tab) => tab === value);
-}
-
-function isReasonFilter(value: string): value is ReasonFilter {
-  return (
-    value === 'all' ||
-    CATEGORY_KEYS.some((key) => key === value) ||
-    /^custom:[a-zA-Z0-9-]{1,80}$/.test(value)
-  );
 }
 
 function subscribeHash(listener: () => void) {
@@ -202,12 +193,12 @@ function VirtualList(props: {
 }
 
 function logReasonOptions(log: BlockedEntry[]) {
-  const customReasons = new Map<ScoreKey, string>();
+  const storedReasons = new Map<string, string>();
   for (const entry of log)
     for (const reason of entry.reasons)
-      if (reason.key.startsWith('custom:'))
-        customReasons.set(reason.key, reason.label ?? scoreLabel(reason.key));
-  return [...REASON_OPTIONS, ...Array.from(customReasons, ([value, label]) => ({ value, label }))];
+      if (!REASON_OPTIONS.some((option) => option.value === reason.key))
+        storedReasons.set(reason.key, reason.label ?? scoreLabel(reason.key));
+  return [...REASON_OPTIONS, ...Array.from(storedReasons, ([value, label]) => ({ value, label }))];
 }
 
 export function App() {
@@ -273,7 +264,11 @@ export function App() {
                 items={reasonOptions}
                 value={filter}
                 onValueChange={(value) => {
-                  if (typeof value === 'string' && isReasonFilter(value)) setFilter(value);
+                  if (
+                    typeof value === 'string' &&
+                    reasonOptions.some((option) => option.value === value)
+                  )
+                    setFilter(value);
                 }}
               >
                 <Select.Trigger className="filter-trigger" aria-label="Filter by reason">

@@ -83,7 +83,7 @@ export const BlockedEntrySchema = Schema.Struct({
   reasons: Schema.mutable(
     Schema.Array(
       Schema.Struct({
-        key: ScoreKeySchema,
+        key: Schema.String.check(Schema.isPattern(/\S/)),
         label: Schema.optionalKey(Schema.String),
         score: probability,
       }),

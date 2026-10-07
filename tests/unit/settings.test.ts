@@ -50,6 +50,21 @@ describe('settings storage normalization', () => {
     expect((await Effect.runPromise(loadSettings())).textFilters).toEqual(migrated.textFilters);
   });
 
+  it('does not enable remote text filters when saved settings have no filter list', async () => {
+    await fakeBrowser.storage.local.set({
+      settings: {
+        enabled: { unknownCategory: false },
+        textProvider: 'vercel',
+        providerKeys: { vercel: 'synthetic-saved-key', typesafe: '', openrouter: '' },
+      },
+    });
+    const loaded = await Effect.runPromise(loadSettings());
+    expect(loaded.textFilters).toEqual([]);
+    expect(loaded.providerKeys.vercel).toBe('synthetic-saved-key');
+    await fakeBrowser.storage.local.set({ settings: loaded });
+    expect((await Effect.runPromise(loadSettings())).textFilters).toEqual([]);
+  });
+
   it('does not obtain credentials from build-time environment values', async () => {
     const loaded = await Effect.runPromise(loadSettings());
     expect(Object.values(loaded.providerKeys)).toEqual(['', '', '']);

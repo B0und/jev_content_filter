@@ -22,10 +22,12 @@ export function textDecisionSignature(filters: TextFilter[]): string {
 export function textFilterKey(id: string): `custom:${string}` {
   return `custom:${id}`;
 }
-export function scoreLabel(key: ScoreKey, filters: TextFilter[] = []): string {
+export function scoreLabel(key: string, filters: TextFilter[] = []): string {
   if (key.startsWith('custom:'))
     return filters.find((filter) => textFilterKey(filter.id) === key)?.name ?? 'Custom text filter';
-  return CATEGORY_LABELS[key as CategoryKey];
+  return CATEGORY_KEYS.some((category) => category === key)
+    ? CATEGORY_LABELS[key as CategoryKey]
+    : 'Text filter';
 }
 export type TextProvider = 'vercel' | 'typesafe' | 'openrouter';
 export const TEXT_PROVIDER_LABELS: Record<TextProvider, string> = {
@@ -75,7 +77,8 @@ export interface BlockedEntry {
   snippet: string;
   surface: string;
   ts: number;
-  reasons: Array<{ key: ScoreKey; label?: string; score: number }>;
+  /** History keeps reason identifiers even when their filters no longer exist. */
+  reasons: Array<{ key: string; label?: string; score: number }>;
 }
 export interface TabReport {
   /** Currently attached posts; pending and error fields use the same live scope. */

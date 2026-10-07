@@ -79,11 +79,12 @@ export const loadSettings = Effect.fn('loadSettings')(function* () {
     providerKeys[textProvider] = raw.gatewayKey;
   }
 
+  const initialFilters = stored[STORAGE_KEYS.settings] === undefined ? defaults.textFilters : [];
   const textFilters = Array.isArray(raw.textFilters)
     ? raw.textFilters
         .filter(Schema.is(TextFilterSchema))
         .filter((filter, index, all) => all.findIndex((other) => other.id === filter.id) === index)
-    : defaults.textFilters;
+    : initialFilters;
 
   return {
     textFilters,

@@ -2,6 +2,72 @@ import { test, expect, remoteSettings } from './fixtures';
 import * as Schema from 'effect/Schema';
 import { SettingsSchema } from '../../src/filtering/schemas';
 
+test('upgrading settings without a filter list does not send text with a saved provider key', async ({
+  page,
+  context,
+  worker,
+  extensionId,
+}) => {
+  let requests = 0;
+  await context.route('https://ai-gateway.vercel.sh/**', async (route) => {
+    requests++;
+    await route.abort();
+  });
+  const stored = await worker.evaluate(
+    async () => (await chrome.storage.local.get('settings')).settings,
+  );
+  const { textFilters: _filters, ...settings } = Schema.decodeUnknownSync(SettingsSchema)(stored);
+  await worker.evaluate(async (settings) => {
+    await chrome.storage.local.set({ settings });
+  }, settings);
+  await page.goto('https://x.com/home');
+  await expect(
+    page.locator('[data-post="101"]').getByRole('button', { name: 'Not scanned', exact: true }),
+  ).toBeVisible();
+  const popup = await context.newPage();
+  await popup.goto(`chrome-extension://${extensionId}/popup.html`);
+  await popup.getByRole('tab', { name: 'Text', exact: true }).click();
+  await expect(
+    popup.getByRole('button', { name: 'Delete Content filter', exact: true }),
+  ).toHaveCount(0);
+  expect(requests).toBe(0);
+});
+
+test('blocked history displays and filters reason identifiers absent from current settings', async ({
+  page,
+  worker,
+  extensionId,
+}) => {
+  await worker.evaluate(async () => {
+    const entry = {
+      tweetId: '101',
+      author: '@author',
+      snippet: 'Saved matching post',
+      surface: 'Text',
+      ts: 1,
+      reasons: [{ key: 'unknownCategory', label: 'Saved rule', score: 0.9 }],
+    };
+    await chrome.storage.local.set({
+      blockedLog: [
+        entry,
+        {
+          ...entry,
+          tweetId: '102',
+          snippet: 'Other saved post',
+          reasons: [{ key: 'porn', score: 0.8 }],
+        },
+      ],
+    });
+  });
+  await page.goto(`chrome-extension://${extensionId}/logs.html`);
+  await expect(page.locator('.row')).toHaveCount(2);
+  await expect(page.getByText('Saved rule 90%', { exact: true })).toBeVisible();
+  await page.getByRole('combobox', { name: 'Filter by reason' }).click();
+  await page.getByRole('option', { name: 'Saved rule', exact: true }).click();
+  await expect(page.locator('.row')).toHaveCount(1);
+  await expect(page.locator('.row')).toContainText('Saved matching post');
+});
+
 test('threshold edits apply after a pause and flush when the popup closes', async ({
   context,
   worker,
