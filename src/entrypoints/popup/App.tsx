@@ -302,8 +302,8 @@ function CustomFilter({
   onEdit: () => void;
   onDelete: () => void;
 }) {
-  /** Persist only this filter threshold so concurrent edits keep their other fields. */
   const saveThreshold = useCallback(
+    /** Persist only this filter threshold so concurrent edits keep their other fields. */
     (value: number) => {
       void popupState.update({
         field: 'patchTextFilter',
@@ -613,8 +613,8 @@ function Category({
   settings: Settings;
   update: (change: SettingsChange) => void;
 }) {
-  /** Persist the selected built-in category threshold. */
   const saveThreshold = useCallback(
+    /** Persist the selected built-in category threshold. */
     (value: number) => {
       update({ field: 'threshold', category: key, value });
     },
@@ -668,14 +668,16 @@ function Threshold({
     timer.current = undefined;
     pendingPercent.current = undefined;
   }, [percent]);
-  /** Save the latest pending percentage once, clearing any scheduled save. */
-  const flush = useCallback(() => {
-    clearTimeout(timer.current);
-    timer.current = undefined;
-    const value = pendingPercent.current;
-    pendingPercent.current = undefined;
-    if (value !== undefined) save(value / 100);
-  }, [save]);
+  const flush = useCallback(
+    /** Save the latest pending percentage once, clearing any scheduled save. */ () => {
+      clearTimeout(timer.current);
+      timer.current = undefined;
+      const value = pendingPercent.current;
+      pendingPercent.current = undefined;
+      if (value !== undefined) save(value / 100);
+    },
+    [save],
+  );
   useEffect(() => {
     window.addEventListener('pagehide', flush);
     return () => {

@@ -124,20 +124,23 @@ class ContentSession extends Context.Service<ContentSession, ContentSessionApi>(
           if (post.partErrors.images.length) post.imagesDone = false;
           if (post.partErrors.preview.length) post.previewDone = false;
         });
-        /** Release controls and reserved geometry before X reuses or removes an article. */
-        const detachBinding = Effect.fnUntraced(function* (article: HTMLElement) {
-          const binding = untrackBinding(article);
-          if (!binding) return;
-          restoreBinding(article, binding);
-          binding.host.remove();
-          if (isAttached(binding.post)) return;
-          yield* cancelRetry(binding.post);
-          if (posts.get(binding.post.id) === binding.post) {
-            posts.delete(binding.post.id);
-            posts.set(binding.post.id, binding.post);
-          }
-          if (panelOpenFor(binding.post.id)) closePanelIfOpen();
-        });
+        const detachBinding = Effect.fnUntraced(
+          /** Release controls and reserved geometry before X reuses or removes an article. */ function* (
+            article: HTMLElement,
+          ) {
+            const binding = untrackBinding(article);
+            if (!binding) return;
+            restoreBinding(article, binding);
+            binding.host.remove();
+            if (isAttached(binding.post)) return;
+            yield* cancelRetry(binding.post);
+            if (posts.get(binding.post.id) === binding.post) {
+              posts.delete(binding.post.id);
+              posts.set(binding.post.id, binding.post);
+            }
+            if (panelOpenFor(binding.post.id)) closePanelIfOpen();
+          },
+        );
 
         const evictDetachedPosts = Effect.fnUntraced(function* () {
           let detachedCount = 0;
