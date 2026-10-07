@@ -21,7 +21,7 @@ describe('stored data validation', () => {
       blockedLog: [
         null,
         entry,
-        { ...entry, tweetId: 'retired', reasons: [{ key: 'retiredRule', score: 0.9 }] },
+        { ...entry, tweetId: 'unknown-category', reasons: [{ key: 'unknownCategory', score: 0.9 }] },
         { ...entry, tweetId: 'invalid', reasons: [{ key: 'unknown', score: 0.9 }] },
       ],
     });

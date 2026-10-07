@@ -27,7 +27,7 @@ describe('settings storage normalization', () => {
     expect((await Effect.runPromise(loadSettings())).textFilters).toEqual([]);
   });
 
-  it('restores stored rules without adding presets or interpreting retired categories', async () => {
+  it('restores stored rules without adding presets and ignores unknown category keys', async () => {
     const rules = Array.from({ length: 20 }, (_, index) => ({
       id: `rule-${index}`,
       name: `Rule ${index}`,
@@ -37,15 +37,15 @@ describe('settings storage normalization', () => {
     }));
     await fakeBrowser.storage.local.set({
       settings: {
-        enabled: { retiredRule: false },
-        thresholds: { retiredRule: 0.37 },
+        enabled: { unknownCategory: false },
+        thresholds: { unknownCategory: 0.37 },
         textFilters: rules,
       },
     });
     const migrated = await Effect.runPromise(loadSettings());
     expect(migrated.textFilters).toEqual(rules);
-    expect(migrated.enabled).not.toHaveProperty('retiredRule');
-    expect(migrated.thresholds).not.toHaveProperty('retiredRule');
+    expect(migrated.enabled).not.toHaveProperty('unknownCategory');
+    expect(migrated.thresholds).not.toHaveProperty('unknownCategory');
     await fakeBrowser.storage.local.set({ settings: migrated });
     expect((await Effect.runPromise(loadSettings())).textFilters).toEqual(migrated.textFilters);
   });
