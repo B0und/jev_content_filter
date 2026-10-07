@@ -19,7 +19,7 @@ const NSFWJS_MODEL_BYTES = 3_600_073;
 interface FixtureCase {
   id: string;
   title: string;
-  labels: { sexualContent: 'yes' | 'no' };
+  labels: { contentMatch: 'yes' | 'no' };
   category: string;
   assetFile: string;
 }
@@ -92,7 +92,7 @@ function canvasInput(image: HTMLImageElement): HTMLCanvasElement {
   return canvas;
 }
 
-function sexualScoreFromFiveClass(scores: Record<string, number>): number {
+function contentScoreFromFiveClass(scores: Record<string, number>): number {
   const porn = scores.porn;
   if (typeof porn !== 'number') throw new Error("Model omitted required 'porn' label");
   const hentai = scores.hentai;
@@ -130,7 +130,7 @@ function summarizePredictions(
       score: prediction.score,
       rawScores: prediction.rawScores,
       prediction: label,
-      correct: label === item.labels.sexualContent,
+      correct: label === item.labels.contentMatch,
       latencyMs: prediction.latencyMs,
     };
   });
@@ -302,7 +302,7 @@ async function runNsfwjs(
     const latencyMs = performance.now() - started;
     raw.push({
       caseId: item.id,
-      score: sexualScoreFromFiveClass(scores),
+      score: contentScoreFromFiveClass(scores),
       rawScores: scores,
       latencyMs,
     });
@@ -364,7 +364,7 @@ async function runMobileNetV4(
     const latencyMs = performance.now() - started;
     raw.push({
       caseId: item.id,
-      score: sexualScoreFromFiveClass(scores),
+      score: contentScoreFromFiveClass(scores),
       rawScores: scores,
       latencyMs,
     });

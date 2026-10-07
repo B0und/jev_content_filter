@@ -4,8 +4,13 @@ import { Clock, Effect, Semaphore } from 'effect';
 import * as Schema from 'effect/Schema';
 import { browser } from 'wxt/browser';
 import { browserEffect, BrowserError } from '../platform/browser';
-import { CATEGORY_KEYS, STORAGE_KEYS, type CategoryKey } from '../filtering/types';
-import { CategoryKeySchema } from '../filtering/schemas';
+import {
+  CATEGORY_KEYS,
+  STORAGE_KEYS,
+  textDecisionSignature,
+  type ScoreKey,
+} from '../filtering/types';
+import { ScoreKeySchema } from '../filtering/schemas';
 import { settings, type Post } from './state';
 import { canonicalMediaUrl } from './dom';
 import { InferenceReplySchema } from '../inference/contracts';
@@ -13,7 +18,7 @@ import { IMAGE_PIPELINE_REVISION, SELECTED_MODELS } from '../inference/model-cat
 const JevReplySchema = Schema.Union([
   Schema.Struct({
     ok: Schema.Literal(true),
-    sexual: Schema.Finite,
+    custom: Schema.Record(Schema.String, Schema.Finite),
     provider: Schema.String,
     revision: Schema.Finite,
   }),
@@ -40,10 +45,7 @@ let cacheWrites = 0;
 const CachedProbabilitySchema = Schema.Finite.pipe(
   Schema.check(Schema.isGreaterThanOrEqualTo(0), Schema.isLessThanOrEqualTo(1)),
 );
-const CachedScoresSchema = Schema.Record(
-  CategoryKeySchema,
-  Schema.optionalKey(CachedProbabilitySchema),
-);
+const CachedScoresSchema = Schema.Record(Schema.String, CachedProbabilitySchema);
 const CachedScoreEntrySchema = Schema.Struct({
   scores: CachedScoresSchema,
   ts: Schema.Finite,
@@ -51,7 +53,7 @@ const CachedScoreEntrySchema = Schema.Struct({
 const CachedTimestampEntrySchema = Schema.Struct({ ts: Schema.Finite });
 const isCachedScoreEntry = Schema.is(CachedScoreEntrySchema);
 const isCachedTimestampEntry = Schema.is(CachedTimestampEntrySchema);
-const isCategoryKey = Schema.is(CategoryKeySchema);
+const isCategoryKey = Schema.is(ScoreKeySchema);
 /** 64-bit-ish FNV-1a + djb2 pair, base36: collisions become vanishingly unlikely. */
 function hash64(input: string): string {
   let h1 = 0x811c9dc5;
@@ -80,7 +82,7 @@ export const readCache = Effect.fnUntraced(function* (key: string) {
 
 export const writeCache = Effect.fnUntraced(function* (
   key: string,
-  scores: Partial<Record<CategoryKey, number>>,
+  scores: Partial<Record<ScoreKey, number>>,
 ) {
   const shouldEvict = yield* Effect.sync(() => ++cacheWrites % 250 === 0);
   const timestamp = yield* Clock.currentTimeMillis;
@@ -132,28 +134,33 @@ export const textScores = Effect.fnUntraced(function* (
   post: Post,
   text: string,
 ): Effect.fn.Return<
-  { scores: Partial<Record<CategoryKey, number>>; errors: string[] },
+  { scores: Partial<Record<ScoreKey, number>>; errors: string[] },
   BrowserError | ClassificationError
 > {
   const current = settings.current;
   const provider = current.textProvider;
   const revision = current.textConfigRevision;
   const jobs: Array<
-    Effect.Effect<Partial<Record<CategoryKey, number>>, BrowserError | ClassificationError>
+    Effect.Effect<Partial<Record<ScoreKey, number>>, BrowserError | ClassificationError>
   > = [];
-  if (current.enabled.sexualText)
+  if (current.textFilters.some((filter) => filter.enabled))
     jobs.push(
       Effect.gen(function* () {
-        const key = `${CACHE_PREFIX}t:${provider}:${hash64(text)}`;
+        const key = `${CACHE_PREFIX}t:${provider}:${hash64(textDecisionSignature(current.textFilters))}:${hash64(text)}`;
         const cached = yield* readCache(key);
-        if (cached?.scores.sexualText !== undefined)
-          return { sexualText: cached.scores.sexualText };
+        if (
+          cached &&
+          current.textFilters
+            .filter((filter) => filter.enabled)
+            .every((filter) => cached.scores[`custom:${filter.id}`] !== undefined)
+        )
+          return cached.scores;
         if (!current.providerKeys[provider])
           return yield* new ClassificationError({
             message:
-              'Add an API key in the Text tab to check sexual text. Local AI-written-text detection does not need a key.',
+              'Add an API key in the Text tab to check Jev text filters. Local AI-written-text detection does not need a key.',
           });
-        const rawReply: unknown = yield* browserEffect('classify sexual text', () =>
+        const rawReply: unknown = yield* browserEffect('classify text filters', () =>
           browser.runtime.sendMessage({ type: 'jev', tweetId: post.id, text, provider, revision }),
         );
         const reply = yield* Schema.decodeUnknownEffect(JevReplySchema)(rawReply).pipe(
@@ -164,9 +171,10 @@ export const textScores = Effect.fnUntraced(function* (
         if (!reply.ok) return yield* new ClassificationError({ message: reply.error });
         if (reply.provider !== provider || reply.revision !== revision)
           return yield* new ClassificationError({ message: 'Text configuration changed.' });
-        if (!Number.isFinite(reply.sexual) || reply.sexual < 0 || reply.sexual > 1)
-          return yield* new ClassificationError({ message: 'Invalid text scores.' });
-        const scores = { sexualText: reply.sexual };
+        const scores: Partial<Record<ScoreKey, number>> = {};
+        for (const filter of current.textFilters.filter((item) => item.enabled)) {
+          scores[`custom:${filter.id}`] = reply.custom[filter.id]!;
+        }
         if (
           settings.current.textProvider === provider &&
           settings.current.textConfigRevision === revision
@@ -209,7 +217,7 @@ export const textScores = Effect.fnUntraced(function* (
     settings.current.textConfigRevision !== revision
   )
     return yield* new ClassificationError({ message: 'Text configuration changed.' });
-  const scores: Partial<Record<CategoryKey, number>> = {};
+  const scores: Partial<Record<ScoreKey, number>> = {};
   const errors: string[] = [];
   for (const outcome of outcomes) {
     if (outcome._tag === 'Failure') errors.push(message(outcome.failure));
@@ -231,10 +239,10 @@ export const imageScores = Effect.fnUntraced(function* (urls: string[]) {
 const classifyImages = Effect.fnUntraced(function* (
   urls: string[],
 ): Effect.fn.Return<
-  { scores: Partial<Record<CategoryKey, number>>; errors: string[] },
+  { scores: Partial<Record<ScoreKey, number>>; errors: string[] },
   BrowserError | ClassificationError
 > {
-  const scores: Partial<Record<CategoryKey, number>> = {};
+  const scores: Partial<Record<ScoreKey, number>> = {};
   const errors: string[] = [];
   const misses: Array<{ url: string; index: number }> = [];
   for (let index = 0; index < urls.length; index++) {

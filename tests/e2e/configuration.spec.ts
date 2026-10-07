@@ -2,6 +2,72 @@ import { test, expect, remoteSettings } from './fixtures';
 import * as Schema from 'effect/Schema';
 import { SettingsSchema } from '../../src/filtering/schemas';
 
+test('upgrading settings without a filter list does not send text with a saved provider key', async ({
+  page,
+  context,
+  worker,
+  extensionId,
+}) => {
+  let requests = 0;
+  await context.route('https://ai-gateway.vercel.sh/**', async (route) => {
+    requests++;
+    await route.abort();
+  });
+  const stored = await worker.evaluate(
+    async () => (await chrome.storage.local.get('settings')).settings,
+  );
+  const { textFilters: _filters, ...settings } = Schema.decodeUnknownSync(SettingsSchema)(stored);
+  await worker.evaluate(async (settings) => {
+    await chrome.storage.local.set({ settings });
+  }, settings);
+  await page.goto('https://x.com/home');
+  await expect(
+    page.locator('[data-post="101"]').getByRole('button', { name: 'Not scanned', exact: true }),
+  ).toBeVisible();
+  const popup = await context.newPage();
+  await popup.goto(`chrome-extension://${extensionId}/popup.html`);
+  await popup.getByRole('tab', { name: 'Text', exact: true }).click();
+  await expect(
+    popup.getByRole('button', { name: 'Delete Content filter', exact: true }),
+  ).toHaveCount(0);
+  expect(requests).toBe(0);
+});
+
+test('blocked history displays and filters reason identifiers absent from current settings', async ({
+  page,
+  worker,
+  extensionId,
+}) => {
+  await worker.evaluate(async () => {
+    const entry = {
+      tweetId: '101',
+      author: '@author',
+      snippet: 'Saved matching post',
+      surface: 'Text',
+      ts: 1,
+      reasons: [{ key: 'unknownCategory', label: 'Saved rule', score: 0.9 }],
+    };
+    await chrome.storage.local.set({
+      blockedLog: [
+        entry,
+        {
+          ...entry,
+          tweetId: '102',
+          snippet: 'Other saved post',
+          reasons: [{ key: 'porn', score: 0.8 }],
+        },
+      ],
+    });
+  });
+  await page.goto(`chrome-extension://${extensionId}/logs.html`);
+  await expect(page.locator('.row')).toHaveCount(2);
+  await expect(page.getByText('Saved rule 90%', { exact: true })).toBeVisible();
+  await page.getByRole('combobox', { name: 'Filter by reason' }).click();
+  await page.getByRole('option', { name: 'Saved rule', exact: true }).click();
+  await expect(page.locator('.row')).toHaveCount(1);
+  await expect(page.locator('.row')).toContainText('Saved matching post');
+});
+
 test('threshold edits apply after a pause and flush when the popup closes', async ({
   context,
   worker,
@@ -76,7 +142,7 @@ test('provider switches isolate credentials and restore each providers own key',
       correctCredential: route.request().headers().authorization === 'Bearer synthetic-typesafe',
     });
     await route.fulfill({
-      json: { answers: { sexual: { probability: 0.01 } } },
+      json: { answers: { 'custom:preset-1': { type: 'noul', noul: 0.01 } } },
     });
   });
   await page.goto('https://x.com/home');
@@ -109,7 +175,7 @@ test('late and replaced video posters update the filtering decision without unre
 }) => {
   test.setTimeout(90_000);
   const settings = remoteSettings();
-  settings.enabled.sexualText = false;
+  settings.textFilters = [];
   settings.enabled.aiGenerated = false;
   for (const category of ['porn', 'hentai', 'sexy', 'drawings'] as const)
     settings.thresholds[category] = 0;
@@ -181,33 +247,24 @@ test('rapid credential edits survive popup close and independent windows preserv
   await expect(
     second.getByRole('spinbutton', { name: 'AI-written text threshold percent', exact: true }),
   ).toBeEnabled();
+  await first.getByRole('button', { name: 'Edit', exact: true }).click();
   await Promise.all([
-    first
-      .getByRole('spinbutton', { name: 'Sexual text threshold percent', exact: true })
-      .fill('37'),
+    first.getByLabel('Block at probability (%)').fill('37'),
     second
       .getByRole('spinbutton', { name: 'AI-written text threshold percent', exact: true })
       .fill('48'),
   ]);
+  await first.getByRole('button', { name: 'Save filter', exact: true }).click();
   await expect
-    .poll(() =>
-      worker.evaluate(async () => {
-        const stored = (await chrome.storage.local.get('settings')).settings;
-        if (!stored || typeof stored !== 'object' || !('thresholds' in stored))
-          throw new Error('Missing thresholds.');
-        const thresholds = stored.thresholds;
-        if (
-          !thresholds ||
-          typeof thresholds !== 'object' ||
-          !('sexualText' in thresholds) ||
-          !('aiGenerated' in thresholds)
-        )
-          throw new Error('Missing text thresholds.');
-        return {
-          sexualText: thresholds.sexualText,
-          aiGenerated: thresholds.aiGenerated,
-        };
-      }),
-    )
-    .toEqual({ sexualText: 0.37, aiGenerated: 0.48 });
+    .poll(async () => {
+      const stored = await worker.evaluate(
+        async () => (await chrome.storage.local.get('settings')).settings,
+      );
+      const parsed = Schema.decodeUnknownSync(SettingsSchema)(stored);
+      return {
+        preset: parsed.textFilters.find((filter) => filter.id === 'preset-1')?.threshold,
+        aiGenerated: parsed.thresholds.aiGenerated,
+      };
+    })
+    .toEqual({ preset: 0.37, aiGenerated: 0.48 });
 });

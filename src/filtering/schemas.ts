@@ -3,6 +3,12 @@ import { CATEGORY_KEYS, TEXT_PROVIDERS } from './types';
 import { ModelKindSchema, ModelStatusesSchema } from '../inference/contracts';
 
 export const CategoryKeySchema = Schema.Literals(CATEGORY_KEYS);
+export const ScoreKeySchema = Schema.Union([
+  CategoryKeySchema,
+  Schema.TemplateLiteral(['custom:', Schema.String]).check(
+    Schema.isPattern(/^custom:[a-zA-Z0-9-]{1,80}$/),
+  ),
+]);
 export const TextProviderSchema = Schema.Literals(TEXT_PROVIDERS);
 const probability = Schema.Number.check(
   Schema.isFinite(),
@@ -10,7 +16,16 @@ const probability = Schema.Number.check(
 );
 const nonNegativeInt = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0));
 
+export const TextFilterSchema = Schema.Struct({
+  id: Schema.String.check(Schema.isPattern(/^[a-zA-Z0-9-]{1,80}$/)),
+  name: Schema.String.check(Schema.isPattern(/\S/), Schema.isMaxLength(80)),
+  instructions: Schema.String.check(Schema.isPattern(/\S/), Schema.isMaxLength(2000)),
+  enabled: Schema.Boolean,
+  threshold: probability,
+});
+
 export const SettingsSchema = Schema.Struct({
+  textFilters: Schema.mutable(Schema.Array(TextFilterSchema)),
   masterEnabled: Schema.Boolean,
   textProvider: TextProviderSchema,
   providerKeys: Schema.Record(TextProviderSchema, Schema.String),
@@ -20,6 +35,18 @@ export const SettingsSchema = Schema.Struct({
 });
 
 export const SettingsChangeSchema = Schema.Union([
+  Schema.Struct({ field: Schema.Literal('textFilter'), value: TextFilterSchema }),
+  Schema.Struct({
+    field: Schema.Literal('patchTextFilter'),
+    id: TextFilterSchema.fields.id,
+    value: Schema.Struct({
+      name: Schema.optionalKey(TextFilterSchema.fields.name),
+      instructions: Schema.optionalKey(TextFilterSchema.fields.instructions),
+      enabled: Schema.optionalKey(TextFilterSchema.fields.enabled),
+      threshold: Schema.optionalKey(TextFilterSchema.fields.threshold),
+    }),
+  }),
+  Schema.Struct({ field: Schema.Literal('deleteTextFilter'), id: Schema.String }),
   Schema.Struct({ field: Schema.Literal('masterEnabled'), value: Schema.Boolean }),
   Schema.Struct({ field: Schema.Literal('textProvider'), value: TextProviderSchema }),
   Schema.Struct({
@@ -54,7 +81,13 @@ export const BlockedEntrySchema = Schema.Struct({
   surface: Schema.String,
   ts: Schema.Number.check(Schema.isFinite()),
   reasons: Schema.mutable(
-    Schema.Array(Schema.Struct({ key: CategoryKeySchema, score: probability })),
+    Schema.Array(
+      Schema.Struct({
+        key: Schema.String.check(Schema.isPattern(/\S/)),
+        label: Schema.optionalKey(Schema.String),
+        score: probability,
+      }),
+    ),
   ),
 });
 

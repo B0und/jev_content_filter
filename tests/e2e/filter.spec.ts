@@ -184,8 +184,8 @@ test('inspects a post, changes its threshold, and opens extension logs', async (
   const panel = page.locator('[data-jev-panel]');
   await expect(panel.locator('.panel')).toBeInViewport();
   await expect(panel.getByText('Text', { exact: true })).toBeVisible();
-  await panel.getByRole('spinbutton', { name: 'Sexual text threshold percent' }).fill('50');
-  await panel.getByRole('spinbutton', { name: 'Sexual text threshold percent' }).press('Tab');
+  await panel.getByRole('spinbutton', { name: 'Content filter threshold percent' }).fill('50');
+  await panel.getByRole('spinbutton', { name: 'Content filter threshold percent' }).press('Tab');
   const logsPromise = context.waitForEvent('page');
   await panel.getByRole('link', { name: 'Open logs' }).click();
   const logs = await logsPromise;
@@ -215,7 +215,7 @@ test('classifies an image with the downloaded local model and applies its measur
   test.setTimeout(90_000);
   const settings = remoteSettings();
   settings.providerKeys.vercel = '';
-  settings.enabled.sexualText = false;
+  settings.textFilters = [];
   settings.enabled.aiGenerated = false;
   for (const key of ['porn', 'hentai', 'sexy', 'drawings'] as const) settings.thresholds[key] = 1;
   await setSettings(settings);
@@ -302,7 +302,7 @@ test('classifies AI-written text locally without credentials and rebuilds its wo
 
   const settings = remoteSettings();
   settings.providerKeys.vercel = '';
-  settings.enabled.sexualText = false;
+  settings.textFilters = [];
   settings.enabled.aiGenerated = true;
   for (const key of ['porn', 'hentai', 'sexy', 'drawings'] as const) settings.enabled[key] = false;
   settings.thresholds.aiGenerated = 0.65;
@@ -374,7 +374,7 @@ test('filters video thumbnails on search results', async ({ page, setSettings })
   test.setTimeout(90_000);
   const settings = remoteSettings();
   settings.providerKeys.vercel = '';
-  settings.enabled.sexualText = false;
+  settings.textFilters = [];
   settings.enabled.aiGenerated = false;
   for (const key of ['porn', 'hentai', 'sexy', 'drawings'] as const) {
     settings.enabled[key] = true;
@@ -397,10 +397,10 @@ test('hides disabled categories from the timeline inspector', async ({ page, set
   const settings = remoteSettings();
   settings.providerKeys.vercel = 'test-only-not-a-real-key';
   settings.enabled.drawings = false;
-  settings.enabled.sexualText = true;
+  settings.textFilters = remoteSettings().textFilters;
   settings.enabled.aiGenerated = false;
   for (const key of ['porn', 'hentai', 'sexy'] as const) settings.thresholds[key] = 1;
-  settings.thresholds.sexualText = 1;
+  settings.textFilters[0]!.threshold = 1;
   await setSettings(settings);
   await page.goto('https://x.com/home');
   await page.locator('[data-post="101"]').evaluate((post) => {
@@ -417,7 +417,7 @@ test('hides disabled categories from the timeline inspector', async ({ page, set
   await expect(panel.locator('.group-label')).toHaveText(['Text', 'Images']);
   await expect(panel.getByRole('cell', { name: 'Porn', exact: true })).toHaveCount(1);
   await expect(panel.getByRole('cell', { name: 'Drawings / anime', exact: true })).toHaveCount(0);
-  await expect(panel.getByRole('cell', { name: 'Sexual text', exact: true })).toHaveCount(1);
+  await expect(panel.getByRole('cell', { name: 'Content filter', exact: true })).toHaveCount(1);
   await expect(panel.getByRole('cell', { name: 'AI-written text', exact: true })).toHaveCount(0);
 });
 test('opens blocked image posts from the logs without hiding them', async ({
@@ -429,7 +429,7 @@ test('opens blocked image posts from the logs without hiding them', async ({
   test.setTimeout(90_000);
   const settings = remoteSettings();
   settings.providerKeys.vercel = '';
-  settings.enabled.sexualText = false;
+  settings.textFilters = [];
   settings.enabled.aiGenerated = false;
   settings.thresholds.porn = 0;
   for (const key of ['hentai', 'sexy', 'drawings'] as const) settings.thresholds[key] = 1;
@@ -466,7 +466,7 @@ test('does not flap when X swaps media size variants', async ({ page, setSetting
   test.setTimeout(90_000);
   const settings = remoteSettings();
   settings.providerKeys.vercel = '';
-  settings.enabled.sexualText = false;
+  settings.textFilters = [];
   settings.enabled.aiGenerated = false;
   for (const key of ['porn', 'hentai', 'sexy', 'drawings'] as const) {
     settings.enabled[key] = true;
@@ -523,13 +523,13 @@ test('rechecks recycled posts and newly enabled preview categories', async ({
   const settings = remoteSettings();
   settings.providerKeys.vercel = 'test-only-not-a-real-key';
   for (const key of ['porn', 'hentai', 'sexy', 'drawings'] as const) settings.enabled[key] = false;
-  settings.enabled.sexualText = false;
+  settings.textFilters = [];
   settings.enabled.aiGenerated = false;
   await setSettings(settings);
   await page.goto('https://x.com/home');
   const preview = page.locator('[data-post="103"] [data-testid="card.wrapper"]');
   await expect(preview).toBeVisible();
-  settings.enabled.sexualText = true;
+  settings.textFilters = remoteSettings().textFilters;
   await setSettings(settings);
   await expect(preview).toBeHidden();
   const recycled = page.locator('[data-post="102"]');
@@ -569,16 +569,14 @@ test('persists popup edits and supports keyboard log filtering and clearing', as
   await expect(popup.getByLabel('TypeSafe API key')).toBeVisible();
   await provider.selectOption('vercel');
   await expect(popup.getByLabel('Vercel AI Gateway API key')).toBeVisible();
-  const threshold = popup.getByRole('spinbutton', {
-    name: 'Sexual text threshold percent',
-  });
+  await popup.getByRole('button', { name: 'Edit', exact: true }).click();
+  const threshold = popup.getByLabel('Block at probability (%)');
   await threshold.fill('45');
-  await threshold.press('Tab');
+  await popup.getByRole('button', { name: 'Save filter', exact: true }).click();
   await popup.reload();
   await popup.getByRole('tab', { name: 'Text', exact: true }).click();
-  await expect(
-    popup.getByRole('spinbutton', { name: 'Sexual text threshold percent' }),
-  ).toHaveValue('45');
+  await popup.getByRole('button', { name: 'Edit', exact: true }).click();
+  await expect(popup.getByLabel('Block at probability (%)')).toHaveValue('45');
   await popup.goto(`chrome-extension://${extensionId}/logs.html`);
   await popup.getByRole('combobox', { name: 'Filter by reason' }).click();
   await popup.getByRole('option', { name: 'Porn', exact: true }).click();

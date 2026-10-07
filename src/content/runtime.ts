@@ -11,6 +11,8 @@ import {
   IMAGE_KEYS,
   STORAGE_KEYS,
   TEXT_KEYS,
+  textDecisionSignature,
+  type ScoreKey,
   type CategoryKey,
   type TabReport,
 } from '../filtering/types';
@@ -203,7 +205,9 @@ class ContentSession extends Context.Service<ContentSession, ContentSessionApi>(
               return;
             }
             if (post.pending || post.retryAt !== null || !isAttached(post)) return;
-            const textEnabled = TEXT_KEYS.some((key) => settings.current.enabled[key]);
+            const textEnabled =
+              TEXT_KEYS.some((key) => settings.current.enabled[key]) ||
+              settings.current.textFilters.some((filter) => filter.enabled);
             const imageEnabled = IMAGE_KEYS.some((key) => settings.current.enabled[key]);
             const textNeeded = !post.textDone && !!post.text && textEnabled;
             const imagesNeeded = !post.imagesDone && post.urls.length > 0 && imageEnabled;
@@ -250,7 +254,7 @@ class ContentSession extends Context.Service<ContentSession, ContentSessionApi>(
                       post.previewScores = result.scores;
                       post.previewDone = true;
                     } else {
-                      for (const key of name === 'text' ? TEXT_KEYS : IMAGE_KEYS)
+                      for (const key of name === 'text' ? textScoreKeys(post) : IMAGE_KEYS)
                         delete post.scores[key];
                       Object.assign(post.scores, result.scores);
                       if (name === 'text') post.textDone = true;
@@ -373,7 +377,7 @@ class ContentSession extends Context.Service<ContentSession, ContentSessionApi>(
                   post.textDone = false;
                   post.partErrors.text = [];
                   post.logged = false;
-                  for (const key of TEXT_KEYS) delete post.scores[key];
+                  for (const key of textScoreKeys(post)) delete post.scores[key];
                 }
                 if (!sameUrls(post.urls, content.urls)) {
                   post.urls = content.urls;
@@ -429,6 +433,8 @@ class ContentSession extends Context.Service<ContentSession, ContentSessionApi>(
               const current = settings.current;
               const resuming = !previous.masterEnabled && current.masterEnabled;
               const textConfigChanged =
+                textDecisionSignature(previous.textFilters) !==
+                  textDecisionSignature(current.textFilters) ||
                 previous.textConfigRevision !== current.textConfigRevision ||
                 previous.textProvider !== current.textProvider ||
                 previous.providerKeys[previous.textProvider] !==
@@ -442,7 +448,10 @@ class ContentSession extends Context.Service<ContentSession, ContentSessionApi>(
                   post.partErrors.text = [];
                   post.partErrors.preview = [];
                   post.retryCount = 0;
-                  for (const key of TEXT_KEYS) {
+                  for (const key of [
+                    ...TEXT_KEYS,
+                    ...previous.textFilters.map((filter) => `custom:${filter.id}` as const),
+                  ]) {
                     delete post.scores[key];
                     delete post.previewScores[key];
                   }
@@ -697,4 +706,14 @@ function teardown(ctx: ContentScriptContext): void {
   lastBadgeBlocked = -1;
   removeAllUI();
   clearBindingIndex();
+}
+
+/** Include retained custom scores, even if their rules have since been deleted. */
+function textScoreKeys(post: Post): ScoreKey[] {
+  return [
+    ...TEXT_KEYS,
+    ...Object.keys(post.scores).filter((key): key is `custom:${string}` =>
+      key.startsWith('custom:'),
+    ),
+  ];
 }

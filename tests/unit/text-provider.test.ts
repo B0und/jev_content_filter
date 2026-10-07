@@ -9,12 +9,19 @@ const { createGatewayMock, evaluateMock } = vi.hoisted(() => ({
   evaluateMock: vi.fn(),
 }));
 
-vi.mock('ai', () => ({ experimental_evaluate: evaluateMock }));
+vi.mock('ai', () => ({ experimental_decide: evaluateMock }));
 vi.mock('@ai-sdk/gateway', () => ({
   createGateway: (...args: unknown[]) => createGatewayMock(...args),
 }));
 
-import { evaluateText } from '../../src/background/text-provider';
+import { evaluateText as evaluateProviderText } from '../../src/background/text-provider';
+import { defaultSettings } from '../../src/filtering/types';
+
+const evaluateText = (
+  request: Omit<Parameters<typeof evaluateProviderText>[0], 'filters'> & {
+    filters?: Parameters<typeof evaluateProviderText>[0]['filters'];
+  },
+) => evaluateProviderText({ filters: defaultSettings().textFilters, ...request });
 
 const API_KEY = 'provider-secret-token';
 const server = setupServer();
@@ -24,8 +31,12 @@ afterAll(() => server.close());
 beforeEach(() => {
   createGatewayMock.mockReset();
   evaluateMock.mockReset();
+  evaluateMock.mockImplementation(async (options) => {
+    const actual = await vi.importActual<typeof import('ai')>('ai');
+    return actual.experimental_decide(options);
+  });
   server.resetHandlers();
-  createGatewayMock.mockImplementation(() => ({ evaluationModel: (id: string) => ({ id }) }));
+  createGatewayMock.mockImplementation(() => ({ decisionModel: (id: string) => ({ id }) }));
 });
 
 afterEach(() => {
@@ -33,6 +44,19 @@ afterEach(() => {
 });
 
 describe('text provider effects', () => {
+  it('makes no decision call when all text filters are disabled or deleted', async () => {
+    for (const filters of [
+      [],
+      defaultSettings().textFilters.map((filter) => ({ ...filter, enabled: false })),
+    ]) {
+      expect(
+        await Effect.runPromise(
+          evaluateText({ provider: 'typesafe', apiKey: API_KEY, text: 'hello', filters }),
+        ),
+      ).toEqual({ custom: {} });
+    }
+    expect(evaluateMock).not.toHaveBeenCalled();
+  });
   it('returns a typed status error without exposing the provider key', async () => {
     server.use(
       http.post('https://api.typesafe.ai/v1/systemone', () =>
@@ -63,7 +87,7 @@ describe('text provider effects', () => {
     server.use(
       http.post(endpoint, () =>
         HttpResponse.json({
-          answers: { sexual: { noul: 0.9 } },
+          answers: { 'custom:preset-1': { type: 'noul', noul: 0.9 } },
         }),
       ),
     );
@@ -75,13 +99,13 @@ describe('text provider effects', () => {
           text: 'test input',
         }),
       ),
-    ).toEqual({ sexual: 0.9 });
+    ).toEqual({ custom: { 'preset-1': 0.9 } });
   });
 
-  it('rejects malformed probabilities received over HTTP', async () => {
+  it('lets the SDK reject malformed probabilities received over HTTP', async () => {
     server.use(
       http.post('https://api.typesafe.ai/v1/systemone', () =>
-        HttpResponse.json({ answers: { sexual: { noul: 1.1 } } }),
+        HttpResponse.json({ answers: { 'custom:preset-1': { type: 'noul', noul: 1.1 } } }),
       ),
     );
     const result = await Effect.runPromise(
@@ -94,7 +118,8 @@ describe('text provider effects', () => {
       ),
     );
     expect(result._tag).toBe('Failure');
-    if (result._tag === 'Failure') expect(result.failure.message).toContain('invalid probability');
+    if (result._tag === 'Failure')
+      expect(result.failure.message).toMatch(/probability|Invalid response|invalid/i);
   });
 
   it('reports a network failure as a typed provider error', async () => {
@@ -117,6 +142,54 @@ describe('text provider effects', () => {
     }
   });
 
+  it.each([
+    ['typesafe', 'https://api.typesafe.ai/v1/systemone'],
+    ['openrouter', 'https://openrouter.ai/api/alpha/decisions'],
+  ] as const)(
+    'sends enabled custom filters in one SDK decision call through %s',
+    async (provider, endpoint) => {
+      let body: unknown;
+      server.use(
+        http.post(endpoint, async ({ request }) => {
+          expect(request.headers.get('authorization')).toBe(`Bearer ${API_KEY}`);
+          body = await request.json();
+          return HttpResponse.json({
+            answers: {
+              'custom:garden': { type: 'noul', noul: 0.9 },
+            },
+          });
+        }),
+      );
+      const filter = {
+        id: 'garden',
+        name: 'Gardening',
+        instructions: 'Posts about gardening',
+        enabled: true,
+        threshold: 0.65,
+      };
+      expect(
+        await Effect.runPromise(
+          evaluateText({
+            provider,
+            apiKey: API_KEY,
+            text: 'Garden advice',
+            filters: [filter, { ...filter, id: 'disabled', enabled: false }],
+          }),
+        ),
+      ).toEqual({ custom: { garden: 0.9 } });
+      expect(body).toMatchObject({
+        state: { tweet_text: 'Garden advice' },
+        questions: {
+          'custom:garden': {
+            type: 'noul',
+            instructions: expect.stringContaining(filter.instructions),
+          },
+        },
+      });
+      expect(body).not.toHaveProperty('questions.custom:disabled');
+    },
+  );
+
   it.each(['typesafe', 'vercel'] as const)(
     'interrupts the pending %s request',
     async (provider) => {
@@ -133,13 +206,29 @@ describe('text provider effects', () => {
           rejectOnAbort(options.abortSignal),
         );
       } else {
+        // Observe the native transport signal; MSW's cloned Request signal can
+        // outlive an interrupted fetch on Node 26.
+        const originalFetch = globalThis.fetch;
+        let transportSignal: AbortSignal | undefined;
+        vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+          transportSignal = init?.signal ?? undefined;
+          return originalFetch(input, init);
+        });
         server.use(
-          http.post('https://api.typesafe.ai/v1/systemone', ({ request }) => {
+          http.post('https://api.typesafe.ai/v1/systemone', () => {
             const response = Promise.withResolvers<Response>();
-            requestSignal.resolve(request.signal);
-            request.signal.addEventListener('abort', () => response.resolve(HttpResponse.error()), {
-              once: true,
-            });
+            if (!transportSignal) throw new Error('Missing transport abort signal');
+            requestSignal.resolve(transportSignal);
+            transportSignal.addEventListener(
+              'abort',
+              () =>
+                response.resolve(
+                  HttpResponse.json({
+                    answers: { 'custom:preset-1': { type: 'noul', noul: 0.1 } },
+                  }),
+                ),
+              { once: true },
+            );
             return response.promise;
           }),
         );

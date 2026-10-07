@@ -46,9 +46,9 @@ export interface FakeBackground {
     tweetId: string;
     text: string;
   }) =>
-    | { ok: true; sexual: number }
+    | { ok: true; custom: Record<string, number> }
     | { ok: false; error: string }
-    | Promise<{ ok: true; sexual: number } | { ok: false; error: string }>;
+    | Promise<{ ok: true; custom: Record<string, number> } | { ok: false; error: string }>;
   aiRespond: (request: {
     type: 'classify-ai';
     text: string;
@@ -68,7 +68,7 @@ export interface FakeBackground {
 
 export function installFakeBackground(): FakeBackground {
   const bg: FakeBackground = {
-    respond: () => ({ ok: true, sexual: 0.01 }),
+    respond: () => ({ ok: true, custom: { 'preset-1': 0.01 } }),
     aiRespond: () => ({ ok: true, scores: { aiGenerated: 0.01 } }),
     imageRespond: () => ({
       ok: true,
@@ -92,7 +92,13 @@ export function installFakeBackground(): FakeBackground {
         void (async () => {
           const reply = await bg.respond(request);
           sendResponse(
-            reply.ok ? { ...reply, provider: request.provider, revision: request.revision } : reply,
+            reply.ok
+              ? {
+                  ...reply,
+                  provider: request.provider,
+                  revision: request.revision,
+                }
+              : reply,
           );
         })();
         return true;
@@ -160,7 +166,7 @@ export async function startRuntime(
     providerKeys: { vercel: 'test-key', typesafe: 'test-key', openrouter: 'test-key' },
     ...settingsOverrides,
   });
-  // Default runtime tests exercise remote sexual-text only. Other classifiers
+  // Default runtime tests exercise remote preset-1 only. Other classifiers
   // must be explicitly enabled by the scenario that uses them.
   if (settingsOverrides.enabled === undefined) {
     runtimeSettings.enabled.porn = false;

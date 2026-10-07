@@ -6,6 +6,7 @@ import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import puppeteer from 'puppeteer-core';
 import { chromium } from '@playwright/test';
+import presets from '../src/filtering/presets.json' with { type: 'json' };
 
 export class ExtensionSession {
   constructor({ root, output, artifacts, profile, headless = false, live = false }) {
@@ -122,7 +123,7 @@ export class ExtensionSession {
           throw new Error('Background message listener did not initialize');
         });
         // This profile is only for the offline fixture. No real credentials or provider calls.
-        await worker.evaluate(async () => {
+        await worker.evaluate(async (textFilters) => {
           const existing = await chrome.storage.local.get('agentFixtureInitialized');
           if (existing.agentFixtureInitialized) return;
           await chrome.storage.local.set({
@@ -132,25 +133,24 @@ export class ExtensionSession {
               textProvider: 'vercel',
               textConfigRevision: 0,
               providerKeys: { vercel: 'agent-fixture-key', typesafe: '', openrouter: '' },
+              textFilters,
               enabled: {
                 porn: false,
                 hentai: false,
                 sexy: false,
                 drawings: false,
-                sexualText: true,
-                aiGenerated: true,
+                aiGenerated: false,
               },
               thresholds: {
                 porn: 0.6,
                 hentai: 0.6,
                 sexy: 0.65,
                 drawings: 0.7,
-                sexualText: 0.65,
                 aiGenerated: 0.65,
               },
             },
           });
-        });
+        }, presets);
       } finally {
         await setup.close();
       }
@@ -251,13 +251,30 @@ export class ExtensionSession {
       let body;
       let contentType = 'application/json';
       if (url.hostname === 'ai-gateway.vercel.sh') {
-        const text = JSON.parse(request.postData ?? '{}').state?.tweet_text ?? '';
+        const payload = JSON.parse(request.postData ?? '{}');
+        const text = payload.state?.tweet_text ?? '';
+        const textWords = new Set(text.toLowerCase().match(/\p{L}{4,}/gu) ?? []);
+        const matchesQuestion = (instructions) =>
+          text.includes('BLOCK_TEXT') ||
+          (
+            (instructions.split('\n').slice(1).join('\n') || instructions)
+              .toLowerCase()
+              .match(/\p{L}{4,}/gu) ?? []
+          ).some((word) => !['posts', 'about', 'content'].includes(word) && textWords.has(word));
+        const customAnswers = Object.fromEntries(
+          Object.entries(payload.questions ?? {})
+            .filter(([key]) => key.startsWith('custom:'))
+            .map(([key, question]) => [
+              key,
+              {
+                type: 'boolean',
+                probability: matchesQuestion(question.instructions) ? 0.9 : 0.01,
+              },
+            ]),
+        );
         body = Buffer.from(
           JSON.stringify({
-            answers: {
-              sexual: { type: 'boolean', probability: text.includes('BLOCK_TEXT') ? 0.99 : 0.01 },
-              ai: { type: 'boolean', probability: 0.02 },
-            },
+            answers: customAnswers,
           }),
         );
       } else if (url.hostname === 'pbs.twimg.com') {

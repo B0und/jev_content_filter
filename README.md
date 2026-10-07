@@ -1,6 +1,6 @@
 # Jev Feed Filter
 
-A Chromium MV3 extension that filters posts and link previews on X and Twitter. Images use local NSFWJS MobileNetV2 and an Anime DBRating companion for sensitivity in drawings; AI-written text uses local E5-small q8. Sexual-text checks use TypeSafe Jev through Vercel AI Gateway, TypeSafe AI, or OpenRouter. NSFWJS and E5 weights are downloaded and cached after startup; Anime DBRating weights are bundled with the extension.
+A Chromium MV3 extension that filters posts and link previews on X and Twitter. Images use local NSFWJS MobileNetV2 and an Anime DBRating companion for sensitivity in drawings; AI-written text uses local E5-small q8. User-defined text filters use TypeSafe Jev through Vercel AI Gateway, TypeSafe AI, or OpenRouter. NSFWJS and E5 weights are downloaded and cached after startup; Anime DBRating weights are bundled with the extension.
 
 ## Development and installation
 
@@ -19,7 +19,7 @@ npm run build
 
 Chromium 116 or newer is required for the offscreen inference document. Open `chrome://extensions`, enable Developer mode, choose **Load unpacked**, and select `.output/chrome-mv3`. Reload existing X tabs after installing or updating the extension. `npm run zip` creates a distributable archive.
 
-The popup separates **Text** and **Images** controls. Local image and AI-text filtering need no API key. Under Text, open the sexual-text provider settings and enter that provider's key if you want Jev checks. Each provider has its own key slot; changing providers never transfers another provider's key. Credentials come from extension settings, not build-time environment variables.
+The popup separates **Text** and **Images** controls. Local image and AI-text filtering need no API key. Under Text, open the Jev provider settings and enter that provider's key if you want Jev checks. Use **Add text filter** to name a rule, describe what to hide, and choose its probability threshold. You can edit, enable, disable, or delete up to 20 rules. Filters are stored in extension-local browser storage and survive popup closure, worker restarts, and browser restarts. Each provider has its own key slot; changing providers never transfers another provider's key. Credentials come from extension settings, not build-time environment variables.
 
 ## Model selection and downloads
 
@@ -62,7 +62,7 @@ Effect owns asynchronous work; React and the DOM modules own rendering.
 - Local inference admits one active request and at most eight waiting payloads. Overflow returns an error without interrupting active work. The five-minute execution deadline starts when a request is sent to the worker, covering model loading and inference. A deadline or worker error terminates the worker, rejects its pending requests, and marks model status as failed. The next request starts a replacement; late messages from the old worker are ignored.
 - The offscreen page publishes model status through authenticated runtime messages; only the background writes extension storage. Offscreen documents have runtime access, not `chrome.storage`. A model-ready transition retries affected failed content checks without requiring a settings edit.
 - `src/content/runtime.ts` builds a `ContentSession` Layer per WXT context. Scans and retry fibers belong to its Scope. Context invalidation restores the DOM and disposes the runtime, interrupting pending work.
-- `src/content/classify.ts` composes cache reads, schema-decoded replies, independent sexual/AI checks, scoring, and cache writes as Effects. Provider revisions and local-model identities prevent obsolete replies from reaching the cache.
+- `src/content/classify.ts` composes cache reads, schema-decoded replies, independent filter/local-AI checks, scoring, and cache writes as Effects. Provider revisions and local-model identities prevent obsolete replies from reaching the cache.
 - `src/platform/browser.ts` adapts native Promise APIs into interruptible Effects with `BrowserError`. Provider failures have a separate typed error; provider keys are redacted before errors leave the adapter.
 - `src/entrypoints/popup/state.ts` and `src/entrypoints/logs/state.ts` expose snapshots through `useSyncExternalStore`. They own optimistic settings edits, pending log actions, storage reconciliation, and errors. React handlers call domain operations.
 - Each open view scopes its reads and polling to a disposable runtime. Submitted writes run separately so closing the view does not cancel them. The background worker serializes settings changes and log clearing; unblock actions write persistent allow overrides.
@@ -77,9 +77,8 @@ React follows [You Might Not Need an Effect](https://react.dev/learn/you-might-n
 ## Filtering behavior
 
 - Lower thresholds block more content. Thresholds are probabilities between 0 and 1; the popup displays percentages.
-- Sexual-text checks include explicit sexual content, lewd innuendo, heavily implied sexual content, and engagement bait designed to arouse. Factual news, health, and relationship discussion should remain allowed.
 - The AI-written score is a classifier estimate, not proof of authorship.
-- Drawings includes ordinary anime and illustrations, not only sexual content. Disable that category if you want nonsexual illustrations to remain visible.
+- Drawings includes ordinary anime and illustrations, not only explicit content. Disable that category if you want ordinary illustrations to remain visible.
 - Link previews have separate scores and can be hidden without hiding the post.
 - The post the URL addresses is never filtered: a status permalink, or the detail view X opens over the timeline. Everything else on that page is filtered normally. Navigation triggers a render even for URL-only `pushState`, `replaceState`, and back/forward changes.
 - Pause restores hidden posts and previews. Unblocking a post persists an allow override.
@@ -98,11 +97,15 @@ Clearing requires the worker to read the stored rows first so its deletion recei
 
 ## Privacy and request consistency
 
-Post and link-preview text go to the selected provider only when sexual-text checks are enabled and configured. AI-written-text checks run locally. Images are downloaded without credentials from X's media hosts and processed locally. NSFWJS weights come from the pinned NSFWJS GitHub revision; E5 weights and tokenizer/config files come from the pinned Hugging Face revision. Model downloads do not include post text or images.
+Post and link-preview text go to the selected provider only when text filters are enabled and the selected provider has a key. AI-written-text checks run locally. Images are downloaded without credentials from X's media hosts and processed locally. NSFWJS weights come from the pinned NSFWJS GitHub revision; E5 weights and tokenizer/config files come from the pinned Hugging Face revision. Model downloads do not include post text or images.
 
 API keys, allow overrides, score caches, and logs are stored in extension-local browser storage. Keys are not encrypted by this application. Blocked logs contain short post snippets, so treat them as browsing data.
 
 The background worker serializes field-level settings changes from popups and inspectors. Concurrent edits to different settings preserve each other. Classification admission and dispatch wait for earlier settings writes before reading provider credentials. Requests carry a provider and text-configuration revision: obsolete queued requests are rejected, and obsolete in-flight responses cannot update the score cache or provider health. Already-started external requests are not retroactively revoked.
+
+Jev requests use AI SDK's experimental `experimental_decide` API with `boolean` questions and application-owned probability thresholds. Vercel uses its `decisionModel`; TypeSafe uses `@ai-sdk/typesafe-ai`. OpenRouter uses the same native Jev schema through the TypeSafe adapter with its HTTP destination set to OpenRouter's Decisions endpoint. SDK versions are pinned because this API is experimental. See the [TypeSafe provider documentation](https://ai-sdk.dev/providers/ai-sdk-providers/typesafe-ai).
+
+Fresh installations get initial text filters from `src/filtering/presets.json`. You can edit or delete them like any other rule; deleting them stays deleted. Existing saved settings without a filter list load with no text filters, so upgrading does not enable remote text checks. All enabled filter instructions become questions in one decision call. Each rule gets a stable ID; instruction edits invalidate cached text decisions and rescan existing posts and link previews. Name and threshold edits reuse saved decisions. Failed decisions remain visible with an error instead of being hidden by a default score.
 
 Historical single-key settings migrate into the selected provider's key slot only. The worker rewrites normalized settings without the old shared-key field. Score-cache version 7 ignores earlier entries and includes local model identity/revision and text-check type.
 
@@ -120,23 +123,23 @@ New databases start with ten cases: two images and eight synthetic AI-authored t
 
 This is a small diagnostic corpus, not evidence of production accuracy. Add representative real posts with reviewed labels and known or unknown authorship before tuning thresholds. Precision, recall, and coverage are reported separately.
 
-**Import measured comparisons** adds the 120 text cases, 25 image cases, and seven recorded runs. It appends missing IDs without overwriting existing cases, labels, reviews, scores, or thresholds; repeated imports are idempotent. The measured corpora remain separate from the initial synthetic examples. Sexual image comparison uses `porn + hentai + sexy`, never `drawings`.
+**Import measured comparisons** adds the 120 text cases, 25 image cases, and seven recorded runs. It appends missing IDs without overwriting existing cases, labels, reviews, scores, or thresholds; repeated imports are idempotent. The measured corpora remain separate from the initial synthetic examples. Explicit image comparison uses `porn + hentai + sexy`, never `drawings`.
 
-The current broad task is `sexualContent`, not the former narrow `explicit` task. During migration:
+The current broad task is `contentMatch`, not the former narrow `explicit` task. During migration:
 
 - Historical explicit-positive labels remain positive.
 - Historical explicit-negative labels become unknown and need review under the broader policy.
-- Historical explicit scores and their reviews are omitted rather than misrepresented as broad-policy scores. The sexual-content threshold resets to 0.5.
+- Historical explicit scores and their reviews are omitted rather than misrepresented as broad-policy scores. The content-match threshold resets to 0.5.
 - AI-origin data, NSFWJS scores, cases, solution metadata, and unrelated thresholds are retained.
 
-Existing databases keep their cases; the expanded initial corpus is not merged into user data automatically. New solution imports use `sexualContent` and `aiGenerated` probabilities, plus an optional `nsfwjs` object. State exports use schema version 2.
+Existing databases keep their cases; the expanded initial corpus is not merged into user data automatically. New solution imports use `contentMatch` and `aiGenerated` probabilities, plus an optional `nsfwjs` object. State exports use schema version 2.
 
 ```json
 {
   "name": "Reviewed Jev run",
   "type": "llm",
   "predictions": {
-    "case-id": { "sexualContent": 0.78, "aiGenerated": 0.42 }
+    "case-id": { "contentMatch": 0.78, "aiGenerated": 0.42 }
   }
 }
 ```

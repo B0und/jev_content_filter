@@ -1,7 +1,7 @@
 {
   "name": "jev-content-filter",
   "version": "0.1.0",
-  "description": "Local image and AI-text filtering for X, with TypeSafe Jev sexual-text checks",
+  "description": "Local image and AI-text filtering for X, with configurable Jev text filters",
   "type": "module",
   "scripts": {
     "dev": "wxt",
@@ -23,12 +23,13 @@
     "test:agent-browser": "node --test tests/agent/*.test.mjs"
   },
   "dependencies": {
-    "@ai-sdk/gateway": "^4.0.86",
+    "@ai-sdk/gateway": "4.0.104",
+    "@ai-sdk/typesafe-ai": "3.0.13",
     "@base-ui/react": "^1.8.0",
     "@huggingface/transformers": "4.3.0",
     "@tanstack/react-virtual": "^3.14.13",
     "@tensorflow/tfjs": "^4.22.0",
-    "ai": "^7.0.105",
+    "ai": "7.0.128",
     "effect": "^4.0.0-rc.118",
     "nsfwjs": "^4.4.0",
     "react": "^19.2.0",

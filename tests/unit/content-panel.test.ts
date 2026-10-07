@@ -1,6 +1,9 @@
 // Inspector panel regressions: Open logs must go through the background
 // message (never a direct extension-URL navigation), Escape closes and
 // restores focus, and scan errors are shown.
+import { browser } from 'wxt/browser';
+import { applySettingsChange } from '../../src/filtering/settings';
+import { settings } from '../../src/content/state';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   clearFeed,
@@ -100,9 +103,12 @@ describe('inspector panel', () => {
   it('hides disabled categories from the inspector panel', async () => {
     const configured = baseSettings();
     configured.enabled.drawings = false;
-    configured.enabled.sexualText = false;
+    configured.textFilters = [];
     configured.enabled.aiGenerated = false;
-    const test = await startRuntime({ enabled: configured.enabled });
+    const test = await startRuntime({
+      enabled: configured.enabled,
+      textFilters: configured.textFilters,
+    });
     try {
       const article = buildTweetArticle({
         id: '5003',
@@ -122,7 +128,7 @@ describe('inspector panel', () => {
       );
       expect(rows.some((row) => row.includes('Porn'))).toBe(true);
       expect(rows.some((row) => row.includes('Drawings / anime'))).toBe(false);
-      expect(rows.some((row) => row.includes('Sexual text'))).toBe(false);
+      expect(rows.some((row) => row.includes('Content filter'))).toBe(false);
       expect(rows.some((row) => row.includes('AI-written text'))).toBe(false);
     } finally {
       stopRuntime(test);
@@ -155,6 +161,34 @@ describe('inspector panel', () => {
   });
 });
 
+it.each(['body text', ''])('shows custom preview scores separately with body %j', async (text) => {
+  const configured = baseSettings();
+  for (const key of Object.keys(configured.enabled) as Array<keyof typeof configured.enabled>)
+    configured.enabled[key] = false;
+  const test = await startRuntime({
+    enabled: configured.enabled,
+    textFilters: [
+      { id: 'garden', name: 'Gardening', instructions: 'garden', threshold: 0.65, enabled: true },
+    ],
+  });
+  try {
+    test.bg.respond = (request) => ({
+      ok: true,
+      custom: { garden: request.text.includes('garden') ? 0.9 : 0.1 },
+    });
+    const article = buildTweetArticle({ id: '5900', text, previewText: 'garden preview' });
+    test.handle.discover();
+    await until(() => !!article.querySelector('[data-jev-card-hidden]'), 'preview was not hidden');
+    iconButton(article).dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }));
+    const root = document.querySelector('[data-jev-panel]')?.shadowRoot;
+    expect(root?.textContent).toContain('Preview 90.0%');
+    if (text) expect(root?.textContent).toContain('Post 10.0%');
+  } finally {
+    stopRuntime(test);
+    clearFeed();
+  }
+});
+
 function shadowRoot(host: HTMLElement): ShadowRoot {
   const root = host.shadowRoot;
   if (!root) throw new Error('panel shadow root missing');
@@ -172,3 +206,90 @@ async function untilValue<T>(read: () => T | null, message: string): Promise<T> 
   if (value === null) throw new Error(message);
   return value;
 }
+
+it('refreshes an open inspector after custom labels and thresholds change without rescanning', async () => {
+  const configured = baseSettings();
+  for (const key of Object.keys(configured.enabled) as Array<keyof typeof configured.enabled>)
+    configured.enabled[key] = false;
+  const filter = {
+    id: 'garden',
+    name: 'Gardening',
+    instructions: 'garden',
+    threshold: 0.65,
+    enabled: true,
+  };
+  const test = await startRuntime({ enabled: configured.enabled, textFilters: [filter] });
+  try {
+    test.bg.respond = () => ({ ok: true, custom: { garden: 0.9 } });
+    const article = buildTweetArticle({ id: '5902', text: 'garden' });
+    test.handle.discover();
+    await until(() => article.hasAttribute('data-jev-hidden'));
+    iconButton(article).dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }));
+    const root = document.querySelector('[data-jev-panel]')?.shadowRoot;
+    expect(root?.textContent).toContain('Gardening');
+    await browser.storage.local.set({
+      settings: applySettingsChange(settings.current, {
+        field: 'textFilter',
+        value: { ...filter, name: 'Renamed filter', threshold: 0.95 },
+      }),
+    });
+    await until(() => !article.hasAttribute('data-jev-hidden'));
+    expect(root?.textContent).toContain('Renamed filter');
+    expect(root?.querySelector<HTMLInputElement>('[data-jev-cat="custom:garden"]')?.value).toBe(
+      '95',
+    );
+    expect(root?.querySelector('.head')?.textContent).toBe('Allowed');
+    expect(test.bg.jevCalls).toHaveLength(1);
+  } finally {
+    stopRuntime(test);
+    clearFeed();
+  }
+});
+
+it('preserves inspector threshold drafts until that saved threshold changes', async () => {
+  const filter = {
+    id: 'garden',
+    name: 'Gardening',
+    instructions: 'garden',
+    threshold: 0.65,
+    enabled: true,
+  };
+  const test = await startRuntime({ textFilters: [filter] });
+  try {
+    test.bg.respond = () => ({
+      ok: true,
+      custom: { garden: 0.1 },
+    });
+    const article = buildTweetArticle({ id: '5903', text: 'garden' });
+    test.handle.discover();
+    await until(() => aria(iconButton(article)).includes('Allowed'));
+    iconButton(article).dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }));
+    const root = document.querySelector('[data-jev-panel]')?.shadowRoot;
+    const threshold = () => root?.querySelector<HTMLInputElement>('[data-jev-cat="custom:garden"]');
+    const input = threshold();
+    if (!input) throw new Error('threshold input missing');
+    input.focus();
+    input.value = '42';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    await browser.storage.local.set({
+      settings: applySettingsChange(settings.current, {
+        field: 'textFilter',
+        value: { ...filter, name: 'Renamed filter' },
+      }),
+    });
+    await until(() => !!root?.textContent?.includes('Renamed filter'));
+    expect(threshold()?.value).toBe('42');
+    expect(root?.activeElement).toBe(threshold());
+    await browser.storage.local.set({
+      settings: applySettingsChange(settings.current, {
+        field: 'textFilter',
+        value: { ...settings.current.textFilters[0]!, threshold: 0.75 },
+      }),
+    });
+    await until(() => threshold()?.value === '75');
+    expect(test.bg.jevCalls).toHaveLength(1);
+  } finally {
+    stopRuntime(test);
+    clearFeed();
+  }
+});

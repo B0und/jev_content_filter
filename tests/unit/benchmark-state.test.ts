@@ -50,11 +50,11 @@ it('rejects edits after failed hydration, then saves the recovered dataset after
     expect(state.getSnapshot().storageError).toBe('');
     state.update((current) => ({
       ...current,
-      thresholds: { ...current.thresholds, sexualContent: 0.73 },
+      thresholds: { ...current.thresholds, contentMatch: 0.73 },
     }));
     await saved.promise;
     expect(stored.cases[0]?.id).toBe('saved-case');
-    expect(stored.thresholds.sexualContent).toBe(0.73);
+    expect(stored.thresholds.contentMatch).toBe(0.73);
   } finally {
     stop();
     unsubscribe();

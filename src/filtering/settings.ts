@@ -2,10 +2,11 @@ import { Effect } from 'effect';
 import * as Schema from 'effect/Schema';
 import { BrowserError, browserEffect } from '../platform/browser';
 import { browser } from 'wxt/browser';
-import { FilterStatusSchema, SettingsReplySchema } from './schemas';
+import { FilterStatusSchema, SettingsReplySchema, TextFilterSchema } from './schemas';
 import {
   STORAGE_KEYS,
   defaultSettings,
+  textDecisionSignature,
   type FilterStatus,
   CATEGORY_KEYS,
   isTextProvider,
@@ -78,7 +79,15 @@ export const loadSettings = Effect.fn('loadSettings')(function* () {
     providerKeys[textProvider] = raw.gatewayKey;
   }
 
+  const initialFilters = stored[STORAGE_KEYS.settings] === undefined ? defaults.textFilters : [];
+  const textFilters = Array.isArray(raw.textFilters)
+    ? raw.textFilters
+        .filter(Schema.is(TextFilterSchema))
+        .filter((filter, index, all) => all.findIndex((other) => other.id === filter.id) === index)
+    : initialFilters;
+
   return {
+    textFilters,
     masterEnabled:
       typeof raw.masterEnabled === 'boolean' ? raw.masterEnabled : defaults.masterEnabled,
     textProvider,
@@ -97,6 +106,33 @@ export const loadSettings = Effect.fn('loadSettings')(function* () {
 export function applySettingsChange(current: Settings, change: SettingsChange): Settings {
   const next = { ...current };
   switch (change.field) {
+    case 'textFilter':
+    case 'patchTextFilter': {
+      let value;
+      if (change.field === 'patchTextFilter') {
+        const existing = current.textFilters.find((filter) => filter.id === change.id);
+        // A delayed edit must never recreate a rule deleted in another view.
+        if (!existing) return current;
+        value = { ...existing, ...change.value };
+      } else value = change.value;
+      if (!Schema.is(TextFilterSchema)(value) || !value.name.trim() || !value.instructions.trim())
+        throw new Error('Enter a filter name and instructions.');
+      const filter = {
+        ...value,
+        name: value.name.trim(),
+        instructions: value.instructions.trim(),
+      };
+      const exists = current.textFilters.some((item) => item.id === filter.id);
+      if (!exists && current.textFilters.length >= 20)
+        throw new Error('You can save up to 20 text filters.');
+      next.textFilters = exists
+        ? current.textFilters.map((item) => (item.id === filter.id ? filter : item))
+        : [...current.textFilters, filter];
+      break;
+    }
+    case 'deleteTextFilter':
+      next.textFilters = current.textFilters.filter((item) => item.id !== change.id);
+      break;
     case 'masterEnabled':
       if (typeof change.value !== 'boolean') throw new Error('Invalid filtering setting.');
       next.masterEnabled = change.value;
@@ -129,6 +165,7 @@ export function applySettingsChange(current: Settings, change: SettingsChange): 
       throw new Error('Unknown settings field.');
   }
   if (
+    textDecisionSignature(next.textFilters) !== textDecisionSignature(current.textFilters) ||
     next.textProvider !== current.textProvider ||
     next.providerKeys[next.textProvider] !== current.providerKeys[current.textProvider]
   )

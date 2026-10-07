@@ -15,6 +15,7 @@ import {
   TEXT_PROVIDERS,
   isTextProvider,
   type CategoryKey,
+  type TextFilter,
   type Settings,
   type SettingsChange,
   type TextProvider,
@@ -32,18 +33,18 @@ const PROVIDER_DETAILS: Record<
   vercel: {
     keyLabel: 'Vercel AI Gateway API key',
     placeholder: 'vck_…',
-    description: 'Post text is sent to Jev through Vercel AI Gateway for sexual-content checks.',
+    description: 'Post text is sent to Jev through Vercel AI Gateway to check your text filters.',
   },
   typesafe: {
     keyLabel: 'TypeSafe API key',
     placeholder: 'Paste your TypeSafe key',
-    description: "Post text is sent to Jev's Decisions API for sexual-content checks.",
+    description: "Post text is sent to Jev's Decisions API to check your text filters.",
   },
   openrouter: {
     keyLabel: 'OpenRouter API key',
     placeholder: 'Paste your OpenRouter key',
     description:
-      "Post text is sent to Jev through OpenRouter's Decisions API for sexual-content checks.",
+      "Post text is sent to Jev through OpenRouter's Decisions API to check your text filters.",
   },
 };
 
@@ -123,8 +124,8 @@ export function App() {
           <output aria-live="polite">{health}</output>
           {status?.state === 'failing' && (
             <p className="warning" role="alert">
-              Sexual-text checks are failing. See Open logs for details. Local AI-text and image
-              checks run separately.
+              Jev text checks are failing. See Open logs for details. Local AI-text and image checks
+              run separately.
             </p>
           )}
         </div>
@@ -151,20 +152,8 @@ export function App() {
             </p>
           </section>
 
-          <section
-            className="filter-section sexual-text-section"
-            aria-labelledby="sexual-text-heading"
-          >
-            <div className="section-heading">
-              <h2 id="sexual-text-heading">Sexual-text checks</h2>
-              <p>
-                These checks use Jev and the provider key below. They do not control AI-written-text
-                checks.
-              </p>
-            </div>
-            <div className="category-list">
-              <Category category="sexualText" settings={settings} update={popupState.update} />
-            </div>
+          <CustomTextFilters settings={settings} />
+          <section className="filter-section">
             <ProviderSettings settings={settings} report={report} />
           </section>
         </Tabs.Panel>
@@ -177,7 +166,7 @@ export function App() {
             </div>
             <ModelCard kind="image" status={models.image} />
             <p className="notice">
-              An illustration is not automatically sexual. Set each image category separately.
+              An illustration is not automatically explicit. Set each image category separately.
             </p>
             <div className="threshold-intro">Lower thresholds block more.</div>
             <div className="category-list">
@@ -239,6 +228,192 @@ function scanHealth(enabled: boolean, missingScript: boolean, report: TabReport 
     : 'Waiting for posts. No completed analysis yet.';
 }
 
+function CustomTextFilters({ settings }: { settings: Settings }) {
+  const [editing, setEditing] = useState<TextFilter | null>(null);
+  const [creating, setCreating] = useState(false);
+  return (
+    <section className="filter-section" aria-labelledby="custom-text-heading">
+      <div className="section-heading">
+        <h2 id="custom-text-heading">Your text filters</h2>
+        <p>
+          Describe posts you want to hide. Jev checks their meaning using the provider below.
+          Filters stay saved after browser restarts.
+        </p>
+      </div>
+      {!settings.providerKeys[settings.textProvider] && (
+        <p className="notice">Add a provider API key below to run these filters.</p>
+      )}
+      <div className="custom-filter-list">
+        {settings.textFilters.map((filter) => (
+          <article className="custom-filter" key={filter.id}>
+            <div className="custom-filter-heading">
+              <Switch.Root
+                className="switch"
+                aria-label={`Enable ${filter.name}`}
+                checked={filter.enabled}
+                onCheckedChange={(enabled) =>
+                  popupState.update({ field: 'patchTextFilter', id: filter.id, value: { enabled } })
+                }
+              >
+                <Switch.Thumb className="thumb" />
+              </Switch.Root>
+              <strong>{filter.name}</strong>
+              <span>{Number((filter.threshold * 100).toFixed(1))}%</span>
+            </div>
+            <p>{filter.instructions}</p>
+            <div className="custom-filter-actions">
+              <button
+                type="button"
+                onClick={() => {
+                  setEditing(filter);
+                  setCreating(false);
+                }}
+              >
+                Edit
+              </button>
+              <button
+                type="button"
+                aria-label={`Delete ${filter.name}`}
+                onClick={() => {
+                  void popupState.update({ field: 'deleteTextFilter', id: filter.id });
+                  if (editing?.id === filter.id) setEditing(null);
+                }}
+              >
+                Delete
+              </button>
+            </div>
+          </article>
+        ))}
+      </div>
+      {creating || editing ? (
+        <TextFilterEditor
+          key={editing?.id ?? 'new'}
+          filter={editing}
+          onClose={() => {
+            setEditing(null);
+            setCreating(false);
+          }}
+        />
+      ) : (
+        <button
+          type="button"
+          disabled={settings.textFilters.length >= 20}
+          onClick={() => setCreating(true)}
+        >
+          Add text filter
+        </button>
+      )}
+      {settings.textFilters.length >= 20 && (
+        <p className="notice">20 filters saved. Delete a filter to add another.</p>
+      )}
+    </section>
+  );
+}
+
+function TextFilterEditor({ filter, onClose }: { filter: TextFilter | null; onClose: () => void }) {
+  const [id] = useState(() => filter?.id ?? crypto.randomUUID());
+  const [editorId] = useState(() => crypto.randomUUID());
+  const active = useRef(true);
+  useEffect(() => {
+    active.current = true;
+    return () => {
+      active.current = false;
+      popupState.dismissEditorError(editorId);
+    };
+  }, [editorId]);
+  const [saving, setSaving] = useState(false);
+  const editedFields = useRef({ name: false, instructions: false, threshold: false });
+  const [name, setName] = useState(filter?.name ?? '');
+  const [instructions, setInstructions] = useState(filter?.instructions ?? '');
+  const [threshold, setThreshold] = useState(String((filter?.threshold ?? 0.65) * 100));
+  return (
+    <form
+      className="text-filter-editor"
+      onSubmit={async (event) => {
+        event.preventDefault();
+        if (saving || !name.trim() || !instructions.trim() || threshold === '') return;
+        setSaving(true);
+        try {
+          const value = {
+            name: name.trim(),
+            instructions: instructions.trim(),
+            threshold: Number(threshold) / 100,
+          };
+          const change: SettingsChange = filter
+            ? {
+                field: 'patchTextFilter',
+                id,
+                value: {
+                  ...(editedFields.current.name ? { name: value.name } : {}),
+                  ...(editedFields.current.instructions
+                    ? { instructions: value.instructions }
+                    : {}),
+                  ...(editedFields.current.threshold ? { threshold: value.threshold } : {}),
+                },
+              }
+            : { field: 'textFilter', value: { id, ...value, enabled: true } };
+          const saved = await popupState.update(change, editorId);
+          if (saved && active.current) onClose();
+        } finally {
+          if (active.current) setSaving(false);
+        }
+      }}
+    >
+      <label htmlFor="filter-name">Filter name</label>
+      <input
+        id="filter-name"
+        required
+        disabled={saving}
+        maxLength={80}
+        value={name}
+        onChange={(event) => {
+          editedFields.current.name = true;
+          setName(event.target.value);
+        }}
+        placeholder="Crypto promotions"
+      />
+      <label htmlFor="filter-instructions">What should be hidden?</label>
+      <textarea
+        id="filter-instructions"
+        required
+        disabled={saving}
+        maxLength={2000}
+        rows={3}
+        value={instructions}
+        onChange={(event) => {
+          editedFields.current.instructions = true;
+          setInstructions(event.target.value);
+        }}
+        placeholder="Posts promoting crypto tokens or get-rich-quick investment schemes"
+      />
+      <label htmlFor="filter-threshold">Block at probability (%)</label>
+      <input
+        id="filter-threshold"
+        type="number"
+        required
+        disabled={saving}
+        min={0}
+        max={100}
+        step={0.1}
+        value={threshold}
+        onChange={(event) => {
+          editedFields.current.threshold = true;
+          setThreshold(event.target.value);
+        }}
+      />
+      <p className="notice">Lower thresholds hide more posts.</p>
+      <div className="custom-filter-actions">
+        <button type="submit" disabled={saving}>
+          {saving ? 'Saving filter…' : 'Save filter'}
+        </button>
+        <button type="button" disabled={saving} onClick={onClose}>
+          Cancel
+        </button>
+      </div>
+    </form>
+  );
+}
+
 function ProviderSettings({ settings, report }: { settings: Settings; report: TabReport | null }) {
   const providerDetails = PROVIDER_DETAILS[settings.textProvider];
   const update = popupState.update;
@@ -246,7 +421,7 @@ function ProviderSettings({ settings, report }: { settings: Settings; report: Ta
     <details className="diagnostics">
       <summary>Jev provider and scan details</summary>
       <p className="provider-scope">
-        Only sexual-text checks use this provider and key. AI-written-text checks run locally.
+        Your text filters use this provider and key. AI-written-text checks run locally.
       </p>
       {report && (
         <p className="scan-details">
@@ -257,13 +432,13 @@ function ProviderSettings({ settings, report }: { settings: Settings; report: Ta
         </p>
       )}
       <div className="provider-field">
-        <label htmlFor="text-provider">Provider for sexual-text checks</label>
+        <label htmlFor="text-provider">Provider for Jev text filters</label>
         <select
           id="text-provider"
           value={settings.textProvider}
           onChange={(event) => {
             const provider = event.currentTarget.value;
-            if (isTextProvider(provider)) update({ field: 'textProvider', value: provider });
+            if (isTextProvider(provider)) void update({ field: 'textProvider', value: provider });
           }}
         >
           {TEXT_PROVIDERS.map((provider) => (
@@ -275,7 +450,7 @@ function ProviderSettings({ settings, report }: { settings: Settings; report: Ta
       </div>
       <ProviderKey key={settings.textProvider} settings={settings} />
       <p className="provider-description">
-        {providerDetails.description} Without a key, sexual text is not checked.
+        {providerDetails.description} Without a key, these text filters are not checked.
       </p>
     </details>
   );

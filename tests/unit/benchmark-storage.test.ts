@@ -25,8 +25,8 @@ describe('SQLite benchmark storage', () => {
             kind: 'llm',
             predictions: {
               [caseId]: {
-                sexualContent: 0.23,
-                review: { sexualContent: 'wrong' },
+                contentMatch: 0.23,
+                review: { contentMatch: 'wrong' },
               },
             },
           },
@@ -40,8 +40,8 @@ describe('SQLite benchmark storage', () => {
     try {
       const restored = secondStore.load();
       expect(restored.solutions[0]?.predictions[caseId]).toMatchObject({
-        sexualContent: 0.23,
-        review: { sexualContent: 'wrong' },
+        contentMatch: 0.23,
+        review: { contentMatch: 'wrong' },
       });
     } finally {
       secondStore.close();

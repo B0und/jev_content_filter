@@ -21,7 +21,7 @@ describe('pause restore', () => {
   it('unhides a classified post and its blocked link preview when filtering is paused', async () => {
     const test = await startRuntime();
     try {
-      test.bg.respond = () => ({ ok: true, sexual: 0.9 });
+      test.bg.respond = () => ({ ok: true, custom: { 'preset-1': 0.9 } });
       const article = buildTweetArticle({
         id: '1001',
         text: 'explicit text content',

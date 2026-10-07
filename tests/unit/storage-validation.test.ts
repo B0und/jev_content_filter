@@ -3,28 +3,36 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { loadLog, loadScanErrors } from '../../src/history/log';
 import { loadStatus, updateSettings } from '../../src/filtering/settings';
-import { defaultSettings, type BlockedEntry } from '../../src/filtering/types';
+import { defaultSettings, scoreLabel, type BlockedEntry } from '../../src/filtering/types';
 
 beforeEach(() => fakeBrowser.reset());
 
 describe('stored data validation', () => {
-  it('preserves readable legacy blocked rows while omitting malformed rows', async () => {
+  it('preserves blocked rows with unknown reason identifiers while omitting malformed rows', async () => {
     const entry: BlockedEntry = {
       tweetId: 'valid',
       author: '@author',
       snippet: 'blocked content',
       surface: 'Text',
       ts: 1,
-      reasons: [{ key: 'sexualText', score: 0.9 }],
+      reasons: [{ key: 'custom:preset-1', score: 0.9 }],
+    };
+    const unknownReason = {
+      ...entry,
+      tweetId: 'unknown-category',
+      reasons: [{ key: 'unknownCategory', score: 0.9 }],
     };
     await fakeBrowser.storage.local.set({
       blockedLog: [
         null,
         entry,
-        { ...entry, tweetId: 'invalid', reasons: [{ key: 'unknown', score: 0.9 }] },
+        unknownReason,
+        { ...entry, tweetId: 'invalid', reasons: [{ key: '', score: 0.9 }] },
+        { ...entry, tweetId: 'invalid-score', reasons: [{ key: 'anyRule', score: 2 }] },
       ],
     });
-    expect(await Effect.runPromise(loadLog())).toEqual([entry]);
+    expect(await Effect.runPromise(loadLog())).toEqual([entry, unknownReason]);
+    expect(scoreLabel(unknownReason.reasons[0]!.key)).toBe('Text filter');
   });
 
   it('preserves legacy scan errors and post-linked errors without admitting malformed rows', async () => {

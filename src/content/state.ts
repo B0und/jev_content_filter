@@ -4,7 +4,7 @@
 import {
   CATEGORY_KEYS,
   defaultSettings,
-  type CategoryKey,
+  type ScoreKey,
   type Settings,
   type TabReport,
 } from '../filtering/types';
@@ -19,8 +19,8 @@ export interface Post {
   previewText: string;
   version: number;
   partErrors: Record<'text' | 'images' | 'preview', string[]>;
-  scores: Partial<Record<CategoryKey, number>>;
-  previewScores: Partial<Record<CategoryKey, number>>;
+  scores: Partial<Record<ScoreKey, number>>;
+  previewScores: Partial<Record<ScoreKey, number>>;
   errors: string[];
   pending: boolean;
   textDone: boolean;
@@ -124,28 +124,44 @@ export function newPost(
   };
 }
 
-/** Every enabled category the post itself scored at or above its threshold. */
-export function hits(post: Post): Array<{ key: CategoryKey; score: number }> {
-  return CATEGORY_KEYS.flatMap((key) => {
-    const score = post.scores[key];
-    return settings.current.enabled[key] &&
-      score !== undefined &&
-      score >= settings.current.thresholds[key]
-      ? [{ key, score }]
+function customHits(scores: Partial<Record<ScoreKey, number>>) {
+  return settings.current.textFilters.flatMap((filter) => {
+    const key = `custom:${filter.id}` as const;
+    const score = scores[key];
+    return filter.enabled && score !== undefined && score >= filter.threshold
+      ? [{ key, label: filter.name, score }]
       : [];
   });
 }
 
+/** Every enabled category the post itself scored at or above its threshold. */
+export function hits(post: Post): Array<{ key: ScoreKey; label?: string; score: number }> {
+  return [
+    ...customHits(post.scores),
+    ...CATEGORY_KEYS.flatMap((key) => {
+      const score = post.scores[key];
+      return settings.current.enabled[key] &&
+        score !== undefined &&
+        score >= settings.current.thresholds[key]
+        ? [{ key, score }]
+        : [];
+    }),
+  ];
+}
+
 /** Same as {@link hits} but against link-preview scores only. */
-export function previewHits(post: Post): Array<{ key: CategoryKey; score: number }> {
-  return CATEGORY_KEYS.flatMap((key) => {
-    const score = post.previewScores[key];
-    return settings.current.enabled[key] &&
-      score !== undefined &&
-      score >= settings.current.thresholds[key]
-      ? [{ key, score }]
-      : [];
-  });
+export function previewHits(post: Post): Array<{ key: ScoreKey; label?: string; score: number }> {
+  return [
+    ...customHits(post.previewScores),
+    ...CATEGORY_KEYS.flatMap((key) => {
+      const score = post.previewScores[key];
+      return settings.current.enabled[key] &&
+        score !== undefined &&
+        score >= settings.current.thresholds[key]
+        ? [{ key, score }]
+        : [];
+    }),
+  ];
 }
 
 export function blocked(post: Post): boolean {
@@ -186,7 +202,10 @@ export function isAttached(post: Post): boolean {
 
 export function recordPageStats(post: Post): void {
   if (!pageAnalyzed.has(post.id)) {
-    for (const key of CATEGORY_KEYS) {
+    for (const key of [
+      ...CATEGORY_KEYS,
+      ...settings.current.textFilters.map((filter) => `custom:${filter.id}` as const),
+    ]) {
       if (post.scores[key] !== undefined || post.previewScores[key] !== undefined) {
         pageAnalyzed.add(post.id);
         break;

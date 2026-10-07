@@ -91,8 +91,8 @@ describe('popup settings state', () => {
     const stop = state.start();
     await whenSnapshot(state, () => state.getSnapshot().settings !== null);
 
-    state.update({ field: 'masterEnabled', value: false });
-    state.update({ field: 'threshold', category: 'porn', value: 0.61 });
+    void state.update({ field: 'masterEnabled', value: false });
+    void state.update({ field: 'threshold', category: 'porn', value: 0.61 });
     await bothWritesStarted.promise;
     stored = {
       ...stored,
@@ -163,7 +163,7 @@ describe('popup settings state', () => {
     );
     const stop = state.start();
     await whenSnapshot(state, () => state.getSnapshot().settings !== null);
-    state.update({ field: 'masterEnabled', value: false });
+    void state.update({ field: 'masterEnabled', value: false });
     await writeStarted.promise;
     stop();
     stored = savedSettings;
@@ -189,7 +189,7 @@ describe('popup settings state', () => {
     const stop = state.start();
     await whenSnapshot(state, () => state.getSnapshot().settings !== null);
 
-    state.update({ field: 'masterEnabled', value: false });
+    void state.update({ field: 'masterEnabled', value: false });
     await whenSnapshot(
       state,
       () => !state.getSnapshot().saving && state.getSnapshot().error.includes('worker unavailable'),
@@ -230,4 +230,137 @@ describe('popup settings state', () => {
     await reportAborted.promise;
     expect(state.getSnapshot().settings?.masterEnabled).toBe(true);
   });
+});
+
+it('reports the save outcome and clears a failed-save message after a successful retry', async () => {
+  let fail = true;
+  const state = createPopupState(
+    popupDependencies({
+      updateSettings: () =>
+        fail
+          ? Effect.fail(new BrowserError({ operation: 'test save', cause: 'storage unavailable' }))
+          : Effect.succeed(defaultSettings()),
+    }),
+  );
+  const stop = state.start();
+  try {
+    await whenSnapshot(state, () => state.getSnapshot().settings !== null);
+    const filter = {
+      id: 'draft',
+      name: 'Gardening',
+      instructions: 'garden',
+      enabled: true,
+      threshold: 0.72,
+    };
+    await expect(state.update({ field: 'textFilter', value: filter })).resolves.toBe(false);
+    expect(state.getSnapshot().settings?.textFilters).toEqual(defaultSettings().textFilters);
+    expect(state.getSnapshot().error).toContain('Could not save settings');
+    fail = false;
+    await expect(state.update({ field: 'textFilter', value: filter })).resolves.toBe(true);
+    expect(state.getSnapshot().error).toBe('');
+  } finally {
+    stop();
+  }
+});
+
+it('keeps another edits save error until that edit is successfully retried', async () => {
+  const requests: WriteRequest[] = [];
+  const state = createPopupState(
+    popupDependencies({
+      updateSettings: (change) =>
+        browserEffect('test save', () => {
+          const complete = deferred<Settings>();
+          requests.push({ change, complete });
+          return complete.promise;
+        }),
+    }),
+  );
+  const stop = state.start();
+  try {
+    await whenSnapshot(state, () => state.getSnapshot().settings !== null);
+    const failed = state.update({ field: 'masterEnabled', value: false });
+    const successful = state.update({
+      field: 'textFilter',
+      value: { ...defaultSettings().textFilters[0]!, threshold: 0.75 },
+    });
+    await whenSnapshot(state, () => requests.length === 2);
+    requests[0]?.complete.reject('first write failed');
+    await expect(failed).resolves.toBe(false);
+    requests[1]?.complete.resolve(defaultSettings());
+    await expect(successful).resolves.toBe(true);
+    expect(state.getSnapshot().error).toContain('first write failed');
+    const retry = state.update({ field: 'masterEnabled', value: false });
+    await whenSnapshot(state, () => requests.length === 3);
+    requests[2]?.complete.resolve(defaultSettings());
+    await expect(retry).resolves.toBe(true);
+    expect(state.getSnapshot().error).toBe('');
+  } finally {
+    stop();
+  }
+});
+
+it('dismisses an abandoned filter error without clearing another failed edit', async () => {
+  const state = createPopupState(
+    popupDependencies({
+      updateSettings: (change) =>
+        Effect.fail(new BrowserError({ operation: 'test save', cause: change.field })),
+    }),
+  );
+  const stop = state.start();
+  try {
+    await whenSnapshot(state, () => state.getSnapshot().settings !== null);
+    await state.update({ field: 'masterEnabled', value: false });
+    await state.update(
+      {
+        field: 'textFilter',
+        value: {
+          id: 'draft',
+          name: 'Draft',
+          instructions: 'garden',
+          enabled: true,
+          threshold: 0.65,
+        },
+      },
+      'editor-draft',
+    );
+    expect(state.getSnapshot().error).toContain('textFilter');
+    state.dismissEditorError('editor-draft');
+    expect(state.getSnapshot().error).toContain('masterEnabled');
+  } finally {
+    stop();
+  }
+});
+
+it('ignores a save error arriving after its editor closes', async () => {
+  const complete = deferred<Settings>();
+  const state = createPopupState(
+    popupDependencies({
+      updateSettings: () => browserEffect('test delayed save', () => complete.promise),
+    }),
+  );
+  const stop = state.start();
+  try {
+    await whenSnapshot(state, () => state.getSnapshot().settings !== null);
+    const saving = state.update(
+      {
+        field: 'textFilter',
+        value: {
+          id: 'late',
+          name: 'Draft',
+          instructions: 'garden',
+          enabled: true,
+          threshold: 0.65,
+        },
+      },
+      'closed-editor',
+    );
+    state.dismissEditorError('closed-editor');
+    complete.reject('late save failure');
+    await expect(saving).resolves.toBe(false);
+    expect(state.getSnapshot().error).toBe('');
+    expect(state.getSnapshot().saving).toBe(false);
+    expect(state.getSnapshot().settings?.textFilters).toEqual(defaultSettings().textFilters);
+  } finally {
+    stop();
+  }
 });

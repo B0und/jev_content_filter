@@ -15,21 +15,21 @@ import {
 
 const cases: BenchmarkCase[] = [
   {
-    id: 'nonsexual',
+    id: 'ordinary',
     modality: 'text',
-    title: 'Nonsexual',
+    title: 'Ordinary',
     text: 'A calm afternoon.',
-    labels: { sexualContent: 'no', aiGenerated: 'no' },
+    labels: { contentMatch: 'no', aiGenerated: 'no' },
     provenance: 'unknown',
     notes: '',
     createdAt: '2026-01-01T00:00:00.000Z',
   },
   {
-    id: 'sexual',
+    id: 'explicit',
     modality: 'image',
-    title: 'Sexual content',
+    title: 'Content match',
     imageUrl: './images/example.webp',
-    labels: { sexualContent: 'yes', aiGenerated: 'no' },
+    labels: { contentMatch: 'yes', aiGenerated: 'no' },
     provenance: 'unknown',
     notes: '',
     createdAt: '2026-01-01T00:00:00.000Z',
@@ -39,7 +39,7 @@ const cases: BenchmarkCase[] = [
     modality: 'text',
     title: 'Unknown',
     text: 'Needs review.',
-    labels: { sexualContent: 'unknown', aiGenerated: 'unknown' },
+    labels: { contentMatch: 'unknown', aiGenerated: 'unknown' },
     provenance: 'unknown',
     notes: '',
     createdAt: '2026-01-01T00:00:00.000Z',
@@ -52,14 +52,14 @@ const solution: BenchmarkSolution = {
   description: '',
   kind: 'llm',
   predictions: {
-    nonsexual: {
-      sexualContent: 0.1,
+    ordinary: {
+      contentMatch: 0.1,
       aiGenerated: 0.2,
       nsfwjs: emptyNsfwjsScores(),
       review: emptyPredictionReview(),
     },
-    sexual: {
-      sexualContent: 0.9,
+    explicit: {
+      contentMatch: 0.9,
       aiGenerated: 0.1,
       nsfwjs: emptyNsfwjsScores(),
       review: emptyPredictionReview(),
@@ -68,8 +68,8 @@ const solution: BenchmarkSolution = {
 };
 
 describe('benchmark metrics', () => {
-  it('scores only labeled sexual-content cases and reports coverage separately', () => {
-    const metrics = metricsFor(cases, solution, 'sexualContent', 0.5);
+  it('scores only labeled content-match cases and reports coverage separately', () => {
+    const metrics = metricsFor(cases, solution, 'contentMatch', 0.5);
     expect(metrics).toMatchObject({
       labeled: 2,
       scored: 2,
@@ -91,11 +91,11 @@ describe('benchmark metrics', () => {
       {
         ...solution,
         predictions: {
-          nonsexual: { ...solution.predictions.nonsexual!, sexualContent: 0.9 },
-          sexual: { ...solution.predictions.sexual!, sexualContent: 0.1 },
+          ordinary: { ...solution.predictions.ordinary!, contentMatch: 0.9 },
+          explicit: { ...solution.predictions.explicit!, contentMatch: 0.1 },
         },
       },
-      'sexualContent',
+      'contentMatch',
       0.5,
     );
     expect(metrics).toMatchObject({
@@ -125,18 +125,76 @@ describe('benchmark metrics', () => {
       JSON.stringify({
         name: 'Reviewed model',
         predictions: {
-          nonsexual: { sexualContent: 0.1, review: { sexualContent: 'right' } },
-          sexual: { sexualContent: 0.9, review: { sexualContent: 'wrong' } },
-          unknown: { review: { sexualContent: 'right' } },
+          ordinary: { contentMatch: 0.1, review: { contentMatch: 'right' } },
+          explicit: { contentMatch: 0.9, review: { contentMatch: 'wrong' } },
+          unknown: { review: { contentMatch: 'right' } },
         },
       }),
     );
-    expect(reviewed.predictions.unknown?.review.sexualContent).toBe('unreviewed');
+    expect(reviewed.predictions.unknown?.review.contentMatch).toBe('unreviewed');
     expect(manualReviewFor(cases, reviewed)).toEqual({ right: 1, wrong: 1, pending: 0 });
   });
 });
 
 describe('benchmark data migration', () => {
+  it.each([undefined, { extraThreshold: 0.3, anotherThreshold: 0.7 }])(
+    'restores a renamed task from saved values when threshold metadata is missing or ambiguous: %j',
+    (thresholds) => {
+      const restored = normalizeBenchmarkState({
+        cases: [{ ...cases[0], labels: { archivedQuestion: 'no', aiGenerated: 'yes' } }],
+        thresholds,
+        solutions: [
+          {
+            id: 'saved-run',
+            name: 'Saved run',
+            predictions: {
+              sample: {
+                archivedQuestion: 0.2,
+                aiGenerated: 0.8,
+                nsfwjs: { porn: 0.1, hentai: 0.2, sexy: 0.3, drawings: 0.4 },
+                review: { archivedQuestion: 'right', aiGenerated: 'wrong', porn: 'right' },
+              },
+            },
+          },
+        ],
+      });
+      expect(restored.cases[0]!.labels).toEqual({ contentMatch: 'no', aiGenerated: 'yes' });
+      expect(restored.solutions[0]!.predictions.sample).toMatchObject({
+        contentMatch: 0.2,
+        aiGenerated: 0.8,
+        nsfwjs: { porn: 0.1, hentai: 0.2, sexy: 0.3, drawings: 0.4 },
+        review: { contentMatch: 'right', aiGenerated: 'wrong', porn: 'right' },
+      });
+    },
+  );
+
+  it('preserves a renamed matching task without hardcoding its former name', () => {
+    const restored = normalizeBenchmarkState({
+      cases: [{ ...cases[0], labels: { archivedQuestion: 'no', aiGenerated: 'yes' } }],
+      thresholds: { archivedQuestion: 0.3, aiGenerated: 0.6, nsfwjs: 0.4 },
+      solutions: [
+        {
+          id: 'saved-run',
+          name: 'Saved run',
+          predictions: {
+            sample: {
+              archivedQuestion: 0.2,
+              aiGenerated: 0.8,
+              review: { archivedQuestion: 'right', aiGenerated: 'wrong' },
+            },
+          },
+        },
+      ],
+    });
+    expect(restored.cases[0]!.labels).toEqual({ contentMatch: 'no', aiGenerated: 'yes' });
+    expect(restored.thresholds.contentMatch).toBe(0.3);
+    expect(restored.solutions[0]!.predictions.sample).toMatchObject({
+      contentMatch: 0.2,
+      aiGenerated: 0.8,
+      review: { contentMatch: 'right', aiGenerated: 'wrong' },
+    });
+  });
+
   it('maps legacy positives, makes legacy negatives unknown, and omits incompatible scores', () => {
     const migrated = normalizeBenchmarkState({
       cases: [
@@ -164,7 +222,7 @@ describe('benchmark data migration', () => {
           modality: 'text',
           title: 'Current unknown',
           text: 'New policy label takes precedence.',
-          labels: { sexualContent: 'unknown', explicit: 'yes', aiGenerated: 'unknown' },
+          labels: { contentMatch: 'unknown', explicit: 'yes', aiGenerated: 'unknown' },
           provenance: 'unknown',
           notes: '',
           createdAt: '2026-01-03T00:00:00.000Z',
@@ -198,16 +256,16 @@ describe('benchmark data migration', () => {
       'current-unknown',
     ]);
     expect(migrated.cases[0]).toMatchObject({
-      labels: { sexualContent: 'yes', aiGenerated: 'no' },
+      labels: { contentMatch: 'yes', aiGenerated: 'no' },
       provenance: 'unknown',
       notes: 'Keep this case.',
     });
     expect(migrated.cases[1]).toMatchObject({
-      labels: { sexualContent: 'unknown', aiGenerated: 'yes' },
+      labels: { contentMatch: 'unknown', aiGenerated: 'yes' },
       provenance: 'user-provided',
       notes: 'Keep this case too.',
     });
-    expect(migrated.cases[2]?.labels.sexualContent).toBe('unknown');
+    expect(migrated.cases[2]?.labels.contentMatch).toBe('unknown');
     expect(migrated.selectedCaseId).toBe('legacy-negative');
     expect(migratedSolution).toMatchObject({
       id: 'saved-solution',
@@ -215,19 +273,19 @@ describe('benchmark data migration', () => {
       description: 'Keep solution metadata.',
       predictions: {
         'legacy-positive': {
-          sexualContent: null,
+          contentMatch: null,
           aiGenerated: 0.24,
           nsfwjs: { porn: 0.31, hentai: 0.42, sexy: 0.53, drawings: 0.64 },
-          review: { sexualContent: 'unreviewed', aiGenerated: 'wrong', porn: 'right' },
+          review: { contentMatch: 'unreviewed', aiGenerated: 'wrong', porn: 'right' },
         },
       },
     });
     expect(migrated.thresholds).toEqual({
-      sexualContent: 0.5,
+      contentMatch: 0.5,
       aiGenerated: 0.63,
       nsfwjs: 0.72,
     });
-    expect(metricsFor(migrated.cases, migratedSolution, 'sexualContent', 0.5)).toMatchObject({
+    expect(metricsFor(migrated.cases, migratedSolution, 'contentMatch', 0.5)).toMatchObject({
       labeled: 1,
       scored: 0,
       coverage: 0,
@@ -238,9 +296,9 @@ describe('benchmark data migration', () => {
     const state = normalizeBenchmarkState({ cases, solutions: [solution] });
     const exported = JSON.parse(exportBenchmarkState(state));
     expect(exported.version).toBe(2);
-    expect(exported.cases[0].labels).toEqual({ sexualContent: 'no', aiGenerated: 'no' });
+    expect(exported.cases[0].labels).toEqual({ contentMatch: 'no', aiGenerated: 'no' });
     expect(exported.cases[0].labels).not.toHaveProperty('explicit');
-    expect(exported.solutions[0].predictions.sexual.sexualContent).toBe(0.9);
+    expect(exported.solutions[0].predictions.explicit.contentMatch).toBe(0.9);
   });
 });
 
@@ -249,11 +307,11 @@ describe('benchmark data boundaries', () => {
     const imported = parseSolutionImport(
       JSON.stringify({
         name: 'Imported model',
-        predictions: { safe: { sexualContent: 4, aiGenerated: -1 } },
+        predictions: { safe: { contentMatch: 4, aiGenerated: -1 } },
       }),
     );
     expect(imported.predictions.safe).toEqual({
-      sexualContent: 1,
+      contentMatch: 1,
       aiGenerated: 0,
       nsfwjs: emptyNsfwjsScores(),
       review: emptyPredictionReview(),
@@ -277,7 +335,7 @@ describe('benchmark data boundaries', () => {
     );
     expect(imported.kind).toBe('nsfwjs');
     expect(imported.predictions.safe).toEqual({
-      sexualContent: null,
+      contentMatch: null,
       aiGenerated: null,
       nsfwjs: { porn: 0.1, hentai: 0.2, sexy: 0.3, drawings: 0.4 },
       review: emptyPredictionReview(),
@@ -304,9 +362,9 @@ describe('benchmark data boundaries', () => {
         predictions: {
           legacy: {
             explicit: 0.97,
-            sexualContent: 0.38,
+            contentMatch: 0.38,
             aiGenerated: 0.21,
-            review: { explicit: 'right', sexualContent: 'wrong' },
+            review: { explicit: 'right', contentMatch: 'wrong' },
           },
           oldOnly: { explicit: 0.83, aiGenerated: 0.42, review: { explicit: 'right' } },
         },
@@ -314,14 +372,14 @@ describe('benchmark data boundaries', () => {
     );
 
     expect(imported.predictions.legacy).toMatchObject({
-      sexualContent: 0.38,
+      contentMatch: 0.38,
       aiGenerated: 0.21,
-      review: { sexualContent: 'wrong' },
+      review: { contentMatch: 'wrong' },
     });
     expect(imported.predictions.oldOnly).toMatchObject({
-      sexualContent: null,
+      contentMatch: null,
       aiGenerated: 0.42,
-      review: { sexualContent: 'unreviewed' },
+      review: { contentMatch: 'unreviewed' },
     });
   });
 

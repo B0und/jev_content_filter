@@ -34,7 +34,8 @@ export interface PopupState {
   getSnapshot: () => PopupSnapshot;
   subscribe: (listener: () => void) => () => void;
   start: () => () => void;
-  update: (change: SettingsChange) => void;
+  update: (change: SettingsChange, editorId?: string) => Promise<boolean>;
+  dismissEditorError: (id: string) => void;
   openLogs: () => void;
   retryModel: (kind: ModelKind) => void;
 }
@@ -54,11 +55,14 @@ export interface PopupStateDependencies {
 type OptimisticEdit = {
   readonly change: SettingsChange;
   phase: 'saving' | 'confirmed';
+  readonly editorId: string | undefined;
+  abandoned?: boolean;
 };
 
 export function createPopupState(dependencies: PopupStateDependencies): PopupState {
   const subscribers = new Set<() => void>();
   const optimisticEdits: OptimisticEdit[] = [];
+  const saveErrors = new Map<string, { message: string }>();
   const settingsReadLock = Semaphore.makeUnsafe(1);
   const statusReadLock = Semaphore.makeUnsafe(1);
   const modelReadLock = Semaphore.makeUnsafe(1);
@@ -208,31 +212,81 @@ export function createPopupState(dependencies: PopupStateDependencies): PopupSta
     return stop;
   }
 
-  function update(change: SettingsChange): void {
-    if (!confirmedSettings) return;
-    const edit: OptimisticEdit = { change, phase: 'saving' };
+  function editKey(change: SettingsChange): string {
+    switch (change.field) {
+      case 'textFilter':
+        return `textFilter:${change.value.id}`;
+      case 'deleteTextFilter':
+      case 'patchTextFilter':
+        return `textFilter:${change.id}`;
+      case 'providerKey':
+        return `providerKey:${change.provider}`;
+      case 'enabled':
+      case 'threshold':
+        return `${change.field}:${change.category}`;
+      default:
+        return change.field;
+    }
+  }
+
+  function saveError(key: string, cause: unknown): void {
+    const error = `Could not save settings: ${String(cause)}`;
+    saveErrors.set(key, { message: error });
+    publish({ error });
+  }
+
+  function update(change: SettingsChange, editorId?: string): Promise<boolean> {
+    if (!confirmedSettings) return Promise.resolve(false);
+    const key = editorId ? `editor:${editorId}` : editKey(change);
+    const retriedError = saveErrors.get(key);
+    try {
+      applySettingsChange(currentSettings() ?? confirmedSettings, change);
+    } catch (cause) {
+      saveError(key, cause);
+      return Promise.resolve(false);
+    }
+    const edit: OptimisticEdit = { change, phase: 'saving', editorId };
     optimisticEdits.push(edit);
     publish();
 
     // The background owns read-modify-write and receives every edit immediately;
     // view disposal only stops the refresh used to reconcile this optimistic projection.
-    browserRuntime.runFork(
+    return browserRuntime.runPromise(
       dependencies.updateSettings(change).pipe(
         Effect.match({
           onSuccess: () => {
             edit.phase = 'confirmed';
-            publish();
+            if (saveErrors.get(key) === retriedError) saveErrors.delete(key);
+            const remainingError = [...saveErrors.values()].at(-1)?.message;
+            if (remainingError) publish({ error: remainingError });
+            else if (retriedError && snapshot.error === retriedError.message)
+              publish({ error: '' });
+            else publish();
             refreshSettingsWhileMounted?.();
+            return true;
           },
           onFailure: (cause) => {
             const index = optimisticEdits.indexOf(edit);
             if (index >= 0) optimisticEdits.splice(index, 1);
-            publish({ error: `Could not save settings: ${String(cause)}` });
+            if (edit.abandoned) publish();
+            else saveError(key, cause);
             refreshSettingsWhileMounted?.();
+            return false;
           },
         }),
       ),
     );
+  }
+
+  function dismissEditorError(id: string): void {
+    for (const edit of optimisticEdits) {
+      if (edit.editorId === id) edit.abandoned = true;
+    }
+    const key = `editor:${id}`;
+    const dismissed = saveErrors.get(key);
+    saveErrors.delete(key);
+    if (dismissed && snapshot.error === dismissed.message)
+      publish({ error: [...saveErrors.values()].at(-1)?.message ?? '' });
   }
 
   function openLogs(): void {
@@ -277,6 +331,7 @@ export function createPopupState(dependencies: PopupStateDependencies): PopupSta
     },
     start,
     update,
+    dismissEditorError,
     openLogs,
     retryModel,
   };
