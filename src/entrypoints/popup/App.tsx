@@ -302,6 +302,7 @@ function CustomFilter({
   onEdit: () => void;
   onDelete: () => void;
 }) {
+  /** Persist only this filter threshold so concurrent edits keep their other fields. */
   const saveThreshold = useCallback(
     (value: number) => {
       void popupState.update({
@@ -612,6 +613,7 @@ function Category({
   settings: Settings;
   update: (change: SettingsChange) => void;
 }) {
+  /** Persist the selected built-in category threshold. */
   const saveThreshold = useCallback(
     (value: number) => {
       update({ field: 'threshold', category: key, value });
@@ -666,6 +668,7 @@ function Threshold({
     timer.current = undefined;
     pendingPercent.current = undefined;
   }, [percent]);
+  /** Save the latest pending percentage once, clearing any scheduled save. */
   const flush = useCallback(() => {
     clearTimeout(timer.current);
     timer.current = undefined;
@@ -684,6 +687,7 @@ function Threshold({
     setLastSyncedPercent(percent);
     setDraft(String(percent));
   }
+  /** Show the draft immediately and postpone persistence until edits stop. */
   const setPercent = (value: number) => {
     setDraft(String(value));
     pendingPercent.current = value;

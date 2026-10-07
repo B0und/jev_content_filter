@@ -78,6 +78,10 @@ export class ExtensionSession {
     }
   }
 
+  /**
+   * Launch the extension in its persistent profile and attach runtime logging.
+   * Live mode uses the OS credential store; fixture mode seeds isolated test settings.
+   */
   async start({ build = true } = {}) {
     await mkdir(this.artifacts, { recursive: true });
     this.logStream = createWriteStream(path.join(this.artifacts, 'console.jsonl'), {

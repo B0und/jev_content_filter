@@ -86,6 +86,7 @@ interface ContentSessionApi {
 class ContentSession extends Context.Service<ContentSession, ContentSessionApi>()(
   'jev/content/ContentSession',
 ) {
+  /** Scope discovery, classification and retries to the lifetime of this content script. */
   static readonly layer = (ctx: ContentScriptContext) =>
     Layer.effect(
       ContentSession,
@@ -123,6 +124,7 @@ class ContentSession extends Context.Service<ContentSession, ContentSessionApi>(
           if (post.partErrors.images.length) post.imagesDone = false;
           if (post.partErrors.preview.length) post.previewDone = false;
         });
+        /** Release controls and reserved geometry before X reuses or removes an article. */
         const detachBinding = Effect.fnUntraced(function* (article: HTMLElement) {
           const binding = untrackBinding(article);
           if (!binding) return;
