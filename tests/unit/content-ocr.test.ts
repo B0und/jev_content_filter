@@ -17,6 +17,7 @@ import {
 
 const imageUrl = 'https://pbs.twimg.com/media/text.png?name=small';
 const explicitText = 'Как называется этап, когда она не стесняется сосать твой член?';
+/** Start a content session with only sexual-text filtering enabled for OCR assertions. */
 function configured() {
   const current = baseSettings();
   return baseSettings({

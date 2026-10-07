@@ -211,6 +211,7 @@ const imageText = Effect.fnUntraced(function* (urls: string[]) {
 
 // --- Text scores ------------------------------------------------------------
 
+/** Check captions and image words while rejecting results from obsolete provider settings. */
 export const textScores = Effect.fnUntraced(function* (
   post: Post,
   text: string,
@@ -335,6 +336,7 @@ export const imageScores = Effect.fnUntraced(function* (urls: string[]) {
   return yield* Semaphore.withPermit(imageInference, classifyImages(urls));
 });
 
+/** Combine cached and freshly inferred image scores, retaining individual extraction errors. */
 const classifyImages = Effect.fnUntraced(function* (
   urls: string[],
 ): Effect.fn.Return<

@@ -241,6 +241,7 @@ function scanHealth(enabled: boolean, missingScript: boolean, report: TabReport 
     : 'Waiting for posts. No completed analysis yet.';
 }
 
+/** Show sexual-text provider configuration and the current tab's scan status. */
 function ProviderSettings({ settings, report }: { settings: Settings; report: TabReport | null }) {
   const providerDetails = PROVIDER_DETAILS[settings.textProvider];
   const update = popupState.update;

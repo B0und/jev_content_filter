@@ -80,6 +80,7 @@ function mediaSource(element: HTMLImageElement | HTMLVideoElement): string {
     : element.currentSrc || element.src;
 }
 
+/** Restrict image discovery to supported X media and preview URLs. */
 function isFilterableMediaUrl(url: string): boolean {
   if (!url) return false;
   try {

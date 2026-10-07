@@ -49,7 +49,6 @@ export const warmLocalModels = Effect.fn('warmLocalModels')(function* (models: M
     return yield* new BrowserError({ operation: 'load local models', cause: reply.error });
 });
 
-/** Run local OCR through the shared offscreen inference document. */
 /** Request OCR through the offscreen document and restore its typed error channel. */
 export const runLocalOcr = Effect.fn('runLocalOcr')(function* (dataUrl: string) {
   yield* ensureDocument;

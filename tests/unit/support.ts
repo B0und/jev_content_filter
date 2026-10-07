@@ -71,6 +71,7 @@ export interface FakeBackground {
   stats: number[];
 }
 
+/** Install deterministic provider and OCR replies while recording outgoing requests. */
 export function installFakeBackground(): FakeBackground {
   const bg: FakeBackground = {
     respond: () => ({ ok: true, sexual: 0.01 }),
