@@ -20,6 +20,7 @@ import { canRetry, imageScores, MAX_RETRIES, message, textScores } from './class
 import { readArticle, sameUrls } from './dom';
 import {
   createBinding,
+  restoreBinding,
   injectGlobalStyle,
   installActivation,
   logEffects,
@@ -125,6 +126,7 @@ class ContentSession extends Context.Service<ContentSession, ContentSessionApi>(
         const detachBinding = Effect.fnUntraced(function* (article: HTMLElement) {
           const binding = untrackBinding(article);
           if (!binding) return;
+          restoreBinding(article, binding);
           binding.host.remove();
           if (isAttached(binding.post)) return;
           yield* cancelRetry(binding.post);

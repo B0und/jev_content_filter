@@ -161,7 +161,8 @@ body {
 .popup a:focus-visible,
 .popup summary:focus-visible,
 .popup input:focus-visible,
-.popup select:focus-visible {
+.popup select:focus-visible,
+.popup textarea:focus-visible {
   outline: 2px solid var(--signal);
   outline-offset: 2px;
 }
@@ -686,9 +687,14 @@ body {
   overflow-wrap: anywhere;
 }
 .custom-filter p {
-  margin: 8px 0;
+  margin: 3px 0;
+  padding-left: 45px;
+  font-size: 12px;
   overflow-wrap: anywhere;
   color: var(--muted);
+}
+.custom-filter > .custom-filter-actions {
+  padding-left: 45px;
 }
 .custom-filter-actions {
   display: flex;
@@ -710,4 +716,25 @@ body {
 }
 .text-filter-editor textarea {
   resize: vertical;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.model-details summary {
+  color: var(--muted);
+  font-size: 11px;
+  cursor: pointer;
+}
+.model-details p {
+  margin: 5px 0 0;
 }

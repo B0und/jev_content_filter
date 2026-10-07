@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useId,
   useRef,
   useState,
   useSyncExternalStore,
@@ -245,46 +246,23 @@ function CustomTextFilters({ settings }: { settings: Settings }) {
       {!settings.providerKeys[settings.textProvider] && (
         <p className="notice">Add a provider API key below to run these filters.</p>
       )}
+      <p className="threshold-intro">
+        Lower thresholds hide more. Adjust each filter after adding it.
+      </p>
       <div className="custom-filter-list">
         {settings.textFilters.map((filter) => (
-          <article className="custom-filter" key={filter.id}>
-            <div className="custom-filter-heading">
-              <Switch.Root
-                className="switch"
-                aria-label={`Enable ${filter.name}`}
-                checked={filter.enabled}
-                onCheckedChange={(enabled) =>
-                  popupState.update({ field: 'patchTextFilter', id: filter.id, value: { enabled } })
-                }
-              >
-                <Switch.Thumb className="thumb" />
-              </Switch.Root>
-              <strong>{filter.name}</strong>
-              <span>{Number((filter.threshold * 100).toFixed(1))}%</span>
-            </div>
-            <p>{filter.instructions}</p>
-            <div className="custom-filter-actions">
-              <button
-                type="button"
-                onClick={() => {
-                  setEditing(filter);
-                  setCreating(false);
-                }}
-              >
-                Edit
-              </button>
-              <button
-                type="button"
-                aria-label={`Delete ${filter.name}`}
-                onClick={() => {
-                  void popupState.update({ field: 'deleteTextFilter', id: filter.id });
-                  if (editing?.id === filter.id) setEditing(null);
-                }}
-              >
-                Delete
-              </button>
-            </div>
-          </article>
+          <CustomFilter
+            key={filter.id}
+            filter={filter}
+            onEdit={() => {
+              setEditing(filter);
+              setCreating(false);
+            }}
+            onDelete={() => {
+              void popupState.update({ field: 'deleteTextFilter', id: filter.id });
+              if (editing?.id === filter.id) setEditing(null);
+            }}
+          />
         ))}
       </div>
       {creating || editing ? (
@@ -312,6 +290,59 @@ function CustomTextFilters({ settings }: { settings: Settings }) {
   );
 }
 
+function CustomFilter({
+  filter,
+  onEdit,
+  onDelete,
+}: {
+  filter: TextFilter;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const saveThreshold = useCallback(
+    (value: number) => {
+      void popupState.update({
+        field: 'patchTextFilter',
+        id: filter.id,
+        value: { threshold: value },
+      });
+    },
+    [filter.id],
+  );
+  return (
+    <article className={`custom-filter category ${filter.enabled ? '' : 'disabled'}`}>
+      <div className="custom-filter-heading category-label">
+        <Switch.Root
+          className="switch"
+          aria-label={`Enable ${filter.name}`}
+          checked={filter.enabled}
+          onCheckedChange={(enabled) =>
+            popupState.update({ field: 'patchTextFilter', id: filter.id, value: { enabled } })
+          }
+        >
+          <Switch.Thumb className="thumb" />
+        </Switch.Root>
+        <strong>{filter.name}</strong>
+      </div>
+      <Threshold
+        label={filter.name}
+        value={filter.threshold}
+        enabled={filter.enabled}
+        save={saveThreshold}
+      />
+      <p>{filter.instructions}</p>
+      <div className="custom-filter-actions">
+        <button type="button" onClick={onEdit}>
+          Edit
+        </button>
+        <button type="button" aria-label={`Delete ${filter.name}`} onClick={onDelete}>
+          Delete
+        </button>
+      </div>
+    </article>
+  );
+}
+
 function TextFilterEditor({ filter, onClose }: { filter: TextFilter | null; onClose: () => void }) {
   const [id] = useState(() => filter?.id ?? crypto.randomUUID());
   const [editorId] = useState(() => crypto.randomUUID());
@@ -324,22 +355,21 @@ function TextFilterEditor({ filter, onClose }: { filter: TextFilter | null; onCl
     };
   }, [editorId]);
   const [saving, setSaving] = useState(false);
-  const editedFields = useRef({ name: false, instructions: false, threshold: false });
+  const editedFields = useRef({ name: false, instructions: false });
   const [name, setName] = useState(filter?.name ?? '');
   const [instructions, setInstructions] = useState(filter?.instructions ?? '');
-  const [threshold, setThreshold] = useState(String((filter?.threshold ?? 0.65) * 100));
   return (
     <form
       className="text-filter-editor"
       onSubmit={async (event) => {
         event.preventDefault();
-        if (saving || !name.trim() || !instructions.trim() || threshold === '') return;
+        if (saving || !name.trim() || !instructions.trim()) return;
         setSaving(true);
         try {
           const value = {
             name: name.trim(),
             instructions: instructions.trim(),
-            threshold: Number(threshold) / 100,
+            threshold: 0.65,
           };
           const change: SettingsChange = filter
             ? {
@@ -350,7 +380,6 @@ function TextFilterEditor({ filter, onClose }: { filter: TextFilter | null; onCl
                   ...(editedFields.current.instructions
                     ? { instructions: value.instructions }
                     : {}),
-                  ...(editedFields.current.threshold ? { threshold: value.threshold } : {}),
                 },
               }
             : { field: 'textFilter', value: { id, ...value, enabled: true } };
@@ -388,22 +417,6 @@ function TextFilterEditor({ filter, onClose }: { filter: TextFilter | null; onCl
         }}
         placeholder="Posts promoting crypto tokens or get-rich-quick investment schemes"
       />
-      <label htmlFor="filter-threshold">Block at probability (%)</label>
-      <input
-        id="filter-threshold"
-        type="number"
-        required
-        disabled={saving}
-        min={0}
-        max={100}
-        step={0.1}
-        value={threshold}
-        onChange={(event) => {
-          editedFields.current.threshold = true;
-          setThreshold(event.target.value);
-        }}
-      />
-      <p className="notice">Lower thresholds hide more posts.</p>
       <div className="custom-filter-actions">
         <button type="submit" disabled={saving}>
           {saving ? 'Saving filter…' : 'Save filter'}
@@ -540,13 +553,16 @@ function ModelCard({ kind, status }: { kind: ModelKind; status: ModelStatus }) {
           >
             {model.title}
           </a>
-          <span className="model-revision">
-            {model.id} · {model.revision}
-          </span>
         </div>
         <span className="model-state">{statusLabel}</span>
       </div>
-      <p className="model-description">{model.description}</p>
+      <details className="model-details">
+        <summary>Model details</summary>
+        <p className="model-description">{model.description}</p>
+        <p className="model-revision">
+          {model.id} · {model.revision}
+        </p>
+      </details>
       {status.state === 'loading' && (
         <div className="model-loading">
           <progress
@@ -590,7 +606,48 @@ function Category({
   settings: Settings;
   update: (change: SettingsChange) => void;
 }) {
-  const percent = Number((settings.thresholds[key] * 100).toFixed(1));
+  const saveThreshold = useCallback(
+    (value: number) => {
+      update({ field: 'threshold', category: key, value });
+    },
+    [key, update],
+  );
+  return (
+    <div className={`category ${settings.enabled[key] ? '' : 'disabled'}`}>
+      <div className="category-label">
+        <Switch.Root
+          className="switch"
+          aria-label={`Enable ${CATEGORY_LABELS[key]}`}
+          checked={settings.enabled[key]}
+          onCheckedChange={(checked) => update({ field: 'enabled', category: key, value: checked })}
+        >
+          <Switch.Thumb className="thumb" />
+        </Switch.Root>
+        <span>{CATEGORY_LABELS[key]}</span>
+      </div>
+      <Threshold
+        label={CATEGORY_LABELS[key]}
+        value={settings.thresholds[key]}
+        enabled={settings.enabled[key]}
+        save={saveThreshold}
+      />
+    </div>
+  );
+}
+
+function Threshold({
+  label,
+  value,
+  enabled,
+  save,
+}: {
+  label: string;
+  value: number;
+  enabled: boolean;
+  save: (value: number) => void;
+}) {
+  const hintId = useId();
+  const percent = Number((value * 100).toFixed(1));
   const [draft, setDraft] = useState(String(percent));
   const [lastSyncedPercent, setLastSyncedPercent] = useState(percent);
   const pendingPercent = useRef<number | undefined>(undefined);
@@ -607,8 +664,8 @@ function Category({
     timer.current = undefined;
     const value = pendingPercent.current;
     pendingPercent.current = undefined;
-    if (value !== undefined) update({ field: 'threshold', category: key, value: value / 100 });
-  }, [key, update]);
+    if (value !== undefined) save(value / 100);
+  }, [save]);
   useEffect(() => {
     window.addEventListener('pagehide', flush);
     return () => {
@@ -628,54 +685,47 @@ function Category({
   };
   const displayedPercent = draft !== '' && Number.isFinite(Number(draft)) ? Number(draft) : percent;
   return (
-    <div className={`category ${settings.enabled[key] ? '' : 'disabled'}`}>
-      <div className="category-label">
-        <Switch.Root
-          className="switch"
-          aria-label={`Enable ${CATEGORY_LABELS[key]}`}
-          checked={settings.enabled[key]}
-          onCheckedChange={(checked) => update({ field: 'enabled', category: key, value: checked })}
-        >
-          <Switch.Thumb className="thumb" />
-        </Switch.Root>
-        <span>{CATEGORY_LABELS[key]}</span>
-      </div>
-      <div className="threshold">
-        <input
-          type="range"
-          min="0"
-          max="100"
-          step="0.1"
-          value={displayedPercent}
-          disabled={!settings.enabled[key]}
-          aria-label={`${CATEGORY_LABELS[key]} threshold`}
-          onChange={(event) => setPercent(event.target.valueAsNumber)}
-        />
-        <input
-          type="number"
-          min="0"
-          max="100"
-          step="0.1"
-          value={draft}
-          disabled={!settings.enabled[key]}
-          aria-label={`${CATEGORY_LABELS[key]} threshold percent`}
-          onChange={(event) => {
-            setDraft(event.target.value);
-            if (event.target.validity.valid && event.target.value !== '')
-              setPercent(event.target.valueAsNumber);
-            else {
-              clearTimeout(timer.current);
-              pendingPercent.current = undefined;
-            }
-          }}
-          onBlur={() => {
-            const value = pendingPercent.current ?? percent;
-            flush();
-            setDraft(String(value));
-          }}
-        />
-        <span>%</span>
-      </div>
+    <div className="threshold">
+      <input
+        type="range"
+        min="0"
+        max="100"
+        step="1"
+        value={displayedPercent}
+        disabled={!enabled}
+        aria-label={`${label} threshold`}
+        aria-valuetext={`${Math.round(displayedPercent)}%`}
+        aria-describedby={hintId}
+        onChange={(event) => setPercent(event.target.valueAsNumber)}
+      />
+      <input
+        type="number"
+        min="0"
+        max="100"
+        step="1"
+        value={draft}
+        disabled={!enabled}
+        aria-label={`${label} threshold percent`}
+        aria-describedby={hintId}
+        onChange={(event) => {
+          setDraft(event.target.value);
+          if (event.target.validity.valid && event.target.value !== '')
+            setPercent(event.target.valueAsNumber);
+          else {
+            clearTimeout(timer.current);
+            pendingPercent.current = undefined;
+          }
+        }}
+        onBlur={() => {
+          const value = pendingPercent.current ?? percent;
+          flush();
+          setDraft(String(value));
+        }}
+      />
+      <span>%</span>
+      <span id={hintId} className="sr-only">
+        Lower thresholds hide more posts.
+      </span>
     </div>
   );
 }

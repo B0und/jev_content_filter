@@ -44,6 +44,9 @@ export interface Binding {
   button: HTMLButtonElement;
   /** Serialized last-render state; skips identical DOM writes. */
   renderState?: string;
+  hiddenSlot?: HTMLElement;
+  preservedCell?: HTMLElement;
+  revealed?: boolean;
 }
 
 export const posts = new Map<string, Post>();

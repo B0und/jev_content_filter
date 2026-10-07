@@ -249,7 +249,7 @@ test('rapid credential edits survive popup close and independent windows preserv
   ).toBeEnabled();
   await first.getByRole('button', { name: 'Edit', exact: true }).click();
   await Promise.all([
-    first.getByLabel('Block at probability (%)').fill('37'),
+    first.getByRole('spinbutton', { name: 'Content filter threshold percent' }).fill('37'),
     second
       .getByRole('spinbutton', { name: 'AI-written text threshold percent', exact: true })
       .fill('48'),

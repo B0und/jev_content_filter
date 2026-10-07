@@ -89,6 +89,8 @@ export class ExtensionSession {
     this.browser = await puppeteer.launch({
       executablePath: process.env.EXTENSION_BROWSER_PATH || chromium.executablePath(),
       userDataDir: this.profile,
+      // Live profiles use the OS keychain, matching desktop Chromium sessions.
+      ignoreDefaultArgs: this.live ? ['--password-store=basic', '--use-mock-keychain'] : [],
       headless: this.headless,
       pipe: true,
       enableExtensions: true,

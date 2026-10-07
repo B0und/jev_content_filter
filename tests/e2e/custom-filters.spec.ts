@@ -33,10 +33,12 @@ for (const editThreshold of [false, true]) {
       .getByRole('spinbutton', { name: 'Content filter threshold percent' });
     await threshold.fill('40');
     await threshold.press('Tab');
-    await expect(popup.locator('.custom-filter-heading')).toContainText('40%');
+    await expect(
+      popup.getByRole('spinbutton', { name: 'Content filter threshold percent' }),
+    ).toHaveValue('40');
     if (editThreshold) {
-      await popup.getByLabel('Block at probability (%)').fill('70');
-      await popup.getByLabel('Block at probability (%)').fill('65');
+      await popup.getByRole('spinbutton', { name: 'Content filter threshold percent' }).fill('70');
+      await popup.getByRole('spinbutton', { name: 'Content filter threshold percent' }).fill('65');
     }
     await popup.getByRole('button', { name: 'Save filter' }).click();
     await expect
@@ -105,13 +107,14 @@ test('custom filters can be created, edited, disabled and deleted while the feed
   await expect(garden).toBeHidden();
   await popup.reload();
   await expect(popup.getByRole('switch', { name: 'Enable Gardening', exact: true })).toBeChecked();
-  await popup.getByRole('button', { name: 'Edit', exact: true }).click();
-  await popup.getByLabel('Block at probability (%)').fill('95');
-  await popup.getByRole('button', { name: 'Save filter' }).click();
+  await popup.getByRole('spinbutton', { name: 'Gardening threshold percent' }).fill('95');
+  await popup.getByRole('spinbutton', { name: 'Gardening threshold percent' }).press('Tab');
   await expect(garden).toBeVisible();
-  await popup.getByRole('button', { name: 'Edit', exact: true }).click();
-  await popup.getByLabel('Block at probability (%)').fill('65');
-  await popup.getByRole('button', { name: 'Save filter' }).click();
+  const slider = popup.getByRole('slider', { name: 'Gardening threshold', exact: true });
+  await slider.focus();
+  await slider.press('Home');
+  for (let percent = 0; percent < 65; percent++) await slider.press('ArrowRight');
+  await expect(slider).toHaveValue('65');
   await expect(garden).toBeHidden();
   await popup.getByRole('switch', { name: 'Enable Gardening', exact: true }).click();
   await expect(garden).toBeVisible();
@@ -157,7 +160,7 @@ test('a failed filter save preserves the draft for a successful retry', async ({
   await popup.getByRole('button', { name: 'Add text filter' }).click();
   await popup.getByLabel('Filter name', { exact: true }).fill('Gardening');
   await popup.getByLabel('What should be hidden?').fill('Posts about the garden');
-  await popup.getByLabel('Block at probability (%)').fill('72');
+  await expect(popup.getByLabel('Block at probability (%)')).toHaveCount(0);
   await worker.evaluate(() => {
     const originalSet = chrome.storage.local.set.bind(chrome.storage.local);
     Object.assign(globalThis, {
@@ -177,7 +180,7 @@ test('a failed filter save preserves the draft for a successful retry', async ({
     ).toBeVisible();
     await expect(popup.getByLabel('Filter name', { exact: true })).toHaveValue('Gardening');
     await expect(popup.getByLabel('What should be hidden?')).toHaveValue('Posts about the garden');
-    await expect(popup.getByLabel('Block at probability (%)')).toHaveValue('72');
+    await expect(popup.getByLabel('Block at probability (%)')).toHaveCount(0);
   } finally {
     await worker.evaluate('globalThis.restoreCustomFilterStorage()');
   }

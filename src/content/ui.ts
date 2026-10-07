@@ -53,7 +53,7 @@ const ICON_CSS = `
 
 const GLOBAL_CSS = `
 article[data-jev-hidden],
-[data-testid="cellInnerDiv"]:has(article[data-jev-hidden]):not(:has(article:not([data-jev-hidden]))) {
+[data-testid="cellInnerDiv"]:has(article[data-jev-hidden]):not([data-jev-preserved]):not(:has(article:not([data-jev-hidden]))) {
   display: none !important;
 }
 [data-jev-card-hidden] {
@@ -102,19 +102,77 @@ export function removeGlobalStyle(): void {
 export function restoreAll(): void {
   for (const [article, binding] of bindings) {
     if (article.isConnected) {
-      article.removeAttribute('data-jev-hidden');
+      restoreBinding(article, binding);
       applyCard(article, binding.post, false);
     }
   }
 }
 
+/** Remove owned layout reservations on pause, unblocking, recycling and teardown. */
+export function restoreBinding(article: HTMLElement, binding: Binding): void {
+  article.removeAttribute('data-jev-hidden');
+  binding.hiddenSlot?.remove();
+  binding.preservedCell?.removeAttribute('data-jev-preserved');
+  delete binding.hiddenSlot;
+  delete binding.preservedCell;
+}
+
+function hiddenReason(post: Post): string {
+  return `Hidden by ${hits(post)
+    .map(
+      (hit) =>
+        `${scoreLabel(hit.key, settings.current.textFilters)} (${Math.round(hit.score * 100)}%)`,
+    )
+    .join(', ')}`;
+}
+
 function applyVisibility(article: HTMLElement, binding: Binding): void {
   const { post } = binding;
-  if (!blocked(post)) {
-    article.removeAttribute('data-jev-hidden');
+  if (!blocked(post) || binding.revealed) {
+    restoreBinding(article, binding);
+    if (!blocked(post)) binding.revealed = false;
     return;
   }
-  article.setAttribute('data-jev-hidden', '');
+  if (!article.hasAttribute('data-jev-hidden')) {
+    const rect = article.getBoundingClientRect();
+    // Late decisions must not change the geometry in or above the reading
+    // position. Below-viewport posts can still collapse before they are read.
+    if (rect.height > 0 && rect.top < window.innerHeight) {
+      const slot = document.createElement('div');
+      slot.dataset.jevHiddenSlot = '';
+      const computed = getComputedStyle(article);
+      slot.style.cssText = `height: ${article.offsetHeight}px; margin-top: ${computed.marginTop}; margin-bottom: ${computed.marginBottom}; box-sizing: border-box; position: relative;`;
+      const cell = article.closest<HTMLElement>('[data-testid="cellInnerDiv"]');
+      if (cell && cell.querySelectorAll('article').length === 1) {
+        cell.dataset.jevPreserved = '';
+        binding.preservedCell = cell;
+      }
+      const root = slot.attachShadow({ mode: 'open' });
+      const style = document.createElement('style');
+      style.textContent = `:host { display: block; } .notice { box-sizing: border-box; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 12px; color: var(--jev-muted); background: var(--jev-bg); font: 13px/1.4 system-ui, sans-serif; text-align: center; overflow: hidden; } p { margin: 0; overflow-wrap: anywhere; } button { font: inherit; color: #1d9bf0; background: transparent; border: 1px solid currentColor; border-radius: 999px; padding: 5px 14px; cursor: pointer; } button:focus-visible { outline: 2px solid #1d9bf0; outline-offset: 3px; }`;
+      const notice = document.createElement('div');
+      notice.className = 'notice';
+      const reason = document.createElement('p');
+      reason.textContent = hiddenReason(post);
+      const show = document.createElement('button');
+      show.type = 'button';
+      show.textContent = 'Show post';
+      revealActions.set(show, () => {
+        binding.revealed = true;
+        renderPostAtUiBoundary(post);
+        binding.button.focus({ preventScroll: true });
+      });
+      notice.append(reason, show);
+      root.append(style, notice);
+      slot.style.setProperty('--jev-muted', isDark(article) ? '#a3abb2' : '#536471');
+      slot.style.setProperty('--jev-bg', isDark(article) ? '#10171c' : '#f7f9f9');
+      article.before(slot);
+      binding.hiddenSlot = slot;
+    }
+    article.setAttribute('data-jev-hidden', '');
+  }
+  const reason = binding.hiddenSlot?.shadowRoot?.querySelector('p');
+  if (reason && reason.textContent !== hiddenReason(post)) reason.textContent = hiddenReason(post);
 }
 
 function applyCard(article: HTMLElement, post: Post, hiding: boolean): void {
@@ -141,6 +199,7 @@ function applyCard(article: HTMLElement, post: Post, hiding: boolean): void {
 
 /** Tracks what each button points at so the capture-phase click listener can find the post. */
 const buttonPosts = new WeakMap<HTMLButtonElement, Post>();
+const revealActions = new WeakMap<HTMLButtonElement, () => void>();
 
 export function createBinding(post: Post): Binding {
   const host = document.createElement('div');
@@ -253,7 +312,7 @@ export function render(article: HTMLElement, binding: Binding): void {
   // Paused: keep the invisible control slot so toggling cannot reflow the feed.
   if (!settings.current.masterEnabled) {
     setHostVisibility(host, button, false);
-    article.removeAttribute('data-jev-hidden');
+    restoreBinding(article, binding);
     applyCard(article, post, false);
     if (openPostId === post.id) closePanel();
     return;
@@ -278,7 +337,7 @@ export function render(article: HTMLElement, binding: Binding): void {
     style.textContent = ICON_CSS;
     shadow.prepend(style);
   }
-  const stateLabel = stateOf(post);
+  const stateLabel = binding.revealed && blocked(post) ? 'Shown temporarily' : stateOf(post);
   const retryLabel = post.retryAt
     ? ` — retrying in ${Math.max(0, Math.ceil((post.retryAt - Date.now()) / 1000))}s`
     : '';
@@ -398,6 +457,12 @@ export function installActivation(ctx: ContentScriptContext): void {
       if (!(event instanceof MouseEvent)) return;
       for (const node of event.composedPath()) {
         if (!(node instanceof HTMLButtonElement)) continue;
+        const reveal = revealActions.get(node);
+        if (reveal) {
+          event.stopPropagation();
+          reveal();
+          return;
+        }
         const post = buttonPosts.get(node);
         if (!post) continue;
         event.stopPropagation();
@@ -658,6 +723,21 @@ function renderPanel(post: Post): void {
       )
       .catch(() => {});
   });
+  const revealed = [...bindings.values()].some(
+    (binding) => binding.post === post && binding.revealed,
+  );
+  if (revealed && blocked(post)) {
+    const hide = element('button', 'Hide again');
+    hide.type = 'button';
+    hide.addEventListener('click', () => {
+      for (const binding of bindings.values()) if (binding.post === post) binding.revealed = false;
+      closePanel();
+      renderPostAtUiBoundary(post);
+      const slot = [...bindings.values()].find((binding) => binding.post === post)?.hiddenSlot;
+      slot?.shadowRoot?.querySelector<HTMLButtonElement>('button')?.focus({ preventScroll: true });
+    });
+    foot.append(hide);
+  }
   foot.append(logsLink);
   panel.append(foot);
   const hint = element('p', 'Unblock posts from the logs page.');
@@ -776,7 +856,7 @@ export function removeAllUI(): void {
   closePanelIfOpen();
   for (const [article, binding] of bindings) {
     binding.host.remove();
-    article.removeAttribute('data-jev-hidden');
+    restoreBinding(article, binding);
     applyCard(article, binding.post, false);
   }
   bindings.clear();

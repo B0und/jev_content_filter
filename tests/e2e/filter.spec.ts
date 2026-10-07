@@ -74,7 +74,7 @@ test('never filters the post opened directly and follows a same-document route c
   await expect(opened).toBeVisible();
 });
 
-test('collapses blocked timeline cells and restores their space on pause', async ({
+test('keeps viewport timeline cell geometry stable while filtering and pausing', async ({
   page,
   context,
   extensionId,
@@ -87,7 +87,7 @@ test('collapses blocked timeline cells and restores their space on pause', async
   const blockedCell = blocked.locator('xpath=..');
   await expect
     .poll(() => blockedCell.evaluate((cell) => cell.getBoundingClientRect().height))
-    .toBe(0);
+    .toBe(300);
   await expect(page.locator('[data-post="101"] [data-jev-host]')).toHaveCount(1);
   const controlBox = await page.locator('[data-post="101"]').evaluate((article) => {
     const host = article.querySelector<HTMLElement>('[data-jev-host]');
@@ -157,7 +157,7 @@ test('collapses blocked timeline cells and restores their space on pause', async
     .evaluate((marker) => marker.getBoundingClientRect().top);
   const restoredHeight = await blockedCell.evaluate((cell) => cell.getBoundingClientRect().height);
   expect(restoredHeight).toBeGreaterThan(0);
-  expect(pausedTop - initialTop).toBe(restoredHeight);
+  expect(pausedTop).toBe(initialTop);
 
   await toggle.click();
   await expect(blocked).toBeHidden();
@@ -570,13 +570,16 @@ test('persists popup edits and supports keyboard log filtering and clearing', as
   await provider.selectOption('vercel');
   await expect(popup.getByLabel('Vercel AI Gateway API key')).toBeVisible();
   await popup.getByRole('button', { name: 'Edit', exact: true }).click();
-  const threshold = popup.getByLabel('Block at probability (%)');
+  const threshold = popup.getByRole('spinbutton', { name: 'Content filter threshold percent' });
   await threshold.fill('45');
+  await threshold.press('Tab');
   await popup.getByRole('button', { name: 'Save filter', exact: true }).click();
   await popup.reload();
   await popup.getByRole('tab', { name: 'Text', exact: true }).click();
   await popup.getByRole('button', { name: 'Edit', exact: true }).click();
-  await expect(popup.getByLabel('Block at probability (%)')).toHaveValue('45');
+  await expect(
+    popup.getByRole('spinbutton', { name: 'Content filter threshold percent' }),
+  ).toHaveValue('45');
   await popup.goto(`chrome-extension://${extensionId}/logs.html`);
   await popup.getByRole('combobox', { name: 'Filter by reason' }).click();
   await popup.getByRole('option', { name: 'Porn', exact: true }).click();

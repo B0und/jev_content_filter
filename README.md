@@ -19,7 +19,7 @@ npm run build
 
 Chromium 116 or newer is required for the offscreen inference document. Open `chrome://extensions`, enable Developer mode, choose **Load unpacked**, and select `.output/chrome-mv3`. Reload existing X tabs after installing or updating the extension. `npm run zip` creates a distributable archive.
 
-The popup separates **Text** and **Images** controls. Local image and AI-text filtering need no API key. Under Text, open the Jev provider settings and enter that provider's key if you want Jev checks. Use **Add text filter** to name a rule, describe what to hide, and choose its probability threshold. You can edit, enable, disable, or delete up to 20 rules. Filters are stored in extension-local browser storage and survive popup closure, worker restarts, and browser restarts. Each provider has its own key slot; changing providers never transfers another provider's key. Credentials come from extension settings, not build-time environment variables.
+The popup separates **Text** and **Images** controls. Local image and AI-text filtering need no API key. Under Text, open the Jev provider settings and enter that provider's key if you want Jev checks. Use **Add text filter** to name a rule, describe what to hide. New rules start at 65%; adjust the saved rule with its slider in 1% steps or enter a percentage. You can edit, enable, disable, or delete up to 20 rules. Filters are stored in extension-local browser storage and survive popup closure, worker restarts, and browser restarts. Each provider has its own key slot; changing providers never transfers another provider's key. Credentials come from extension settings, not build-time environment variables.
 
 ## Model selection and downloads
 
@@ -82,6 +82,7 @@ React follows [You Might Not Need an Effect](https://react.dev/learn/you-might-n
 - Drawings includes ordinary anime and illustrations, not only explicit content. Disable that category if you want ordinary illustrations to remain visible.
 - Link previews have separate scores and can be hidden without hiding the post.
 - The post the URL addresses is never filtered: a status permalink, or the detail view X opens over the timeline. Everything else on that page is filtered normally. Navigation triggers a render even for URL-only `pushState`, `replaceState`, and back/forward changes.
+- Late filtering decisions keep the space occupied by posts in or above the viewport, so filtering does not move the post being read. The reserved space explains the matching rule and offers **Show post**; use its inspector to **Hide again**. This reveal is temporary and does not save an allow override. Posts classified below the viewport collapse before they are read.
 - Pause restores hidden posts and previews. Unblocking a post persists an allow override.
 - The toolbar badge and popup totals count unique posts analyzed or blocked since page load. A post and its blocked preview count once. Timeline recycling, tab switches, unblocking, and log clearing do not subtract past blocks. Pause hides the badge without erasing the count; reloading or navigating to a new document resets it.
 - Badge resets use top-frame `webNavigation.onCommitted` events. Same-document history updates and iframe navigation preserve totals. The extension requests `webNavigation` permission for this distinction.
