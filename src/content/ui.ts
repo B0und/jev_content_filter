@@ -78,6 +78,8 @@ article[data-jev-hidden],
 `;
 
 let globalStyle: HTMLStyleElement | null = null;
+// Multiple articles can share an X cell. Each slot owns one reservation.
+const cellReservations = new WeakMap<HTMLElement, number>();
 
 export function injectGlobalStyle(): void {
   if (globalStyle?.isConnected) return;
@@ -112,11 +114,20 @@ export function restoreAll(): void {
 export function restoreBinding(article: HTMLElement, binding: Binding): void {
   article.removeAttribute('data-jev-hidden');
   binding.hiddenSlot?.remove();
-  binding.preservedCell?.removeAttribute('data-jev-preserved');
+  const cell = binding.preservedCell;
+  if (cell) {
+    const remaining = (cellReservations.get(cell) ?? 1) - 1;
+    if (remaining > 0) cellReservations.set(cell, remaining);
+    else {
+      cellReservations.delete(cell);
+      cell.removeAttribute('data-jev-preserved');
+    }
+  }
   delete binding.hiddenSlot;
   delete binding.preservedCell;
 }
 
+/** Describe the active filter matches for a reserved post slot. */
 function hiddenReason(post: Post): string {
   return `Hidden by ${hits(post)
     .map(
@@ -126,6 +137,7 @@ function hiddenReason(post: Post): string {
     .join(', ')}`;
 }
 
+/** Reserve already encountered posts while collapsing blocked posts below the viewport. */
 function applyVisibility(article: HTMLElement, binding: Binding): void {
   const { post } = binding;
   if (!blocked(post) || binding.revealed) {
@@ -143,7 +155,8 @@ function applyVisibility(article: HTMLElement, binding: Binding): void {
       const computed = getComputedStyle(article);
       slot.style.cssText = `height: ${article.offsetHeight}px; margin-top: ${computed.marginTop}; margin-bottom: ${computed.marginBottom}; box-sizing: border-box; position: relative;`;
       const cell = article.closest<HTMLElement>('[data-testid="cellInnerDiv"]');
-      if (cell && cell.querySelectorAll('article').length === 1) {
+      if (cell) {
+        cellReservations.set(cell, (cellReservations.get(cell) ?? 0) + 1);
         cell.dataset.jevPreserved = '';
         binding.preservedCell = cell;
       }
@@ -307,6 +320,7 @@ function setHostVisibility(host: HTMLElement, button: HTMLButtonElement, visible
   }
 }
 
+/** Refresh a bound post toolbar and visibility from its current classification. */
 export function render(article: HTMLElement, binding: Binding): void {
   const { post, host, root, button } = binding;
   // Paused: keep the invisible control slot so toggling cannot reflow the feed.
@@ -573,6 +587,7 @@ function closePanel(): void {
     anchor.focus();
 }
 
+/** Build the inspector with temporary reveal and persistent override controls. */
 function renderPanel(post: Post): void {
   const root = panelRoot;
   const host = panelHost;

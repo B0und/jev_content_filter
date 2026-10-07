@@ -51,6 +51,7 @@ const PROVIDER_DETAILS: Record<
   },
 };
 
+/** Display current filtering activity and persist settings from the popup. */
 export function App() {
   const state = useSyncExternalStore(
     popupState.subscribe,
@@ -231,6 +232,7 @@ function scanHealth(enabled: boolean, missingScript: boolean, report: TabReport 
     : 'Waiting for posts. No completed analysis yet.';
 }
 
+/** List saved custom filters and host their name-and-instructions editor. */
 function CustomTextFilters({ settings }: { settings: Settings }) {
   const [editing, setEditing] = useState<TextFilter | null>(null);
   const [creating, setCreating] = useState(false);
@@ -290,6 +292,7 @@ function CustomTextFilters({ settings }: { settings: Settings }) {
   );
 }
 
+/** Use the same enable and threshold controls as built-in filters. */
 function CustomFilter({
   filter,
   onEdit,
@@ -343,6 +346,7 @@ function CustomFilter({
   );
 }
 
+/** Create or edit filter instructions without resetting the saved threshold. */
 function TextFilterEditor({ filter, onClose }: { filter: TextFilter | null; onClose: () => void }) {
   const [id] = useState(() => filter?.id ?? crypto.randomUUID());
   const [editorId] = useState(() => crypto.randomUUID());
@@ -528,6 +532,7 @@ function EyeIcon({ hidden }: { hidden: boolean }) {
   );
 }
 
+/** Show model readiness with download controls and optional technical details. */
 function ModelCard({ kind, status }: { kind: ModelKind; status: ModelStatus }) {
   const model = SELECTED_MODELS[kind];
   const totalBytes = status.total > 0 ? status.total : model.downloadBytes;
@@ -597,6 +602,7 @@ function formatMegabytes(bytes: number): string {
   return `${(bytes / 1_000_000).toFixed(1)} MB`;
 }
 
+/** Configure one built-in filter through its enabled state and threshold. */
 function Category({
   category: key,
   settings,
@@ -635,6 +641,7 @@ function Category({
   );
 }
 
+/** Persist threshold edits on a debounce, flushing the last edit on blur or unmount. */
 function Threshold({
   label,
   value,
