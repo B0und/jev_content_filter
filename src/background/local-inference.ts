@@ -50,6 +50,7 @@ export const warmLocalModels = Effect.fn('warmLocalModels')(function* (models: M
 });
 
 /** Run local OCR through the shared offscreen inference document. */
+/** Request OCR through the offscreen document and restore its typed error channel. */
 export const runLocalOcr = Effect.fn('runLocalOcr')(function* (dataUrl: string) {
   yield* ensureDocument;
   const raw: unknown = yield* browserEffect('request local OCR', () =>

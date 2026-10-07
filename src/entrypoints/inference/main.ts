@@ -77,6 +77,7 @@ const supervisor = createWorkerSupervisor({
     persistStatus();
   },
 });
+/** Submit supervised work, correlating its reply and cancelling queued work on interruption. */
 const runRaw = Effect.fn('InferenceWorker.runRaw')(function* (request: InferenceRequest) {
   const id = ++nextId;
   return yield* Effect.tryPromise({
@@ -109,12 +110,14 @@ const runRaw = Effect.fn('InferenceWorker.runRaw')(function* (request: Inference
     catch: (cause) => new BrowserError({ operation: 'run local inference', cause }),
   });
 });
+/** Validate a classifier reply before returning it across the browser message boundary. */
 const run = Effect.fn('InferenceWorker.run')(function* (request: InferenceRequest) {
   const raw = yield* runRaw(request);
   return yield* Schema.decodeUnknownEffect(InferenceReplySchema)(raw).pipe(
     Effect.mapError((cause) => new BrowserError({ operation: 'decode inference result', cause })),
   );
 });
+/** Decode an OCR Result and restore its success or OcrError channel. */
 const runOcr = Effect.fn('InferenceWorker.runOcr')(function* (request: InferenceRequest) {
   const raw = yield* runRaw(request);
   const result = yield* Schema.decodeUnknownEffect(OcrReplyCodec)(raw).pipe(

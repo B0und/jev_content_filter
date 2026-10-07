@@ -172,6 +172,7 @@ export const MAX_RETRIES = 5;
 
 const CachedImageTextSchema = Schema.Struct({ text: Schema.String, ts: Schema.Finite });
 const imageTextLock = Semaphore.makeUnsafe(1);
+/** Serialize image extraction, caching successful readings and retaining errors for retry. */
 const imageText = Effect.fnUntraced(function* (urls: string[]) {
   const texts: string[] = [];
   const errors: string[] = [];

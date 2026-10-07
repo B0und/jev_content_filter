@@ -25,6 +25,7 @@ const expectedBytes = {
   'PP-OCRv6_small_det_onnx_infer.tar': 9891840,
   'PP-OCRv6_small_rec_onnx_infer.tar': 21319680,
 };
+/** Cache model assets locally and verify recorded digests before serving them to the browser. */
 async function download(url, name) {
   const target = path.join(cache, name);
   let bytes;

@@ -3,6 +3,7 @@ import { promisify } from 'node:util';
 import { readFile, writeFile } from 'node:fs/promises';
 
 const run = promisify(execFile);
+/** Evaluate in the installed extension popup through the persistent browser session. */
 async function evaluate(expression) {
   const { stdout } = await run(
     'node',

@@ -102,6 +102,7 @@ export const cases = [
   { id: 'no-text', lines: [], size: 20, width: 800 },
 ];
 
+/** Render a synthetic corpus candidate; benchmark runs use the committed frozen pixels. */
 function sourceImage(item) {
   const canvas = document.createElement('canvas');
   canvas.width = item.width;
@@ -138,6 +139,7 @@ function sourceImage(item) {
   return canvas.toDataURL(item.jpeg ? 'image/jpeg' : 'image/png', 0.45);
 }
 
+/** Apply the extension's shared scaling and white-background preprocessing to each engine. */
 async function inputImage(dataUrl) {
   const blob = await (await fetch(dataUrl)).blob();
   const bitmap = await createImageBitmap(blob);
@@ -154,8 +156,10 @@ async function inputImage(dataUrl) {
   return canvas.convertToBlob({ type: 'image/png' });
 }
 
+/** Pair candidate image data with its expected transcript for corpus generation. */
 window.makeCorpus = () =>
   cases.map((item) => ({ ...item, expected: item.lines.join(' '), dataUrl: sourceImage(item) }));
+/** Initialize one engine configuration and install its common recognition adapter. */
 window.createEngine = async (id) => {
   if (id.startsWith('tesseract')) {
     const worker = await createWorker(
@@ -261,6 +265,7 @@ window.createEngine = async (id) => {
     };
   }
 };
+/** Time preprocessing and recognition for one case, returning the unmodified transcript. */
 window.runCase = async (item) => {
   const start = performance.now();
   const blob = await inputImage(item.dataUrl);

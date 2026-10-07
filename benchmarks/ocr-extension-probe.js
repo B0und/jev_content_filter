@@ -1,5 +1,6 @@
 import { PaddleOCR } from '@paddleocr/paddleocr-js';
 
+/** Attempt Paddle initialization under the installed MV3 extension's real CSP. */
 window.initializeOcr = () =>
   PaddleOCR.create({
     textDetectionModelName: 'PP-OCRv6_tiny_det',

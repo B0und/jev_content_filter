@@ -47,6 +47,7 @@ await writeFile(
 );
 await writeFile(path.join(output, 'background.js'), 'self.addEventListener("message", () => {});');
 const files = [];
+/** Measure every emitted extension asset, including nested runtime and worker files. */
 async function inventory(directory) {
   for (const entry of await readdir(directory, { withFileTypes: true })) {
     const file = path.join(directory, entry.name);

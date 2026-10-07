@@ -3,6 +3,7 @@ import path from 'node:path';
 
 const file = process.argv[2] || path.join(import.meta.dirname, 'ocr-results-all.json');
 const results = JSON.parse(await readFile(file, 'utf8'));
+/** Ignore punctuation, case, and repeated whitespace when comparing OCR transcripts. */
 const normalize = (text) =>
   text
     .normalize('NFKC')
@@ -10,6 +11,7 @@ const normalize = (text) =>
     .replace(/[^\p{L}\p{N}\s]/gu, '')
     .replace(/\s+/g, ' ')
     .trim();
+/** Calculate Levenshtein edits for either character strings or word arrays. */
 function distance(a, b) {
   let row = Array.from({ length: b.length + 1 }, (_, i) => i);
   for (let i = 0; i < a.length; i++) {
@@ -21,6 +23,7 @@ function distance(a, b) {
   return row[b.length];
 }
 const terms = new Set(['nude', 'nudes', 'naked', 'sex', 'sexual', 'explicit', 'porn']);
+/** Aggregate transcript errors, exact sensitive-term recovery, and warm-run timings. */
 function metrics(engine, subset) {
   let characters = 0,
     characterErrors = 0,
