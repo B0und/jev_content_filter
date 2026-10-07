@@ -26,3 +26,13 @@ For extension changes, use the persistent browser loop described in README.md.
 - Run `verify` after interactions and examine background and content errors as well as popup errors. Smoke verification does not replace assertions for the behavior you changed.
 - `npm run test:e2e` builds the extension and runs both the Playwright suite and the browser-loop regressions. Run compile/lint/format checks for code changes.
 - Never load `.env` credentials into the fixture session. Keep credentials out of screenshots, snapshots, and terminal output.
+
+## Handoff to the user's Chrome browser
+
+After completing extension changes, reload the finished extension in the user's regular Chrome/Chromium browser before handing the work back for testing. This is part of the task, and the user has authorized it.
+
+- Identify the Jev extension and its loaded unpacked path in the user's browser. Ensure that path contains the finished build from this worktree; reloading another checkout's old build does not deliver the changes.
+- Reload that extension yourself, then refresh the relevant X/Twitter tabs so they receive the new content script. Preserve the user's extension settings and signed-in session.
+- Verify that the user's browser is running the updated build and that its popup opens. Leave the browser ready for the user to test.
+- A reload in the fixture browser or the isolated live verification profile does not satisfy this handoff requirement.
+- If browser access or policy prevents the reload, state that limitation clearly and give the exact remaining step. Never claim the user's browser was updated based only on a successful build or a test-profile reload.
