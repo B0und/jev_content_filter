@@ -128,7 +128,7 @@ describe('inspector panel', () => {
       );
       expect(rows.some((row) => row.includes('Porn'))).toBe(true);
       expect(rows.some((row) => row.includes('Drawings / anime'))).toBe(false);
-      expect(rows.some((row) => row.includes('Sexual text'))).toBe(false);
+      expect(rows.some((row) => row.includes('Content filter'))).toBe(false);
       expect(rows.some((row) => row.includes('AI-written text'))).toBe(false);
     } finally {
       stopRuntime(test);

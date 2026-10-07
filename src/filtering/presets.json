@@ -1,0 +1,9 @@
+[
+  {
+    "id": "preset-1",
+    "name": "Content filter",
+    "instructions": "Explicit acts, lewd innuendo, heavily implied intimate activity, or engagement bait designed to arouse.",
+    "enabled": true,
+    "threshold": 0.65
+  }
+]

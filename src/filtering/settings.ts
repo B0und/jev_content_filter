@@ -6,7 +6,6 @@ import { FilterStatusSchema, SettingsReplySchema, TextFilterSchema } from './sch
 import {
   STORAGE_KEYS,
   defaultSettings,
-  DEFAULT_TEXT_FILTER,
   textDecisionSignature,
   type FilterStatus,
   CATEGORY_KEYS,
@@ -49,9 +48,6 @@ export const loadSettings = Effect.fn('loadSettings')(function* () {
   const storedSliders = asRecord(raw.sliders);
   const storedProviderKeys = asRecord(raw.providerKeys);
   const defaults = defaultSettings();
-  const legacySexualEnabled = storedEnabledMap.sexualText;
-  const legacySexualThreshold =
-    storedThresholds.sexualText ?? thresholdFromLegacySlider(storedSliders.sexualText);
 
   const enabled = defaults.enabled;
   const thresholds = defaults.thresholds;
@@ -83,33 +79,11 @@ export const loadSettings = Effect.fn('loadSettings')(function* () {
     providerKeys[textProvider] = raw.gatewayKey;
   }
 
-  const storedFilters = Array.isArray(raw.textFilters)
+  const textFilters = Array.isArray(raw.textFilters)
     ? raw.textFilters
         .filter(Schema.is(TextFilterSchema))
         .filter((filter, index, all) => all.findIndex((other) => other.id === filter.id) === index)
-        // Retain the former 20 user rules plus the migrated preset.
-        .slice(0, 21)
-    : [];
-  // Older versions represented the preset as enabled.sexualText and
-  // thresholds.sexualText. Seed it once into the uniform filter list and carry
-  // those values forward; after migration, deleting it stays deleted.
-  const hasLegacyPreset =
-    raw.textFilters === undefined ||
-    typeof legacySexualEnabled === 'boolean' ||
-    typeof legacySexualThreshold === 'number';
-  const textFilters =
-    hasLegacyPreset && !storedFilters.some((filter) => filter.id === DEFAULT_TEXT_FILTER.id)
-      ? [
-          {
-            ...DEFAULT_TEXT_FILTER,
-            ...(typeof legacySexualEnabled === 'boolean' ? { enabled: legacySexualEnabled } : {}),
-            ...(typeof legacySexualThreshold === 'number' && Number.isFinite(legacySexualThreshold)
-              ? { threshold: Math.min(1, Math.max(0, legacySexualThreshold)) }
-              : {}),
-          },
-          ...storedFilters.slice(0, 20),
-        ]
-      : storedFilters;
+    : defaults.textFilters;
 
   return {
     textFilters,

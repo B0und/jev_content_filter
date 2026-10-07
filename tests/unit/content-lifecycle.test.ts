@@ -25,7 +25,7 @@ describe('content lifecycle', () => {
 
   it('invalidation unhides posts, removes UI and stops reacting to storage', async () => {
     const test = await startRuntime();
-    test.bg.respond = () => ({ ok: true, custom: { 'sexual-text': 0.9 } });
+    test.bg.respond = () => ({ ok: true, custom: { 'preset-1': 0.9 } });
     const article = buildTweetArticle({ id: '2001', text: 'explicit text' });
     test.handle.discover();
     await until(() => article.hasAttribute('data-jev-hidden'));
@@ -68,7 +68,7 @@ describe('content lifecycle', () => {
 
   it('reattached DOM gets a fresh binding and keeps its classified state', async () => {
     const test = await startRuntime();
-    test.bg.respond = () => ({ ok: true, custom: { 'sexual-text': 0.9 } });
+    test.bg.respond = () => ({ ok: true, custom: { 'preset-1': 0.9 } });
     const article = buildTweetArticle({ id: '2002', text: 'explicit text' });
     test.handle.discover();
     await until(() => article.hasAttribute('data-jev-hidden'), 'post not classified');
@@ -196,7 +196,7 @@ describe('content lifecycle', () => {
 
   it('counts duplicate bindings once and follows recycled articles through detach and return', async () => {
     const test = await startRuntime();
-    test.bg.respond = () => ({ ok: true, custom: { 'sexual-text': 0.99 } });
+    test.bg.respond = () => ({ ok: true, custom: { 'preset-1': 0.99 } });
     const first = buildTweetArticle({
       id: '2011',
       text: 'shared explicit text',
@@ -269,7 +269,7 @@ describe('content lifecycle', () => {
       calls += 1;
       return calls === 1
         ? first.promise
-        : Promise.resolve({ ok: true, custom: { 'sexual-text': 0.99 } });
+        : Promise.resolve({ ok: true, custom: { 'preset-1': 0.99 } });
     };
     test.handle.discover();
     await until(() => aria(iconButton(article)).includes('Scanning'), 'scan did not start');
@@ -282,7 +282,7 @@ describe('content lifecycle', () => {
 
     // The in-flight reply is for the superseded text — it must not settle
     // the post; the re-scan answers with its own blocking reply.
-    first.resolve({ ok: true, custom: { 'sexual-text': 0.01 } });
+    first.resolve({ ok: true, custom: { 'preset-1': 0.01 } });
     await until(
       () => article.hasAttribute('data-jev-hidden'),
       'stale result superseded by a blocking re-scan failed',
@@ -295,7 +295,7 @@ describe('content lifecycle', () => {
 
   it('keeps attached posts beyond the detached retention limit and retains recent returns', async () => {
     const test = await startRuntime();
-    test.bg.respond = () => ({ ok: true, custom: { 'sexual-text': 0.99 } });
+    test.bg.respond = () => ({ ok: true, custom: { 'preset-1': 0.99 } });
     const oldest = buildTweetArticle({
       id: '2020',
       text: 'oldest retained marker',
@@ -359,7 +359,7 @@ describe('content lifecycle', () => {
       calls += 1;
       return calls === 1
         ? first.promise
-        : Promise.resolve({ ok: true, custom: { 'sexual-text': 0.99 } });
+        : Promise.resolve({ ok: true, custom: { 'preset-1': 0.99 } });
     };
     const article = buildTweetArticle({
       id: '2021',
@@ -385,7 +385,7 @@ describe('content lifecycle', () => {
         aria(iconButton(article)).includes('Blocked'),
       'evicted post did not receive a fresh scan on return',
     );
-    first.resolve({ ok: true, custom: { 'sexual-text': 0.01 } });
+    first.resolve({ ok: true, custom: { 'preset-1': 0.01 } });
     await Promise.resolve();
 
     expect(article.hasAttribute('data-jev-hidden')).toBe(true);
@@ -400,7 +400,7 @@ describe('content lifecycle', () => {
     // same image, so they must never invalidate scores, unhide a blocked
     // post, or trigger a re-scan — that is the visible flapping bug.
     const test = await startRuntime();
-    test.bg.respond = () => ({ ok: true, custom: { 'sexual-text': 0.99 } });
+    test.bg.respond = () => ({ ok: true, custom: { 'preset-1': 0.99 } });
     const article = buildTweetArticle({
       id: '2006',
       text: 'text with media',
@@ -441,7 +441,7 @@ describe('content lifecycle', () => {
     test.bg.respond = (request) =>
       request.tweetId === '2003'
         ? { ok: false, error: 'Server 500 blew up' }
-        : { ok: true, custom: { 'sexual-text': 0.01 } };
+        : { ok: true, custom: { 'preset-1': 0.01 } };
     test.handle.discover();
 
     await until(

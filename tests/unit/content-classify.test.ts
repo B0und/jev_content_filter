@@ -201,40 +201,40 @@ describe('score cache', () => {
     expect(bg.imageCalls).toHaveLength(2);
   });
 
-  it('reuses cached sexual and local-AI scores across posts with identical text', async () => {
+  it('reuses cached explicit and local-AI scores across posts with identical text', async () => {
     fakeBrowser.reset();
     settings.current = textTaskSettings();
     const post = newPostStub('4000');
     const otherPost = newPostStub('4001', 'same text');
     const bg = installFakeBackground();
-    bg.respond = () => ({ ok: true, custom: { 'sexual-text': 0.4 } });
+    bg.respond = () => ({ ok: true, custom: { 'preset-1': 0.4 } });
     bg.aiRespond = () => ({ ok: true, scores: { aiGenerated: 0.2 } });
 
     const first = await Effect.runPromise(textScores(post, 'same text'));
-    expect(first).toEqual({ scores: { 'custom:sexual-text': 0.4, aiGenerated: 0.2 }, errors: [] });
+    expect(first).toEqual({ scores: { 'custom:preset-1': 0.4, aiGenerated: 0.2 }, errors: [] });
     const second = await Effect.runPromise(textScores(otherPost, 'same text'));
     expect(second).toEqual(first);
     expect(bg.jevCalls).toHaveLength(1);
     expect(bg.aiCalls).toHaveLength(1);
   });
 
-  it('re-evaluates sexual text for a new provider while reusing local AI text', async () => {
+  it('re-evaluates explicit text for a new provider while reusing local AI text', async () => {
     fakeBrowser.reset();
     settings.current = textTaskSettings({ textProvider: 'vercel' });
     const post = newPostStub('4010');
     const bg = installFakeBackground();
-    bg.respond = () => ({ ok: true, custom: { 'sexual-text': 0.4 } });
+    bg.respond = () => ({ ok: true, custom: { 'preset-1': 0.4 } });
     bg.aiRespond = () => ({ ok: true, scores: { aiGenerated: 0.2 } });
 
     await expect(Effect.runPromise(textScores(post, 'provider-sensitive text'))).resolves.toEqual({
-      scores: { 'custom:sexual-text': 0.4, aiGenerated: 0.2 },
+      scores: { 'custom:preset-1': 0.4, aiGenerated: 0.2 },
       errors: [],
     });
     settings.current = { ...settings.current, textProvider: 'typesafe' };
-    bg.respond = () => ({ ok: true, custom: { 'sexual-text': 0.8 } });
+    bg.respond = () => ({ ok: true, custom: { 'preset-1': 0.8 } });
     bg.aiRespond = () => ({ ok: true, scores: { aiGenerated: 0.95 } });
     await expect(Effect.runPromise(textScores(post, 'provider-sensitive text'))).resolves.toEqual({
-      scores: { 'custom:sexual-text': 0.8, aiGenerated: 0.2 },
+      scores: { 'custom:preset-1': 0.8, aiGenerated: 0.2 },
       errors: [],
     });
     expect(bg.jevCalls).toHaveLength(2);
@@ -270,7 +270,7 @@ describe('score cache', () => {
       field: 'textProvider',
       value: 'typesafe',
     });
-    gate.resolve({ ok: true, custom: { 'sexual-text': 0.1 } });
+    gate.resolve({ ok: true, custom: { 'preset-1': 0.1 } });
     await rejected;
 
     const stored = await browser.storage.local.get(null);
@@ -281,10 +281,10 @@ describe('score cache', () => {
     });
     expect(cachedScores).toEqual([{ aiGenerated: 0.2 }]);
 
-    bg.respond = () => ({ ok: true, custom: { 'sexual-text': 0.9 } });
+    bg.respond = () => ({ ok: true, custom: { 'preset-1': 0.9 } });
     bg.aiRespond = () => ({ ok: true, scores: { aiGenerated: 0.95 } });
     await expect(Effect.runPromise(textScores(post, 'configuration-race'))).resolves.toEqual({
-      scores: { 'custom:sexual-text': 0.9, aiGenerated: 0.2 },
+      scores: { 'custom:preset-1': 0.9, aiGenerated: 0.2 },
       errors: [],
     });
     expect(bg.jevCalls).toHaveLength(2);
@@ -292,7 +292,7 @@ describe('score cache', () => {
   });
 });
 describe('runtime text task behavior', () => {
-  it('hides an AI-classified post without an API key when sexual text is disabled', async () => {
+  it('hides an AI-classified post without an API key when explicit text is disabled', async () => {
     const configured = textTaskSettings({
       providerKeys: { vercel: '', typesafe: '', openrouter: '' },
     });
@@ -319,7 +319,7 @@ describe('runtime text task behavior', () => {
     }
   });
 
-  it('keeps a successful local-AI block when the sexual-text task fails', async () => {
+  it('keeps a successful local-AI block when the preset-1 task fails', async () => {
     const configured = textTaskSettings();
     configured.thresholds.aiGenerated = 0.65;
     const test = await startRuntime(configured);
@@ -328,7 +328,7 @@ describe('runtime text task behavior', () => {
       test.bg.aiRespond = () => ({ ok: true, scores: { aiGenerated: 0.91 } });
       const article = buildTweetArticle({
         id: '4111',
-        text: 'A generated post whose remote sexual-text check is unavailable.',
+        text: 'A generated post whose remote preset-1 check is unavailable.',
       });
       test.handle.discover();
 

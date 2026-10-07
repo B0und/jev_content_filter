@@ -1,7 +1,7 @@
 {
   "name": "jev-content-filter",
   "version": "0.1.0",
-  "description": "Local image and AI-text filtering for X, with TypeSafe Jev sexual-text checks",
+  "description": "Local image and AI-text filtering for X, with configurable Jev text filters",
   "type": "module",
   "scripts": {
     "dev": "wxt",

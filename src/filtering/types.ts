@@ -1,4 +1,5 @@
 import type { ModelStatuses } from '../inference/contracts';
+import presets from './presets.json' with { type: 'json' };
 
 export type CategoryKey = 'porn' | 'hentai' | 'sexy' | 'drawings' | 'aiGenerated';
 export type ScoreKey = CategoryKey | `custom:${string}`;
@@ -9,15 +10,6 @@ export interface TextFilter {
   enabled: boolean;
   threshold: number;
 }
-export const SEXUAL_TEXT_FILTER_ID = 'sexual-text';
-export const DEFAULT_TEXT_FILTER: TextFilter = {
-  id: SEXUAL_TEXT_FILTER_ID,
-  name: 'Sexual text',
-  instructions:
-    'Explicit sexual content, lewd innuendo, heavily implied sexual content, or engagement bait designed to arouse.',
-  enabled: true,
-  threshold: 0.65,
-};
 /** Only active questions affect decisions; labels and cutoffs are application policy. */
 export function textDecisionSignature(filters: TextFilter[]): string {
   return JSON.stringify(
@@ -143,7 +135,7 @@ export const IMAGE_KEYS: CategoryKey[] = ['porn', 'hentai', 'sexy', 'drawings'];
 export const TEXT_KEYS: CategoryKey[] = ['aiGenerated'];
 export function defaultSettings(): Settings {
   return {
-    textFilters: [{ ...DEFAULT_TEXT_FILTER }],
+    textFilters: presets.map((filter) => ({ ...filter })),
     masterEnabled: true,
     textProvider: 'vercel',
     providerKeys: { vercel: '', typesafe: '', openrouter: '' },

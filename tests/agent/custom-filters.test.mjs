@@ -35,7 +35,7 @@ void test(
     });
     await session.start({ build: false });
     const popup = await session.popup();
-    await popup.click('button[aria-label="Delete Sexual text"]');
+    await popup.click('button[aria-label="Delete Content filter"]');
     await popup.click('button ::-p-text(Add text filter)');
     await popup.type('#filter-name', 'Gardening');
     await popup.type('#filter-instructions', 'Posts about the garden');

@@ -6,6 +6,7 @@ import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import puppeteer from 'puppeteer-core';
 import { chromium } from '@playwright/test';
+import presets from '../src/filtering/presets.json' with { type: 'json' };
 
 export class ExtensionSession {
   constructor({ root, output, artifacts, profile, headless = false, live = false }) {
@@ -122,7 +123,7 @@ export class ExtensionSession {
           throw new Error('Background message listener did not initialize');
         });
         // This profile is only for the offline fixture. No real credentials or provider calls.
-        await worker.evaluate(async () => {
+        await worker.evaluate(async (textFilters) => {
           const existing = await chrome.storage.local.get('agentFixtureInitialized');
           if (existing.agentFixtureInitialized) return;
           await chrome.storage.local.set({
@@ -132,16 +133,7 @@ export class ExtensionSession {
               textProvider: 'vercel',
               textConfigRevision: 0,
               providerKeys: { vercel: 'agent-fixture-key', typesafe: '', openrouter: '' },
-              textFilters: [
-                {
-                  id: 'sexual-text',
-                  name: 'Sexual text',
-                  instructions:
-                    'Explicit sexual content, lewd innuendo, heavily implied sexual content, or engagement bait designed to arouse.',
-                  enabled: true,
-                  threshold: 0.65,
-                },
-              ],
+              textFilters,
               enabled: {
                 porn: false,
                 hentai: false,
@@ -158,7 +150,7 @@ export class ExtensionSession {
               },
             },
           });
-        });
+        }, presets);
       } finally {
         await setup.close();
       }

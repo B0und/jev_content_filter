@@ -6,7 +6,7 @@
       "title": "umt-gpt4o-test-0011",
       "text": "Me snapping selfies : * uneasy grin * Me on picture day : * uncomfortable beam * Result : Maybe no more grinning ;'( #Snapday2016",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "yes"
       },
       "provenance": "synthetic-ai",
@@ -19,7 +19,7 @@
       "title": "umt-gpt4o-test-0013",
       "text": "@USER Thrilled to have you lead the tournament ! The accolades were truly well-deserved .",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "yes"
       },
       "provenance": "synthetic-ai",
@@ -32,7 +32,7 @@
       "title": "umt-gpt4o-test-0015",
       "text": "So happy watching them connect again ! :grinning_cat_with_smiling_eyes: :sparkles: #finallytogether",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "yes"
       },
       "provenance": "synthetic-ai",
@@ -45,7 +45,7 @@
       "title": "umt-gpt4o-test-0019",
       "text": "@USER @USER YES ! That period was truly a highlight for me . Shutting down my shop was such a heartbreaking experience .",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "yes"
       },
       "provenance": "synthetic-ai",
@@ -58,7 +58,7 @@
       "title": "umt-gpt4o-test-0064",
       "text": "in geometry today hannah started crying of laughter because ms . canning said ' pp",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "no"
       },
       "provenance": "unknown",
@@ -71,7 +71,7 @@
       "title": "umt-gpt4o-test-0065",
       "text": "Each morning , I ask myself if my actions and words will honor God , from how I decide , react , and treat others . Am I living in a way that delights Him ?",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "yes"
       },
       "provenance": "synthetic-ai",
@@ -84,7 +84,7 @@
       "title": "umt-gpt4o-test-0067",
       "text": "@USER @USER it is no surprise that a supporter of Trump would struggle to grasp the distinction between reality and fantasy .",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "yes"
       },
       "provenance": "synthetic-ai",
@@ -97,7 +97,7 @@
       "title": "umt-gpt4o-test-0069",
       "text": "Newmarket woke up to pristine skies and a crisp , sunny morning — perfect conditions for Ladies Day !",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "yes"
       },
       "provenance": "synthetic-ai",
@@ -110,7 +110,7 @@
       "title": "umt-gpt4o-test-0077",
       "text": "Trains getting canceled is infuriating ! We lost precious moments with Kodak this morning because of it :angry_face: #TuesdayBlues",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "yes"
       },
       "provenance": "synthetic-ai",
@@ -123,7 +123,7 @@
       "title": "umt-gpt4o-test-0079",
       "text": "@USER Not trying to be harsh , but do not you think it is a bit past the prime to start a degree in radio broadcasting ? will not it be outdated in 10 years or so ?",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "yes"
       },
       "provenance": "synthetic-ai",
@@ -136,7 +136,7 @@
       "title": "umt-gpt4o-test-0087",
       "text": "@USER ¿ planeas asistir al concierto de The Amity Affliction ?",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "yes"
       },
       "provenance": "synthetic-ai",
@@ -149,7 +149,7 @@
       "title": "umt-gpt4o-test-0089",
       "text": "@USER Seriously ? Five turnovers and limiting a solid offense to just 7 points should be alarming ? Give me a break !",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "yes"
       },
       "provenance": "synthetic-ai",
@@ -162,7 +162,7 @@
       "title": "umt-gpt4o-test-0095",
       "text": "This is quite uplifting !",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "yes"
       },
       "provenance": "synthetic-ai",
@@ -175,7 +175,7 @@
       "title": "umt-gpt4o-test-0097",
       "text": "@USER Seriously ? that is just another baseless theory from some salty fan . I cannot be bothered with all that pets vs vets nonsense either .",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "yes"
       },
       "provenance": "synthetic-ai",
@@ -188,7 +188,7 @@
       "title": "umt-gpt4o-test-0099",
       "text": "Stared straight at the solar eclipse by mistake . Still here , but no new superpowers to show for it . #letdown",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "yes"
       },
       "provenance": "synthetic-ai",
@@ -201,7 +201,7 @@
       "title": "umt-gpt4o-test-0110",
       "text": "HUGE CONGRATULATIONS TO NICOLE WINNING BIG BROTHER 18 ! @USER #BB18 sorry not sorry",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "no"
       },
       "provenance": "unknown",
@@ -214,7 +214,7 @@
       "title": "umt-gpt4o-test-0112",
       "text": "Can someone make me a priority list of which things I should be outraged at + in which order ? #outrage #racism #animalrights #abortion",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "no"
       },
       "provenance": "unknown",
@@ -227,7 +227,7 @@
       "title": "umt-gpt4o-test-0114",
       "text": "You boys dint know the game am I the game ... life after death ...",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "no"
       },
       "provenance": "unknown",
@@ -240,7 +240,7 @@
       "title": "umt-gpt4o-test-0116",
       "text": "@USER ... specifically are the cause of it all , and they resent being considered the enemy .",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "no"
       },
       "provenance": "unknown",
@@ -253,7 +253,7 @@
       "title": "umt-gpt4o-test-0118",
       "text": "@USER :face_with_tears_of_joy: :face_with_tears_of_joy: :face_with_tears_of_joy: . Sure half these stars get together , break up , have affairs , let porn vids slip out , fight , ect etc all to up there ratings . #sad",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "no"
       },
       "provenance": "unknown",
@@ -266,7 +266,7 @@
       "title": "umt-gpt4o-test-0182",
       "text": "it is pretty depressing when u hit pan on ur favourite highlighter",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "no"
       },
       "provenance": "unknown",
@@ -279,7 +279,7 @@
       "title": "umt-gpt4o-test-0184",
       "text": "Watching Avatar and wondering why I took so long to watch this * collapses in a joyous heap *",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "no"
       },
       "provenance": "unknown",
@@ -292,7 +292,7 @@
       "title": "umt-gpt4o-test-0186",
       "text": "So they #threaten to kill #kapernick for KNEELING . I say every athlete just stop playing until social justice and equality comes forth .",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "no"
       },
       "provenance": "unknown",
@@ -305,7 +305,7 @@
       "title": "umt-gpt4o-test-0188",
       "text": "@USER growl like a dog , see if she lifts herself off and gives you space ?",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "no"
       },
       "provenance": "unknown",
@@ -318,7 +318,7 @@
       "title": "umt-gpt4o-test-0190",
       "text": "i was angry .",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "no"
       },
       "provenance": "unknown",
@@ -331,7 +331,7 @@
       "title": "umt-gpt4o-test-0196",
       "text": "a #monster is only a #monster",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "no"
       },
       "provenance": "unknown",
@@ -344,7 +344,7 @@
       "title": "umt-gpt4o-test-0201",
       "text": "@USER Lost our info 9 years ago and you are just informing us now ? Unbelievable .",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "yes"
       },
       "provenance": "synthetic-ai",
@@ -357,7 +357,7 @@
       "title": "umt-gpt4o-test-0203",
       "text": "@USER I agree , it is decent but does not hit the mark . do not Breathe totally takes the crown as my top horror flick for the month . it is hands down my favorite horror movie of the year ( up to now ) !",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "yes"
       },
       "provenance": "synthetic-ai",
@@ -370,7 +370,7 @@
       "title": "umt-gpt4o-test-0207",
       "text": "Those sugar cookies are complete garbage . cannot stand them !",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "yes"
       },
       "provenance": "synthetic-ai",
@@ -383,7 +383,7 @@
       "title": "umt-gpt4o-test-0261",
       "text": "Nuclear bombs and cyberattacks are dangerous , but the real menace is scalar weapons ! When will people wake up ? ! #scalarweapon",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "yes"
       },
       "provenance": "synthetic-ai",
@@ -396,7 +396,7 @@
       "title": "umt-gpt4o-test-0263",
       "text": "do not miss this incredible stream from @USER on #lively #musically — it is pure joy !",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "yes"
       },
       "provenance": "synthetic-ai",
@@ -409,7 +409,7 @@
       "title": "umt-gpt4o-test-0265",
       "text": "Diving into episode 2 of AHS Season 6 ! Excited !",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "yes"
       },
       "provenance": "synthetic-ai",
@@ -422,7 +422,7 @@
       "title": "umt-gpt4o-test-0267",
       "text": "@USER Feeling down and overwhelmed , just so confused :(",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "yes"
       },
       "provenance": "synthetic-ai",
@@ -435,7 +435,7 @@
       "title": "umt-gpt4o-test-0275",
       "text": "@USER @USER Does it really take so much frantic effort now just to make progress ? I recall it being much more leisurely .",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "yes"
       },
       "provenance": "synthetic-ai",
@@ -448,7 +448,7 @@
       "title": "umt-gpt4o-test-0277",
       "text": "Reflecting on past errors — though once daunting — has truly been enlightening .",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "yes"
       },
       "provenance": "synthetic-ai",
@@ -461,7 +461,7 @@
       "title": "umt-gpt4o-test-0326",
       "text": "Imagine how many ksones are crying right now for not getting tickets :loudly_crying_face: Meanwhile , isones dont even get a chance to go on war for tickets :loudly_crying_face:",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "no"
       },
       "provenance": "unknown",
@@ -474,7 +474,7 @@
       "title": "umt-gpt4o-test-0355",
       "text": "If that child does not stop screaming at the pool , I am seriously losing it . #EnoughAlready #WhereAreTheParents",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "yes"
       },
       "provenance": "synthetic-ai",
@@ -487,7 +487,7 @@
       "title": "umt-gpt4o-test-0357",
       "text": "Calm and self-control triumph over power and conquest . Mastering our emotions can lead to greater victories than taking a city . #wisdom #innerstrength",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "yes"
       },
       "provenance": "synthetic-ai",
@@ -500,7 +500,7 @@
       "title": "umt-gpt4o-test-0359",
       "text": "Unbelievable how my 19 - year-old sister acts like a toddler , throwing fits just to be in the spotlight …",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "yes"
       },
       "provenance": "synthetic-ai",
@@ -513,7 +513,7 @@
       "title": "umt-gpt4o-test-0363",
       "text": "I cannot decide which is more unbearable , those cringe-worthy new ads or the tasteless cardboard they call pizza .",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "yes"
       },
       "provenance": "synthetic-ai",
@@ -526,7 +526,7 @@
       "title": "umt-gpt4o-test-0365",
       "text": "Can you cut out the nonstop laughter ? it is seriously infuriating .",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "yes"
       },
       "provenance": "synthetic-ai",
@@ -539,7 +539,7 @@
       "title": "umt-gpt4o-test-0367",
       "text": "On my last roll ... Brilliant , time for a TP run !",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "yes"
       },
       "provenance": "synthetic-ai",
@@ -552,7 +552,7 @@
       "title": "umt-gpt4o-test-0369",
       "text": "Stevie Ray Vaughan is take on ' Voodoo Child ' blows Jimi is out of the water ! #guitar #music",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "yes"
       },
       "provenance": "synthetic-ai",
@@ -565,7 +565,7 @@
       "title": "umt-gpt4o-test-0371",
       "text": "Furious over the unfairness , time to wreck my neighbor is windows . Perfectly logical .",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "yes"
       },
       "provenance": "synthetic-ai",
@@ -578,7 +578,7 @@
       "title": "umt-gpt4o-test-0373",
       "text": "@USER Who knew my worst fear would be an enraged orange character , but here we are . #fear #Trump",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "yes"
       },
       "provenance": "synthetic-ai",
@@ -591,7 +591,7 @@
       "title": "umt-gpt4o-test-0375",
       "text": "Excited to kick off my new job tomorrow , cannot help but feel those butterflies !",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "yes"
       },
       "provenance": "synthetic-ai",
@@ -604,7 +604,7 @@
       "title": "umt-gpt4o-test-0377",
       "text": "Just a heads up ... Joshua is stepping out tonight ! First , he is on trash duty , then he is jamming some blues at our favorite spot for $ 6.75 !",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "yes"
       },
       "provenance": "synthetic-ai",
@@ -617,7 +617,7 @@
       "title": "umt-gpt4o-test-0379",
       "text": "Forget being timid , I am determined to break through those barriers .",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "yes"
       },
       "provenance": "synthetic-ai",
@@ -630,7 +630,7 @@
       "title": "umt-gpt4o-test-0380",
       "text": "my mom recorded nightmare before Christmas for me :smiling_face_with_heart-eyes: :smiling_face_with_heart-eyes: :smiling_face_with_heart-eyes: I LOVE IT :two_hearts:",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "no"
       },
       "provenance": "unknown",
@@ -643,7 +643,7 @@
       "title": "umt-gpt4o-test-0387",
       "text": "Feeling utterly defeated by the weight of despair tonight ... #struggling #low",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "yes"
       },
       "provenance": "synthetic-ai",
@@ -656,7 +656,7 @@
       "title": "umt-gpt4o-test-0389",
       "text": "Do you really think Dani Alves will end up at PSG ? Feeling uneasy about this possibility .",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "yes"
       },
       "provenance": "synthetic-ai",
@@ -669,7 +669,7 @@
       "title": "umt-gpt4o-test-0421",
       "text": "Guess I will just be sorrow on display .",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "yes"
       },
       "provenance": "synthetic-ai",
@@ -682,7 +682,7 @@
       "title": "umt-gpt4o-test-0521",
       "text": "Feeling overwhelmed ? Our ACT 4 support group for anxiety and depression starts Monday , October 17 . Join us for 6 weeks of mindfulness . Register now . #Halifax",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "yes"
       },
       "provenance": "synthetic-ai",
@@ -695,7 +695,7 @@
       "title": "umt-gpt4o-test-0523",
       "text": "I just wish I had a shoulder to cry on . Completely drained and heartbroken . #sorrow",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "yes"
       },
       "provenance": "synthetic-ai",
@@ -708,7 +708,7 @@
       "title": "umt-gpt4o-test-0525",
       "text": "I am on the verge of blocking every single person yammering about the weather . We get it , it is pouring . Enough already ! #furious",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "yes"
       },
       "provenance": "synthetic-ai",
@@ -721,7 +721,7 @@
       "title": "umt-gpt4o-test-0527",
       "text": "@USER who knows ? let us just pray I do not accidentally set off her wild rage again . No wrath like it ...",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "yes"
       },
       "provenance": "synthetic-ai",
@@ -734,7 +734,7 @@
       "title": "umt-gpt4o-test-0531",
       "text": "Why all the hate for fizzy water ? ! it is amazing when you pair it with other flavors !",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "yes"
       },
       "provenance": "synthetic-ai",
@@ -747,7 +747,7 @@
       "title": "umt-gpt4o-test-0533",
       "text": "@USER Excited to catch everyone on October 8th ! Get ready because @USER is about to light up the stage . #bringiton #getwild #the40 #brandonmanitoba #countrymusic",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "yes"
       },
       "provenance": "synthetic-ai",
@@ -760,7 +760,7 @@
       "title": "umt-gpt4o-test-0535",
       "text": "Even with the idea of wouldriver responsibility ' being so common , we still face fatalities , aggressive behavior , and traffic infractions every single day .",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "yes"
       },
       "provenance": "synthetic-ai",
@@ -773,7 +773,7 @@
       "title": "umt-gpt4o-test-0537",
       "text": "Feeling so anxious about this exam , wish me luck … :disappointed_face:",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "yes"
       },
       "provenance": "synthetic-ai",
@@ -786,7 +786,7 @@
       "title": "umt-gpt4o-test-0539",
       "text": "@USER Those infuriating rodents .",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "yes"
       },
       "provenance": "synthetic-ai",
@@ -799,7 +799,7 @@
       "title": "umt-gpt4o-test-0551",
       "text": "Experiencing that rush of emotions where exhilaration , fear , jitters , euphoria , and a gut punch combine into one incredible feeling . What do we call that ?",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "yes"
       },
       "provenance": "synthetic-ai",
@@ -812,7 +812,7 @@
       "title": "umt-gpt4o-test-0553",
       "text": "Every time I let one slip , my dog gets startled ! LOL it is too funny !",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "yes"
       },
       "provenance": "synthetic-ai",
@@ -825,7 +825,7 @@
       "title": "umt-gpt4o-test-0555",
       "text": "Cowboys , what was that ? !",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "yes"
       },
       "provenance": "synthetic-ai",
@@ -838,7 +838,7 @@
       "title": "umt-gpt4o-test-0557",
       "text": "@USER it is not that deep . #HOUvsNE #",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "yes"
       },
       "provenance": "synthetic-ai",
@@ -851,7 +851,7 @@
       "title": "umt-gpt4o-test-0559",
       "text": "@USER Really think about it : if he needed votes from white people , would not he only discuss issues that matter to them and totally ignore everyone else ?",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "yes"
       },
       "provenance": "synthetic-ai",
@@ -864,7 +864,7 @@
       "title": "umt-gpt4o-test-0581",
       "text": "Basing your identity on what you stand against is such a colossal error . it is maddening how often people fall into this murky trap .",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "yes"
       },
       "provenance": "synthetic-ai",
@@ -877,7 +877,7 @@
       "title": "umt-gpt4o-test-0583",
       "text": "Hello , Tuesday ! Crossing fingers for a smooth day ahead :grinning_face_with_smiling_eyes: #ToddlerLife #Cuddles #Challenges #PMA",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "yes"
       },
       "provenance": "synthetic-ai",
@@ -890,7 +890,7 @@
       "title": "umt-gpt4o-test-0585",
       "text": "My dog is such a jerk . I checked on him when he started whining , and the ungrateful brat latched onto me and would not stop biting .",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "yes"
       },
       "provenance": "synthetic-ai",
@@ -903,7 +903,7 @@
       "title": "umt-gpt4o-test-0587",
       "text": "Your companions shape who you are . Feeling slightly overwhelmed by the incredibly brilliant folks I encountered @USER @USER @USER @USER @USER !",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "yes"
       },
       "provenance": "synthetic-ai",
@@ -916,7 +916,7 @@
       "title": "umt-gpt4o-test-0591",
       "text": "it is disheartening to see Merkel stand by Israel is aggressive policies , rejecting Palestine is effort to join the UN . #MiddleEast #Diplomacy",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "yes"
       },
       "provenance": "synthetic-ai",
@@ -929,7 +929,7 @@
       "title": "umt-gpt4o-test-0593",
       "text": "@USER So exciting ! Is it true that KG might be transitioning from being a player to co-owning the team with Glen ?",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "yes"
       },
       "provenance": "synthetic-ai",
@@ -942,7 +942,7 @@
       "title": "umt-gpt4o-test-0595",
       "text": "Drowning in endless tasks , and the clock feels frozen hours away :crying_face:",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "yes"
       },
       "provenance": "synthetic-ai",
@@ -955,7 +955,7 @@
       "title": "umt-gpt4o-test-0597",
       "text": "Managed to dunk my phone in the sink today . Silence is golden , except when it is forced on you because your speaker is shot . Fantastic . Now relying on earphones for survival .",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "yes"
       },
       "provenance": "synthetic-ai",
@@ -968,7 +968,7 @@
       "title": "umt-gpt4o-test-0610",
       "text": "2 days on ... never a fucking pen ! ! !",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "no"
       },
       "provenance": "unknown",
@@ -981,7 +981,7 @@
       "title": "umt-gpt4o-test-0612",
       "text": "#PeopleLikeMeBecause they see the happy exterior , not the hopelessness I sometimes feel inside . #depression",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "no"
       },
       "provenance": "unknown",
@@ -994,7 +994,7 @@
       "title": "umt-gpt4o-test-0614",
       "text": "I am excited for the #FirstDayofFall & the rest of the season . I have 2 #Halloween #scare",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "no"
       },
       "provenance": "unknown",
@@ -1007,7 +1007,7 @@
       "title": "umt-gpt4o-test-0616",
       "text": "@USER eh well i can do the sting vs cactus loser leaves wcw match at bash at the beach lol",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "no"
       },
       "provenance": "unknown",
@@ -1020,7 +1020,7 @@
       "title": "umt-gpt4o-test-0618",
       "text": "Hey buddy , I just came by to feed my Venus Flytrap . — Sue ( S1E13 )",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "no"
       },
       "provenance": "unknown",
@@ -1033,7 +1033,7 @@
       "title": "umt-gpt4o-test-0620",
       "text": "@USER literally Nicole already had her chance and she played shitty both seasons .",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "no"
       },
       "provenance": "unknown",
@@ -1046,7 +1046,7 @@
       "title": "umt-gpt4o-test-0622",
       "text": "@USER Miss Cookie sends her thanks ! she is not as spry as she used to be - like me ! She does not have the adventures the young pups do !",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "no"
       },
       "provenance": "unknown",
@@ -1059,7 +1059,7 @@
       "title": "umt-gpt4o-test-0624",
       "text": "@USER Wow , did you get a really good buy on a bunch of ' 70 is movies ? There were bad then and are worse now !",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "no"
       },
       "provenance": "unknown",
@@ -1072,7 +1072,7 @@
       "title": "umt-gpt4o-test-0626",
       "text": "@USER @USER Hey stupid , that was bad intel to take Bin Laden out . Try again with your faux outrage . I bet u admire Putin right ?",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "no"
       },
       "provenance": "unknown",
@@ -1085,7 +1085,7 @@
       "title": "umt-gpt4o-test-0634",
       "text": "@USER Bullies , rudeness and littering all make me #mad !",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "no"
       },
       "provenance": "unknown",
@@ -1098,7 +1098,7 @@
       "title": "umt-gpt4o-test-0636",
       "text": "@USER @USER Is it about rabid penguins on a plane",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "no"
       },
       "provenance": "unknown",
@@ -1111,7 +1111,7 @@
       "title": "umt-gpt4o-test-0640",
       "text": "An @USER kind of drive home from work today #nightmare",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "no"
       },
       "provenance": "unknown",
@@ -1124,7 +1124,7 @@
       "title": "umt-gpt4o-test-0642",
       "text": "Best horror Comedy movie of 2017 #AnandoBrahma @USER #SrinivasReddy . In 2nd half I got throat pain #toomuch",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "no"
       },
       "provenance": "unknown",
@@ -1137,7 +1137,7 @@
       "title": "umt-gpt4o-test-0644",
       "text": "@USER @USER @USER Connor said he is worried that Jack will steal his girls on a night out",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "no"
       },
       "provenance": "unknown",
@@ -1150,7 +1150,7 @@
       "title": "umt-gpt4o-test-0646",
       "text": "@USER seriously dude buy some bubble tape for your phones . #snap",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "no"
       },
       "provenance": "unknown",
@@ -1163,7 +1163,7 @@
       "title": "umt-gpt4o-test-0650",
       "text": "@USER there is no room for jokes in hockey ! This is a serious business where we made up teams to fill out the tournament !",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "no"
       },
       "provenance": "unknown",
@@ -1176,7 +1176,7 @@
       "title": "umt-gpt4o-test-0654",
       "text": "@USER I do not really understand the burst and semi auto version bc the damage does not change so those are essentially useless",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "no"
       },
       "provenance": "unknown",
@@ -1189,7 +1189,7 @@
       "title": "umt-gpt4o-test-0656",
       "text": "@USER glee glee glee glee gLEE GLEE i LOST LOST LOST lowe much",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "no"
       },
       "provenance": "unknown",
@@ -1202,7 +1202,7 @@
       "title": "umt-gpt4o-test-0682",
       "text": "Or all of it , with our displeasure pieced ,",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "no"
       },
       "provenance": "unknown",
@@ -1215,7 +1215,7 @@
       "title": "umt-gpt4o-test-0684",
       "text": "Back on my",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "no"
       },
       "provenance": "unknown",
@@ -1228,7 +1228,7 @@
       "title": "umt-gpt4o-test-0686",
       "text": "In addition to fiction , wish me luck on my research paper this semester . 15-20 pages , oh boy .",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "no"
       },
       "provenance": "unknown",
@@ -1241,7 +1241,7 @@
       "title": "umt-gpt4o-test-0698",
       "text": "@USER evidently @USER feels above #norms . SHOW the #tax",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "no"
       },
       "provenance": "unknown",
@@ -1254,7 +1254,7 @@
       "title": "umt-gpt4o-test-0700",
       "text": "Hi guys ! I now do lessons via Skype ! Contact me for more info . #skype #lesson #basslessons #teacher #free lesson #music #groove #rock",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "no"
       },
       "provenance": "unknown",
@@ -1267,7 +1267,7 @@
       "title": "umt-gpt4o-test-0702",
       "text": "Listening to @USER at work is my slice of sunshine in this dreary cube world",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "no"
       },
       "provenance": "unknown",
@@ -1280,7 +1280,7 @@
       "title": "umt-gpt4o-test-0704",
       "text": "We can easily #forgive a #child who is #afraid of the #dark ; the real #tragedy of #life is when #men are #afraid of the #light .",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "no"
       },
       "provenance": "unknown",
@@ -1293,7 +1293,7 @@
       "title": "umt-gpt4o-test-0706",
       "text": "final vestiges of my 90 is childhood were just dashed on the shoals of hearing a house cover of Tracy Chapman is ' fast car",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "no"
       },
       "provenance": "unknown",
@@ -1306,7 +1306,7 @@
       "title": "umt-gpt4o-test-0708",
       "text": "@USER Is that the new studio kit ? I would be terrified of pressing the wrong button and launching something dangerous !",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "no"
       },
       "provenance": "unknown",
@@ -1319,7 +1319,7 @@
       "title": "umt-gpt4o-test-0712",
       "text": "I need a :bento_box: sushi date :rice_ball: @USER :spaghetti: an olive guarded date :cheese_wedge: @USER and a 👊🏼 Rockys date :pizza:",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "no"
       },
       "provenance": "unknown",
@@ -1332,7 +1332,7 @@
       "title": "umt-gpt4o-test-0718",
       "text": "@USER True . We were rejoicing the fact that we signed a quality young CB but we need one more at least . @USER ?",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "no"
       },
       "provenance": "unknown",
@@ -1345,7 +1345,7 @@
       "title": "umt-gpt4o-test-0720",
       "text": "Hey no turn over after a kick - way to go Texans ! Way to go ! #Texans",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "no"
       },
       "provenance": "unknown",
@@ -1358,7 +1358,7 @@
       "title": "umt-gpt4o-test-0722",
       "text": "India should now react to the uri attack ...",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "no"
       },
       "provenance": "unknown",
@@ -1371,7 +1371,7 @@
       "title": "umt-gpt4o-test-0724",
       "text": "#GameOfThones how can you top that next week",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "no"
       },
       "provenance": "unknown",
@@ -1384,7 +1384,7 @@
       "title": "umt-gpt4o-test-0728",
       "text": "I had some weird dreams last night . First about dogs whose heads explode and roaches come out . Second , dark clouds and flying into space .",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "no"
       },
       "provenance": "unknown",
@@ -1397,7 +1397,7 @@
       "title": "umt-gpt4o-test-0774",
       "text": "Dehydrated , exhausted , stressed but still blessed .",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "no"
       },
       "provenance": "unknown",
@@ -1410,7 +1410,7 @@
       "title": "umt-gpt4o-test-0776",
       "text": "@USER @USER culture & language already protected . \\ n £ on ' promoting Welsh",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "no"
       },
       "provenance": "unknown",
@@ -1423,7 +1423,7 @@
       "title": "umt-gpt4o-test-0778",
       "text": "We join our sister is in #SA as they mourn the death of a bright star #PrudenceMabele . RIP sis , till we meet again .",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "no"
       },
       "provenance": "unknown",
@@ -1436,7 +1436,7 @@
       "title": "umt-gpt4o-test-0790",
       "text": "in my dream ... They were trying to steal my kidney ! ! ! #blackmarket",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "no"
       },
       "provenance": "unknown",
@@ -1449,7 +1449,7 @@
       "title": "umt-gpt4o-test-0792",
       "text": "Absolutely fuming that some woman jumped into my prebooked taxi and drove off :enraged_face:",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "no"
       },
       "provenance": "unknown",
@@ -1462,7 +1462,7 @@
       "title": "umt-gpt4o-test-0794",
       "text": "@USER Flirt , simper , pout , repeat . Yuck .",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "no"
       },
       "provenance": "unknown",
@@ -1475,7 +1475,7 @@
       "title": "umt-gpt4o-test-0796",
       "text": "@USER You bottled it and deleted the picture :weary_face: #scared",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "no"
       },
       "provenance": "unknown",
@@ -1488,7 +1488,7 @@
       "title": "umt-gpt4o-test-0798",
       "text": "Reflection : the grind has been so REAL ! Working 2 jobs & being in school . #ksudsm #ksu #recruiter #instructor #tumble #cheer",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "no"
       },
       "provenance": "unknown",
@@ -1501,7 +1501,7 @@
       "title": "umt-gpt4o-test-0816",
       "text": "Vegas , you won .",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "no"
       },
       "provenance": "unknown",
@@ -1514,7 +1514,7 @@
       "title": "umt-gpt4o-test-0870",
       "text": "This has been the most depressing week full of rain ever lol",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "no"
       },
       "provenance": "unknown",
@@ -1527,7 +1527,7 @@
       "title": "umt-gpt4o-test-0874",
       "text": "awoke from an actual nightmare about unicode normalization",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "no"
       },
       "provenance": "unknown",
@@ -1540,7 +1540,7 @@
       "title": "umt-gpt4o-test-0876",
       "text": "Goddamn headache .",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "no"
       },
       "provenance": "unknown",
@@ -1553,7 +1553,7 @@
       "title": "umt-gpt4o-test-0878",
       "text": "No but that is so cute .",
       "labels": {
-        "sexualContent": "unknown",
+        "contentMatch": "unknown",
         "aiGenerated": "no"
       },
       "provenance": "unknown",

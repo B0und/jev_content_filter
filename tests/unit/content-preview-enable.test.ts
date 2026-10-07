@@ -21,7 +21,7 @@ describe('category enable transitions', () => {
     clearFeed();
   });
 
-  it('rescans post text and link preview text when sexual text is enabled', async () => {
+  it('rescans post text and link preview text when explicit text is enabled', async () => {
     const test = await startRuntime({
       textFilters: [],
       enabled: { ...baseSettings().enabled, aiGenerated: false },
@@ -40,7 +40,7 @@ describe('category enable transitions', () => {
 
     // Assign the classifier reply before the settings write: the runtime
     // scans immediately when the change lands.
-    test.bg.respond = () => ({ ok: true, custom: { 'sexual-text': 0.9 } });
+    test.bg.respond = () => ({ ok: true, custom: { 'preset-1': 0.9 } });
     const enabled: Settings = baseSettings({
       providerKeys: { vercel: 'test-key', typesafe: '', openrouter: '' },
     });
@@ -48,7 +48,7 @@ describe('category enable transitions', () => {
 
     await until(
       () => article.hasAttribute('data-jev-hidden'),
-      'post not re-checked after enabling sexual text',
+      'post not re-checked after enabling explicit text',
     );
     await until(
       () => test.bg.jevCalls.length >= 2,
@@ -63,8 +63,8 @@ describe('category enable transitions', () => {
     const test = await startRuntime({ enabled: { ...baseSettings().enabled, aiGenerated: false } });
     test.bg.respond = (request) =>
       request.text === 'preview page about explicit things'
-        ? { ok: true, custom: { 'sexual-text': 0.9 } }
-        : { ok: true, custom: { 'sexual-text': 0.01 } };
+        ? { ok: true, custom: { 'preset-1': 0.9 } }
+        : { ok: true, custom: { 'preset-1': 0.01 } };
     const article = buildTweetArticle({
       id: '3002',
       text: 'clean text',

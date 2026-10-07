@@ -29,7 +29,7 @@ test('filters captured X replies and link cards while keeping the addressed note
     route.fulfill({
       json: {
         answers: {
-          'custom:sexual-text': { type: 'boolean', probability: 0.99 },
+          'custom:preset-1': { type: 'boolean', probability: 0.99 },
         },
       },
     }),

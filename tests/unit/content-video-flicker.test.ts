@@ -56,7 +56,7 @@ it('keeps a blocked video stable when X changes only its thumbnail size', async 
 
 it('keeps the parent post blocked when quoted-post metadata mounts before its timestamp', async () => {
   const runtime = await startRuntime();
-  runtime.bg.respond = () => ({ ok: true, custom: { 'sexual-text': 0.99 } });
+  runtime.bg.respond = () => ({ ok: true, custom: { 'preset-1': 0.99 } });
   const article = buildTweetArticle({
     id: '2105016474192515573',
     text: 'The parent post stays unchanged while its quote hydrates.',

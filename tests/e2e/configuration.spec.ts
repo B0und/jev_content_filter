@@ -76,7 +76,7 @@ test('provider switches isolate credentials and restore each providers own key',
       correctCredential: route.request().headers().authorization === 'Bearer synthetic-typesafe',
     });
     await route.fulfill({
-      json: { answers: { 'custom:sexual-text': { type: 'noul', noul: 0.01 } } },
+      json: { answers: { 'custom:preset-1': { type: 'noul', noul: 0.01 } } },
     });
   });
   await page.goto('https://x.com/home');
@@ -196,7 +196,7 @@ test('rapid credential edits survive popup close and independent windows preserv
       );
       const parsed = Schema.decodeUnknownSync(SettingsSchema)(stored);
       return {
-        preset: parsed.textFilters.find((filter) => filter.id === 'sexual-text')?.threshold,
+        preset: parsed.textFilters.find((filter) => filter.id === 'preset-1')?.threshold,
         aiGenerated: parsed.thresholds.aiGenerated,
       };
     })

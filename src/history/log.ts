@@ -8,7 +8,6 @@ import { BlockedEntrySchema, ScanErrorEntrySchema } from '../filtering/schemas';
 
 const isBlockedEntry = Schema.is(BlockedEntrySchema);
 const isScanErrorEntry = Schema.is(ScanErrorEntrySchema);
-const isStoredRecord = Schema.is(Schema.Record(Schema.String, Schema.Unknown));
 
 export const loadLog = Effect.fn('loadLog')(function* (): Effect.fn.Return<
   BlockedEntry[],
@@ -20,19 +19,7 @@ export const loadLog = Effect.fn('loadLog')(function* (): Effect.fn.Return<
   const value: unknown = stored[STORAGE_KEYS.log];
   if (!Array.isArray(value)) return [];
   const entries: unknown[] = value;
-  return entries
-    .map((entry) => {
-      if (!isStoredRecord(entry) || !Array.isArray(entry.reasons)) return entry;
-      return {
-        ...entry,
-        reasons: entry.reasons.map((reason: unknown) =>
-          isStoredRecord(reason) && reason.key === 'sexualText'
-            ? { ...reason, key: 'custom:sexual-text', label: 'Sexual text' }
-            : reason,
-        ),
-      };
-    })
-    .filter(isBlockedEntry);
+  return entries.filter(isBlockedEntry);
 });
 
 export const appendBlocked = Effect.fn('appendBlocked')(function* (entry: BlockedEntry) {

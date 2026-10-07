@@ -17,7 +17,7 @@ import {
   metricsFor,
   NSFWJS_LABELS,
   PROVENANCE_LABELS,
-  SEXUAL_CONTENT_POLICY,
+  CONTENT_MATCH_POLICY,
   parseSolutionImport,
   predictionFor,
   predictionLabel,
@@ -47,7 +47,7 @@ const FILTER_LABELS: Record<CaseFilter, string> = {
   text: 'Text',
 };
 
-const TASKS: BenchmarkTask[] = ['sexualContent', 'aiGenerated'];
+const TASKS: BenchmarkTask[] = ['contentMatch', 'aiGenerated'];
 const NSFWJS_TASKS: NsfwjsTask[] = ['porn', 'hentai', 'sexy', 'drawings'];
 const SOLUTION_KINDS: SolutionKind[] = ['llm', 'nsfwjs', 'other'];
 const TRUTH_OPTIONS: Array<{ value: TruthValue; label: string }> = [
@@ -91,7 +91,7 @@ const readFileAsDataUrl = (file: File) =>
   });
 
 function formatCaseLabel(item: BenchmarkCase): string {
-  return `Sexual content: ${item.labels.sexualContent} · AI origin: ${item.labels.aiGenerated}`;
+  return `Content match: ${item.labels.contentMatch} · AI origin: ${item.labels.aiGenerated}`;
 }
 
 function MetricCell({ value }: { value: number | null }) {
@@ -350,7 +350,7 @@ export function App() {
       id: createId('case'),
       modality: sampleType,
       title,
-      labels: { sexualContent: 'unknown', aiGenerated: 'unknown' },
+      labels: { contentMatch: 'unknown', aiGenerated: 'unknown' },
       provenance: 'user-provided',
       notes: sampleFileName
         ? `User-provided sample from ${sampleFileName}; original author/source is unverified.`
@@ -486,9 +486,9 @@ export function App() {
         </div>
       </section>
 
-      <section className="policy-banner" aria-label="Sexual content benchmark policy">
-        <strong>Sexual content policy</strong>
-        <p>{SEXUAL_CONTENT_POLICY}</p>
+      <section className="policy-banner" aria-label="Content match benchmark policy">
+        <strong>Content match policy</strong>
+        <p>{CONTENT_MATCH_POLICY}</p>
         <p>
           When older state is migrated, prior &quot;Explicit&quot; yes labels remain positive and
           prior no labels become unknown. Prior explicit scores are omitted because they answer a
@@ -689,12 +689,12 @@ export function App() {
                     <strong>No solution runs yet.</strong>
                     <span>
                       Add a solution for manual score entry, or import JSON predictions from a model
-                      run. LLM output uses <code>sexualContent</code> and <code>aiGenerated</code>;
+                      run. LLM output uses <code>contentMatch</code> and <code>aiGenerated</code>;
                       legacy <code>explicit</code> scores are not mapped.
                     </span>
                     <code>
                       {
-                        '{ "name": "LLM run", "type": "llm", "predictions": { "case-id": { "sexualContent": 0.78, "aiGenerated": 0.04 } } }'
+                        '{ "name": "LLM run", "type": "llm", "predictions": { "case-id": { "contentMatch": 0.78, "aiGenerated": 0.04 } } }'
                       }
                     </code>
                     <code>
@@ -714,7 +714,7 @@ export function App() {
                         <thead>
                           <tr>
                             <th>Solution</th>
-                            <th colSpan={3}>Sexual content</th>
+                            <th colSpan={3}>Content match</th>
                             <th colSpan={3}>AI-generated</th>
                             <th>Coverage</th>
                             <th colSpan={3}>Manual review</th>
@@ -737,11 +737,11 @@ export function App() {
                         </thead>
                         <tbody>
                           {state.solutions.map((solution) => {
-                            const sexualContent = metricsFor(
+                            const contentMatch = metricsFor(
                               state.cases,
                               solution,
-                              'sexualContent',
-                              state.thresholds.sexualContent,
+                              'contentMatch',
+                              state.thresholds.contentMatch,
                             );
                             const aiGenerated = metricsFor(
                               state.cases,
@@ -759,16 +759,16 @@ export function App() {
                                   </span>
                                   {solution.description && <small>{solution.description}</small>}
                                 </th>
-                                <MetricCell value={sexualContent.f1} />
-                                <MetricCell value={sexualContent.precision} />
-                                <MetricCell value={sexualContent.recall} />
+                                <MetricCell value={contentMatch.f1} />
+                                <MetricCell value={contentMatch.precision} />
+                                <MetricCell value={contentMatch.recall} />
                                 <MetricCell value={aiGenerated.f1} />
                                 <MetricCell value={aiGenerated.precision} />
                                 <MetricCell value={aiGenerated.recall} />
                                 <td>
-                                  {sexualContent.labeled + aiGenerated.labeled === 0
+                                  {contentMatch.labeled + aiGenerated.labeled === 0
                                     ? '—'
-                                    : `${sexualContent.scored + aiGenerated.scored} / ${sexualContent.labeled + aiGenerated.labeled}`}
+                                    : `${contentMatch.scored + aiGenerated.scored} / ${contentMatch.labeled + aiGenerated.labeled}`}
                                 </td>
                                 <td>{review.right}</td>
                                 <td>{review.wrong}</td>

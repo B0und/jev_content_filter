@@ -30,7 +30,7 @@ for (const editThreshold of [false, true]) {
     await popup.getByLabel('Filter name', { exact: true }).fill('Renamed rule');
     const threshold = page
       .locator('[data-jev-panel]')
-      .getByRole('spinbutton', { name: 'Sexual text threshold percent' });
+      .getByRole('spinbutton', { name: 'Content filter threshold percent' });
     await threshold.fill('40');
     await threshold.press('Tab');
     await expect(popup.locator('.custom-filter-heading')).toContainText('40%');

@@ -166,7 +166,7 @@ export function App() {
             </div>
             <ModelCard kind="image" status={models.image} />
             <p className="notice">
-              An illustration is not automatically sexual. Set each image category separately.
+              An illustration is not automatically explicit. Set each image category separately.
             </p>
             <div className="threshold-intro">Lower thresholds block more.</div>
             <div className="category-list">

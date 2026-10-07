@@ -14,7 +14,7 @@ import {
   until,
 } from './support';
 
-const explicit = () => ({ ok: true as const, custom: { 'sexual-text': 0.9 } });
+const explicit = () => ({ ok: true as const, custom: { 'preset-1': 0.9 } });
 
 describe('opened post', () => {
   afterEach(() => {

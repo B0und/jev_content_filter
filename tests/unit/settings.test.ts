@@ -27,7 +27,7 @@ describe('settings storage normalization', () => {
     expect((await Effect.runPromise(loadSettings())).textFilters).toEqual([]);
   });
 
-  it('migrates the legacy preset without losing existing user rules or its saved cutoff', async () => {
+  it('restores stored rules without adding presets or interpreting retired categories', async () => {
     const rules = Array.from({ length: 20 }, (_, index) => ({
       id: `rule-${index}`,
       name: `Rule ${index}`,
@@ -37,25 +37,17 @@ describe('settings storage normalization', () => {
     }));
     await fakeBrowser.storage.local.set({
       settings: {
-        enabled: { sexualText: false },
-        thresholds: { sexualText: 0.37 },
+        enabled: { retiredRule: false },
+        thresholds: { retiredRule: 0.37 },
         textFilters: rules,
       },
     });
     const migrated = await Effect.runPromise(loadSettings());
-    expect(migrated.textFilters).toEqual([
-      { ...defaultSettings().textFilters[0], enabled: false, threshold: 0.37 },
-      ...rules,
-    ]);
-    expect(migrated.enabled).not.toHaveProperty('sexualText');
-    expect(migrated.thresholds).not.toHaveProperty('sexualText');
+    expect(migrated.textFilters).toEqual(rules);
+    expect(migrated.enabled).not.toHaveProperty('retiredRule');
+    expect(migrated.thresholds).not.toHaveProperty('retiredRule');
     await fakeBrowser.storage.local.set({ settings: migrated });
     expect((await Effect.runPromise(loadSettings())).textFilters).toEqual(migrated.textFilters);
-  });
-
-  it('migrates the preset legacy slider', async () => {
-    await fakeBrowser.storage.local.set({ settings: { sliders: { sexualText: 100 } } });
-    expect((await Effect.runPromise(loadSettings())).textFilters[0]!.threshold).toBeCloseTo(0.45);
   });
 
   it('does not obtain credentials from build-time environment values', async () => {

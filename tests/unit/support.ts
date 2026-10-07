@@ -68,7 +68,7 @@ export interface FakeBackground {
 
 export function installFakeBackground(): FakeBackground {
   const bg: FakeBackground = {
-    respond: () => ({ ok: true, custom: { 'sexual-text': 0.01 } }),
+    respond: () => ({ ok: true, custom: { 'preset-1': 0.01 } }),
     aiRespond: () => ({ ok: true, scores: { aiGenerated: 0.01 } }),
     imageRespond: () => ({
       ok: true,
@@ -166,7 +166,7 @@ export async function startRuntime(
     providerKeys: { vercel: 'test-key', typesafe: 'test-key', openrouter: 'test-key' },
     ...settingsOverrides,
   });
-  // Default runtime tests exercise remote sexual-text only. Other classifiers
+  // Default runtime tests exercise remote preset-1 only. Other classifiers
   // must be explicitly enabled by the scenario that uses them.
   if (settingsOverrides.enabled === undefined) {
     runtimeSettings.enabled.porn = false;

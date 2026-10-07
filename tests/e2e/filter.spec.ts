@@ -184,8 +184,8 @@ test('inspects a post, changes its threshold, and opens extension logs', async (
   const panel = page.locator('[data-jev-panel]');
   await expect(panel.locator('.panel')).toBeInViewport();
   await expect(panel.getByText('Text', { exact: true })).toBeVisible();
-  await panel.getByRole('spinbutton', { name: 'Sexual text threshold percent' }).fill('50');
-  await panel.getByRole('spinbutton', { name: 'Sexual text threshold percent' }).press('Tab');
+  await panel.getByRole('spinbutton', { name: 'Content filter threshold percent' }).fill('50');
+  await panel.getByRole('spinbutton', { name: 'Content filter threshold percent' }).press('Tab');
   const logsPromise = context.waitForEvent('page');
   await panel.getByRole('link', { name: 'Open logs' }).click();
   const logs = await logsPromise;
@@ -417,7 +417,7 @@ test('hides disabled categories from the timeline inspector', async ({ page, set
   await expect(panel.locator('.group-label')).toHaveText(['Text', 'Images']);
   await expect(panel.getByRole('cell', { name: 'Porn', exact: true })).toHaveCount(1);
   await expect(panel.getByRole('cell', { name: 'Drawings / anime', exact: true })).toHaveCount(0);
-  await expect(panel.getByRole('cell', { name: 'Sexual text', exact: true })).toHaveCount(1);
+  await expect(panel.getByRole('cell', { name: 'Content filter', exact: true })).toHaveCount(1);
   await expect(panel.getByRole('cell', { name: 'AI-written text', exact: true })).toHaveCount(0);
 });
 test('opens blocked image posts from the logs without hiding them', async ({

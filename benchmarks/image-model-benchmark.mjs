@@ -247,7 +247,7 @@ function metricsFor(cases, predictions) {
       missing += 1;
       continue;
     }
-    const expected = item.labels.sexualContent === 'yes';
+    const expected = item.labels.contentMatch === 'yes';
     const predicted = prediction.score >= THRESHOLD;
     if (expected && predicted) tp += 1;
     else if (!expected && predicted) fp += 1;
@@ -266,7 +266,7 @@ function metricsFor(cases, predictions) {
       : (2 * precision * recall) / (precision + recall);
   const scores = cases
     .map((item) => ({
-      expected: item.labels.sexualContent === 'yes',
+      expected: item.labels.contentMatch === 'yes',
       score: predictionById[item.id]?.score,
     }))
     .filter((item) => typeof item.score === 'number');
@@ -330,11 +330,11 @@ function importSolution(model, cases) {
       return [
         item.caseId,
         {
-          sexualContent: item.score,
+          contentMatch: item.score,
           aiGenerated: null,
           nsfwjs,
           review: {
-            sexualContent: 'unreviewed',
+            contentMatch: 'unreviewed',
             aiGenerated: 'unreviewed',
             porn: 'unreviewed',
             hentai: 'unreviewed',
@@ -518,7 +518,7 @@ const comparisonCases = cases.map((item) => ({
     ? `/images/${path.basename(item.assetFile)}`
     : item.source,
   labels: {
-    sexualContent: item.labels.sexualContent,
+    contentMatch: item.labels.contentMatch,
     aiGenerated: 'unknown',
   },
   provenance: item.provenance === 'user-reported' ? 'user-reported' : 'unknown',
@@ -542,7 +542,7 @@ const comparisonExport = {
   createdAt: manifest.createdAt,
   split: manifest.split,
   labelPolicy: manifest.labelPolicy,
-  thresholds: { sexualContent: THRESHOLD, aiGenerated: THRESHOLD, nsfwjs: THRESHOLD },
+  thresholds: { contentMatch: THRESHOLD, aiGenerated: THRESHOLD, nsfwjs: THRESHOLD },
   selectedCaseId: null,
   cases: comparisonCases,
   solutions: resultModels.map((model) => importSolution(model, cases)),

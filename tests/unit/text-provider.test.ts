@@ -87,7 +87,7 @@ describe('text provider effects', () => {
     server.use(
       http.post(endpoint, () =>
         HttpResponse.json({
-          answers: { 'custom:sexual-text': { type: 'noul', noul: 0.9 } },
+          answers: { 'custom:preset-1': { type: 'noul', noul: 0.9 } },
         }),
       ),
     );
@@ -99,13 +99,13 @@ describe('text provider effects', () => {
           text: 'test input',
         }),
       ),
-    ).toEqual({ custom: { 'sexual-text': 0.9 } });
+    ).toEqual({ custom: { 'preset-1': 0.9 } });
   });
 
   it('lets the SDK reject malformed probabilities received over HTTP', async () => {
     server.use(
       http.post('https://api.typesafe.ai/v1/systemone', () =>
-        HttpResponse.json({ answers: { 'custom:sexual-text': { type: 'noul', noul: 1.1 } } }),
+        HttpResponse.json({ answers: { 'custom:preset-1': { type: 'noul', noul: 1.1 } } }),
       ),
     );
     const result = await Effect.runPromise(
@@ -224,7 +224,7 @@ describe('text provider effects', () => {
               () =>
                 response.resolve(
                   HttpResponse.json({
-                    answers: { 'custom:sexual-text': { type: 'noul', noul: 0.1 } },
+                    answers: { 'custom:preset-1': { type: 'noul', noul: 0.1 } },
                   }),
                 ),
               { once: true },
