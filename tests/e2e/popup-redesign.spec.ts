@@ -144,3 +144,46 @@ test('opening the workspace without an X tab reports an unavailable feed', async
     'No filter connected',
   );
 });
+
+test('Undo restores the filter actually removed after a concurrent workspace edit', async ({
+  context,
+  extensionId,
+  setSettings,
+  worker,
+}) => {
+  const settings = remoteSettings();
+  const original = settings.textFilters[0]!;
+  const updated = {
+    ...original,
+    name: 'Edited from workspace',
+    instructions: 'A newer definition from another view',
+    threshold: 0.48,
+    enabled: false,
+  };
+  await setSettings(settings);
+  const popup = await context.newPage();
+  await popup.goto(`chrome-extension://${extensionId}/popup.html`);
+  await popup.evaluate((filter) => {
+    const send = chrome.runtime.sendMessage.bind(chrome.runtime);
+    Object.defineProperty(chrome.runtime, 'sendMessage', {
+      value: async (request: { type: string; change?: { field: string } }) => {
+        if (request.type === 'update-settings' && request.change?.field === 'deleteTextFilter') {
+          // Commit another view's edit after Delete captured its row, before the writer removes it.
+          await send({ type: 'update-settings', change: { field: 'textFilter', value: filter } });
+        }
+        return send(request);
+      },
+    });
+  }, updated);
+  await popup.getByRole('button', { name: `Delete ${original.name}`, exact: true }).click();
+  await expect(popup.locator('.custom-filter')).toHaveCount(0);
+  await popup.getByRole('button', { name: 'Undo', exact: true }).click();
+  await expect
+    .poll(async () => {
+      const raw = await worker.evaluate(
+        async () => (await chrome.storage.local.get('settings')).settings,
+      );
+      return Schema.decodeUnknownSync(SettingsSchema)(raw).textFilters;
+    })
+    .toEqual([updated]);
+});

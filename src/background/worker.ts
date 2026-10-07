@@ -175,18 +175,26 @@ export class BackgroundWorker extends Context.Service<BackgroundWorker, Backgrou
         );
       });
 
-      const changeSettings = Effect.fnUntraced(function* (change: SettingsChange) {
-        return yield* settingsLock.withPermits(1)(
-          Effect.gen(function* () {
-            const next = applySettingsChange(yield* loadSettings(), change);
-            yield* browserEffect('save settings', () =>
-              browser.storage.local.set({ [STORAGE_KEYS.settings]: next }),
-            );
-            yield* Ref.set(settingsState, next);
-            return next;
-          }),
-        );
-      });
+      const changeSettings = Effect.fnUntraced(
+        /** Serialize settings writes and capture deletion receipts from the same stored snapshot. */
+        function* (change: SettingsChange) {
+          return yield* settingsLock.withPermits(1)(
+            Effect.gen(function* () {
+              const current = yield* loadSettings();
+              const deletedFilter =
+                change.field === 'deleteTextFilter'
+                  ? current.textFilters.find((filter) => filter.id === change.id)
+                  : undefined;
+              const next = applySettingsChange(current, change);
+              yield* browserEffect('save settings', () =>
+                browser.storage.local.set({ [STORAGE_KEYS.settings]: next }),
+              );
+              yield* Ref.set(settingsState, next);
+              return { settings: next, ...(deletedFilter ? { deletedFilter } : {}) };
+            }),
+          );
+        },
+      );
 
       const setTabBadge = (tabId: number, text: string) =>
         browserEffect('set tab badge', () => browser.action.setBadgeText({ text, tabId })).pipe(
@@ -402,104 +410,111 @@ export class BackgroundWorker extends Context.Service<BackgroundWorker, Backgrou
         yield* Effect.forkIn(warmEnabledModels, scope);
       }).pipe(Effect.tapError((error) => Deferred.fail(settingsReady, error)));
 
-      const handleRequest = Effect.fnUntraced(function* (
-        request: BgRequest,
-        sender: MessageSender,
-      ): Effect.fn.Return<unknown, BrowserError> {
-        yield* Deferred.await(settingsReady);
-        switch (request.type) {
-          case 'local-model-status':
-            if (
-              sender.id !== browser.runtime.id ||
-              sender.tab ||
-              sender.url !== browser.runtime.getURL('/inference.html')
-            )
+      const handleRequest = Effect.fnUntraced(
+        /** Dispatch validated extension requests through the worker-owned services. */
+        function* (
+          request: BgRequest,
+          sender: MessageSender,
+        ): Effect.fn.Return<unknown, BrowserError> {
+          yield* Deferred.await(settingsReady);
+          switch (request.type) {
+            case 'local-model-status':
+              if (
+                sender.id !== browser.runtime.id ||
+                sender.tab ||
+                sender.url !== browser.runtime.getURL('/inference.html')
+              )
+                return {
+                  ok: false,
+                  error: 'Local model status must come from the inference document.',
+                };
+              yield* browserEffect('save local model status', () =>
+                browser.storage.local.set({ [MODEL_STATUS_KEY]: request.models }),
+              );
+              return { ok: true };
+            case 'jev':
+              return yield* classify(request);
+            case 'extract-image-text':
+              return yield* encodeOcrReply(
+                Effect.gen(function* () {
+                  const image = yield* fetchImageDataUrl(request.url);
+                  if (!image.ok) return yield* new OcrError({ message: image.error });
+                  return yield* runLocalOcr(image.dataUrl);
+                }),
+              ).pipe(
+                Effect.mapError(
+                  (error) => new BrowserError({ operation: 'encode OCR reply', cause: error }),
+                ),
+              );
+            case 'classify-image': {
+              const image = yield* fetchImageDataUrl(request.url);
+              if (!image.ok) return image;
+              return yield* runLocalInference({
+                target: 'local-inference',
+                operation: 'image',
+                dataUrl: image.dataUrl,
+              });
+            }
+            case 'classify-ai':
+              return yield* runLocalInference({
+                target: 'local-inference',
+                operation: 'aiText',
+                text: request.text,
+              });
+            case 'load-model':
+              return yield* runLocalInference({
+                target: 'local-inference',
+                operation: 'warmup',
+                models: [request.kind],
+              });
+            case 'update-settings': {
+              const result = yield* changeSettings(request.change);
+              return { ok: true, ...result };
+            }
+            case 'get-status':
+              return yield* statusLock.withPermits(1)(loadStatus());
+            case 'log-blocked':
+              yield* logOperation(appendBlocked(request.entry));
+              return { ok: true };
+            case 'log-error':
+              yield* logOperation(
+                !request.tweetId
+                  ? appendScanError(request.message)
+                  : appendScanError(request.message, {
+                      tweetId: request.tweetId,
+                      ...(request.handle === undefined ? {} : { handle: request.handle }),
+                    }),
+              );
+              return { ok: true };
+            case 'clear-log':
+              return { ok: true, type: request.type, cleared: yield* logOperation(clearLog) };
+            case 'clear-errors':
               return {
-                ok: false,
-                error: 'Local model status must come from the inference document.',
+                ok: true,
+                type: request.type,
+                cleared: yield* logOperation(clearScanErrors),
               };
-            yield* browserEffect('save local model status', () =>
-              browser.storage.local.set({ [MODEL_STATUS_KEY]: request.models }),
-            );
-            return { ok: true };
-          case 'jev':
-            return yield* classify(request);
-          case 'extract-image-text':
-            return yield* encodeOcrReply(
-              Effect.gen(function* () {
-                const image = yield* fetchImageDataUrl(request.url);
-                if (!image.ok) return yield* new OcrError({ message: image.error });
-                return yield* runLocalOcr(image.dataUrl);
-              }),
-            ).pipe(
-              Effect.mapError(
-                (error) => new BrowserError({ operation: 'encode OCR reply', cause: error }),
-              ),
-            );
-          case 'classify-image': {
-            const image = yield* fetchImageDataUrl(request.url);
-            if (!image.ok) return image;
-            return yield* runLocalInference({
-              target: 'local-inference',
-              operation: 'image',
-              dataUrl: image.dataUrl,
-            });
+            case 'open-logs': {
+              // Page contexts cannot navigate to chrome-extension:// URLs; open the
+              // log from the privileged worker instead. Keep the existing immediate reply.
+              const url = browser.runtime.getURL('/logs.html') + (request.errors ? '#errors' : '');
+              yield* Effect.forkDetach(
+                browserEffect('open logs page', () => browser.tabs.create({ url })).pipe(
+                  Effect.catchTag('BrowserError', () => Effect.void),
+                ),
+              );
+              return { ok: true };
+            }
+            case 'tab-stats': {
+              const tabId = sender.tab?.id;
+              if (typeof tabId !== 'number') return { ok: false };
+              if (!Number.isFinite(request.blocked) || request.blocked < 0) return { ok: false };
+              yield* updateTabCount(tabId, Math.floor(request.blocked));
+              return { ok: true };
+            }
           }
-          case 'classify-ai':
-            return yield* runLocalInference({
-              target: 'local-inference',
-              operation: 'aiText',
-              text: request.text,
-            });
-          case 'load-model':
-            return yield* runLocalInference({
-              target: 'local-inference',
-              operation: 'warmup',
-              models: [request.kind],
-            });
-          case 'update-settings': {
-            const settings = yield* changeSettings(request.change);
-            return { ok: true, settings };
-          }
-          case 'get-status':
-            return yield* statusLock.withPermits(1)(loadStatus());
-          case 'log-blocked':
-            yield* logOperation(appendBlocked(request.entry));
-            return { ok: true };
-          case 'log-error':
-            yield* logOperation(
-              !request.tweetId
-                ? appendScanError(request.message)
-                : appendScanError(request.message, {
-                    tweetId: request.tweetId,
-                    ...(request.handle === undefined ? {} : { handle: request.handle }),
-                  }),
-            );
-            return { ok: true };
-          case 'clear-log':
-            return { ok: true, type: request.type, cleared: yield* logOperation(clearLog) };
-          case 'clear-errors':
-            return { ok: true, type: request.type, cleared: yield* logOperation(clearScanErrors) };
-          case 'open-logs': {
-            // Page contexts cannot navigate to chrome-extension:// URLs; open the
-            // log from the privileged worker instead. Keep the existing immediate reply.
-            const url = browser.runtime.getURL('/logs.html') + (request.errors ? '#errors' : '');
-            yield* Effect.forkDetach(
-              browserEffect('open logs page', () => browser.tabs.create({ url })).pipe(
-                Effect.catchTag('BrowserError', () => Effect.void),
-              ),
-            );
-            return { ok: true };
-          }
-          case 'tab-stats': {
-            const tabId = sender.tab?.id;
-            if (typeof tabId !== 'number') return { ok: false };
-            if (!Number.isFinite(request.blocked) || request.blocked < 0) return { ok: false };
-            yield* updateTabCount(tabId, Math.floor(request.blocked));
-            return { ok: true };
-          }
-        }
-      });
+        },
+      );
 
       return BackgroundWorker.of({
         initialize,

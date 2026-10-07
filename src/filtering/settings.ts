@@ -173,8 +173,10 @@ export function applySettingsChange(current: Settings, change: SettingsChange): 
   return next;
 }
 
-/** The worker owns read-modify-write, even when the originating popup closes. */
-export const updateSettings = Effect.fn('updateSettings')(function* (change: SettingsChange) {
+/** Validate the worker receipt for a serialized settings write. */
+const requestSettingsChange = Effect.fn('requestSettingsChange')(function* (
+  change: SettingsChange,
+) {
   const reply: unknown = yield* browserEffect('update settings', () =>
     browser.runtime.sendMessage({ type: 'update-settings', change }),
   );
@@ -188,7 +190,18 @@ export const updateSettings = Effect.fn('updateSettings')(function* (change: Set
       operation: 'update settings',
       cause: reply.error,
     });
-  return reply.settings;
+  return reply;
+});
+
+/** The worker owns read-modify-write, even when the originating popup closes. */
+export const updateSettings = Effect.fn('updateSettings')(function* (change: SettingsChange) {
+  return (yield* requestSettingsChange(change)).settings;
+});
+
+/** Return the exact filter removed inside the worker's write lock for reliable Undo. */
+export const deleteTextFilter = Effect.fn('deleteTextFilter')(function* (id: string) {
+  const reply = yield* requestSettingsChange({ field: 'deleteTextFilter', id });
+  return { settings: reply.settings, filter: reply.deletedFilter };
 });
 
 export const loadStatus = Effect.fn('loadStatus')(function* (): Effect.fn.Return<

@@ -7,9 +7,16 @@ import {
   loadSettings,
   loadStatus,
   updateSettings,
+  deleteTextFilter,
 } from '../../filtering/settings';
 import { TabReportSchema } from '../../filtering/schemas';
-import type { FilterStatus, Settings, SettingsChange, TabReport } from '../../filtering/types';
+import type {
+  FilterStatus,
+  Settings,
+  SettingsChange,
+  TabReport,
+  TextFilter,
+} from '../../filtering/types';
 import {
   MODEL_STATUS_KEY,
   ModelStatusesSchema,
@@ -36,6 +43,7 @@ export interface PopupState {
   start: () => () => void;
   update: (change: SettingsChange, editorId?: string) => Promise<boolean>;
   dismissEditorError: (id: string) => void;
+  deleteTextFilter: (id: string) => Promise<TextFilter | undefined>;
   openLogs: () => void;
   openWorkspace: () => void;
   retryModel: (kind: ModelKind) => void;
@@ -47,6 +55,9 @@ export interface PopupStateDependencies {
   loadModels: Effect.Effect<ModelStatuses, BrowserError>;
   retryModel: (kind: ModelKind) => Effect.Effect<unknown, BrowserError>;
   updateSettings: (change: SettingsChange) => Effect.Effect<Settings, BrowserError>;
+  deleteTextFilter: (
+    id: string,
+  ) => Effect.Effect<{ settings: Settings; filter: TextFilter | undefined }, BrowserError>;
   findActiveTab: Effect.Effect<number | undefined, BrowserError>;
   loadTabReport: (tabId: number) => Effect.Effect<unknown, BrowserError>;
   subscribeStorage: (listener: (area: string, keys: ReadonlySet<string>) => void) => () => void;
@@ -61,6 +72,7 @@ type OptimisticEdit = {
   abandoned?: boolean;
 };
 
+/** Reconcile independent view edits with worker-owned settings and report reads. */
 export function createPopupState(dependencies: PopupStateDependencies): PopupState {
   const subscribers = new Set<() => void>();
   const optimisticEdits: OptimisticEdit[] = [];
@@ -140,6 +152,7 @@ export function createPopupState(dependencies: PopupStateDependencies): PopupSta
       }),
     )
     .pipe(Effect.ignore);
+  /** Scope subscriptions and polling to the mounted popup or workspace. */
   function start(): () => void {
     if (viewScopeDisposer) return viewScopeDisposer;
 
@@ -152,6 +165,7 @@ export function createPopupState(dependencies: PopupStateDependencies): PopupSta
       if (probeFailures >= 2) publish({ report: null, missingScript: true });
     };
 
+    /** Probe the selected feed, distinguishing absent tabs from transient script failures. */
     const refreshReport = (tabId: number | undefined) => {
       if (tabId === undefined)
         return Effect.sync(() => publish({ report: null, missingScript: true }));
@@ -238,7 +252,12 @@ export function createPopupState(dependencies: PopupStateDependencies): PopupSta
     publish({ error });
   }
 
-  function update(change: SettingsChange, editorId?: string): Promise<boolean> {
+  /** Project edits immediately, then reconcile success or failure with authoritative storage. */
+  function update(
+    change: SettingsChange,
+    editorId?: string,
+    operation = dependencies.updateSettings(change),
+  ): Promise<boolean> {
     if (!confirmedSettings) return Promise.resolve(false);
     const key = editorId ? `editor:${editorId}` : editKey(change);
     const retriedError = saveErrors.get(key);
@@ -255,7 +274,7 @@ export function createPopupState(dependencies: PopupStateDependencies): PopupSta
     // The background owns read-modify-write and receives every edit immediately;
     // view disposal only stops the refresh used to reconcile this optimistic projection.
     return browserRuntime.runPromise(
-      dependencies.updateSettings(change).pipe(
+      operation.pipe(
         Effect.match({
           onSuccess: () => {
             edit.phase = 'confirmed';
@@ -279,6 +298,24 @@ export function createPopupState(dependencies: PopupStateDependencies): PopupSta
         }),
       ),
     );
+  }
+
+  /** Keep optimistic deletion while using the worker's authoritative removed value for Undo. */
+  async function removeFilter(id: string): Promise<TextFilter | undefined> {
+    let filter: TextFilter | undefined;
+    const saved = await update(
+      { field: 'deleteTextFilter', id },
+      undefined,
+      dependencies.deleteTextFilter(id).pipe(
+        Effect.tap((result) =>
+          Effect.sync(() => {
+            filter = result.filter;
+          }),
+        ),
+        Effect.map((result) => result.settings),
+      ),
+    );
+    return saved ? filter : undefined;
   }
 
   function dismissEditorError(id: string): void {
@@ -345,6 +382,7 @@ export function createPopupState(dependencies: PopupStateDependencies): PopupSta
     start,
     update,
     dismissEditorError,
+    deleteTextFilter: removeFilter,
     openLogs,
     openWorkspace,
     retryModel,
@@ -385,6 +423,7 @@ const browserDependencies: PopupStateDependencies = {
       ),
     ),
   updateSettings,
+  deleteTextFilter,
   findActiveTab: browserEffect('find active tab', async () => {
     const source = new URLSearchParams(location.search).get('tab');
     const tabId = source === null ? undefined : Number(source);

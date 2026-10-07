@@ -26,6 +26,7 @@ export function CustomTextFilters({
   }, [deleted]);
   const returnFocus = useRef<HTMLElement | null>(null);
   const addButton = useRef<HTMLButtonElement>(null);
+  /** Return from the editor to its initiating control, with Add as a stable fallback. */
   const rememberFocus = () => {
     returnFocus.current =
       document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -117,15 +118,12 @@ export function CustomTextFilters({
                 }}
                 onDelete={async (restoreFocus) => {
                   const token = ++removal.current;
-                  const saved = await popupState.update({
-                    field: 'deleteTextFilter',
-                    id: filter.id,
-                  });
-                  if (saved && token === removal.current) {
+                  const removed = await popupState.deleteTextFilter(filter.id);
+                  if (removed && token === removal.current) {
                     focusUndo.current = restoreFocus && document.activeElement === document.body;
-                    setDeleted(filter);
+                    setDeleted(removed);
                   }
-                  if (saved && editing?.id === filter.id) setEditing(null);
+                  if (removed && editing?.id === filter.id) setEditing(null);
                 }}
               />
             ))}

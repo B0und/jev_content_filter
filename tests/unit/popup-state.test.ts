@@ -45,6 +45,7 @@ function popupDependencies(
     loadModels: Effect.sync(initialModelStatuses),
     retryModel: () => Effect.void,
     updateSettings: () => Effect.succeed(defaultSettings()),
+    deleteTextFilter: () => Effect.succeed({ settings: defaultSettings(), filter: undefined }),
     findActiveTab: browserEffect('find active tab', async () => undefined),
     loadTabReport: () => Effect.void,
     subscribeStorage: () => () => {},

@@ -209,6 +209,7 @@ function Brand() {
   );
 }
 
+/** Describe feed progress without treating unavailable or partially checked feeds as healthy. */
 function scanHealth(enabled: boolean, missingScript: boolean, report: TabReport | null): string {
   if (!enabled) return 'Filtering is paused.';
   if (missingScript)
@@ -221,6 +222,7 @@ function scanHealth(enabled: boolean, missingScript: boolean, report: TabReport 
   return report.analyzed ? 'Active on this feed.' : 'Ready. Waiting for posts.';
 }
 
+/** Configure text-provider routing and explain which content leaves the device. */
 function ProviderSettings({ settings }: { settings: Settings }) {
   const providerDetails = PROVIDER_DETAILS[settings.textProvider];
   const update = popupState.update;

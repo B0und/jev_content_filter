@@ -153,6 +153,10 @@ export const BgRequestSchema = Schema.Union([
 ]);
 
 export const SettingsReplySchema = Schema.Union([
-  Schema.Struct({ ok: Schema.Literal(true), settings: SettingsSchema }),
+  Schema.Struct({
+    ok: Schema.Literal(true),
+    settings: SettingsSchema,
+    deletedFilter: Schema.optionalKey(TextFilterSchema),
+  }),
   Schema.Struct({ ok: Schema.Literal(false), error: Schema.String }),
 ]);
