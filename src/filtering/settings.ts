@@ -103,6 +103,7 @@ export const loadSettings = Effect.fn('loadSettings')(function* () {
   };
 });
 
+/** Apply field-scoped edits, treating obsolete delayed threshold saves as no-ops. */
 export function applySettingsChange(current: Settings, change: SettingsChange): Settings {
   const next = { ...current };
   switch (change.field) {
@@ -113,6 +114,11 @@ export function applySettingsChange(current: Settings, change: SettingsChange): 
         const existing = current.textFilters.find((filter) => filter.id === change.id);
         // A delayed edit must never recreate a rule deleted in another view.
         if (!existing) return current;
+        if (
+          change.expectedThreshold !== undefined &&
+          existing.threshold !== change.expectedThreshold
+        )
+          return current;
         value = { ...existing, ...change.value };
       } else value = change.value;
       if (!Schema.is(TextFilterSchema)(value) || !value.name.trim() || !value.instructions.trim())
@@ -152,6 +158,11 @@ export function applySettingsChange(current: Settings, change: SettingsChange): 
       next.enabled = { ...current.enabled, [change.category]: change.value };
       break;
     case 'threshold':
+      if (
+        change.expectedThreshold !== undefined &&
+        current.thresholds[change.category] !== change.expectedThreshold
+      )
+        return current;
       if (
         !CATEGORY_KEYS.includes(change.category) ||
         !Number.isFinite(change.value) ||

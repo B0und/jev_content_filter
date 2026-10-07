@@ -56,13 +56,18 @@ export interface Settings {
 
 export type SettingsChange =
   | { field: 'textFilter'; value: TextFilter }
-  | { field: 'patchTextFilter'; id: string; value: Partial<Omit<TextFilter, 'id'>> }
+  | {
+      field: 'patchTextFilter';
+      id: string;
+      value: Partial<Omit<TextFilter, 'id'>>;
+      expectedThreshold?: number;
+    }
   | { field: 'deleteTextFilter'; id: string }
   | { field: 'masterEnabled'; value: boolean }
   | { field: 'textProvider'; value: TextProvider }
   | { field: 'providerKey'; provider: TextProvider; value: string }
   | { field: 'enabled'; category: CategoryKey; value: boolean }
-  | { field: 'threshold'; category: CategoryKey; value: number };
+  | { field: 'threshold'; category: CategoryKey; value: number; expectedThreshold?: number };
 export interface FilterStatus {
   state: 'ok' | 'failing';
   reason?: string;

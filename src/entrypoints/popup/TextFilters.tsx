@@ -173,11 +173,12 @@ function CustomFilter({
   const toggleId = useId();
   const saveThreshold = useCallback(
     /** Persist only this filter threshold so concurrent edits keep their other fields. */
-    (value: number) => {
+    (value: number, expectedThreshold: number) => {
       void popupState.update({
         field: 'patchTextFilter',
         id: filter.id,
         value: { threshold: value },
+        expectedThreshold,
       });
     },
     [filter.id],

@@ -40,8 +40,8 @@ export function Category({
   const toggleId = useId();
   const saveThreshold = useCallback(
     /** Persist the selected built-in category threshold. */
-    (value: number) => {
-      update({ field: 'threshold', category: key, value });
+    (value: number, expectedThreshold: number) => {
+      update({ field: 'threshold', category: key, value, expectedThreshold });
     },
     [key, update],
   );
@@ -83,13 +83,15 @@ export function Threshold({
   label: string;
   value: number;
   enabled: boolean;
-  save: (value: number) => void;
+  save: (value: number, expectedThreshold: number) => void;
 }) {
   const hintId = useId();
   const percent = Number((value * 100).toFixed(1));
   const [draft, setDraft] = useState(String(percent));
   const [lastSyncedPercent, setLastSyncedPercent] = useState(percent);
-  const pendingPercent = useRef<number | undefined>(undefined);
+  const pendingPercent = useRef<{ percent: number; expectedThreshold: number } | undefined>(
+    undefined,
+  );
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   // A newer saved threshold wins over an unsaved local edit. Cancel before
   // painting it so blur/pagehide cannot flush the previous displayed value.
@@ -99,12 +101,12 @@ export function Threshold({
     pendingPercent.current = undefined;
   }, [percent]);
   const flush = useCallback(
-    /** Save the latest pending percentage once, clearing any scheduled save. */ () => {
+    /** Save against the captured field value so delayed flushes cannot replace newer edits. */ () => {
       clearTimeout(timer.current);
       timer.current = undefined;
       const value = pendingPercent.current;
       pendingPercent.current = undefined;
-      if (value !== undefined) save(value / 100);
+      if (value !== undefined) save(value.percent / 100, value.expectedThreshold);
     },
     [save],
   );
@@ -120,9 +122,12 @@ export function Threshold({
     setDraft(String(percent));
   }
   /** Show the draft immediately and postpone persistence until edits stop. */
-  const setPercent = (value: number) => {
-    setDraft(String(value));
-    pendingPercent.current = value;
+  const setPercent = (percent: number) => {
+    setDraft(String(percent));
+    pendingPercent.current = {
+      percent,
+      expectedThreshold: pendingPercent.current?.expectedThreshold ?? value,
+    };
     clearTimeout(timer.current);
     timer.current = setTimeout(flush, 400);
   };
@@ -160,7 +165,7 @@ export function Threshold({
           }
         }}
         onBlur={() => {
-          const value = pendingPercent.current ?? percent;
+          const value = pendingPercent.current?.percent ?? percent;
           flush();
           setDraft(String(value));
         }}

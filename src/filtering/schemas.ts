@@ -38,6 +38,7 @@ export const SettingsChangeSchema = Schema.Union([
   Schema.Struct({ field: Schema.Literal('textFilter'), value: TextFilterSchema }),
   Schema.Struct({
     field: Schema.Literal('patchTextFilter'),
+    expectedThreshold: Schema.optionalKey(probability),
     id: TextFilterSchema.fields.id,
     value: Schema.Struct({
       name: Schema.optionalKey(TextFilterSchema.fields.name),
@@ -61,6 +62,7 @@ export const SettingsChangeSchema = Schema.Union([
   }),
   Schema.Struct({
     field: Schema.Literal('threshold'),
+    expectedThreshold: Schema.optionalKey(probability),
     category: CategoryKeySchema,
     value: probability,
   }),
