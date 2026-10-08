@@ -184,6 +184,19 @@ test('inspects a post, changes its threshold, and opens extension logs', async (
   const panel = page.locator('[data-jev-panel]');
   await expect(panel.locator('.panel')).toBeInViewport();
   await expect(panel.getByText('Text', { exact: true })).toBeVisible();
+  await page.mouse.move(5, 5);
+  const beforeWheel = await page.evaluate(() => scrollY);
+  await page.mouse.wheel(0, 100);
+  await expect(panel).toHaveCount(0);
+  await page.waitForFunction((before) => scrollY !== before, beforeWheel);
+  await safe.evaluate(async (element) => {
+    element.scrollIntoView({ block: 'end' });
+    await new Promise<void>((resolve) =>
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+    );
+  });
+  await safe.getByRole('button', { name: 'Allowed', exact: true }).click();
+  await expect(panel.getByText('Text', { exact: true })).toBeVisible();
   await panel.getByRole('spinbutton', { name: 'Content filter threshold percent' }).fill('50');
   await panel.getByRole('spinbutton', { name: 'Content filter threshold percent' }).press('Tab');
   const logsPromise = context.waitForEvent('page');

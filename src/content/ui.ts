@@ -512,7 +512,7 @@ function openPanel(post: Post, anchor: HTMLButtonElement, _ctx: ContentScriptCon
     if (event.key !== 'Escape') return;
     // Escape always closes and returns focus to the trigger.
     closePanel();
-    anchor.focus();
+    anchor.focus({ preventScroll: true });
   };
   // Track focus for rebuilds ourselves: shadow-root activeElement reads are
   // not portable, and only threshold inputs carry a category marker.
@@ -523,11 +523,13 @@ function openPanel(post: Post, anchor: HTMLButtonElement, _ctx: ContentScriptCon
   document.addEventListener('pointerdown', outside, { capture: true, signal: panelSignals.signal });
   document.addEventListener('keydown', onKey, { capture: true, signal: panelSignals.signal });
   document.addEventListener('focusin', onFocus, { capture: true, signal: panelSignals.signal });
-  // Follow the post instead of closing: X's feed shifts constantly (new
-  // posts, lazy media), so a plain scroll listener would kill the panel
-  // seconds after opening. Only Escape, outside clicks, or the post
-  // leaving the DOM dismiss it.
-  const onScroll = () => {
+  // Dismiss immediately when the feed scrolls, while allowing the inspector's
+  // own contents to scroll. Wheel/touch intent also dismisses at feed edges.
+  const dismissOnScroll = (event: Event) => {
+    if (event.composedPath().includes(host)) return;
+    closePanel();
+  };
+  const onResize = () => {
     if (panelFrame) return;
     panelFrame = requestAnimationFrame(() => {
       panelFrame = 0;
@@ -539,8 +541,13 @@ function openPanel(post: Post, anchor: HTMLButtonElement, _ctx: ContentScriptCon
       placePanel(anchor);
     });
   };
-  window.addEventListener('scroll', onScroll, { capture: true, signal: panelSignals.signal });
-  window.addEventListener('resize', onScroll, { signal: panelSignals.signal });
+  for (const type of ['scroll', 'wheel', 'touchmove'])
+    window.addEventListener(type, dismissOnScroll, {
+      capture: true,
+      passive: true,
+      signal: panelSignals.signal,
+    });
+  window.addEventListener('resize', onResize, { signal: panelSignals.signal });
   stopPanelListeners = () => {
     panelSignals.abort();
     if (panelFrame) cancelAnimationFrame(panelFrame);
@@ -584,7 +591,7 @@ function closePanel(): void {
   // Return focus to the button that opened the panel (no-op when focus is
   // already elsewhere, e.g. the user clicked into another control).
   if (anchor?.isConnected && (!document.activeElement || document.activeElement === document.body))
-    anchor.focus();
+    anchor.focus({ preventScroll: true });
 }
 
 /** Build the inspector with temporary reveal and persistent override controls. */
@@ -691,7 +698,7 @@ function renderPanel(post: Post): void {
       const previewScore = post.previewScores[`custom:${filter.id}`];
       const values: string[] = [];
       if (post.text)
-        values.push(`Post ${score === undefined ? 'not checked' : `${(score * 100).toFixed(1)}%`}`);
+        values.push(score === undefined ? 'not checked' : `${(score * 100).toFixed(1)}%`);
       if (post.previewText)
         values.push(
           `Preview ${previewScore === undefined ? 'not checked' : `${(previewScore * 100).toFixed(1)}%`}`,
@@ -770,7 +777,7 @@ function renderPanel(post: Post): void {
   }
   if (focusedCategory) {
     const restored = root.querySelector<HTMLInputElement>(`[data-jev-cat="${focusedCategory}"]`);
-    restored?.focus();
+    restored?.focus({ preventScroll: true });
   }
   // Live countdown for retry timers; stops once no retry is pending.
   clearInterval(panelCountdownTimer);
