@@ -256,3 +256,40 @@ describe('custom text filters', () => {
     );
   });
 });
+
+it('persists case-normalized author exceptions, merges category edits and migrates old settings', async () => {
+  await fakeBrowser.storage.local.set({ settings: { masterEnabled: true } });
+  const migrated = await Effect.runPromise(loadSettings());
+  expect(migrated.authorExceptions).toEqual([]);
+  expect(migrated.followedExemptions).toEqual([]);
+  const first = applySettingsChange(migrated, {
+    field: 'authorException',
+    handle: 'Reader',
+    category: 'hentai',
+    value: true,
+  });
+  const second = applySettingsChange(first, {
+    field: 'authorException',
+    handle: 'READER',
+    category: 'sexy',
+    value: true,
+  });
+  await fakeBrowser.storage.local.set({ settings: second });
+  const saved = await Effect.runPromise(loadSettings());
+  expect(saved.authorExceptions).toEqual([{ handle: 'reader', categories: ['hentai', 'sexy'] }]);
+  const removed = applySettingsChange(saved, {
+    field: 'authorException',
+    handle: 'reader',
+    category: 'hentai',
+    value: false,
+  });
+  expect(removed.authorExceptions).toEqual([{ handle: 'reader', categories: ['sexy'] }]);
+  expect(
+    applySettingsChange(removed, {
+      field: 'authorException',
+      handle: 'reader',
+      category: 'sexy',
+      value: false,
+    }).authorExceptions,
+  ).toEqual([]);
+});

@@ -166,7 +166,12 @@ export async function loadImageModel(
           throw new Error(`The image model omitted its '${key}' score.`);
         }
       }
-      if (scores.drawings! < 0.5) return { scores };
+      const drawnEvidence = Math.min(1, scores.drawings! + scores.hentai!);
+      // A high Hentai candidate must not bypass independent verification.
+      if (drawnEvidence < 0.2) {
+        scores.hentai = 0;
+        return { scores };
+      }
       try {
         await warmup();
         if (!animeModel) throw new Error('The anime rating model is unavailable.');
@@ -181,17 +186,16 @@ export async function loadImageModel(
         const values = Array.from(animeValues, Number);
         if (values.some((value) => !Number.isFinite(value) || value < 0 || value > 1))
           throw new Error('The anime rating model returned invalid probabilities.');
-        if (scores.drawings! >= 0.5) {
-          scores.sexy = Math.max(
-            scores.sexy!,
-            Math.min(1, Number(animeValues[1]) + Number(animeValues[2]) + Number(animeValues[3])),
-          );
-        }
+        // Agreement scores are conservative policy, not calibrated probabilities.
+        scores.hentai = Math.min(drawnEvidence, values[3]!);
+        // Danbooru rates general/sensitive as SFW; reserve this boundary for q/e.
+        scores.sexy = Math.max(scores.sexy!, Math.min(drawnEvidence, values[2]! + values[3]!));
         return { scores };
       } catch (error) {
         const failed = animeModel;
         animeModel = undefined;
         await failed?.release().catch(() => {});
+        delete scores.hentai;
         return {
           scores,
           warning: `Anime sensitivity check failed: ${error instanceof Error ? error.message : String(error)}. Retry to complete it.`,

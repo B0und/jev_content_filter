@@ -32,7 +32,7 @@ export const SELECTED_MODELS: Record<ModelKind, ModelDescriptor> = {
     revision: 'd55a54c51f14380670064cc129b2ea51029c5e46',
     title: 'NSFWJS + Anime DBRating',
     description:
-      '19.6 MB of image weights: a 2.7 MB cached NSFWJS download and 16.8 MB of bundled Anime DBRating weights. Anime sensitivity uses a separate rating model.',
+      '19.6 MB of image weights: a 2.7 MB cached NSFWJS download and 16.8 MB of bundled Anime DBRating weights. Drawn-content blocks require a separate explicit-rating check.',
     baseUrl:
       'https://raw.githubusercontent.com/infinitered/nsfwjs/d55a54c51f14380670064cc129b2ea51029c5e46/models/mobilenet_v2',
     sourceUrl:
@@ -56,4 +56,4 @@ export const SELECTED_MODELS: Record<ModelKind, ModelDescriptor> = {
 };
 
 /** Version the whole image pipeline, including routing and score aggregation. */
-export const IMAGE_PIPELINE_REVISION = `${SELECTED_MODELS.image.id}:${SELECTED_MODELS.image.revision}:${ANIME_RATING_MODEL.id}:${ANIME_RATING_MODEL.revision}:routing-v1`;
+export const IMAGE_PIPELINE_REVISION = `${SELECTED_MODELS.image.id}:${SELECTED_MODELS.image.revision}:${ANIME_RATING_MODEL.id}:${ANIME_RATING_MODEL.revision}:verified-explicit-v2`;

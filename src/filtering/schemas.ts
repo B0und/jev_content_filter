@@ -24,7 +24,15 @@ export const TextFilterSchema = Schema.Struct({
   threshold: probability,
 });
 
+export const AuthorHandleSchema = Schema.String.check(Schema.isPattern(/^[a-zA-Z0-9_]{1,15}$/));
+export const AuthorExceptionSchema = Schema.Struct({
+  handle: AuthorHandleSchema,
+  categories: Schema.mutable(Schema.Array(ScoreKeySchema)),
+});
+
 export const SettingsSchema = Schema.Struct({
+  authorExceptions: Schema.mutable(Schema.Array(AuthorExceptionSchema)),
+  followedExemptions: Schema.mutable(Schema.Array(ScoreKeySchema)),
   textFilters: Schema.mutable(Schema.Array(TextFilterSchema)),
   masterEnabled: Schema.Boolean,
   textProvider: TextProviderSchema,
@@ -35,6 +43,17 @@ export const SettingsSchema = Schema.Struct({
 });
 
 export const SettingsChangeSchema = Schema.Union([
+  Schema.Struct({
+    field: Schema.Literal('authorException'),
+    handle: AuthorHandleSchema,
+    category: ScoreKeySchema,
+    value: Schema.Boolean,
+  }),
+  Schema.Struct({
+    field: Schema.Literal('followedExemption'),
+    category: ScoreKeySchema,
+    value: Schema.Boolean,
+  }),
   Schema.Struct({ field: Schema.Literal('textFilter'), value: TextFilterSchema }),
   Schema.Struct({
     field: Schema.Literal('patchTextFilter'),

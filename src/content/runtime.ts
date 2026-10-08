@@ -17,6 +17,7 @@ import {
   type TabReport,
 } from '../filtering/types';
 import { canRetry, imageScores, MAX_RETRIES, message, textScores } from './classify';
+import { receiveFollowState, clearFollowStates } from './relationships';
 import { readArticle, sameUrls } from './dom';
 import {
   createBinding,
@@ -600,6 +601,16 @@ class ContentSession extends Context.Service<ContentSession, ContentSessionApi>(
                   dispatch(discover().pipe(Effect.andThen(reportStats())));
               });
             };
+            const onFollowState = (event: MessageEvent) => {
+              if (activeCtx !== ctx || ctx.isInvalid || !receiveFollowState(event)) return;
+              renderAll();
+              schedule();
+            };
+            window.addEventListener('message', onFollowState);
+            const removeFollowListener = () => window.removeEventListener('message', onFollowState);
+            yield* Scope.addFinalizer(scope, Effect.sync(removeFollowListener));
+            ctx.onInvalidated(removeFollowListener);
+            window.postMessage({ type: 'jev-follow-request' }, location.origin);
             const navigation = window.navigation;
             navigation?.addEventListener('currententrychange', schedule);
             const removeNavigationListener = () =>
@@ -713,6 +724,7 @@ function teardown(ctx: ContentScriptContext): void {
   observer = null;
   activeCtx = null;
   posts.clear();
+  clearFollowStates();
   resetPageStats();
   overrides.clear();
   lastBadgeBlocked = -1;

@@ -2,7 +2,14 @@ import { Effect } from 'effect';
 import * as Schema from 'effect/Schema';
 import { BrowserError, browserEffect } from '../platform/browser';
 import { browser } from 'wxt/browser';
-import { FilterStatusSchema, SettingsReplySchema, TextFilterSchema } from './schemas';
+import {
+  AuthorExceptionSchema,
+  AuthorHandleSchema,
+  ScoreKeySchema,
+  FilterStatusSchema,
+  SettingsReplySchema,
+  TextFilterSchema,
+} from './schemas';
 import {
   STORAGE_KEYS,
   defaultSettings,
@@ -87,6 +94,16 @@ export const loadSettings = Effect.fn('loadSettings')(function* () {
     : initialFilters;
 
   return {
+    authorExceptions: Array.isArray(raw.authorExceptions)
+      ? raw.authorExceptions.filter(Schema.is(AuthorExceptionSchema)).map((entry) => ({
+          ...entry,
+          handle: entry.handle.toLowerCase(),
+          categories: [...new Set(entry.categories)],
+        }))
+      : [],
+    followedExemptions: Array.isArray(raw.followedExemptions)
+      ? [...new Set(raw.followedExemptions.filter(Schema.is(ScoreKeySchema)))]
+      : [],
     textFilters,
     masterEnabled:
       typeof raw.masterEnabled === 'boolean' ? raw.masterEnabled : defaults.masterEnabled,
@@ -107,6 +124,34 @@ export const loadSettings = Effect.fn('loadSettings')(function* () {
 export function applySettingsChange(current: Settings, change: SettingsChange): Settings {
   const next = { ...current };
   switch (change.field) {
+    case 'authorException': {
+      if (
+        !Schema.is(AuthorHandleSchema)(change.handle) ||
+        !Schema.is(ScoreKeySchema)(change.category) ||
+        typeof change.value !== 'boolean'
+      )
+        throw new Error('Invalid author exception.');
+      const handle = change.handle.toLowerCase();
+      const categories = new Set(
+        current.authorExceptions
+          .filter((entry) => entry.handle === handle)
+          .flatMap((entry) => entry.categories),
+      );
+      if (change.value) categories.add(change.category);
+      else categories.delete(change.category);
+      next.authorExceptions = current.authorExceptions.filter((entry) => entry.handle !== handle);
+      if (categories.size) next.authorExceptions.push({ handle, categories: [...categories] });
+      break;
+    }
+    case 'followedExemption': {
+      if (!Schema.is(ScoreKeySchema)(change.category) || typeof change.value !== 'boolean')
+        throw new Error('Invalid followed-account exception.');
+      const categories = new Set(current.followedExemptions);
+      if (change.value) categories.add(change.category);
+      else categories.delete(change.category);
+      next.followedExemptions = [...categories];
+      break;
+    }
     case 'textFilter':
     case 'patchTextFilter': {
       let value;

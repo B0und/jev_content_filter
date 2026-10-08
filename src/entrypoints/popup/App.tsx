@@ -15,6 +15,7 @@ import type { ModelKind, ModelStatus } from '../../inference/contracts';
 import { popupState } from './state';
 import { CustomTextFilters } from './TextFilters';
 import { Category, EngineStatus } from './FilterControls';
+import { Exceptions } from './Exceptions';
 import './popup.css';
 
 const PROVIDER_DETAILS: Record<
@@ -158,6 +159,7 @@ export function App({ workspace = false }: { workspace?: boolean }) {
           </section>
         </Tabs.Panel>
         <Tabs.Panel value="settings" className="tab-panel settings-panel" keepMounted>
+          <Exceptions settings={settings} />
           <section className="filter-section">
             <div className="section-heading">
               <div>

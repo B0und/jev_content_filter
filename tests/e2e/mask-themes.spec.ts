@@ -61,3 +61,38 @@ test('the mask follows the native content column and live X theme colors', async
     .poll(async () => (await slot.boundingBox())!.width)
     .toBe((await page.locator('[data-testid="tweetText"]').boundingBox())!.width);
 });
+
+test('cropped multi-image media keeps recovery controls visible and clickable', async ({
+  page,
+  worker,
+}) => {
+  expect(worker.url()).toContain('chrome-extension:');
+  await page.route('https://x.com/home', (route) =>
+    route.fulfill({
+      contentType: 'text/html',
+      body: `<!doctype html><style>body{margin:0;font:15px/20px Arial}main{width:600px;margin:auto;overflow:hidden}article{padding:16px}.content{margin-left:64px}.media{display:grid;grid-template-columns:1fr 1fr;gap:2px}.photo{position:relative;height:200px;overflow:hidden}.photo img{position:absolute;width:1300px;height:700px;left:50%;top:50%;transform:translate(-50%,-50%)}.header{display:flex;justify-content:space-between}</style><main><article data-testid="tweet"><div class="content"><div class="header"><div data-testid="User-Name">Reader @reader</div><a href="/reader/status/991"><time>Now</time></a><button data-testid="caret">More</button></div><div data-testid="tweetText">BLOCK_TEXT</div><div class="media">${Array.from({ length: 4 }, () => '<div class="photo" data-testid="tweetPhoto"><img alt="" src="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%221300%22 height=%22700%22/%3E"></div>').join('')}</div><div role="group"><button data-testid="reply">Reply</button></div></div></article><div id="following">Next post</div></main>`,
+    }),
+  );
+  await page.goto('https://x.com/home');
+  const slot = page.locator('[data-jev-hidden-slot]');
+  const show = slot.getByRole('button', { name: 'Show post', exact: true });
+  await expect(show).toBeVisible();
+  const column = (await page.locator('.content').boundingBox())!;
+  const mask = (await slot.boundingBox())!;
+  expect(mask.x).toBe(column.x);
+  expect(mask.width).toBe(column.width);
+  const control = (await show.boundingBox())!;
+  expect(control.x).toBeGreaterThanOrEqual(column.x);
+  expect(control.x + control.width).toBeLessThanOrEqual(column.x + column.width);
+  expect(
+    await show.evaluate((button) => {
+      const r = button.getBoundingClientRect();
+      const root = button.getRootNode() as ShadowRoot;
+      return document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2) === root.host;
+    }),
+  ).toBe(true);
+  const before = (await page.locator('#following').boundingBox())!.y;
+  await show.click();
+  await expect(page.locator('[data-testid="tweetText"]')).toBeVisible();
+  expect((await page.locator('#following').boundingBox())!.y).toBe(before);
+});

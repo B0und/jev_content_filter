@@ -90,7 +90,7 @@ it('keeps NSFWJS scores after anime loading fails and retries the load', async (
   expect(degraded.warning).toContain('model unavailable');
   const recovered = await classify('data:image/png;base64,AA==');
   expect(recovered.warning).toBeUndefined();
-  expect(recovered.scores.sexy).toBeCloseTo(0.95);
+  expect(recovered.scores.sexy).toBeCloseTo(0.15);
   expect(mocks.create).toHaveBeenCalledTimes(2);
 });
 
@@ -124,8 +124,43 @@ it('completes photo classification without loading an unavailable anime model', 
   ]);
   const classify = await loadImageModel(() => {});
   expect(await classify('data:image/png;base64,AA==')).toEqual({
-    scores: { drawings: 0.01, porn: 0.01, hentai: 0.01, sexy: 0.03 },
+    scores: { drawings: 0.01, porn: 0.01, hentai: 0, sexy: 0.03 },
   });
   expect(mocks.create).not.toHaveBeenCalled();
   expect(classify.isReady()).toBe(false);
+});
+
+it('verifies a high Hentai false positive even when Drawing is low', async () => {
+  mocks.classify.mockResolvedValue([
+    { className: 'Drawing', probability: 0.01 },
+    { className: 'Porn', probability: 0.01 },
+    { className: 'Hentai', probability: 0.97 },
+    { className: 'Sexy', probability: 0.01 },
+  ]);
+  mocks.run.mockResolvedValue({ output: { data: new Float32Array([0.9, 0.08, 0.015, 0.005]) } });
+  const classify = await loadImageModel(() => {});
+  const result = await classify('data:image/png;base64,AA==');
+  expect(mocks.run).toHaveBeenCalledOnce();
+  expect(result.scores.hentai).toBeCloseTo(0.005);
+  expect(result.scores.sexy).toBeLessThan(0.1);
+});
+
+it('independent explicit evidence catches drawn content mislabeled as safe Drawing', async () => {
+  mocks.run.mockResolvedValue({ output: { data: new Float32Array([0.01, 0.02, 0.02, 0.95]) } });
+  const classify = await loadImageModel(() => {});
+  expect((await classify('data:image/png;base64,AA==')).scores.hentai).toBeCloseTo(0.95);
+});
+
+it('an unavailable verifier never presents raw Hentai as a verified score', async () => {
+  mocks.classify.mockResolvedValue([
+    { className: 'Drawing', probability: 0.01 },
+    { className: 'Porn', probability: 0.01 },
+    { className: 'Hentai', probability: 0.97 },
+    { className: 'Sexy', probability: 0.01 },
+  ]);
+  mocks.create.mockRejectedValue(new Error('model unavailable'));
+  const classify = await loadImageModel(() => {});
+  const result = await classify('data:image/png;base64,AA==');
+  expect(result.scores.hentai).toBeUndefined();
+  expect(result.warning).toContain('model unavailable');
 });

@@ -231,6 +231,10 @@ export function createPopupState(dependencies: PopupStateDependencies): PopupSta
 
   function editKey(change: SettingsChange): string {
     switch (change.field) {
+      case 'authorException':
+        return `authorException:${change.handle.toLowerCase()}:${change.category}`;
+      case 'followedExemption':
+        return `followedExemption:${change.category}`;
       case 'textFilter':
         return `textFilter:${change.value.id}`;
       case 'deleteTextFilter':

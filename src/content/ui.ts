@@ -188,6 +188,82 @@ function hiddenReason(post: Post): string {
     .join(', ')}`;
 }
 
+/** Confirm a category-specific author exception before saving it. */
+function showAuthorException(post: Post, root: ShadowRoot, opener: HTMLButtonElement): void {
+  if (root.querySelector('dialog')) return;
+  const matches = hits(post);
+  if (!matches.length) return;
+  const dialog = document.createElement('dialog');
+  dialog.setAttribute('aria-labelledby', 'author-exception-title');
+  const title = document.createElement('h2');
+  title.id = 'author-exception-title';
+  title.textContent = 'Skip a filter for @' + post.handle + '?';
+  const description = document.createElement('p');
+  description.textContent =
+    'This applies to this author’s current and future posts. Other filters stay active. You can remove it in Settings.';
+  const label = document.createElement('label');
+  label.textContent = 'Filter to skip';
+  const select = document.createElement('select');
+  select.setAttribute('aria-label', 'Filter to skip');
+  for (const hit of matches) {
+    const option = document.createElement('option');
+    option.value = hit.key;
+    option.textContent = scoreLabel(hit.key, settings.current.textFilters);
+    select.append(option);
+  }
+  label.append(select);
+  const error = document.createElement('p');
+  error.setAttribute('role', 'status');
+  const actions = document.createElement('div');
+  actions.className = 'dialog-actions';
+  const cancel = document.createElement('button');
+  cancel.type = 'button';
+  cancel.textContent = 'Cancel';
+  cancel.autofocus = true;
+  const confirm = document.createElement('button');
+  confirm.type = 'button';
+  confirm.textContent = 'Save author exception';
+  cancel.addEventListener('click', () => dialog.close());
+  dialog.addEventListener('click', (event) => event.stopPropagation());
+  dialog.addEventListener('close', () => {
+    dialog.remove();
+    if (opener.isConnected) opener.focus({ preventScroll: true });
+  });
+  confirm.addEventListener('click', () => {
+    const key = matches.find((hit) => hit.key === select.value)?.key;
+    if (!key) return;
+    confirm.disabled = true;
+    select.disabled = true;
+    void browserRuntime
+      .runPromise(
+        updateSettings({
+          field: 'authorException',
+          handle: post.handle,
+          category: key,
+          value: true,
+        }),
+      )
+      .then(() => {
+        dialog.close();
+        const binding = [...bindings.values()].find(
+          (item) => item.post === post && item.host.isConnected,
+        );
+        binding?.button.focus({ preventScroll: true });
+      })
+      .catch(() => {
+        if (!dialog.isConnected) return;
+        error.textContent = 'Could not save the exception. Try again.';
+        confirm.disabled = false;
+        select.disabled = false;
+      });
+  });
+  actions.append(cancel, confirm);
+  dialog.append(title, description, label, error, actions);
+  dialog.style.backgroundColor = getComputedStyle(document.body).backgroundColor;
+  root.append(dialog);
+  dialog.showModal();
+}
+
 /** Keep the original author header, avatar, menu and action bar accessible. */
 function retainPostControls(article: HTMLElement, binding: Binding): void {
   for (const element of binding.retainedElements ?? [])
@@ -274,18 +350,25 @@ function placeHiddenNotice(article: HTMLElement, binding: Binding): void {
   ]
     .filter(
       (element) =>
-        element.closest('article') === article && !element.closest('[data-jev-retained]'),
+        element.closest('article') === article &&
+        !element.closest('[data-jev-retained]') &&
+        // Cropped media children can be much larger than the visible native container.
+        !element.parentElement?.closest(
+          '[data-testid="tweetPhoto"], [data-testid="card.wrapper"], div[role="link"]',
+        ),
     )
     .map((element) => element.getBoundingClientRect())
     .filter((bounds) => bounds.width > 0 && bounds.height > 0);
   const computed = getComputedStyle(article);
   const left = content.length
-    ? Math.min(...content.map((bounds) => bounds.left))
+    ? Math.max(rect.left, Math.min(...content.map((bounds) => bounds.left)))
     : rect.left + (parseFloat(computed.paddingLeft) || 0);
   const right = content.length
-    ? Math.max(...content.map((bounds) => bounds.right))
+    ? Math.min(rect.right, Math.max(...content.map((bounds) => bounds.right)))
     : rect.right - (parseFloat(computed.paddingRight) || 0);
-  const top = content.length ? Math.min(...content.map((bounds) => bounds.top)) : headerBottom;
+  const top = content.length
+    ? Math.max(headerBottom, Math.min(...content.map((bounds) => bounds.top)))
+    : headerBottom;
   const contentBottom = content.length
     ? Math.max(...content.map((bounds) => bounds.bottom))
     : bottom;
@@ -332,7 +415,7 @@ function applyVisibility(article: HTMLElement, binding: Binding): void {
     }
     const root = slot.attachShadow({ mode: 'open' });
     const style = document.createElement('style');
-    style.textContent = `:host { display: block; } .notice { pointer-events: auto; width: 100%; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 12px; color: var(--jev-muted); background: transparent; font: inherit; text-align: center; overflow: hidden; } .notice.compact { flex-direction: row; gap: 6px; padding: 0; font-size: 12px; } .compact p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 70%; } .compact button { padding: 0 6px; line-height: 1.2; } p { margin: 0; overflow-wrap: anywhere; } button { font: inherit; color: var(--jev-accent); background: transparent; border: 1px solid currentColor; border-radius: 999px; padding: 5px 14px; cursor: pointer; } button:focus-visible { outline: 2px solid var(--jev-accent); outline-offset: 3px; }`;
+    style.textContent = `:host { display: block; } .notice { pointer-events: auto; width: 100%; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 12px; color: var(--jev-muted); background: transparent; font: inherit; text-align: center; overflow: hidden; } .notice.compact { flex-direction: row; gap: 6px; padding: 0; font-size: 12px; } .compact p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 70%; } .compact button { padding: 0 6px; line-height: 1.2; } p { margin: 0; overflow-wrap: anywhere; } button { font: inherit; color: var(--jev-accent); background: transparent; border: 1px solid currentColor; border-radius: 999px; padding: 5px 14px; cursor: pointer; } button:focus-visible { outline: 2px solid var(--jev-accent); outline-offset: 3px; } .exception { color: var(--jev-muted); border-color: transparent; font-size: 13px; } .exception .short { display: none; } .compact .exception .long { display: none; } .compact .exception .short { display: inline; } dialog { pointer-events: auto; position: fixed; width: min(420px, calc(100vw - 48px)); box-sizing: border-box; padding: 20px; color: var(--jev-muted); border: 1px solid currentColor; border-radius: 16px; font: inherit; text-align: left; } dialog::backdrop { background: rgb(0 0 0 / .6); } dialog h2 { font: inherit; font-weight: 700; margin: 0 0 12px; } dialog p { margin: 12px 0; } dialog label { display: block; } dialog select { display: block; width: 100%; margin-top: 8px; padding: 8px; font: inherit; background: inherit; color: inherit; border: 1px solid currentColor; border-radius: 8px; } .dialog-actions { display: flex; justify-content: flex-end; align-items: center; gap: 12px; flex-wrap: wrap; } button:disabled { opacity: .5; cursor: default; }`;
     const notice = document.createElement('div');
     notice.className = 'notice';
     const reason = document.createElement('p');
@@ -346,6 +429,24 @@ function applyVisibility(article: HTMLElement, binding: Binding): void {
       binding.button.focus({ preventScroll: true });
     });
     notice.append(reason, show);
+    if (/^[a-zA-Z0-9_]{1,15}$/.test(post.handle)) {
+      const allow = document.createElement('button');
+      allow.type = 'button';
+      allow.className = 'exception';
+      allow.setAttribute('aria-label', 'Skip a filter for @' + post.handle);
+      const long = document.createElement('span');
+      long.className = 'long';
+      long.textContent = 'Skip a filter for @' + post.handle + '…';
+      const short = document.createElement('span');
+      short.className = 'short';
+      short.textContent = '…';
+      allow.append(long, short);
+      allow.addEventListener('click', (event) => {
+        event.stopPropagation();
+        showAuthorException(post, root, allow);
+      });
+      notice.append(allow);
+    }
     root.append(style, notice);
     article.before(slot);
     binding.hiddenSlot = slot;

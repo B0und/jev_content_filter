@@ -857,3 +857,14 @@ h3 {
 .category-label > label {
   cursor: pointer;
 }
+
+.author-exceptions {
+  display: grid;
+  gap: 12px;
+}
+.author-exception {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}

@@ -40,7 +40,14 @@ export function isTextProvider(value: unknown): value is TextProvider {
   return TEXT_PROVIDERS.some((provider) => provider === value);
 }
 
+export interface AuthorException {
+  handle: string;
+  categories: ScoreKey[];
+}
+
 export interface Settings {
+  authorExceptions: AuthorException[];
+  followedExemptions: ScoreKey[];
   textFilters: TextFilter[];
   masterEnabled: boolean;
   /** Provider that evaluates the text questions. */
@@ -55,6 +62,8 @@ export interface Settings {
 }
 
 export type SettingsChange =
+  | { field: 'authorException'; handle: string; category: ScoreKey; value: boolean }
+  | { field: 'followedExemption'; category: ScoreKey; value: boolean }
   | { field: 'textFilter'; value: TextFilter }
   | {
       field: 'patchTextFilter';
@@ -144,6 +153,8 @@ export const IMAGE_KEYS: CategoryKey[] = ['porn', 'hentai', 'sexy', 'drawings'];
 export const TEXT_KEYS: CategoryKey[] = ['aiGenerated'];
 export function defaultSettings(): Settings {
   return {
+    authorExceptions: [],
+    followedExemptions: [],
     textFilters: presets.map((filter) => ({ ...filter })),
     masterEnabled: true,
     textProvider: 'vercel',
