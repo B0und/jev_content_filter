@@ -187,3 +187,53 @@ test('Undo restores the filter actually removed after a concurrent workspace edi
     })
     .toEqual([updated]);
 });
+
+test('a late failed Undo cannot replace a newer deletion recovery action', async ({
+  context,
+  extensionId,
+  setSettings,
+  worker,
+}) => {
+  const settings = remoteSettings();
+  const first = { ...settings.textFilters[0]!, id: 'first-rule', name: 'First rule' };
+  const second = { ...first, id: 'second-rule', name: 'Second rule', threshold: 0.42 };
+  settings.textFilters = [first, second];
+  await setSettings(settings);
+  const popup = await context.newPage();
+  await popup.goto(`chrome-extension://${extensionId}/popup.html`);
+  await popup.evaluate((id) => {
+    const send = chrome.runtime.sendMessage.bind(chrome.runtime);
+    Object.defineProperty(chrome.runtime, 'sendMessage', {
+      value: (request: { type: string; change?: { field: string; value?: { id: string } } }) => {
+        if (
+          request.type === 'update-settings' &&
+          request.change?.field === 'textFilter' &&
+          request.change.value?.id === id
+        ) {
+          return new Promise((resolve) => {
+            Object.assign(globalThis, {
+              failEarlierUndo: () => resolve({ ok: false, error: 'Delayed Undo failure' }),
+            });
+          });
+        }
+        return send(request);
+      },
+    });
+  }, first.id);
+  await popup.getByRole('button', { name: 'Delete First rule', exact: true }).click();
+  await popup.getByRole('button', { name: 'Undo', exact: true }).click();
+  await popup.getByRole('button', { name: 'Delete Second rule', exact: true }).click();
+  await expect(popup.locator('.undo-notice')).toContainText('Second rule');
+  await popup.evaluate('globalThis.failEarlierUndo()');
+  await expect(popup.getByRole('alert')).toContainText('Delayed Undo failure');
+  await expect(popup.locator('.undo-notice')).toContainText('Second rule');
+  await popup.getByRole('button', { name: 'Undo', exact: true }).click();
+  await expect
+    .poll(async () => {
+      const raw = await worker.evaluate(
+        async () => (await chrome.storage.local.get('settings')).settings,
+      );
+      return Schema.decodeUnknownSync(SettingsSchema)(raw).textFilters;
+    })
+    .toEqual([second]);
+});

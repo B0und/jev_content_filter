@@ -93,10 +93,10 @@ export function CustomTextFilters({
                 document.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]')?.focus();
               else addButton.current?.focus();
               const filter = deleted;
-              removal.current++;
+              const token = ++removal.current;
               setDeleted(null);
               const restored = await popupState.update({ field: 'textFilter', value: filter });
-              if (!restored) setDeleted(filter);
+              if (!restored && token === removal.current) setDeleted(filter);
             }}
           >
             Undo
