@@ -55,7 +55,14 @@ test('late decisions keep the post being read in place after native scrolling', 
   await expect(page.locator('[data-jev-hidden-slot]')).toHaveCount(3);
   expect((await next.boundingBox())!.y).toBe(nextBefore!.y);
   await first.getByRole('button', { name: 'Shown temporarily', exact: true }).click();
-  await page.getByRole('button', { name: 'Hide again', exact: true }).click();
+  const hideButton = page.getByRole('button', { name: 'Hide again', exact: true });
+  const logsLink = page.getByRole('link', { name: 'Open logs', exact: true });
+  const hideBounds = (await hideButton.boundingBox())!;
+  const logsBounds = (await logsLink.boundingBox())!;
+  expect(
+    Math.abs(hideBounds.y + hideBounds.height / 2 - logsBounds.y - logsBounds.height / 2),
+  ).toBeLessThan(1);
+  await hideButton.click();
   await expect(first).toBeHidden();
   expect((await next.boundingBox())!.y).toBe(nextBefore!.y);
   const overrides = await worker.evaluate(

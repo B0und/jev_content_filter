@@ -233,7 +233,7 @@ function retainPostControls(article: HTMLElement, binding: Binding): void {
   for (const element of binding.retainedElements) element.dataset.jevRetained = '';
 }
 
-/** Mirror resolved native colors, including values supplied by custom CSS variables. */
+/** Mirror native text typography and resolved colors, including custom CSS variables. */
 function refreshMaskColors(article: HTMLElement, binding: Binding): void {
   const slot = binding.hiddenSlot;
   if (!slot) return;
@@ -244,7 +244,13 @@ function refreshMaskColors(article: HTMLElement, binding: Binding): void {
     document.querySelector('[data-testid="tweetText"] a');
   slot.style.setProperty('--jev-muted', getComputedStyle(muted).color);
   slot.style.setProperty('--jev-accent', link ? getComputedStyle(link).color : 'currentColor');
-  slot.style.fontFamily = getComputedStyle(article).fontFamily;
+  // X styles text descendants directly; the article wrapper can retain a serif default.
+  const text = timestamp ?? article.querySelector('[data-testid="tweetText"]') ?? muted;
+  const typography = getComputedStyle(text);
+  slot.style.fontFamily = typography.fontFamily;
+  slot.style.fontSize = typography.fontSize;
+  slot.style.lineHeight = typography.lineHeight;
+  slot.style.fontWeight = typography.fontWeight;
 }
 
 /** Position an out-of-flow mask between the native header and action bar. */
@@ -326,7 +332,7 @@ function applyVisibility(article: HTMLElement, binding: Binding): void {
     }
     const root = slot.attachShadow({ mode: 'open' });
     const style = document.createElement('style');
-    style.textContent = `:host { display: block; } .notice { pointer-events: auto; width: 100%; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 12px; color: var(--jev-muted); background: transparent; font-size: 13px; line-height: 1.4; font-family: inherit; text-align: center; overflow: hidden; } .notice.compact { flex-direction: row; gap: 6px; padding: 0; font-size: 12px; } .compact p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 70%; } .compact button { padding: 0 6px; line-height: 1.2; } p { margin: 0; overflow-wrap: anywhere; } button { font: inherit; color: var(--jev-accent); background: transparent; border: 1px solid currentColor; border-radius: 999px; padding: 5px 14px; cursor: pointer; } button:focus-visible { outline: 2px solid var(--jev-accent); outline-offset: 3px; }`;
+    style.textContent = `:host { display: block; } .notice { pointer-events: auto; width: 100%; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 12px; color: var(--jev-muted); background: transparent; font: inherit; text-align: center; overflow: hidden; } .notice.compact { flex-direction: row; gap: 6px; padding: 0; font-size: 12px; } .compact p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 70%; } .compact button { padding: 0 6px; line-height: 1.2; } p { margin: 0; overflow-wrap: anywhere; } button { font: inherit; color: var(--jev-accent); background: transparent; border: 1px solid currentColor; border-radius: 999px; padding: 5px 14px; cursor: pointer; } button:focus-visible { outline: 2px solid var(--jev-accent); outline-offset: 3px; }`;
     const notice = document.createElement('div');
     notice.className = 'notice';
     const reason = document.createElement('p');
@@ -581,7 +587,7 @@ button {
 button:hover { background: var(--p-hover); }
 button:disabled { opacity: 0.5; cursor: default; }
 button:focus-visible, a:focus-visible { outline: 2px solid var(--p-accent); outline-offset: 2px; }
-.foot { display: flex; gap: 14px; margin-top: 8px; }
+.foot { display: flex; align-items: center; gap: 14px; margin-top: 8px; }
 a { color: var(--p-accent); text-decoration: none; font-size: 14px; font-weight: 600; }
 a:hover { text-decoration: underline; }
 .hint { color: var(--p-muted); font-size: 13px; margin: 6px 0 0; }

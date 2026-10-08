@@ -8,7 +8,7 @@ test('the mask follows the native content column and live X theme colors', async
   await page.route('https://x.com/home', (route) =>
     route.fulfill({
       contentType: 'text/html',
-      body: `<!doctype html><style>:root { --feed-bg:#000; --ink:#e7e9ea; --muted:#71767b; --accent:#1d9bf0 } body { margin:0; background:var(--feed-bg); color:var(--ink); font:15px sans-serif; overflow-anchor:none } main { width:min(600px,100%); margin:auto } article { padding:16px; } .content { margin-left:64px } .header { display:flex; justify-content:space-between } time { color:var(--muted) } a { color:var(--accent) } .body { min-height:300px }</style><main><article data-testid="tweet" data-post="990"><div class="content"><div class="header"><div data-testid="User-Name">Reader @reader</div><a href="/reader/status/990"><time>Now</time></a><button data-testid="caret">More</button></div><div class="body" data-testid="tweetText">BLOCK_TEXT <a href="/search?q=keyword">#keyword</a></div><div role="group"><button data-testid="reply">Reply</button></div></div></article><div id="following">Following post</div></main>`,
+      body: `<!doctype html><style>:root { --feed-bg:#000; --ink:#e7e9ea; --muted:#71767b; --accent:#1d9bf0 } body { margin:0; background:var(--feed-bg); color:var(--ink); font:15px sans-serif; overflow-anchor:none } main { width:min(600px,100%); margin:auto } article { padding:16px; font-family:serif; } time, [data-testid="tweetText"] { font:15px/20px Arial, sans-serif; } .content { margin-left:64px } .header { display:flex; justify-content:space-between } time { color:var(--muted) } a { color:var(--accent) } .body { min-height:300px }</style><main><article data-testid="tweet" data-post="990"><div class="content"><div class="header"><div data-testid="User-Name">Reader @reader</div><a href="/reader/status/990"><time>Now</time></a><button data-testid="caret">More</button></div><div class="body" data-testid="tweetText">BLOCK_TEXT <a href="/search?q=keyword">#keyword</a></div><div role="group"><button data-testid="reply">Reply</button></div></div></article><div id="following">Following post</div></main>`,
     }),
   );
   await page.goto('https://x.com/home');
@@ -18,6 +18,18 @@ test('the mask follows the native content column and live X theme colors', async
   const mask = await slot.boundingBox();
   expect(mask!.x).toBe(body!.x);
   expect(mask!.width).toBe(body!.width);
+  const nativeFont = await page.locator('time').evaluate((e) => {
+    const style = getComputedStyle(e);
+    return { family: style.fontFamily, size: style.fontSize, line: style.lineHeight };
+  });
+  for (const element of [
+    slot.locator('p'),
+    slot.getByRole('button', { name: 'Show post', exact: true }),
+  ]) {
+    await expect(element).toHaveCSS('font-family', nativeFont.family);
+    await expect(element).toHaveCSS('font-size', nativeFont.size);
+    await expect(element).toHaveCSS('line-height', nativeFont.line);
+  }
   const before = (await page.locator('#following').boundingBox())!.y;
   for (const theme of [
     { background: '#ffffff', ink: '#0f1419', muted: '#536471', accent: '#794bc4' },
