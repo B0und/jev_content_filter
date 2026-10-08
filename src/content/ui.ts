@@ -86,18 +86,55 @@ article[data-jev-hidden] [data-jev-retained] * {
 `;
 
 let globalStyle: HTMLStyleElement | null = null;
+let maskThemeObserver: MutationObserver | null = null;
+let maskThemeFrame = 0;
+let maskColorScheme: MediaQueryList | null = null;
+
+/** Refresh existing masks when native theme classes, variables or styles change. */
+function scheduleMaskThemeRefresh(): void {
+  if (maskThemeFrame) return;
+  maskThemeFrame = requestAnimationFrame(() => {
+    maskThemeFrame = 0;
+    for (const [article, binding] of bindings)
+      if (binding.hiddenSlot) placeHiddenNotice(article, binding);
+  });
+}
 // Multiple articles can share an X cell. Each slot owns one reservation.
 const cellReservations = new WeakMap<HTMLElement, number>();
 
+/** Install masking styles and native theme listeners for this content session. */
 export function injectGlobalStyle(): void {
   if (globalStyle?.isConnected) return;
   globalStyle = document.createElement('style');
   globalStyle.setAttribute('data-jev-style', '');
   globalStyle.textContent = GLOBAL_CSS;
   document.head.append(globalStyle);
+  maskThemeObserver = new MutationObserver(scheduleMaskThemeRefresh);
+  const attributes = {
+    attributes: true,
+    attributeFilter: ['style', 'class', 'data-theme', 'data-color-mode'],
+  };
+  maskThemeObserver.observe(document.documentElement, attributes);
+  maskThemeObserver.observe(document.body, attributes);
+  maskThemeObserver.observe(document.head, {
+    childList: true,
+    subtree: true,
+    characterData: true,
+    attributes: true,
+    attributeFilter: ['href', 'media', 'disabled'],
+  });
+  maskColorScheme = matchMedia('(prefers-color-scheme: dark)');
+  maskColorScheme.addEventListener('change', scheduleMaskThemeRefresh);
 }
 
+/** Dispose native theme listeners and pending refreshes with the masking stylesheet. */
 export function removeGlobalStyle(): void {
+  maskThemeObserver?.disconnect();
+  maskThemeObserver = null;
+  if (maskThemeFrame) cancelAnimationFrame(maskThemeFrame);
+  maskThemeFrame = 0;
+  maskColorScheme?.removeEventListener('change', scheduleMaskThemeRefresh);
+  maskColorScheme = null;
   globalStyle?.remove();
   globalStyle = null;
 }
@@ -196,6 +233,20 @@ function retainPostControls(article: HTMLElement, binding: Binding): void {
   for (const element of binding.retainedElements) element.dataset.jevRetained = '';
 }
 
+/** Mirror resolved native colors, including values supplied by custom CSS variables. */
+function refreshMaskColors(article: HTMLElement, binding: Binding): void {
+  const slot = binding.hiddenSlot;
+  if (!slot) return;
+  const timestamp = binding.retainedElements?.find((element) => element.tagName === 'TIME');
+  const muted = timestamp ?? headerCarets(article)[0] ?? article;
+  const link =
+    article.querySelector('[data-testid="tweetText"] a') ??
+    document.querySelector('[data-testid="tweetText"] a');
+  slot.style.setProperty('--jev-muted', getComputedStyle(muted).color);
+  slot.style.setProperty('--jev-accent', link ? getComputedStyle(link).color : 'currentColor');
+  slot.style.fontFamily = getComputedStyle(article).fontFamily;
+}
+
 /** Position an out-of-flow mask between the native header and action bar. */
 function placeHiddenNotice(article: HTMLElement, binding: Binding): void {
   const slot = binding.hiddenSlot;
@@ -210,6 +261,29 @@ function placeHiddenNotice(article: HTMLElement, binding: Binding): void {
       .map((element) => element.getBoundingClientRect().bottom),
   );
   const bottom = footer?.getBoundingClientRect().top ?? rect.bottom;
+  const content = [
+    ...article.querySelectorAll<HTMLElement>(
+      '[data-testid="tweetText"], [data-testid="tweetPhoto"], [data-testid="card.wrapper"], video, img, div[role="link"]',
+    ),
+  ]
+    .filter(
+      (element) =>
+        element.closest('article') === article && !element.closest('[data-jev-retained]'),
+    )
+    .map((element) => element.getBoundingClientRect())
+    .filter((bounds) => bounds.width > 0 && bounds.height > 0);
+  const computed = getComputedStyle(article);
+  const left = content.length
+    ? Math.min(...content.map((bounds) => bounds.left))
+    : rect.left + (parseFloat(computed.paddingLeft) || 0);
+  const right = content.length
+    ? Math.max(...content.map((bounds) => bounds.right))
+    : rect.right - (parseFloat(computed.paddingRight) || 0);
+  const top = content.length ? Math.min(...content.map((bounds) => bounds.top)) : headerBottom;
+  const contentBottom = content.length
+    ? Math.max(...content.map((bounds) => bounds.bottom))
+    : bottom;
+  refreshMaskColors(article, binding);
   const parent = slot.offsetParent;
   const positioned =
     parent instanceof HTMLElement &&
@@ -221,10 +295,10 @@ function placeHiddenNotice(article: HTMLElement, binding: Binding): void {
   const originTop = origin
     ? origin.top + (parent?.clientTop ?? 0) - (parent?.scrollTop ?? 0)
     : -window.scrollY;
-  slot.style.left = `${rect.left - originLeft}px`;
-  slot.style.top = `${headerBottom - originTop}px`;
-  slot.style.width = `${rect.width}px`;
-  const height = Math.max(0, bottom - headerBottom);
+  slot.style.left = `${left - originLeft}px`;
+  slot.style.top = `${top - originTop}px`;
+  slot.style.width = `${Math.max(0, right - left)}px`;
+  const height = Math.max(0, Math.min(bottom, contentBottom) - top);
   slot.style.height = `${height}px`;
   slot.shadowRoot?.querySelector('.notice')?.classList.toggle('compact', height < 80);
 }
@@ -252,7 +326,7 @@ function applyVisibility(article: HTMLElement, binding: Binding): void {
     }
     const root = slot.attachShadow({ mode: 'open' });
     const style = document.createElement('style');
-    style.textContent = `:host { display: block; } .notice { pointer-events: auto; width: 100%; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 12px; color: var(--jev-muted); background: var(--jev-bg); font: 13px/1.4 system-ui, sans-serif; text-align: center; overflow: hidden; } .notice.compact { flex-direction: row; gap: 6px; padding: 0; font-size: 12px; } .compact p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 70%; } .compact button { padding: 0 6px; line-height: 1.2; } p { margin: 0; overflow-wrap: anywhere; } button { font: inherit; color: #1d9bf0; background: transparent; border: 1px solid currentColor; border-radius: 999px; padding: 5px 14px; cursor: pointer; } button:focus-visible { outline: 2px solid #1d9bf0; outline-offset: 3px; }`;
+    style.textContent = `:host { display: block; } .notice { pointer-events: auto; width: 100%; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 12px; color: var(--jev-muted); background: transparent; font-size: 13px; line-height: 1.4; font-family: inherit; text-align: center; overflow: hidden; } .notice.compact { flex-direction: row; gap: 6px; padding: 0; font-size: 12px; } .compact p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 70%; } .compact button { padding: 0 6px; line-height: 1.2; } p { margin: 0; overflow-wrap: anywhere; } button { font: inherit; color: var(--jev-accent); background: transparent; border: 1px solid currentColor; border-radius: 999px; padding: 5px 14px; cursor: pointer; } button:focus-visible { outline: 2px solid var(--jev-accent); outline-offset: 3px; }`;
     const notice = document.createElement('div');
     notice.className = 'notice';
     const reason = document.createElement('p');
@@ -267,8 +341,6 @@ function applyVisibility(article: HTMLElement, binding: Binding): void {
     });
     notice.append(reason, show);
     root.append(style, notice);
-    slot.style.setProperty('--jev-muted', isDark(article) ? '#a3abb2' : '#536471');
-    slot.style.setProperty('--jev-bg', isDark(article) ? '#10171c' : '#f7f9f9');
     article.before(slot);
     binding.hiddenSlot = slot;
     retainPostControls(article, binding);
