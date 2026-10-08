@@ -45,6 +45,8 @@ export interface Binding {
   /** Serialized last-render state; skips identical DOM writes. */
   renderState?: string;
   hiddenSlot?: HTMLElement;
+  hiddenSizeObserver?: ResizeObserver;
+  retainedElements?: HTMLElement[];
   preservedCell?: HTMLElement;
   revealed?: boolean;
 }

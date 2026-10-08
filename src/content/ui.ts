@@ -52,7 +52,7 @@ const ICON_CSS = `
 `;
 
 const GLOBAL_CSS = `
-article[data-jev-hidden],
+article[data-jev-hidden]:not([data-jev-reserved]),
 [data-testid="cellInnerDiv"]:has(article[data-jev-hidden]):not([data-jev-preserved]):not(:has(article:not([data-jev-hidden]))) {
   display: none !important;
 }
@@ -73,6 +73,14 @@ article[data-jev-hidden],
   margin: 0;
   color: #1d9bf0;
   overflow-wrap: anywhere;
+  visibility: visible !important;
+}
+article[data-jev-hidden][data-jev-reserved],
+article[data-jev-hidden][data-jev-reserved] * {
+  visibility: hidden !important;
+}
+article[data-jev-hidden] [data-jev-retained],
+article[data-jev-hidden] [data-jev-retained] * {
   visibility: visible !important;
 }
 `;
@@ -113,6 +121,12 @@ export function restoreAll(): void {
 /** Remove owned layout reservations on pause, unblocking, recycling and teardown. */
 export function restoreBinding(article: HTMLElement, binding: Binding): void {
   article.removeAttribute('data-jev-hidden');
+  article.removeAttribute('data-jev-reserved');
+  binding.hiddenSizeObserver?.disconnect();
+  delete binding.hiddenSizeObserver;
+  for (const retained of binding.retainedElements ?? [])
+    retained.removeAttribute('data-jev-retained');
+  delete binding.retainedElements;
   binding.hiddenSlot?.remove();
   const cell = binding.preservedCell;
   if (cell) {
@@ -137,7 +151,85 @@ function hiddenReason(post: Post): string {
     .join(', ')}`;
 }
 
-/** Reserve already encountered posts while collapsing blocked posts below the viewport. */
+/** Keep the original author header, avatar, menu and action bar accessible. */
+function retainPostControls(article: HTMLElement, binding: Binding): void {
+  for (const element of binding.retainedElements ?? [])
+    element.removeAttribute('data-jev-retained');
+  // Quotes can contain their own avatars, timestamps and action groups.
+  // Retaining those would expose filtered content and shrink the body mask.
+  const original = (element: HTMLElement) =>
+    element.closest('article') === article &&
+    !article.contains(element.closest('div[role="link"]'));
+  const author = [...article.querySelectorAll<HTMLElement>('[data-testid="User-Name"]')].find(
+    original,
+  );
+  const caret = headerCarets(article)[0];
+  let header = author;
+  while (header?.parentElement && header.parentElement !== article) {
+    const parent = header.parentElement;
+    if (
+      parent.querySelector(
+        '[data-testid="tweetText"], [data-testid="tweetPhoto"], video, [data-testid="card.wrapper"]',
+      )
+    )
+      break;
+    header = parent;
+    if (caret && header.contains(caret)) break;
+  }
+  const avatar = [...article.querySelectorAll<HTMLElement>('[data-testid^="UserAvatar"]')].find(
+    original,
+  );
+  const footer = [
+    ...article.querySelectorAll<HTMLElement>('[role="group"]:has([data-testid="reply"])'),
+  ].find(original);
+  const timestamp = [...article.querySelectorAll<HTMLElement>('time')].find(
+    (element) =>
+      original(element) &&
+      element.closest('a')?.getAttribute('href')?.split('/status/')[1]?.split(/[/?#]/)[0] ===
+        binding.post.id,
+  );
+  const candidates = [header, caret, binding.host, avatar, footer, timestamp];
+  binding.retainedElements = candidates.filter(
+    (element): element is HTMLElement =>
+      element instanceof HTMLElement && element.closest('article') === article,
+  );
+  for (const element of binding.retainedElements) element.dataset.jevRetained = '';
+}
+
+/** Position an out-of-flow mask between the native header and action bar. */
+function placeHiddenNotice(article: HTMLElement, binding: Binding): void {
+  const slot = binding.hiddenSlot;
+  if (!slot?.isConnected) return;
+  const rect = article.getBoundingClientRect();
+  const retained = binding.retainedElements ?? [];
+  const footer = retained.find((element) => element.getAttribute('role') === 'group');
+  const headerBottom = Math.max(
+    rect.top,
+    ...retained
+      .filter((element) => element !== footer && element !== binding.host)
+      .map((element) => element.getBoundingClientRect().bottom),
+  );
+  const bottom = footer?.getBoundingClientRect().top ?? rect.bottom;
+  const parent = slot.offsetParent;
+  const positioned =
+    parent instanceof HTMLElement &&
+    (parent !== document.body || getComputedStyle(parent).position !== 'static');
+  const origin = positioned ? parent.getBoundingClientRect() : null;
+  const originLeft = origin
+    ? origin.left + (parent?.clientLeft ?? 0) - (parent?.scrollLeft ?? 0)
+    : -window.scrollX;
+  const originTop = origin
+    ? origin.top + (parent?.clientTop ?? 0) - (parent?.scrollTop ?? 0)
+    : -window.scrollY;
+  slot.style.left = `${rect.left - originLeft}px`;
+  slot.style.top = `${headerBottom - originTop}px`;
+  slot.style.width = `${rect.width}px`;
+  const height = Math.max(0, bottom - headerBottom);
+  slot.style.height = `${height}px`;
+  slot.shadowRoot?.querySelector('.notice')?.classList.toggle('compact', height < 80);
+}
+
+/** Mask posts without removing their native layout, including offscreen posts. */
 function applyVisibility(article: HTMLElement, binding: Binding): void {
   const { post } = binding;
   if (!blocked(post) || binding.revealed) {
@@ -146,44 +238,50 @@ function applyVisibility(article: HTMLElement, binding: Binding): void {
     return;
   }
   if (!article.hasAttribute('data-jev-hidden')) {
-    const rect = article.getBoundingClientRect();
-    // Late decisions must not change the geometry in or above the reading
-    // position. Below-viewport posts can still collapse before they are read.
-    if (rect.height > 0 && rect.top < window.innerHeight) {
-      const slot = document.createElement('div');
-      slot.dataset.jevHiddenSlot = '';
-      const computed = getComputedStyle(article);
-      slot.style.cssText = `height: ${article.offsetHeight}px; margin-top: ${computed.marginTop}; margin-bottom: ${computed.marginBottom}; box-sizing: border-box; position: relative;`;
-      const cell = article.closest<HTMLElement>('[data-testid="cellInnerDiv"]');
-      if (cell) {
-        cellReservations.set(cell, (cellReservations.get(cell) ?? 0) + 1);
-        cell.dataset.jevPreserved = '';
-        binding.preservedCell = cell;
-      }
-      const root = slot.attachShadow({ mode: 'open' });
-      const style = document.createElement('style');
-      style.textContent = `:host { display: block; } .notice { box-sizing: border-box; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 12px; color: var(--jev-muted); background: var(--jev-bg); font: 13px/1.4 system-ui, sans-serif; text-align: center; overflow: hidden; } p { margin: 0; overflow-wrap: anywhere; } button { font: inherit; color: #1d9bf0; background: transparent; border: 1px solid currentColor; border-radius: 999px; padding: 5px 14px; cursor: pointer; } button:focus-visible { outline: 2px solid #1d9bf0; outline-offset: 3px; }`;
-      const notice = document.createElement('div');
-      notice.className = 'notice';
-      const reason = document.createElement('p');
-      reason.textContent = hiddenReason(post);
-      const show = document.createElement('button');
-      show.type = 'button';
-      show.textContent = 'Show post';
-      revealActions.set(show, () => {
-        binding.revealed = true;
-        renderPostAtUiBoundary(post);
-        binding.button.focus({ preventScroll: true });
-      });
-      notice.append(reason, show);
-      root.append(style, notice);
-      slot.style.setProperty('--jev-muted', isDark(article) ? '#a3abb2' : '#536471');
-      slot.style.setProperty('--jev-bg', isDark(article) ? '#10171c' : '#f7f9f9');
-      article.before(slot);
-      binding.hiddenSlot = slot;
+    const slot = document.createElement('div');
+    slot.dataset.jevHiddenSlot = '';
+    // Keep the real article in layout so media and responsive text continue
+    // to measure normally. The notice overlays it without adding height.
+    slot.style.cssText = 'position: absolute; pointer-events: none;';
+    article.dataset.jevReserved = '';
+    const cell = article.closest<HTMLElement>('[data-testid="cellInnerDiv"]');
+    if (cell) {
+      cellReservations.set(cell, (cellReservations.get(cell) ?? 0) + 1);
+      cell.dataset.jevPreserved = '';
+      binding.preservedCell = cell;
     }
+    const root = slot.attachShadow({ mode: 'open' });
+    const style = document.createElement('style');
+    style.textContent = `:host { display: block; } .notice { pointer-events: auto; width: 100%; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 12px; color: var(--jev-muted); background: var(--jev-bg); font: 13px/1.4 system-ui, sans-serif; text-align: center; overflow: hidden; } .notice.compact { flex-direction: row; gap: 6px; padding: 0; font-size: 12px; } .compact p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 70%; } .compact button { padding: 0 6px; line-height: 1.2; } p { margin: 0; overflow-wrap: anywhere; } button { font: inherit; color: #1d9bf0; background: transparent; border: 1px solid currentColor; border-radius: 999px; padding: 5px 14px; cursor: pointer; } button:focus-visible { outline: 2px solid #1d9bf0; outline-offset: 3px; }`;
+    const notice = document.createElement('div');
+    notice.className = 'notice';
+    const reason = document.createElement('p');
+    reason.textContent = hiddenReason(post);
+    const show = document.createElement('button');
+    show.type = 'button';
+    show.textContent = 'Show post';
+    revealActions.set(show, () => {
+      binding.revealed = true;
+      renderPostAtUiBoundary(post);
+      binding.button.focus({ preventScroll: true });
+    });
+    notice.append(reason, show);
+    root.append(style, notice);
+    slot.style.setProperty('--jev-muted', isDark(article) ? '#a3abb2' : '#536471');
+    slot.style.setProperty('--jev-bg', isDark(article) ? '#10171c' : '#f7f9f9');
+    article.before(slot);
+    binding.hiddenSlot = slot;
+    retainPostControls(article, binding);
+    const sizeObserver = new ResizeObserver(() => placeHiddenNotice(article, binding));
+    sizeObserver.observe(article);
+    const parent = slot.offsetParent;
+    if (parent instanceof HTMLElement) sizeObserver.observe(parent);
+    binding.hiddenSizeObserver = sizeObserver;
+    placeHiddenNotice(article, binding);
     article.setAttribute('data-jev-hidden', '');
   }
+  retainPostControls(article, binding);
+  placeHiddenNotice(article, binding);
   const reason = binding.hiddenSlot?.shadowRoot?.querySelector('p');
   if (reason && reason.textContent !== hiddenReason(post)) reason.textContent = hiddenReason(post);
 }

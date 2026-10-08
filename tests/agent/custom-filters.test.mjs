@@ -50,8 +50,8 @@ void test(
     );
     const hidden = async () =>
       (await session.page('feed')).$eval(
-        '[data-post="101"]',
-        (post) => getComputedStyle(post).display === 'none',
+        '[data-post="101"] [data-testid="tweetText"]',
+        (post) => getComputedStyle(post).visibility === 'hidden',
       );
     await waitUntil(hidden);
     await session.close();

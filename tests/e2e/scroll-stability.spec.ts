@@ -41,10 +41,10 @@ test('late decisions keep the post being read in place after native scrolling', 
   await expect(page.locator('[data-post="902"]')).toBeHidden();
   await expect.poll(async () => (await reading.boundingBox())!.y).toBe(before!.y);
   await expect(page.locator('[data-post="914"]')).toBeHidden();
-  await expect(page.locator('[data-post="914"]').locator('xpath=..')).not.toHaveAttribute(
+  await expect(page.locator('[data-post="914"]').locator('xpath=..')).toHaveAttribute(
     'data-jev-preserved',
   );
-  await expect(page.locator('[data-jev-hidden-slot]')).toHaveCount(3);
+  await expect(page.locator('[data-jev-hidden-slot]')).toHaveCount(4);
   await page.mouse.wheel(0, -780);
   await expect.poll(() => page.evaluate(() => scrollY)).toBe(0);
   const first = page.locator('[data-post="900"]');
@@ -52,7 +52,7 @@ test('late decisions keep the post being read in place after native scrolling', 
   const nextBefore = await next.boundingBox();
   await page.getByRole('button', { name: 'Show post', exact: true }).first().click();
   await expect(first).toBeVisible();
-  await expect(page.locator('[data-jev-hidden-slot]')).toHaveCount(2);
+  await expect(page.locator('[data-jev-hidden-slot]')).toHaveCount(3);
   expect((await next.boundingBox())!.y).toBe(nextBefore!.y);
   await first.getByRole('button', { name: 'Shown temporarily', exact: true }).click();
   await page.getByRole('button', { name: 'Hide again', exact: true }).click();
@@ -69,7 +69,7 @@ test('late decisions keep the post being read in place after native scrolling', 
   });
   await expect(first).toBeVisible();
   await expect(first.locator('xpath=..')).not.toHaveAttribute('data-jev-preserved');
-  await expect(page.locator('[data-jev-hidden-slot]')).toHaveCount(2);
+  await expect(page.locator('[data-jev-hidden-slot]')).toHaveCount(3);
 });
 
 test('shared feed cells remain reserved until their last hidden post is revealed', async ({
@@ -133,3 +133,91 @@ test('shared feed cells remain reserved until their last hidden post is revealed
   await expect(page.locator('#shared')).not.toHaveAttribute('data-jev-preserved');
   expect((await reading.boundingBox())!.y).toBe(before + 200);
 });
+
+test('revealing a post after its media loads preserves the surrounding feed geometry', async ({
+  page,
+  worker,
+}) => {
+  expect(worker.url()).toContain('chrome-extension:');
+  await page.route('https://x.com/home', (route) =>
+    route.fulfill({
+      contentType: 'text/html',
+      body: `<!doctype html><style>body { margin:0; overflow-anchor:none } main { width:600px; margin:auto } article { padding:20px } img { display:block; width:100%; height:auto }</style><main><div data-testid="cellInnerDiv"><article data-testid="tweet" data-post="970"><div data-testid="User-Name">Reader @reader</div><button data-testid="caret">More</button><a href="/reader/status/970"><time>Now</time></a><div data-testid="tweetText">BLOCK_TEXT</div><img id="late-media"></article></div><div data-testid="cellInnerDiv" id="following">A following post</div><div style="height:2000px"></div></main>`,
+    }),
+  );
+  await page.goto('https://x.com/home');
+  await expect(page.getByRole('button', { name: 'Show post', exact: true })).toBeVisible();
+  await page.locator('#late-media').evaluate(async (image) => {
+    if (!(image instanceof HTMLImageElement)) throw new Error('media missing');
+    image.src =
+      'data:image/svg+xml,' +
+      encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="560" height="560"></svg>');
+    await image.decode();
+  });
+  const following = page.locator('#following');
+  const before = (await following.boundingBox())!.y;
+  await page.getByRole('button', { name: 'Show post', exact: true }).click();
+  await expect(page.locator('[data-post="970"]')).toBeVisible();
+  expect((await following.boundingBox())!.y).toBe(before);
+});
+
+for (const layout of ['flex', 'grid']) {
+  test(`masking preserves ${layout} gaps, author controls and responsive geometry`, async ({
+    page,
+    context,
+    worker,
+  }) => {
+    expect(worker.url()).toContain('chrome-extension:');
+    const decision = Promise.withResolvers<void>();
+    await context.route('https://ai-gateway.vercel.sh/**', async (route) => {
+      await decision.promise;
+      const request = route.request().postDataJSON();
+      await route.fulfill({
+        json: {
+          answers: Object.fromEntries(
+            Object.keys(request.questions).map((key) => [
+              key,
+              { type: 'boolean', probability: 0.99 },
+            ]),
+          ),
+        },
+      });
+    });
+    await page.route('https://x.com/home', (route) =>
+      route.fulfill({
+        contentType: 'text/html',
+        body: `<!doctype html><style>body { margin:0; overflow-anchor:none } main { width: min(600px,100%); margin:auto; display:${layout}; ${layout === 'flex' ? 'flex-direction:column;' : ''} gap:24px } article { padding:20px; margin:12px; } .header { display:flex; justify-content:space-between; } .body { min-height:120px } </style><main><article data-testid="tweet" data-post="980"><div class="header"><div data-testid="User-Name">Reader @reader</div><a href="/reader/status/980"><time>Now</time></a><button data-testid="caret" onclick="this.dataset.open='true'">More</button></div><div class="body" data-testid="tweetText">BLOCK_TEXT ${'Responsive body text '.repeat(30)}</div><div role="link" style="height:80px"><div data-testid="UserAvatar-quote">Quoted avatar</div><a href="/quoted/status/981"><time data-testid="quote-timestamp">Quoted time</time></a></div><div role="group"><button data-testid="reply">Reply</button></div></article><div id="following">Following post</div><div style="height:2000px"></div></main>`,
+      }),
+    );
+    await page.goto('https://x.com/home');
+    await expect(page.locator('[data-jev-host]')).toHaveCount(1);
+    const following = page.locator('#following');
+    const before = (await following.boundingBox())!.y;
+    decision.resolve();
+    await expect(page.locator('[data-testid="tweetText"]')).toBeHidden();
+    expect((await following.boundingBox())!.y).toBe(before);
+    await expect(page.locator('[data-testid="User-Name"]')).toBeVisible();
+    await expect(page.locator('[data-testid="quote-timestamp"]')).toBeHidden();
+    await expect(page.locator('[data-testid="UserAvatar-quote"]')).toBeHidden();
+    await page.getByRole('button', { name: 'More', exact: true }).click();
+    await expect(page.locator('[data-testid="caret"]')).toHaveAttribute('data-open', 'true');
+    await expect(page.getByRole('button', { name: 'Reply', exact: true })).toBeVisible();
+    await page.setViewportSize({ width: 480, height: 720 });
+    await page.evaluate(
+      () =>
+        new Promise<void>((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+        ),
+    );
+    const resized = (await following.boundingBox())!.y;
+    const scrollBefore = await page.evaluate(() => scrollY);
+    await page.getByRole('button', { name: 'Show post', exact: true }).click();
+    expect((await following.boundingBox())!.y).toBe(resized);
+    expect(await page.evaluate(() => scrollY)).toBe(scrollBefore);
+    await page.getByRole('button', { name: 'Shown temporarily', exact: true }).click();
+    await page.getByRole('button', { name: 'Hide again', exact: true }).click();
+    await expect(page.locator('[data-testid="tweetText"]')).toBeHidden();
+    expect((await following.boundingBox())!.y).toBe(resized);
+    await expect(page.locator('[data-testid="User-Name"]')).toBeVisible();
+  });
+}
