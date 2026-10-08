@@ -137,6 +137,8 @@ test('shared feed cells remain reserved until their last hidden post is revealed
 test('revealing a post after its media loads preserves the surrounding feed geometry', async ({
   page,
   worker,
+  context,
+  extensionId,
 }) => {
   expect(worker.url()).toContain('chrome-extension:');
   await page.route('https://x.com/home', (route) =>
@@ -158,6 +160,15 @@ test('revealing a post after its media loads preserves the surrounding feed geom
   const before = (await following.boundingBox())!.y;
   await page.getByRole('button', { name: 'Show post', exact: true }).click();
   await expect(page.locator('[data-post="970"]')).toBeVisible();
+  expect((await following.boundingBox())!.y).toBe(before);
+  const popup = await context.newPage();
+  await popup.goto(`chrome-extension://${extensionId}/popup.html`);
+  const enabled = popup.getByRole('switch', { name: 'Enable filtering', exact: true });
+  await enabled.click();
+  await expect(page.locator('[data-testid="tweetText"]')).toBeVisible();
+  expect((await following.boundingBox())!.y).toBe(before);
+  await enabled.click();
+  await expect(page.locator('[data-testid="tweetText"]')).toBeHidden();
   expect((await following.boundingBox())!.y).toBe(before);
 });
 

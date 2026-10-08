@@ -424,6 +424,7 @@ export function render(article: HTMLElement, binding: Binding): void {
   // Paused: keep the invisible control slot so toggling cannot reflow the feed.
   if (!settings.current.masterEnabled) {
     setHostVisibility(host, button, false);
+    binding.revealed = false;
     restoreBinding(article, binding);
     applyCard(article, post, false);
     if (openPostId === post.id) closePanel();
