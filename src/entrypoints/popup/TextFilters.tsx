@@ -16,6 +16,8 @@ export function CustomTextFilters({
   const [creating, setCreating] = useState(false);
   const [deleted, setDeleted] = useState<TextFilter | null>(null);
   const removal = useRef(0);
+  const recoveryOwner = useRef(0);
+  const undoAttempt = useRef(0);
   const undoButton = useRef<HTMLButtonElement>(null);
   const focusUndo = useRef(false);
   useEffect(() => {
@@ -93,10 +95,12 @@ export function CustomTextFilters({
                 document.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]')?.focus();
               else addButton.current?.focus();
               const filter = deleted;
-              const token = ++removal.current;
+              const token = ++undoAttempt.current;
+              const owner = recoveryOwner.current;
               setDeleted(null);
               const restored = await popupState.update({ field: 'textFilter', value: filter });
-              if (!restored && token === removal.current) setDeleted(filter);
+              if (!restored && token === undoAttempt.current && owner === recoveryOwner.current)
+                setDeleted(filter);
             }}
           >
             Undo
@@ -119,7 +123,8 @@ export function CustomTextFilters({
                 onDelete={async (restoreFocus) => {
                   const token = ++removal.current;
                   const removed = await popupState.deleteTextFilter(filter.id);
-                  if (removed && token === removal.current) {
+                  if (removed && token > recoveryOwner.current) {
+                    recoveryOwner.current = token;
                     focusUndo.current = restoreFocus && document.activeElement === document.body;
                     setDeleted(removed);
                   }
