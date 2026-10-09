@@ -239,3 +239,31 @@ for (const layout of ['flex', 'grid']) {
     await expect(page.locator('[data-testid="User-Name"]')).toBeVisible();
   });
 }
+
+test('a blocked article moved into another connected cell keeps its mask and layout reservation', async ({
+  page,
+  worker,
+}) => {
+  expect(worker.url()).toContain('chrome-extension:');
+  await page.route('https://x.com/home', (route) =>
+    route.fulfill({
+      contentType: 'text/html',
+      body: `<!doctype html><style>body{margin:0;font:15px Arial}article{height:240px;box-sizing:border-box;padding:20px}</style><div data-testid="cellInnerDiv" id="old"><article data-testid="tweet"><div data-testid="User-Name">Reader @reader</div><a href="/reader/status/993"><time>Now</time></a><button data-testid="caret">More</button><div data-testid="tweetText">BLOCK_TEXT</div></article></div><div data-testid="cellInnerDiv" id="new"></div><div id="following">Next post</div>`,
+    }),
+  );
+  await page.goto('https://x.com/home');
+  await expect(page.locator('#old [data-jev-hidden-slot]')).toHaveCount(1);
+  const before = (await page.locator('#following').boundingBox())!.y;
+  await page.evaluate(() =>
+    document.querySelector('#new')!.append(document.querySelector('article')!),
+  );
+  await expect(page.locator('#new [data-jev-hidden-slot]')).toHaveCount(1);
+  await expect(page.locator('#old')).not.toHaveAttribute('data-jev-preserved');
+  await expect(page.locator('#new')).toHaveAttribute('data-jev-preserved', '');
+  await expect(page.locator('#new')).toBeVisible();
+  expect((await page.locator('#following').boundingBox())!.y).toBe(before);
+  await page.getByRole('button', { name: 'Show post', exact: true }).click();
+  await expect(page.locator('article')).toBeVisible();
+  await expect(page.locator('#new')).not.toHaveAttribute('data-jev-preserved');
+  expect((await page.locator('#following').boundingBox())!.y).toBe(before);
+});

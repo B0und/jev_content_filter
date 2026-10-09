@@ -149,13 +149,16 @@ describe('text provider effects', () => {
     'sends enabled custom filters in one SDK decision call through %s',
     async (provider, endpoint) => {
       let body: unknown;
+      let calls = 0;
       server.use(
         http.post(endpoint, async ({ request }) => {
+          calls++;
           expect(request.headers.get('authorization')).toBe(`Bearer ${API_KEY}`);
           body = await request.json();
           return HttpResponse.json({
             answers: {
               'custom:garden': { type: 'noul', noul: 0.9 },
+              'custom:sports': { type: 'noul', noul: 0.2 },
             },
           });
         }),
@@ -173,10 +176,14 @@ describe('text provider effects', () => {
             provider,
             apiKey: API_KEY,
             text: 'Garden advice',
-            filters: [filter, { ...filter, id: 'disabled', enabled: false }],
+            filters: [
+              filter,
+              { ...filter, id: 'sports', instructions: 'Posts about sports' },
+              { ...filter, id: 'disabled', enabled: false },
+            ],
           }),
         ),
-      ).toEqual({ custom: { garden: 0.9 } });
+      ).toEqual({ custom: { garden: 0.9, sports: 0.2 } });
       expect(body).toMatchObject({
         state: { tweet_text: 'Garden advice' },
         questions: {
@@ -186,6 +193,8 @@ describe('text provider effects', () => {
           },
         },
       });
+      expect(calls).toBe(1);
+      expect(body).toHaveProperty('questions.custom:sports');
       expect(body).not.toHaveProperty('questions.custom:disabled');
     },
   );

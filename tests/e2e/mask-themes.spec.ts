@@ -96,3 +96,42 @@ test('cropped multi-image media keeps recovery controls visible and clickable', 
   await expect(page.locator('[data-testid="tweetText"]')).toBeVisible();
   expect((await page.locator('#following').boundingBox())!.y).toBe(before);
 });
+
+test('one-line replies keep their blocking controls inside the text row beside a taller avatar', async ({
+  page,
+  worker,
+}) => {
+  expect(worker.url()).toContain('chrome-extension:');
+  await page.route('https://x.com/home', (route) =>
+    route.fulfill({
+      contentType: 'text/html',
+      body: `<!doctype html><style>body{margin:0;font:15px/20px Arial}main{width:600px;margin:auto}article{padding:12px 16px;display:flex;gap:8px}.avatar{width:40px;height:40px;flex:none}.content{flex:1}.header{display:flex;height:20px}time{margin-left:8px}[data-testid=tweetText]{margin-top:2px;height:20px}[role=group]{height:20px;margin-top:12px}</style><main><div data-testid="cellInnerDiv"><article data-testid="tweet"><div class="avatar" data-testid="UserAvatar-Container-reader">Avatar</div><div class="content"><div class="header"><div data-testid="User-Name">Reader @reader</div><a href="/reader/status/992"><time>Now</time></a><button data-testid="caret">More</button></div><div data-testid="tweetText">BLOCK_TEXT</div><div role="group"><button data-testid="reply">Reply</button></div></div></article></div><div id="following">Next post</div></main>`,
+    }),
+  );
+  await page.goto('https://x.com/home');
+  const show = page.getByRole('button', { name: 'Show post', exact: true });
+  await expect(show).toBeAttached();
+  const geometry = await page.locator('[data-jev-hidden-slot]').evaluate((slot) => {
+    const r = slot.getBoundingClientRect();
+    const b = slot.shadowRoot!.querySelector('button')!.getBoundingClientRect();
+    const text = document.querySelector('[data-testid=tweetText]')!.getBoundingClientRect();
+    return {
+      height: r.height,
+      top: r.top,
+      textTop: text.top,
+      buttonTop: b.top,
+      buttonBottom: b.bottom,
+      bottom: r.bottom,
+      hit: document.elementFromPoint(b.x + b.width / 2, b.y + b.height / 2) === slot,
+    };
+  });
+  expect(geometry.height).toBe(20);
+  expect(geometry.top).toBe(geometry.textTop);
+  expect(geometry.buttonTop).toBeGreaterThanOrEqual(geometry.top);
+  expect(geometry.buttonBottom).toBeLessThanOrEqual(geometry.bottom);
+  expect(geometry.hit).toBe(true);
+  const before = await page.locator('#following').boundingBox();
+  await show.click();
+  await expect(page.locator('[data-testid=tweetText]')).toBeVisible();
+  expect((await page.locator('#following').boundingBox())!.y).toBe(before!.y);
+});

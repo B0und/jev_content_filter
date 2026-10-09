@@ -339,7 +339,13 @@ function placeHiddenNotice(article: HTMLElement, binding: Binding): void {
   const headerBottom = Math.max(
     rect.top,
     ...retained
-      .filter((element) => element !== footer && element !== binding.host)
+      .filter(
+        (element) =>
+          element !== footer &&
+          element !== binding.host &&
+          // Avatars occupy their own column and can extend below a one-line reply.
+          !element.getAttribute('data-testid')?.startsWith('UserAvatar'),
+      )
       .map((element) => element.getBoundingClientRect().bottom),
   );
   const bottom = footer?.getBoundingClientRect().top ?? rect.bottom;
@@ -400,6 +406,15 @@ function applyVisibility(article: HTMLElement, binding: Binding): void {
     if (!blocked(post)) binding.revealed = false;
     return;
   }
+  const cell = article.closest<HTMLElement>('[data-testid="cellInnerDiv"]');
+  // X can reparent connected articles without recycling their post bindings.
+  if (
+    binding.hiddenSlot &&
+    (binding.preservedCell !== (cell ?? undefined) ||
+      binding.hiddenSlot.parentElement !== article.parentElement)
+  ) {
+    restoreBinding(article, binding);
+  }
   if (!article.hasAttribute('data-jev-hidden')) {
     const slot = document.createElement('div');
     slot.dataset.jevHiddenSlot = '';
@@ -407,7 +422,6 @@ function applyVisibility(article: HTMLElement, binding: Binding): void {
     // to measure normally. The notice overlays it without adding height.
     slot.style.cssText = 'position: absolute; pointer-events: none;';
     article.dataset.jevReserved = '';
-    const cell = article.closest<HTMLElement>('[data-testid="cellInnerDiv"]');
     if (cell) {
       cellReservations.set(cell, (cellReservations.get(cell) ?? 0) + 1);
       cell.dataset.jevPreserved = '';
