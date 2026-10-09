@@ -178,14 +178,36 @@ export function restoreBinding(article: HTMLElement, binding: Binding): void {
   delete binding.preservedCell;
 }
 
-/** Describe the active filter matches for a reserved post slot. */
-function hiddenReason(post: Post): string {
-  return `Hidden by ${hits(post)
+/** Show the detected score against the user's cutoff without changing post geometry. */
+function updateMaskReason(post: Post, root: ShadowRoot): void {
+  const matches = hits(post);
+  const threshold = (key: ScoreKey) =>
+    key.startsWith('custom:')
+      ? (settings.current.textFilters.find((filter) => `custom:${filter.id}` === key)?.threshold ??
+        0.65)
+      : settings.current.thresholds[key as CategoryKey];
+  const description = matches
     .map(
       (hit) =>
-        `${scoreLabel(hit.key, settings.current.textFilters)} (${Math.round(hit.score * 100)}%)`,
+        `${scoreLabel(hit.key, settings.current.textFilters)} (${Math.round(hit.score * 1000) / 10}% ≥ ${Math.round(threshold(hit.key) * 1000) / 10}%)`,
     )
-    .join(', ')}`;
+    .join(', ');
+  const reason = root.querySelector('p');
+  if (reason) reason.textContent = 'Hidden by ' + description;
+  const evidence = root.querySelector<HTMLElement>('.evidence');
+  const hit = matches[0];
+  if (!evidence || !hit) return;
+  const cutoff = Math.round(threshold(hit.key) * 1000) / 10;
+  const score = Math.round(hit.score * 1000) / 10;
+  evidence.querySelector('.evidence-label')!.textContent =
+    `${score}% detected · blocks at ${cutoff}%`;
+  const meter = evidence.querySelector<HTMLElement>('.score-track')!;
+  meter.setAttribute(
+    'aria-label',
+    `${scoreLabel(hit.key, settings.current.textFilters)}: ${score}% detected; blocks at ${cutoff}%`,
+  );
+  meter.style.setProperty('--score', `${score}%`);
+  meter.style.setProperty('--cutoff', `${cutoff}%`);
 }
 
 /** Confirm a category-specific author exception before saving it. */
@@ -223,6 +245,7 @@ function showAuthorException(post: Post, root: ShadowRoot, opener: HTMLButtonEle
   const confirm = document.createElement('button');
   confirm.type = 'button';
   confirm.textContent = 'Save author exception';
+  confirm.className = 'primary';
   cancel.addEventListener('click', () => dialog.close());
   dialog.addEventListener('click', (event) => event.stopPropagation());
   dialog.addEventListener('close', () => {
@@ -259,7 +282,6 @@ function showAuthorException(post: Post, root: ShadowRoot, opener: HTMLButtonEle
   });
   actions.append(cancel, confirm);
   dialog.append(title, description, label, error, actions);
-  dialog.style.backgroundColor = getComputedStyle(document.body).backgroundColor;
   root.append(dialog);
   dialog.showModal();
 }
@@ -319,8 +341,24 @@ function refreshMaskColors(article: HTMLElement, binding: Binding): void {
   const link =
     article.querySelector('[data-testid="tweetText"] a') ??
     document.querySelector('[data-testid="tweetText"] a');
+  const foreground =
+    article.querySelector('[data-testid="tweetText"]') ??
+    article.querySelector('[data-testid="User-Name"] span') ??
+    document.body;
+  slot.style.setProperty('--jev-ink', getComputedStyle(foreground).color);
+  slot.style.setProperty('--jev-bg', getComputedStyle(document.body).backgroundColor);
   slot.style.setProperty('--jev-muted', getComputedStyle(muted).color);
-  slot.style.setProperty('--jev-accent', link ? getComputedStyle(link).color : 'currentColor');
+  const accent = link ? getComputedStyle(link).color : getComputedStyle(foreground).color;
+  slot.style.setProperty('--jev-accent', accent);
+  const rgb = accent
+    .match(/[\d.]+/g)
+    ?.slice(0, 3)
+    .map(Number) ?? [29, 155, 240];
+  const linear = rgb.map((value) =>
+    value / 255 <= 0.04045 ? value / 255 / 12.92 : ((value / 255 + 0.055) / 1.055) ** 2.4,
+  );
+  const luminance = 0.2126 * linear[0]! + 0.7152 * linear[1]! + 0.0722 * linear[2]!;
+  slot.style.setProperty('--jev-on-accent', luminance > 0.179 ? '#000' : '#fff');
   // X styles text descendants directly; the article wrapper can retain a serif default.
   const text = timestamp ?? article.querySelector('[data-testid="tweetText"]') ?? muted;
   const typography = getComputedStyle(text);
@@ -396,7 +434,7 @@ function placeHiddenNotice(article: HTMLElement, binding: Binding): void {
   slot.style.width = `${Math.max(0, right - left)}px`;
   const height = Math.max(0, Math.min(bottom, contentBottom) - top);
   slot.style.height = `${height}px`;
-  slot.shadowRoot?.querySelector('.notice')?.classList.toggle('compact', height < 80);
+  slot.shadowRoot?.querySelector('.notice')?.classList.toggle('compact', height < 180);
 }
 
 /** Mask posts without removing their native layout, including offscreen posts. */
@@ -430,20 +468,33 @@ function applyVisibility(article: HTMLElement, binding: Binding): void {
     }
     const root = slot.attachShadow({ mode: 'open' });
     const style = document.createElement('style');
-    style.textContent = `:host { display: block; } .notice { pointer-events: auto; width: 100%; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 12px; color: var(--jev-muted); background: transparent; font: inherit; text-align: center; overflow: hidden; } .notice.compact { flex-direction: row; gap: 6px; padding: 0; font-size: 12px; } .compact p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 70%; } .compact button { padding: 0 6px; line-height: 1.2; } p { margin: 0; overflow-wrap: anywhere; } button { font: inherit; color: var(--jev-accent); background: transparent; border: 1px solid currentColor; border-radius: 999px; padding: 5px 14px; cursor: pointer; } button:focus-visible { outline: 2px solid var(--jev-accent); outline-offset: 3px; } .exception { color: var(--jev-muted); border-color: transparent; font-size: 13px; } .exception .short { display: none; } .compact .exception .long { display: none; } .compact .exception .short { display: inline; } dialog { pointer-events: auto; position: fixed; width: min(420px, calc(100vw - 48px)); box-sizing: border-box; padding: 20px; color: var(--jev-muted); border: 1px solid currentColor; border-radius: 16px; font: inherit; text-align: left; } dialog::backdrop { background: rgb(0 0 0 / .6); } dialog h2 { font: inherit; font-weight: 700; margin: 0 0 12px; } dialog p { margin: 12px 0; } dialog label { display: block; } dialog select { display: block; width: 100%; margin-top: 8px; padding: 8px; font: inherit; background: inherit; color: inherit; border: 1px solid currentColor; border-radius: 8px; } .dialog-actions { display: flex; justify-content: flex-end; align-items: center; gap: 12px; flex-wrap: wrap; } button:disabled { opacity: .5; cursor: default; }`;
+    style.textContent = `:host { display: block; } .notice { pointer-events: auto; width: 100%; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 12px; color: var(--jev-muted); background: transparent; font: inherit; text-align: center; overflow: hidden; } .evidence { width: min(240px, 100%); font-size: 12px; } .evidence-label { display: block; margin-bottom: 8px; } .score-track { position: relative; height: 6px; border-radius: 999px; background: color-mix(in srgb, var(--jev-ink) 16%, transparent); } .score-fill { width: var(--score); height: 100%; border-radius: inherit; background: var(--jev-accent); } .cutoff { position: absolute; left: var(--cutoff); top: -3px; width: 2px; height: 12px; background: var(--jev-ink); transform: translateX(-1px); } .compact .evidence { display: none; } .notice.compact { flex-direction: row; gap: 6px; padding: 0; font-size: 12px; } .compact p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 70%; } .compact button { padding: 0 6px; line-height: 1.2; } p { margin: 0; overflow-wrap: anywhere; } button { font: inherit; color: var(--jev-accent); background: transparent; border: 1px solid currentColor; border-radius: 999px; padding: 5px 14px; cursor: pointer; } button { font-weight: 600; } button:hover { background: color-mix(in srgb, var(--jev-accent) 12%, transparent); } button.primary { color: var(--jev-on-accent); background: var(--jev-accent); border-color: transparent; } button.primary:hover { background: color-mix(in srgb, var(--jev-accent) 88%, var(--jev-ink)); } button:focus-visible { outline: 2px solid var(--jev-accent); outline-offset: 3px; } .exception { color: var(--jev-ink); border-color: color-mix(in srgb, var(--jev-ink) 40%, transparent); font-size: 13px; } .exception .short { display: none; } .compact .exception .long { display: none; } .compact .exception .short { display: inline; } dialog { pointer-events: auto; position: fixed; width: min(420px, calc(100vw - 48px)); box-sizing: border-box; padding: 24px; color: var(--jev-ink); background: var(--jev-bg); border: 1px solid color-mix(in srgb, var(--jev-ink) 25%, transparent); border-radius: 16px; font: inherit; text-align: left; } dialog::backdrop { background: rgb(0 0 0 / .6); } dialog h2 { font: inherit; font-size: 20px; line-height: 1.3; font-weight: 700; margin: 0 0 12px; } dialog p { margin: 12px 0; line-height: 1.5; } dialog [role="status"]:empty { display: none; } dialog label { display: block; margin: 18px 0 20px; font-weight: 600; } dialog select { display: block; width: 100%; min-height: 40px; margin-top: 8px; padding: 8px 12px; font: inherit; background: inherit; color: inherit; border: 1px solid color-mix(in srgb, var(--jev-ink) 40%, transparent); border-radius: 8px; } .dialog-actions { display: flex; justify-content: flex-end; align-items: center; gap: 12px; flex-wrap: wrap; } button:disabled { opacity: .5; cursor: default; }`;
     const notice = document.createElement('div');
     notice.className = 'notice';
     const reason = document.createElement('p');
-    reason.textContent = hiddenReason(post);
+    const evidence = document.createElement('div');
+    evidence.className = 'evidence';
+    const evidenceLabel = document.createElement('span');
+    evidenceLabel.className = 'evidence-label';
+    const track = document.createElement('div');
+    track.className = 'score-track';
+    track.setAttribute('role', 'img');
+    const fill = document.createElement('div');
+    fill.className = 'score-fill';
+    const cutoff = document.createElement('span');
+    cutoff.className = 'cutoff';
+    track.append(fill, cutoff);
+    evidence.append(evidenceLabel, track);
     const show = document.createElement('button');
     show.type = 'button';
     show.textContent = 'Show post';
+    show.className = 'primary';
     revealActions.set(show, () => {
       binding.revealed = true;
       renderPostAtUiBoundary(post);
       binding.button.focus({ preventScroll: true });
     });
-    notice.append(reason, show);
+    notice.append(reason, evidence, show);
     if (/^[a-zA-Z0-9_]{1,15}$/.test(post.handle)) {
       const allow = document.createElement('button');
       allow.type = 'button';
@@ -476,8 +527,7 @@ function applyVisibility(article: HTMLElement, binding: Binding): void {
   }
   retainPostControls(article, binding);
   placeHiddenNotice(article, binding);
-  const reason = binding.hiddenSlot?.shadowRoot?.querySelector('p');
-  if (reason && reason.textContent !== hiddenReason(post)) reason.textContent = hiddenReason(post);
+  if (binding.hiddenSlot?.shadowRoot) updateMaskReason(post, binding.hiddenSlot.shadowRoot);
 }
 
 function applyCard(article: HTMLElement, post: Post, hiding: boolean): void {

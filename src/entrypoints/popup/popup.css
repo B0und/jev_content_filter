@@ -868,3 +868,16 @@ h3 {
   justify-content: space-between;
   gap: 12px;
 }
+
+.followed-policy {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+  line-height: 1.5;
+}
+.followed-policy input {
+  flex: none;
+  margin: 4px 0 0;
+  accent-color: var(--signal);
+}

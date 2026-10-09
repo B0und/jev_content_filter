@@ -147,7 +147,7 @@ export function categoryExempt(post: Post, key: ScoreKey): boolean {
     settings.current.authorExceptions.some(
       (entry) => entry.handle === handle && entry.categories.includes(key),
     ) ||
-    (isFollowed(handle) && settings.current.followedExemptions.includes(key))
+    (settings.current.skipFollowed && isFollowed(handle))
   );
 }
 

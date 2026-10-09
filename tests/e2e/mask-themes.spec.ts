@@ -1,8 +1,12 @@
 import { test, expect } from './fixtures';
+import { SettingsSchema } from '../../src/filtering/schemas';
+import * as Schema from 'effect/Schema';
 
 test('the mask follows the native content column and live X theme colors', async ({
   page,
   worker,
+  context,
+  extensionId,
 }) => {
   expect(worker.url()).toContain('chrome-extension:');
   await page.route('https://x.com/home', (route) =>
@@ -20,7 +24,11 @@ test('the mask follows the native content column and live X theme colors', async
   expect(mask!.width).toBe(body!.width);
   const nativeFont = await page.locator('time').evaluate((e) => {
     const style = getComputedStyle(e);
-    return { family: style.fontFamily, size: style.fontSize, line: style.lineHeight };
+    return {
+      family: style.fontFamily,
+      size: style.fontSize,
+      line: style.lineHeight,
+    };
   });
   for (const element of [
     slot.locator('p'),
@@ -30,12 +38,58 @@ test('the mask follows the native content column and live X theme colors', async
     await expect(element).toHaveCSS('font-size', nativeFont.size);
     await expect(element).toHaveCSS('line-height', nativeFont.line);
   }
+  await expect(slot.getByRole('img')).toHaveAccessibleName(/90% detected; blocks at 65%/);
+  await slot.screenshot({ path: '.wxt/notice-ui-finished.png' });
   const before = (await page.locator('#following').boundingBox())!.y;
+  await worker
+    .evaluate(async () => {
+      const saved = (await chrome.storage.local.get('settings')).settings;
+      return saved;
+    })
+    .then(async (saved) => {
+      const filter = Schema.decodeUnknownSync(SettingsSchema)(saved).textFilters[0]!;
+      const popup = await context.newPage();
+      await popup.goto(`chrome-extension://${extensionId}/popup.html`);
+      await popup.evaluate(async (id) => {
+        await chrome.runtime.sendMessage({
+          type: 'update-settings',
+          change: { field: 'patchTextFilter', id, value: { threshold: 0.7 } },
+        });
+      }, filter.id);
+      await popup.close();
+    });
+  await expect(slot.getByRole('img')).toHaveAccessibleName(/90% detected; blocks at 70%/);
+  expect(
+    await slot
+      .locator('.score-track')
+      .evaluate((e) => (e as HTMLElement).style.getPropertyValue('--cutoff')),
+  ).toBe('70%');
+  expect((await page.locator('#following').boundingBox())!.y).toBe(before);
   for (const theme of [
-    { background: '#ffffff', ink: '#0f1419', muted: '#536471', accent: '#794bc4' },
-    { background: '#15202b', ink: '#f7f9f9', muted: '#8b98a5', accent: '#ffad1f' },
-    { background: '#000000', ink: '#e7e9ea', muted: '#71767b', accent: '#f91880' },
-    { background: '#352f44', ink: '#faf0ca', muted: '#bcb8cd', accent: '#3ddc97' },
+    {
+      background: '#ffffff',
+      ink: '#0f1419',
+      muted: '#536471',
+      accent: '#794bc4',
+    },
+    {
+      background: '#15202b',
+      ink: '#f7f9f9',
+      muted: '#8b98a5',
+      accent: '#ffad1f',
+    },
+    {
+      background: '#000000',
+      ink: '#e7e9ea',
+      muted: '#71767b',
+      accent: '#f91880',
+    },
+    {
+      background: '#352f44',
+      ink: '#faf0ca',
+      muted: '#bcb8cd',
+      accent: '#3ddc97',
+    },
   ]) {
     await page.evaluate((theme) => {
       const style = document.documentElement.style;
@@ -50,9 +104,37 @@ test('the mask follows the native content column and live X theme colors', async
       .evaluate((e) => getComputedStyle(e).color);
     await expect(slot.locator('p')).toHaveCSS('color', nativeMuted);
     await expect(slot.getByRole('button', { name: 'Show post', exact: true })).toHaveCSS(
-      'color',
+      'background-color',
       nativeAccent,
     );
+    const exception = slot.getByRole('button', {
+      name: 'Skip a filter for @reader',
+      exact: true,
+    });
+    await expect(exception).toHaveCSS('border-top-style', 'solid');
+    await expect(exception).not.toHaveCSS('border-top-color', 'rgba(0, 0, 0, 0)');
+    await exception.click();
+    const dialog = page.getByRole('dialog');
+    const nativeInk = await page
+      .locator('[data-testid="tweetText"]')
+      .evaluate((e) => getComputedStyle(e).color);
+    const nativeBackground = await page
+      .locator('body')
+      .evaluate((e) => getComputedStyle(e).backgroundColor);
+    await expect(dialog).toHaveCSS('color', nativeInk);
+    await expect(dialog).toHaveCSS('background-color', nativeBackground);
+    await expect(
+      dialog.getByRole('button', {
+        name: 'Save author exception',
+        exact: true,
+      }),
+    ).toHaveCSS('background-color', nativeAccent);
+    await expect(dialog.getByRole('button', { name: 'Cancel', exact: true })).toBeFocused();
+    if (theme.background === '#000000') {
+      await dialog.screenshot({ path: '.wxt/author-dialog-finished.png' });
+    }
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
     await expect(slot.locator('.notice')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
     expect((await page.locator('#following').boundingBox())!.y).toBe(before);
   }

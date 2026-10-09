@@ -47,7 +47,7 @@ export interface AuthorException {
 
 export interface Settings {
   authorExceptions: AuthorException[];
-  followedExemptions: ScoreKey[];
+  skipFollowed: boolean;
   textFilters: TextFilter[];
   masterEnabled: boolean;
   /** Provider that evaluates the text questions. */
@@ -63,7 +63,7 @@ export interface Settings {
 
 export type SettingsChange =
   | { field: 'authorException'; handle: string; category: ScoreKey; value: boolean }
-  | { field: 'followedExemption'; category: ScoreKey; value: boolean }
+  | { field: 'skipFollowed'; value: boolean }
   | { field: 'textFilter'; value: TextFilter }
   | {
       field: 'patchTextFilter';
@@ -156,7 +156,7 @@ export const TEXT_KEYS: CategoryKey[] = ['aiGenerated'];
 export function defaultSettings(): Settings {
   return {
     authorExceptions: [],
-    followedExemptions: [],
+    skipFollowed: false,
     textFilters: presets.map((filter) => ({ ...filter })),
     masterEnabled: true,
     textProvider: 'vercel',

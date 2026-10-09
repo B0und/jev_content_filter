@@ -233,8 +233,8 @@ export function createPopupState(dependencies: PopupStateDependencies): PopupSta
     switch (change.field) {
       case 'authorException':
         return `authorException:${change.handle.toLowerCase()}:${change.category}`;
-      case 'followedExemption':
-        return `followedExemption:${change.category}`;
+      case 'skipFollowed':
+        return 'skipFollowed';
       case 'textFilter':
         return `textFilter:${change.value.id}`;
       case 'deleteTextFilter':

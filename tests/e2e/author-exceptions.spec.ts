@@ -79,7 +79,7 @@ test('author exceptions require confirmation, persist, stay category scoped and 
   await expect(page.locator('[data-jev-hidden-slot]')).toHaveCount(3);
 });
 
-test('native fetch and XHR relationships drive selective followed-account exceptions and unfollow restores filtering', async ({
+test('native fetch and XHR relationships drive the all-filter followed-account checkbox and unfollow restores filtering', async ({
   page,
   context,
   worker,
@@ -133,23 +133,23 @@ test('native fetch and XHR relationships drive selective followed-account except
   const popup = await context.newPage();
   await popup.goto(`chrome-extension://${extensionId}/popup.html`);
   await popup.getByRole('tab', { name: 'Settings', exact: true }).click();
-  await popup
-    .getByRole('switch', {
-      name: 'Skip First for followed accounts',
-      exact: true,
-    })
-    .click();
-  await expect(page.locator('[data-jev-hidden-slot]').first().locator('p')).not.toContainText(
-    'First',
+  const checkbox = popup.getByRole('checkbox', {
+    name: "Don't filter posts from accounts I follow",
+    exact: true,
+  });
+  await expect(checkbox).not.toBeChecked();
+  await expect(popup.getByRole('heading', { name: 'Author exceptions', exact: true })).toHaveCount(
+    0,
   );
-  await expect(page.locator('[data-jev-hidden-slot]')).toHaveCount(3);
-  await popup
-    .getByRole('switch', {
-      name: 'Skip Second for followed accounts',
-      exact: true,
-    })
-    .click();
+  await checkbox.check();
   await expect(page.locator('[data-jev-hidden-slot]')).toHaveCount(1);
+  await checkbox.uncheck();
+  await expect(page.locator('[data-jev-hidden-slot]')).toHaveCount(3);
+  await checkbox.check();
+  await expect(page.locator('[data-jev-hidden-slot]')).toHaveCount(1);
+  await popup.reload();
+  await popup.getByRole('tab', { name: 'Settings', exact: true }).click();
+  await expect(checkbox).toBeChecked();
   await page.reload();
   await expect(page.locator('[data-jev-hidden-slot]')).toHaveCount(1);
   const oldResponse = Promise.withResolvers<void>();
@@ -198,7 +198,7 @@ test('switching the active viewer invalidates follows and rejects old-account re
   expect(worker.url()).toContain('chrome-extension:');
   const settings = remoteSettings();
   settings.providerKeys.vercel = 'test-only-not-a-real-key';
-  settings.followedExemptions = settings.textFilters.map((f) => `custom:${f.id}` as const);
+  settings.skipFollowed = true;
   await setSettings(settings);
   await page.route('https://x.com/home', (route) =>
     route.fulfill({
@@ -285,7 +285,7 @@ test('page-forged follow packets cannot exempt posts or poison later genuine obs
   expect(worker.url()).toContain('chrome-extension:');
   const settings = remoteSettings();
   settings.providerKeys.vercel = 'test-only-not-a-real-key';
-  settings.followedExemptions = settings.textFilters.map((f) => `custom:${f.id}` as const);
+  settings.skipFollowed = true;
   await setSettings(settings);
   await page.route('https://x.com/home', (route) =>
     route.fulfill({

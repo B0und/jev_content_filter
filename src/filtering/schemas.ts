@@ -32,7 +32,7 @@ export const AuthorExceptionSchema = Schema.Struct({
 
 export const SettingsSchema = Schema.Struct({
   authorExceptions: Schema.mutable(Schema.Array(AuthorExceptionSchema)),
-  followedExemptions: Schema.mutable(Schema.Array(ScoreKeySchema)),
+  skipFollowed: Schema.Boolean,
   textFilters: Schema.mutable(Schema.Array(TextFilterSchema)),
   masterEnabled: Schema.Boolean,
   textProvider: TextProviderSchema,
@@ -50,8 +50,7 @@ export const SettingsChangeSchema = Schema.Union([
     value: Schema.Boolean,
   }),
   Schema.Struct({
-    field: Schema.Literal('followedExemption'),
-    category: ScoreKeySchema,
+    field: Schema.Literal('skipFollowed'),
     value: Schema.Boolean,
   }),
   Schema.Struct({ field: Schema.Literal('textFilter'), value: TextFilterSchema }),

@@ -43,7 +43,7 @@ function evaluateResult(answers: Record<string, unknown>) {
 
 const SETTINGS: Settings = {
   authorExceptions: [],
-  followedExemptions: [],
+  skipFollowed: false,
   textFilters: defaultSettings().textFilters,
   masterEnabled: true,
   textProvider: 'vercel',

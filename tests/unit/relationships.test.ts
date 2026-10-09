@@ -72,7 +72,7 @@ it('uses explicit following, never followed_by, and accepts both native user for
 
 it('unknown accounts stay filtered, then follow/unfollow updates both body and preview policy', async () => {
   settings.current = defaultSettings();
-  settings.current.followedExemptions = ['hentai'];
+  settings.current.skipFollowed = true;
   const post = newPost('123', 'Reader', 'body', [], '', '');
   post.scores = { hentai: 0.97, porn: 0.9 };
   post.previewScores = { hentai: 0.98 };
@@ -81,10 +81,22 @@ it('unknown accounts stay filtered, then follow/unfollow updates both body and p
     true,
   );
   expect(isFollowed('READER')).toBe(true);
-  expect(hits(post).map((hit) => hit.key)).toEqual(['porn']);
+  expect(hits(post)).toEqual([]);
+  settings.current.textFilters.push({
+    id: 'later',
+    name: 'Later',
+    instructions: 'test',
+    threshold: 0.5,
+    enabled: true,
+  });
+  post.scores['custom:later'] = 0.99;
+  post.previewScores['custom:later'] = 0.99;
+  expect(hits(post)).toEqual([]);
   expect(previewHits(post)).toEqual([]);
   await receiveFollowState(await packet(1, [{ handle: 'reader', following: false }]));
-  expect(previewHits(post).map((hit) => hit.key)).toEqual(['hentai']);
+  expect(previewHits(post).map((hit) => hit.key)).toEqual(
+    expect.arrayContaining(['hentai', 'custom:later']),
+  );
 });
 
 it('rejects invalid or foreign-window messages and never grants an exception to another author', async () => {

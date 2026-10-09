@@ -261,7 +261,7 @@ it('persists case-normalized author exceptions, merges category edits and migrat
   await fakeBrowser.storage.local.set({ settings: { masterEnabled: true } });
   const migrated = await Effect.runPromise(loadSettings());
   expect(migrated.authorExceptions).toEqual([]);
-  expect(migrated.followedExemptions).toEqual([]);
+  expect(migrated.skipFollowed).toBe(false);
   const first = applySettingsChange(migrated, {
     field: 'authorException',
     handle: 'Reader',
@@ -292,4 +292,15 @@ it('persists case-normalized author exceptions, merges category edits and migrat
       value: false,
     }).authorExceptions,
   ).toEqual([]);
+});
+
+it('migrates followed-account selections to one persisted checkbox, with explicit false taking precedence', async () => {
+  await fakeBrowser.storage.local.set({ settings: { followedExemptions: ['hentai'] } });
+  const migrated = await Effect.runPromise(loadSettings());
+  expect(migrated.skipFollowed).toBe(true);
+  const disabled = applySettingsChange(migrated, { field: 'skipFollowed', value: false });
+  await fakeBrowser.storage.local.set({
+    settings: { ...disabled, followedExemptions: ['hentai'] },
+  });
+  expect((await Effect.runPromise(loadSettings())).skipFollowed).toBe(false);
 });

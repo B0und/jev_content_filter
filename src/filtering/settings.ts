@@ -101,9 +101,11 @@ export const loadSettings = Effect.fn('loadSettings')(function* () {
           categories: [...new Set(entry.categories)],
         }))
       : [],
-    followedExemptions: Array.isArray(raw.followedExemptions)
-      ? [...new Set(raw.followedExemptions.filter(Schema.is(ScoreKeySchema)))]
-      : [],
+    skipFollowed:
+      typeof raw.skipFollowed === 'boolean'
+        ? raw.skipFollowed
+        : Array.isArray(raw.followedExemptions) &&
+          raw.followedExemptions.some(Schema.is(ScoreKeySchema)),
     textFilters,
     masterEnabled:
       typeof raw.masterEnabled === 'boolean' ? raw.masterEnabled : defaults.masterEnabled,
@@ -143,13 +145,10 @@ export function applySettingsChange(current: Settings, change: SettingsChange): 
       if (categories.size) next.authorExceptions.push({ handle, categories: [...categories] });
       break;
     }
-    case 'followedExemption': {
-      if (!Schema.is(ScoreKeySchema)(change.category) || typeof change.value !== 'boolean')
-        throw new Error('Invalid followed-account exception.');
-      const categories = new Set(current.followedExemptions);
-      if (change.value) categories.add(change.category);
-      else categories.delete(change.category);
-      next.followedExemptions = [...categories];
+    case 'skipFollowed': {
+      if (typeof change.value !== 'boolean')
+        throw new Error('Invalid followed-account preference.');
+      next.skipFollowed = change.value;
       break;
     }
     case 'textFilter':
