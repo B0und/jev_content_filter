@@ -1,7 +1,8 @@
 import * as tf from '@tensorflow/tfjs';
 import * as ort from 'onnxruntime-web/wasm';
 import { NSFWJS } from 'nsfwjs/core';
-import { ANIME_RATING_MODEL, SELECTED_MODELS } from './model-catalog';
+import { explicitImageScore, loadExplicitImageModel } from './explicit';
+import { ANIME_RATING_MODEL, EXPLICIT_IMAGE_MODEL, SELECTED_MODELS } from './model-catalog';
 import { IMAGE_KEYS, type CategoryKey } from '../filtering/types';
 import { downloadModelFile } from './download';
 
@@ -133,12 +134,27 @@ function animeInput(bitmap: ImageBitmap): ort.Tensor {
 export async function loadImageModel(
   onProgress: (loaded: number, total: number) => void,
 ): Promise<ImageClassifier> {
-  const model = await loadNsfwModel((loaded) =>
-    onProgress(loaded, SELECTED_MODELS.image.downloadBytes + ANIME_RATING_MODEL.downloadBytes),
-  );
+  const total =
+    SELECTED_MODELS.image.downloadBytes +
+    ANIME_RATING_MODEL.downloadBytes +
+    EXPLICIT_IMAGE_MODEL.downloadBytes;
+  const model = await loadNsfwModel((loaded) => onProgress(loaded, total));
+  let explicitLoaded = 0;
+  let animeLoaded = 0;
+  let explicitModel: ort.InferenceSession | undefined;
   let animeModel: ort.InferenceSession | undefined;
+  const loadExplicit = async () => {
+    explicitModel ??= await loadExplicitImageModel((loaded) => {
+      explicitLoaded = loaded;
+      onProgress(SELECTED_MODELS.image.downloadBytes + animeLoaded + explicitLoaded, total);
+    });
+  };
   const warmup = async () => {
-    animeModel ??= await loadAnimeRatingModel(onProgress);
+    animeModel ??= await loadAnimeRatingModel((loaded) => {
+      animeLoaded = loaded - SELECTED_MODELS.image.downloadBytes;
+      onProgress(SELECTED_MODELS.image.downloadBytes + animeLoaded + explicitLoaded, total);
+    });
+    await loadExplicit();
   };
   const canvas = new OffscreenCanvas(1, 1);
   const context = canvas.getContext('2d', { willReadFrequently: true });
@@ -168,11 +184,24 @@ export async function loadImageModel(
           throw new Error(`The image model omitted its '${key}' score.`);
         }
       }
+      let warning: string | undefined;
+      try {
+        await loadExplicit();
+        if (!explicitModel) throw new Error('The explicit verification model is unavailable.');
+        // Agreement preserves Porn semantics; binary NSFW alone also includes drawings.
+        scores.porn = Math.min(scores.porn!, await explicitImageScore(explicitModel, bitmap));
+      } catch (error) {
+        const failed = explicitModel;
+        explicitModel = undefined;
+        await failed?.release().catch(() => {});
+        delete scores.porn;
+        warning = `Porn verification failed: ${error instanceof Error ? error.message : String(error)}. Retry to complete it.`;
+      }
       const drawnEvidence = Math.min(1, scores.drawings! + scores.hentai!);
       // A high Hentai candidate must not bypass independent verification.
       if (drawnEvidence < 0.2) {
         scores.hentai = 0;
-        return { scores };
+        return { scores, ...(warning ? { warning } : {}) };
       }
       try {
         await warmup();
@@ -192,7 +221,7 @@ export async function loadImageModel(
         scores.hentai = Math.min(drawnEvidence, values[3]!);
         // Danbooru rates general/sensitive as SFW; reserve this boundary for q/e.
         scores.sexy = Math.max(scores.sexy!, Math.min(drawnEvidence, values[2]! + values[3]!));
-        return { scores };
+        return { scores, ...(warning ? { warning } : {}) };
       } catch (error) {
         const failed = animeModel;
         animeModel = undefined;
@@ -200,12 +229,15 @@ export async function loadImageModel(
         delete scores.hentai;
         return {
           scores,
-          warning: `Anime sensitivity check failed: ${error instanceof Error ? error.message : String(error)}. Retry to complete it.`,
+          warning: `${warning ? warning + ' ' : ''}Anime sensitivity check failed: ${error instanceof Error ? error.message : String(error)}. Retry to complete it.`,
         };
       }
     } finally {
       bitmap.close();
     }
   };
-  return Object.assign(classify, { warmup, isReady: () => animeModel !== undefined });
+  return Object.assign(classify, {
+    warmup,
+    isReady: () => animeModel !== undefined && explicitModel !== undefined,
+  });
 }

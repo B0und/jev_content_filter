@@ -1,0 +1,164 @@
+{
+  "date": "2026-10-09",
+  "model": "Marqo/nsfw-image-detection-384",
+  "revision": "0c26ec22111b83f106d72a55f611ec35962bcb65",
+  "runtime": "CPU Torch2.14.1/timm1.0.30; reference transforms",
+  "threshold": 0.5,
+  "limitations": "Small source-biased existing corpus. Dataset X labels are not audited Porn ground truth. Download failures excluded. See docs/porn-detector-research.md.",
+  "cases": [
+    {
+      "id": "civitai-x-6453",
+      "positive": true,
+      "nsfw": 0.9459490180015564,
+      "ms": 42.69983898848295
+    },
+    {
+      "id": "civitai-x-6041",
+      "positive": true,
+      "nsfw": 0.8568992018699646,
+      "ms": 48.441874008858576
+    },
+    {
+      "id": "civitai-x-4187",
+      "positive": true,
+      "nsfw": 0.9364850521087646,
+      "ms": 41.041951975785196
+    },
+    {
+      "id": "civitai-x-2681",
+      "positive": true,
+      "nsfw": 0.9360347986221313,
+      "ms": 41.141720983432606
+    },
+    {
+      "id": "civitai-x-7",
+      "positive": true,
+      "nsfw": 0.941690981388092,
+      "ms": 79.95968699106015
+    },
+    {
+      "id": "civitai-x-5964",
+      "positive": true,
+      "nsfw": 0.9456885457038879,
+      "ms": 42.40548997768201
+    },
+    {
+      "id": "civitai-x-2950",
+      "positive": true,
+      "nsfw": 0.9424903392791748,
+      "ms": 47.32107499148697
+    },
+    {
+      "id": "civitai-x-159",
+      "positive": true,
+      "nsfw": 0.939864456653595,
+      "ms": 55.09130397695117
+    },
+    {
+      "id": "civitai-x-5920",
+      "positive": true,
+      "nsfw": 0.9453507661819458,
+      "ms": 41.941011004382744
+    },
+    {
+      "id": "civitai-x-2825",
+      "positive": true,
+      "nsfw": 0.9408332705497742,
+      "ms": 53.771877981489524
+    },
+    {
+      "id": "civitai-x-2601",
+      "positive": true,
+      "nsfw": 0.9434144496917725,
+      "ms": 41.1321020219475
+    },
+    {
+      "id": "civitai-x-5600",
+      "positive": true,
+      "nsfw": 0.9428989291191101,
+      "ms": 48.540272982791066
+    },
+    {
+      "id": "commons-malamute-photo",
+      "positive": false,
+      "nsfw": 0.056135982275009155,
+      "ms": 44.63302801013924
+    },
+    {
+      "id": "commons-whippets-photo",
+      "positive": false,
+      "nsfw": 0.06725163012742996,
+      "ms": 39.548103988636285
+    },
+    {
+      "id": "commons-castle-mountain-photo",
+      "positive": false,
+      "nsfw": 0.047806646674871445,
+      "ms": 40.15784300281666
+    },
+    {
+      "id": "commons-domestic-cat-photo",
+      "positive": false,
+      "nsfw": 0.0501646026968956,
+      "ms": 48.94822297501378
+    },
+    {
+      "id": "commons-narcissus-photo",
+      "positive": false,
+      "nsfw": 0.05702275037765503,
+      "ms": 40.77692297869362
+    },
+    {
+      "id": "commons-gateway-arch-photo",
+      "positive": false,
+      "nsfw": 0.052080973982810974,
+      "ms": 42.32563101686537
+    },
+    {
+      "id": "commons-cartoon-dog",
+      "positive": false,
+      "nsfw": 0.264462411403656,
+      "ms": 36.21267699054442
+    },
+    {
+      "id": "commons-cartoon-cat",
+      "error": "HTTP Error 429: Too many requests (f061ab2)"
+    },
+    {
+      "id": "commons-cartoon-rabbit",
+      "positive": false,
+      "nsfw": 0.08302366733551025,
+      "ms": 37.00919699622318
+    },
+    {
+      "id": "commons-cartoon-owl",
+      "positive": false,
+      "nsfw": 0.0869203507900238,
+      "ms": 36.20742799830623
+    },
+    {
+      "id": "commons-cartoon-toucan",
+      "positive": false,
+      "nsfw": 0.24502553045749664,
+      "ms": 36.726679012645036
+    },
+    {
+      "id": "commons-cartoon-cow",
+      "positive": false,
+      "nsfw": 0.2629016041755676,
+      "ms": 36.559206986567006
+    },
+    {
+      "id": "reported-false-positive-trails-sky",
+      "positive": false,
+      "nsfw": 0.4923302233219147,
+      "ms": 36.985387007007375
+    }
+  ],
+  "reportedRedCover": {
+    "post": "https://x.com/oxfrancesco_/status/2108507916743414120",
+    "referenceNsfw": 0.0772132203,
+    "oldBrowserPorn": 0.6830307245,
+    "verifiedBrowserPorn": 0.0787268945
+  }
+}

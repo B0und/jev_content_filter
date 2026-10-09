@@ -7,6 +7,12 @@ const mocks = vi.hoisted(() => ({
   run: vi.fn(),
   release: vi.fn(),
   classify: vi.fn(),
+  explicit: vi.fn(),
+  loadExplicit: vi.fn(),
+}));
+vi.mock('../../src/inference/explicit', () => ({
+  loadExplicitImageModel: mocks.loadExplicit,
+  explicitImageScore: mocks.explicit,
 }));
 vi.mock('onnxruntime-web/wasm', () => ({
   InferenceSession: { create: mocks.create },
@@ -38,6 +44,8 @@ vi.mock('../../src/inference/download', () => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.explicit.mockResolvedValue(0.99);
+  mocks.loadExplicit.mockResolvedValue({ release: vi.fn().mockResolvedValue(undefined) });
   mocks.create.mockResolvedValue({
     inputNames: ['input'],
     outputNames: ['output'],
@@ -163,4 +171,30 @@ it('an unavailable verifier never presents raw Hentai as a verified score', asyn
   const result = await classify('data:image/png;base64,AA==');
   expect(result.scores.hentai).toBeUndefined();
   expect(result.warning).toContain('model unavailable');
+});
+
+it('requires independent NSFW agreement before a photo can block as Porn', async () => {
+  mocks.classify.mockResolvedValue([
+    { className: 'Drawing', probability: 0.005 },
+    { className: 'Porn', probability: 0.683 },
+    { className: 'Hentai', probability: 0.001 },
+    { className: 'Sexy', probability: 0.017 },
+  ]);
+  mocks.explicit.mockResolvedValueOnce(0.077).mockResolvedValueOnce(0.95);
+  const classify = await loadImageModel(() => {});
+  expect((await classify('data:image/png;base64,AA==')).scores.porn).toBeCloseTo(0.077);
+  expect((await classify('data:image/png;base64,AA==')).scores.porn).toBeCloseTo(0.683);
+});
+
+it('omits an unverified Porn score, preserves other categories and retries verification', async () => {
+  mocks.explicit.mockRejectedValueOnce(new Error('verification failed'));
+  const classify = await loadImageModel(() => {});
+  const failed = await classify('data:image/png;base64,AA==');
+  expect(failed.scores.porn).toBeUndefined();
+  expect(failed.scores.drawings).toBe(0.95);
+  expect(failed.warning).toContain('verification failed');
+  const recovered = await classify('data:image/png;base64,AA==');
+  expect(recovered.scores.porn).toBe(0.01);
+  expect(recovered.warning).toBeUndefined();
+  expect(mocks.loadExplicit).toHaveBeenCalledTimes(2);
 });
