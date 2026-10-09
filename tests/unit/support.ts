@@ -96,7 +96,7 @@ export function installFakeBackground(): FakeBackground {
   // combined with a literal `true` return (callback style).
   browser.runtime.onMessage.addListener(
     // oxlint-disable-next-line anti-slop/no-unknown-parameters -- This boundary validates untrusted data before exposing domain values.
-    (request: unknown, _sender, sendResponse: (value: unknown) => void) => {
+    (request: unknown, _sender, sendResponse) => {
       if (!isBgRequest(request)) return false;
 
       if (request.type === 'jev') {

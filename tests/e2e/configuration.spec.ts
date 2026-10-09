@@ -229,22 +229,13 @@ test('rapid credential edits survive popup close and independent windows preserv
   await expect(input).toHaveValue('synthetic-fast-key');
   await page.close();
   await expect
-    .poll(() =>
-      worker.evaluate(async () => {
-        const stored = (await chrome.storage.local.get('settings')).settings;
+    .poll(async () => {
+      const stored = await worker.evaluate(
+        async () => (await chrome.storage.local.get('settings')).settings,
+      );
 
-        // oxlint-disable-next-line anti-slop/no-runtime-typeof -- This serialized browser probe cannot capture imported validators.
-        if (!stored || typeof stored !== 'object' || !('providerKeys' in stored))
-          throw new Error('Missing provider credentials.');
-        const keys = stored.providerKeys;
-
-        // oxlint-disable-next-line anti-slop/no-runtime-typeof -- This serialized browser probe cannot capture imported validators.
-        if (!keys || typeof keys !== 'object' || !('vercel' in keys))
-          throw new Error('Missing Vercel key slot.');
-
-        return keys.vercel;
-      }),
-    )
+      return Schema.decodeUnknownSync(SettingsSchema)(stored).providerKeys.vercel;
+    })
     .toBe('synthetic-fast-key');
 
   const first = await context.newPage();

@@ -1,5 +1,5 @@
 import { defineContentScript } from 'wxt/utils/define-content-script';
-import { collectFollowStates } from '../content/relationships';
+import { collectFollowStates, type FollowState } from '../content/native-follow-parser';
 
 declare global {
   interface Window {
@@ -139,12 +139,10 @@ export default defineContentScript({
     });
 
     /** Accept only current-viewer native responses and preserve request-start ordering. */
-    // oxlint-disable-next-line anti-slop/no-unknown-parameters -- Native response parsing uses captured intrinsics to resist page-side tampering.
-    const publish = (data: unknown, sequence: number, requestEpoch: number) => {
+    const publish = (updates: FollowState[], sequence: number, requestEpoch: number) => {
       refreshViewer();
 
       if (!viewer || requestEpoch !== epoch) return;
-      const updates = collectFollowStates(data);
       let changed = false;
 
       for (let i = 0; i < updates.length; i++) {
@@ -196,7 +194,7 @@ export default defineContentScript({
         const body = apply(json, apply(clone, response, []), []);
         void apply(then, body, [
           // oxlint-disable-next-line anti-slop/no-unknown-parameters -- Native response parsing uses captured intrinsics to resist page-side tampering.
-          (data: unknown) => publish(data, sequence, requestEpoch),
+          (data: unknown) => publish(collectFollowStates(data), sequence, requestEpoch),
           () => {},
         ]);
       }
@@ -257,7 +255,11 @@ export default defineContentScript({
 
             // JSON-mode XHR exposes a mutable object to earlier page listeners; ignore it.
             if (!type || type === 'text')
-              publish(parse(apply(responseText, this, [])), sequence, requestEpoch);
+              publish(
+                collectFollowStates(parse(apply(responseText, this, []))),
+                sequence,
+                requestEpoch,
+              );
           } catch {
             /* Ignore non-JSON native responses. */
           }

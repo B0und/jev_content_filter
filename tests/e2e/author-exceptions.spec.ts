@@ -2,6 +2,14 @@ import { test, expect, remoteSettings } from './fixtures';
 import * as Schema from 'effect/Schema';
 import { SettingsSchema } from '../../src/filtering/schemas';
 
+declare global {
+  interface Window {
+    jevOldViewerProcessed: () => Promise<void>;
+    jevExternalParsed?: boolean;
+    jevRestoreJson?: () => void;
+  }
+}
+
 const fixture = `<!doctype html><style>body{margin:0;font:15px/20px Arial}main{width:600px;margin:auto}article{padding:16px;border-bottom:1px solid gray}.body{min-height:160px}.header{display:flex;justify-content:space-between}</style><main>${['Reader', 'Reader', 'Other'].map((handle, index) => `<article data-testid="tweet" data-post="${1031 + index}"><div class="header"><div data-testid="User-Name">${handle} @${handle}</div><a href="/${handle}/status/${1031 + index}"><time>Now</time></a><button data-testid="caret">More</button></div><div class="body" data-testid="tweetText">BLOCK_TEXT</div><div role="group"><button data-testid="reply">Reply</button></div></article>`).join('')}</main>`;
 
 test('author exceptions require confirmation, persist, stay category scoped and can be removed', async ({
@@ -232,22 +240,17 @@ test('switching the active viewer invalidates follows and rejects old-account re
     const nativeThen = Promise.prototype.then;
     // oxlint-disable-next-line unicorn/no-thenable -- observes completion of an existing native Promise consumer.
     Promise.prototype.then = function (...args) {
-      // oxlint-disable-next-line anti-slop/no-reflect-apply -- This page-world attack probe deliberately observes or replaces native methods.
+      // oxlint-disable-next-line anti-slop/no-reflect-apply -- Function.call erases Promise.then's generic result type; this probe preserves the native overload.
       const result = Reflect.apply(nativeThen, this, args);
 
       if (tracked.has(this)) {
         tracked.delete(this);
 
         const complete = () => {
-          // oxlint-disable-next-line anti-slop/no-reflect-get -- This page-world attack probe deliberately observes or replaces native methods.
-          const callback = Reflect.get(window, 'jevOldViewerProcessed');
-
-          // oxlint-disable-next-line anti-slop/no-runtime-typeof -- This page-world attack probe deliberately observes or replaces native methods.
-          if (typeof callback === 'function') void callback();
+          void window.jevOldViewerProcessed();
         };
 
-        // oxlint-disable-next-line anti-slop/no-reflect-apply -- This page-world attack probe deliberately observes or replaces native methods.
-        void Reflect.apply(nativeThen, result, [complete, complete]);
+        void nativeThen.call(result, complete, complete);
       }
 
       return result;
@@ -321,11 +324,9 @@ test('page-forged follow packets cannot exempt posts or poison later genuine obs
     // oxlint-disable-next-line typescript/unbound-method -- called with its original Response receiver.
     const json = Response.prototype.json;
     Response.prototype.json = function () {
-      if (this.url.startsWith('https://untrusted.example/'))
-        Reflect.set(window, 'jevExternalParsed', true);
+      if (this.url.startsWith('https://untrusted.example/')) window.jevExternalParsed = true;
 
-      // oxlint-disable-next-line anti-slop/no-reflect-apply -- This page-world attack probe deliberately observes or replaces native methods.
-      return Reflect.apply(json, this, []);
+      return json.call(this);
     };
   });
   let following = true;
@@ -372,8 +373,7 @@ test('page-forged follow packets cannot exempt posts or poison later genuine obs
     await fetch('https://untrusted.example/i/api/graphql/test/External');
     window.postMessage({ type: 'jev-follow-request' }, location.origin);
   });
-  // oxlint-disable-next-line anti-slop/no-reflect-get -- This page-world attack probe deliberately observes or replaces native methods.
-  expect(await page.evaluate(() => Reflect.get(window, 'jevExternalParsed') === true)).toBe(false);
+  expect(await page.evaluate(() => window.jevExternalParsed === true)).toBe(false);
   // A native observation is ordered after the forged messages; its success proves no forged epoch poisoned authority.
   await expect(page.locator('[data-jev-hidden-slot]')).toHaveCount(3);
   await page.evaluate(async () => {
@@ -382,13 +382,13 @@ test('page-forged follow packets cannot exempt posts or poison later genuine obs
   await expect(page.locator('[data-jev-hidden-slot]')).toHaveCount(1);
   following = false;
   await page.evaluate(() => {
-    // oxlint-disable-next-line typescript/unbound-method -- saved only to restore the original Response prototype method.
-    const original = Response.prototype.json;
-    Reflect.set(window, 'jevRestoreJson', () => {
-      Response.prototype.json = original;
+    const original = Object.getOwnPropertyDescriptor(Response.prototype, 'json')!;
+    window.jevRestoreJson = () => {
+      Object.defineProperty(Response.prototype, 'json', original);
       Reflect.deleteProperty(Object.prototype, 'toJSON');
       Reflect.deleteProperty(Array.prototype, '0');
-    });
+    };
+
     Object.defineProperty(Array.prototype, '0', {
       configurable: true,
       set(value) {
@@ -414,12 +414,8 @@ test('page-forged follow packets cannot exempt posts or poison later genuine obs
   });
   await expect(page.locator('[data-jev-hidden-slot]')).toHaveCount(3);
   await page.evaluate(() => {
-    // oxlint-disable-next-line anti-slop/no-reflect-get -- This page-world attack probe deliberately observes or replaces native methods.
-    const restore = Reflect.get(window, 'jevRestoreJson');
-
-    // oxlint-disable-next-line anti-slop/no-runtime-typeof -- This page-world attack probe deliberately observes or replaces native methods.
-    if (typeof restore === 'function') restore();
-    Reflect.deleteProperty(window, 'jevRestoreJson');
+    window.jevRestoreJson?.();
+    delete window.jevRestoreJson;
   });
 
   const snapshot = await page.evaluate(async () => {

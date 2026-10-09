@@ -5,7 +5,7 @@ import { browser } from 'wxt/browser';
 import type { BrowserError } from '../platform/browser';
 import { BgRequestSchema } from '../filtering/schemas';
 import { STORAGE_KEYS } from '../filtering/types';
-import { BackgroundWorker, type MessageSender } from './worker';
+import { BackgroundWorker, type MessageSender, type BackgroundReply } from './worker';
 
 const BG_REQUEST_TYPES = {
   jev: true,
@@ -42,8 +42,7 @@ function onMessageListener(
   // oxlint-disable-next-line anti-slop/no-unknown-parameters -- This boundary validates untrusted data before exposing domain values.
   request: unknown,
   sender: MessageSender,
-  // oxlint-disable-next-line anti-slop/no-unknown-parameters -- Browser messaging owns the callback contract; the worker supplies schema-validated replies.
-  sendResponse: (reply: unknown) => void,
+  sendResponse: (reply: BackgroundReply) => void,
 ): true | undefined {
   if (
     !Predicate.isObject(request) ||

@@ -1,4 +1,4 @@
-import { Result, Clock, Effect, Semaphore } from 'effect';
+import { Result, Clock, Effect, Semaphore, flow, Option } from 'effect';
 // Classification owns cache access, provider-revision checks, and cancellable
 // text/image scoring. DOM and block policy stay in their dedicated modules.
 import * as Schema from 'effect/Schema';
@@ -64,7 +64,11 @@ const CachedTimestampEntrySchema = Schema.Struct({ ts: Schema.Finite });
 
 const isCachedScoreEntry = Schema.is(CachedScoreEntrySchema);
 
-const isCachedTimestampEntry = Schema.is(CachedTimestampEntrySchema);
+const cacheTimestamp = flow(
+  Schema.decodeUnknownOption(CachedTimestampEntrySchema),
+  Option.map((entry) => entry.ts),
+  Option.getOrElse(() => 0),
+);
 
 const isCategoryKey = Schema.is(ScoreKeySchema);
 
@@ -152,11 +156,6 @@ export const writeCache = Effect.fnUntraced(function* (
 
   if (shouldEvict) yield* evictCache();
 });
-
-// oxlint-disable-next-line anti-slop/no-unknown-parameters -- This boundary validates untrusted data before exposing domain values.
-function cacheTimestamp(value: unknown): number {
-  return isCachedTimestampEntry(value) ? value.ts : 0;
-}
 
 export const evictCache = Effect.fnUntraced(function* () {
   const all = yield* browserEffect('read score cache for eviction', () =>

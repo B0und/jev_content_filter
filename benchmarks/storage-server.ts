@@ -48,8 +48,7 @@ export class SQLiteBenchmarkStore {
     }
   }
 
-  // oxlint-disable-next-line anti-slop/no-unknown-parameters -- This storage entrypoint normalizes imported and historical snapshots.
-  save(value: unknown): BenchmarkState {
+  save(value: BenchmarkState): BenchmarkState {
     const state = normalizeBenchmarkState(value);
     this.database
       .prepare(

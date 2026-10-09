@@ -1,4 +1,4 @@
-import { flow, Option, Predicate } from 'effect';
+import { flow, Option } from 'effect';
 import * as Schema from 'effect/Schema';
 
 export type BenchmarkModality = 'image' | 'text';
@@ -294,6 +294,15 @@ export function emptyPrediction(): Prediction {
   };
 }
 
+const SnapshotFieldsSchema = Schema.Record(Schema.String, Schema.Unknown);
+
+const snapshotFields = flow(
+  Schema.decodeUnknownOption(SnapshotFieldsSchema),
+  Option.getOrElse((): typeof SnapshotFieldsSchema.Type => ({})),
+);
+
+const snapshotItems = Schema.decodeUnknownOption(Schema.Array(Schema.Unknown));
+
 const truthValue = flow(
   Schema.decodeUnknownOption(Schema.Literals(['yes', 'no', 'unknown'])),
   Option.getOrElse(() => 'unknown' as const),
@@ -305,9 +314,7 @@ const score = flow(
   Option.getOrElse(() => null),
 );
 
-// oxlint-disable-next-line anti-slop/no-unknown-parameters -- This boundary validates untrusted data before exposing domain values.
-function normalizeNsfwjsScores(value: unknown): NsfwjsScores {
-  if (!Predicate.isObject(value)) return emptyNsfwjsScores();
+function normalizeNsfwjsScores(value: typeof SnapshotFieldsSchema.Type): NsfwjsScores {
   const scores = value;
 
   return {
@@ -330,9 +337,10 @@ function matchingTaskValue<T>(record: Record<string, T>, previousTaskKey?: strin
   return candidates.length === 1 ? record[candidates[0]!] : undefined;
 }
 
-// oxlint-disable-next-line anti-slop/no-unknown-parameters -- This boundary validates untrusted data before exposing domain values.
-function normalizeReview(value: unknown, previousTaskKey?: string): PredictionReview {
-  if (!Predicate.isObject(value)) return emptyPredictionReview();
+function normalizeReview(
+  value: typeof SnapshotFieldsSchema.Type,
+  previousTaskKey?: string,
+): PredictionReview {
   const review = value;
 
   const verdict = flow(
@@ -350,14 +358,19 @@ function normalizeReview(value: unknown, previousTaskKey?: string): PredictionRe
   };
 }
 
-// oxlint-disable-next-line anti-slop/no-unknown-parameters -- This boundary validates untrusted data before exposing domain values.
-function normalizePrediction(value: unknown, previousTaskKey?: string): Prediction {
-  if (!Predicate.isObject(value)) return emptyPrediction();
+function normalizePrediction(
+  value: typeof SnapshotFieldsSchema.Type,
+  previousTaskKey?: string,
+): Prediction {
   const prediction = value;
   const contentMatch = score(matchingTaskValue(prediction, previousTaskKey));
   const aiGenerated = score(prediction.aiGenerated);
-  const nsfwjs = normalizeNsfwjsScores(prediction.nsfwjs ?? prediction);
-  const review = normalizeReview(prediction.review ?? prediction.reviews, previousTaskKey);
+  const nsfwjs = normalizeNsfwjsScores(snapshotFields(prediction.nsfwjs ?? prediction));
+
+  const review = normalizeReview(
+    snapshotFields(prediction.review ?? prediction.reviews),
+    previousTaskKey,
+  );
 
   if (contentMatch === null) review.contentMatch = 'unreviewed';
 
@@ -381,21 +394,20 @@ const benchmarkProvenance = flow(
   Option.getOrElse(() => 'unknown' as const),
 );
 
-// oxlint-disable-next-line anti-slop/no-unknown-parameters -- This boundary validates untrusted data before exposing domain values.
-function normalizeCase(value: unknown, previousTaskKey?: string): BenchmarkCase | null {
-  if (!Predicate.isObject(value)) return null;
+function normalizeCase(
+  value: typeof SnapshotFieldsSchema.Type,
+  previousTaskKey?: string,
+): BenchmarkCase | null {
   const item = value;
 
   if (!Schema.is(Schema.String)(item.id) || !Schema.is(Schema.String)(item.title)) return null;
-  const labels = Predicate.isObject(item.labels) ? item.labels : null;
+  const labels = snapshotFields(item.labels);
   let contentMatch: TruthValue = 'unknown';
 
-  if (labels) {
-    const savedLabel = matchingTaskValue(labels, previousTaskKey);
+  const savedLabel = matchingTaskValue(labels, previousTaskKey);
 
-    if (savedLabel !== undefined) contentMatch = truthValue(savedLabel);
-    else if (labels.explicit === 'yes') contentMatch = 'yes';
-  }
+  if (savedLabel !== undefined) contentMatch = truthValue(savedLabel);
+  else if (labels.explicit === 'yes') contentMatch = 'yes';
 
   const modality = item.modality === 'text' ? 'text' : 'image';
 
@@ -403,7 +415,7 @@ function normalizeCase(value: unknown, previousTaskKey?: string): BenchmarkCase 
     id: item.id,
     modality,
     title: item.title,
-    labels: { contentMatch, aiGenerated: labels ? truthValue(labels.aiGenerated) : 'unknown' },
+    labels: { contentMatch, aiGenerated: truthValue(labels.aiGenerated) },
     provenance: benchmarkProvenance(item.provenance),
     notes: Schema.is(Schema.String)(item.notes) ? item.notes : '',
     createdAt: Schema.is(Schema.String)(item.createdAt) ? item.createdAt : new Date().toISOString(),
@@ -421,13 +433,14 @@ const solutionKind = flow(
   Option.getOrElse(() => 'other' as const),
 );
 
-// oxlint-disable-next-line anti-slop/no-unknown-parameters -- This boundary validates untrusted data before exposing domain values.
-function normalizeSolution(value: unknown, previousTaskKey?: string): BenchmarkSolution | null {
-  if (!Predicate.isObject(value)) return null;
+function normalizeSolution(
+  value: typeof SnapshotFieldsSchema.Type,
+  previousTaskKey?: string,
+): BenchmarkSolution | null {
   const item = value;
 
   if (!Schema.is(Schema.String)(item.id) || !Schema.is(Schema.String)(item.name)) return null;
-  const rawPredictions = Predicate.isObject(item.predictions) ? item.predictions : {};
+  const rawPredictions = snapshotFields(item.predictions);
 
   return {
     id: item.id,
@@ -437,19 +450,16 @@ function normalizeSolution(value: unknown, previousTaskKey?: string): BenchmarkS
     predictions: Object.fromEntries(
       Object.entries(rawPredictions).map(([caseId, prediction]) => [
         caseId,
-        normalizePrediction(prediction, previousTaskKey),
+        normalizePrediction(snapshotFields(prediction), previousTaskKey),
       ]),
     ),
   };
 }
 
-// oxlint-disable-next-line anti-slop/no-unknown-parameters -- This boundary validates untrusted data before exposing domain values.
-export function normalizeBenchmarkState(value: unknown): BenchmarkState {
+function restoreBenchmarkState(state: typeof SnapshotFieldsSchema.Type): BenchmarkState {
   const fallback = initialBenchmarkState();
 
-  if (!Predicate.isObject(value)) return fallback;
-  const state = value;
-  const rawThresholds = Predicate.isObject(state.thresholds) ? state.thresholds : {};
+  const rawThresholds = snapshotFields(state.thresholds);
 
   const previousTaskKeys = Object.keys(rawThresholds).filter(
     (key) => !['contentMatch', 'aiGenerated', 'nsfwjs', 'explicit'].includes(key),
@@ -458,17 +468,22 @@ export function normalizeBenchmarkState(value: unknown): BenchmarkState {
   // Older snapshots used a different name for the sole content-matching task.
   const previousTaskKey = previousTaskKeys.length === 1 ? previousTaskKeys[0] : undefined;
 
-  const cases = Array.isArray(state.cases)
-    ? state.cases
-        .map((item) => normalizeCase(item, previousTaskKey))
-        .filter((item): item is BenchmarkCase => item !== null)
-    : fallback.cases;
+  const cases = Option.getOrElse(snapshotItems(state.cases), () => fallback.cases).flatMap(
+    (raw) => {
+      const item = normalizeCase(snapshotFields(raw), previousTaskKey);
 
-  const solutions = Array.isArray(state.solutions)
-    ? state.solutions
-        .map((item) => normalizeSolution(item, previousTaskKey))
-        .filter((item): item is BenchmarkSolution => item !== null)
-    : fallback.solutions;
+      return item === null ? [] : [item];
+    },
+  );
+
+  const solutions = Option.getOrElse(
+    snapshotItems(state.solutions),
+    () => fallback.solutions,
+  ).flatMap((raw) => {
+    const item = normalizeSolution(snapshotFields(raw), previousTaskKey);
+
+    return item === null ? [] : [item];
+  });
 
   const selectedCaseId =
     Schema.is(Schema.String)(state.selectedCaseId) &&
@@ -489,6 +504,9 @@ export function normalizeBenchmarkState(value: unknown): BenchmarkState {
     selectedCaseId,
   };
 }
+
+/** Decode historical snapshot fields once before migrating domain values. */
+export const normalizeBenchmarkState = flow(snapshotFields, restoreBenchmarkState);
 
 export function predictionFor(solution: BenchmarkSolution, caseId: string): Prediction {
   return solution.predictions[caseId] ?? emptyPrediction();
@@ -594,7 +612,7 @@ export function parseSolutionImport(input: string): BenchmarkSolution {
     throw new Error('Solution file is not valid JSON.');
   }
 
-  if (!Predicate.isObject(parsed)) {
+  if (!Schema.is(SnapshotFieldsSchema)(parsed)) {
     throw new Error('Solution JSON needs a non-empty "name".');
   }
 
@@ -604,7 +622,7 @@ export function parseSolutionImport(input: string): BenchmarkSolution {
     throw new Error('Solution JSON needs a non-empty "name".');
   }
 
-  if (!Predicate.isObject(payload.predictions)) {
+  if (!Schema.is(SnapshotFieldsSchema)(payload.predictions)) {
     throw new Error('Solution JSON needs a "predictions" object keyed by case ID.');
   }
 
@@ -620,7 +638,7 @@ export function parseSolutionImport(input: string): BenchmarkSolution {
     predictions: Object.fromEntries(
       Object.entries(predictions).map(([caseId, prediction]) => [
         caseId,
-        normalizePrediction(prediction),
+        normalizePrediction(snapshotFields(prediction)),
       ]),
     ),
   };

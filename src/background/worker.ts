@@ -34,6 +34,8 @@ import {
   initialModelStatuses,
   encodeOcrReply,
   OcrError,
+  OcrReplyCodec,
+  type InferenceReply,
   type ModelKind,
 } from '../inference/contracts';
 
@@ -68,12 +70,24 @@ interface ClassificationJob {
   reply: Deferred.Deferred<JevReply, BrowserError>;
 }
 
+export type BackgroundReply =
+  | JevReply
+  | InferenceReply
+  | typeof OcrReplyCodec.Encoded
+  | FilterStatus
+  | { ok: false }
+  | { ok: true }
+  | { ok: true; secret: number[] }
+  | ({ ok: true } & SettingsWrite)
+  | { ok: true; type: 'clear-log'; cleared: Effect.Success<typeof clearLog> }
+  | { ok: true; type: 'clear-errors'; cleared: Effect.Success<typeof clearScanErrors> };
+
 interface BackgroundWorkerApi {
   initialize: Effect.Effect<void, BrowserError>;
   handleRequest: (
     request: BgRequest,
     sender: MessageSender,
-  ) => Effect.Effect<unknown, BrowserError>;
+  ) => Effect.Effect<BackgroundReply, BrowserError>;
   settingsChanged: Effect.Effect<void, BrowserError>;
   tabRemoved: (tabId: number) => Effect.Effect<void, BrowserError>;
   tabNavigated: (tabId: number) => Effect.Effect<void, BrowserError>;
@@ -488,7 +502,7 @@ export class BackgroundWorker extends Context.Service<BackgroundWorker, Backgrou
         function* (
           request: BgRequest,
           sender: MessageSender,
-        ): Effect.fn.Return<unknown, BrowserError> {
+        ): Effect.fn.Return<BackgroundReply, BrowserError> {
           yield* Deferred.await(settingsReady);
 
           switch (request.type) {

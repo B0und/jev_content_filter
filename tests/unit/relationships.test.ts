@@ -1,6 +1,6 @@
+import { collectFollowStates } from '../../src/content/native-follow-parser';
 import { expect, it, afterEach, beforeEach, vi } from 'vitest';
 import {
-  collectFollowStates,
   receiveFollowState,
   isFollowed,
   clearFollowStates,
@@ -196,8 +196,7 @@ it('teardown prevents a pending key import from reopening the old channel', asyn
 });
 
 it('page array setters and regexp patches cannot invent positive native relationships', () => {
-  // oxlint-disable-next-line typescript/unbound-method -- saved only to restore the original RegExp prototype method.
-  const originalExec = RegExp.prototype.exec;
+  const originalExec = Object.getOwnPropertyDescriptor(RegExp.prototype, 'exec')!;
   let result: ReturnType<typeof collectFollowStates>;
 
   try {
@@ -218,7 +217,7 @@ it('page array setters and regexp patches cannot invent positive native relation
     result = collectFollowStates({ legacy: { screen_name: 'Reader', following: false } });
   } finally {
     Reflect.deleteProperty(Array.prototype, '0');
-    RegExp.prototype.exec = originalExec;
+    Object.defineProperty(RegExp.prototype, 'exec', originalExec);
   }
 
   expect(result!).toEqual([{ handle: 'reader', following: false }]);

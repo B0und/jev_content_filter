@@ -1,9 +1,10 @@
 import * as Schema from 'effect/Schema';
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useState, useSyncExternalStore } from 'react';
 import { Button } from '@base-ui/react/button';
 import { Select } from '@base-ui/react/select';
 import { Tabs } from '@base-ui/react/tabs';
-import { useVirtualizer, type VirtualItem } from '@tanstack/react-virtual';
+import type { VirtualItem } from '@tanstack/react-virtual';
+import { createVirtualRows } from './virtual-rows';
 import {
   CATEGORY_KEYS,
   CATEGORY_LABELS,
@@ -56,9 +57,6 @@ function postUrl(entry: { tweetId?: string; handle?: string }): string | null {
     : `https://x.com/i/status/${entry.tweetId}`;
 }
 
-// The virtualizer manages its own refs/effects and is incompatible with React
-// Compiler memoization, so the row list is an isolated component marked with
-// 'use no memo'; everything above stays compiler-optimized.
 function BlockedRow(props: {
   vRow: VirtualItem;
   entry: BlockedEntry;
@@ -67,7 +65,6 @@ function BlockedRow(props: {
   onUnblock: (tweetId: string) => void;
   measure: (node: Element | null) => void;
 }) {
-  'use no memo';
   const { vRow, entry, unblocked, unblocking, onUnblock, measure } = props;
   const url = postUrl(entry);
   const preview = entry.target === 'preview';
@@ -132,7 +129,6 @@ function ErrorRowView(props: {
   entry: ErrorRow;
   measure: (node: Element | null) => void;
 }) {
-  'use no memo';
   const { vRow, entry, measure } = props;
   const url = postUrl(entry);
 
@@ -163,41 +159,29 @@ function ErrorRowView(props: {
   );
 }
 
-/** Virtualizer instance for one tab's rows; refs inside, so it opts out of the compiler. */
 function VirtualList(props: {
   rows: Array<{
     key: string;
     node: (vRow: VirtualItem, measure: (node: Element | null) => void) => React.ReactNode;
   }>;
 }) {
-  'use no memo';
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const [store] = useState(createVirtualRows);
+  const attach = useCallback((node: HTMLDivElement | null) => store.attach(node), [store]);
+  const snapshot = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
 
-  // TanStack Virtual's API returns functions that cannot be memoized; the
-  // compiler directive above skips this component, and this rule disable
-  // records that decision (isolated here, per the audit's instruction to
-  // not broadly suppress compiler rules).
-  // oxlint-disable-next-line react/incompatible-library react-compiler/incompatible-library
-  const virtualizer = useVirtualizer({
-    count: props.rows.length,
-    getScrollElement: () => scrollRef.current,
-    estimateSize: () => 64,
-    overscan: 8,
-    getItemKey: (index) => props.rows[index]?.key ?? String(index),
-  });
+  useLayoutEffect(() => {
+    store.setKeys(props.rows.map((row) => row.key));
+  }, [store, props.rows]);
 
   return (
-    <div className="virtual-scroll" ref={scrollRef}>
-      <div
-        className="virtual-inner"
-        style={{ height: virtualizer.getTotalSize(), position: 'relative' }}
-      >
-        {virtualizer.getVirtualItems().map((vRow) => {
+    <div className="virtual-scroll" ref={attach}>
+      <div className="virtual-inner" style={{ height: snapshot.height, position: 'relative' }}>
+        {snapshot.items.map((vRow) => {
           const row = props.rows[vRow.index];
 
           if (!row) return null;
 
-          return <div key={vRow.key}>{row.node(vRow, virtualizer.measureElement)}</div>;
+          return <div key={vRow.key}>{row.node(vRow, store.measure)}</div>;
         })}
       </div>
     </div>

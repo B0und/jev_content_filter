@@ -89,11 +89,9 @@ try {
   });
   await page.goto(`chrome-extension://${id}/ocr-extension-probe.html`);
   await page
-    // oxlint-disable-next-line anti-slop/no-runtime-typeof -- This serialized browser probe cannot capture imported validators.
-    .waitForFunction(() => typeof window.initializeOcr === 'function', { timeout: 10000 })
+    .waitForFunction(() => 'initializeOcr' in window, { timeout: 10000 })
     .catch(() => undefined);
-  // oxlint-disable-next-line anti-slop/no-runtime-typeof -- This serialized browser probe cannot capture imported validators.
-  const available = await page.evaluate(() => typeof window.initializeOcr === 'function');
+  const available = await page.evaluate(() => 'initializeOcr' in window);
 
   const result = available
     ? await page.evaluate(async () => {

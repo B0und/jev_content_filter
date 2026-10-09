@@ -4,7 +4,6 @@ import { browser } from 'wxt/browser';
 import { BrowserError, browserEffect } from '../../platform/browser';
 import {
   InferenceRequestSchema,
-  InferenceReplySchema,
   OcrReplyCodec,
   OcrError,
   encodeOcrReply,
@@ -13,20 +12,16 @@ import {
   type InferenceRequest,
 } from '../../inference/contracts';
 import { createWorkerSupervisor } from './worker-supervisor';
+import { createPendingReplies, type InferenceResultEnvelope } from './pending-replies';
 
-const WorkerReplySchema = Schema.Union([
-  Schema.Struct({ type: Schema.Literal('result'), id: Schema.Int, reply: Schema.Unknown }),
-  Schema.Struct({ type: Schema.Literal('ocr-result'), id: Schema.Int, reply: Schema.Unknown }),
-  Schema.Struct({ type: Schema.Literal('status'), models: ModelStatusesSchema }),
-]);
+const WorkerStatusSchema = Schema.Struct({
+  type: Schema.Literal('status'),
+  models: ModelStatusesSchema,
+});
 
 const runtime = ManagedRuntime.make(Layer.empty);
 
-const pending = new Map<
-  number,
-  // oxlint-disable-next-line anti-slop/no-unknown-parameters -- Worker envelopes carry raw payloads; run and runOcr decode them with their task-specific schemas.
-  { resolve: (reply: unknown) => void; reject: (error: Error) => void }
->();
+const pending = createPendingReplies();
 
 let nextId = 0;
 
@@ -66,26 +61,22 @@ const supervisor = createWorkerSupervisor({
     };
   },
   onMessage: (event) => {
-    if (!Schema.is(WorkerReplySchema)(event.data)) return;
-
-    if (event.data.type === 'status') {
+    if (Schema.is(WorkerStatusSchema)(event.data)) {
       statuses = event.data.models;
       persistStatus();
 
       return;
     }
 
-    const reply = pending.get(event.data.id);
-    pending.delete(event.data.id);
-    reply?.resolve(event.data.reply);
-    supervisor.complete(event.data.id);
+    const id = pending.settle(event);
+
+    if (id !== null) supervisor.complete(id);
   },
   // A crashed graph (WASM abort, failed worker setup) must not disable local
   // filtering for the session: the supervisor drops the worker and the next
   // request starts a replacement.
   onFailure: (error) => {
-    for (const request of pending.values()) request.reject(error);
-    pending.clear();
+    pending.failAll(error);
 
     for (const kind of ['image', 'aiText'] as const)
       statuses[kind] = { ...statuses[kind], state: 'error', error: error.message };
@@ -99,16 +90,17 @@ const runRaw = Effect.fn('InferenceWorker.runRaw')(function* (request: Inference
 
   return yield* Effect.tryPromise({
     try: (signal) =>
-      new Promise<unknown>((resolve, reject) => {
+      new Promise<InferenceResultEnvelope>((resolve, reject) => {
         const onAbort = () => {
-          pending.delete(id);
+          pending.cancel(id);
           supervisor.cancel(id);
           reject(new Error('Local inference request cancelled.'));
         };
 
         signal.addEventListener('abort', onAbort, { once: true });
         const cleanup = () => signal.removeEventListener('abort', onAbort);
-        pending.set(id, {
+        pending.add(id, {
+          expected: request.operation === 'ocr' ? 'ocr-result' : 'result',
           resolve: (reply) => {
             cleanup();
             resolve(reply);
@@ -121,7 +113,7 @@ const runRaw = Effect.fn('InferenceWorker.runRaw')(function* (request: Inference
         const admissionError = supervisor.send({ id, request });
 
         if (admissionError) {
-          pending.delete(id);
+          pending.cancel(id);
           cleanup();
           reject(admissionError);
         }
@@ -134,16 +126,23 @@ const runRaw = Effect.fn('InferenceWorker.runRaw')(function* (request: Inference
 const run = Effect.fn('InferenceWorker.run')(function* (request: InferenceRequest) {
   const raw = yield* runRaw(request);
 
-  return yield* Schema.decodeUnknownEffect(InferenceReplySchema)(raw).pipe(
-    Effect.mapError((cause) => new BrowserError({ operation: 'decode inference result', cause })),
-  );
+  if (raw.type !== 'result')
+    return yield* new BrowserError({
+      operation: 'decode inference result',
+      cause: 'Unexpected OCR reply.',
+    });
+
+  return raw.reply;
 });
 
 /** Decode an OCR Result and restore its success or OcrError channel. */
 const runOcr = Effect.fn('InferenceWorker.runOcr')(function* (request: InferenceRequest) {
   const raw = yield* runRaw(request);
 
-  const result = yield* Schema.decodeUnknownEffect(OcrReplyCodec)(raw).pipe(
+  if (raw.type !== 'ocr-result')
+    return yield* new OcrError({ message: 'Unexpected classifier reply.' });
+
+  const result = yield* Schema.decodeEffect(OcrReplyCodec)(raw.reply).pipe(
     Effect.mapError((cause) => new OcrError({ message: cause.message })),
   );
 
@@ -182,9 +181,7 @@ window.addEventListener(
   () => {
     supervisor.terminate();
 
-    for (const request of pending.values())
-      request.reject(new Error('Local inference document closed.'));
-    pending.clear();
+    pending.failAll(new Error('Local inference document closed.'));
     void runtime.dispose();
   },
   { once: true },

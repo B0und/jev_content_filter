@@ -301,8 +301,7 @@ try {
 
     try {
       await page.goto('http://127.0.0.1:5198/ocr-runner.html');
-      // oxlint-disable-next-line anti-slop/no-runtime-typeof -- This serialized browser probe cannot capture imported validators.
-      await page.waitForFunction(() => typeof window.createEngine === 'function');
+      await page.waitForFunction(() => 'createEngine' in window);
       const corpus = await page.evaluate(() => window.makeCorpus());
 
       // Commit the pixels, not just canvas instructions: installed fonts differ
@@ -385,8 +384,7 @@ try {
     });
   });
   await cspPage.goto('http://127.0.0.1:5198/ocr-runner.html');
-  // oxlint-disable-next-line anti-slop/no-runtime-typeof -- This serialized browser probe cannot capture imported validators.
-  await cspPage.waitForFunction(() => typeof window.createEngine === 'function');
+  await cspPage.waitForFunction(() => 'createEngine' in window);
   results.paddleMv3CspProbe = await cspPage.evaluate(async () => {
     try {
       await window.createEngine('paddle-v6-tiny');
