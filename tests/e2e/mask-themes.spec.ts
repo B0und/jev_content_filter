@@ -111,8 +111,7 @@ test('the mask follows the native content column and live X theme colors', async
       name: 'Skip a filter for @reader',
       exact: true,
     });
-    await expect(exception).toHaveCSS('border-top-style', 'solid');
-    await expect(exception).not.toHaveCSS('border-top-color', 'rgba(0, 0, 0, 0)');
+    await expect(exception).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
     await exception.click();
     const dialog = page.getByRole('dialog');
     const nativeInk = await page
