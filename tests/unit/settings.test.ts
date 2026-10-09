@@ -8,6 +8,7 @@ beforeEach(() => {
   fakeBrowser.reset();
   vi.stubEnv('VITE_AI_GATEWAY_KEY', 'synthetic-build-secret');
 });
+
 afterEach(() => vi.unstubAllEnvs());
 
 describe('settings storage normalization', () => {
@@ -15,10 +16,12 @@ describe('settings storage normalization', () => {
     const initial = await Effect.runPromise(loadSettings());
     expect(initial.textFilters).toEqual(defaultSettings().textFilters);
     const preset = initial.textFilters[0]!;
+
     const edited = applySettingsChange(initial, {
       field: 'textFilter',
       value: { ...preset, name: 'Sports', instructions: 'Sports results', threshold: 0.4 },
     });
+
     await fakeBrowser.storage.local.set({ settings: edited });
     expect((await Effect.runPromise(loadSettings())).textFilters).toEqual(edited.textFilters);
     await fakeBrowser.storage.local.set({
@@ -35,6 +38,7 @@ describe('settings storage normalization', () => {
       enabled: true,
       threshold: 0.5,
     }));
+
     await fakeBrowser.storage.local.set({
       settings: {
         enabled: { unknownCategory: false },
@@ -108,8 +112,8 @@ describe('settings storage normalization', () => {
     const loaded = await Effect.runPromise(loadSettings());
     expect(Object.values(loaded.providerKeys)).toEqual(['', '', '']);
     expect(loaded.textConfigRevision).toBe(0);
-    expect(typeof loaded.masterEnabled).toBe('boolean');
-    expect(typeof loaded.enabled.porn).toBe('boolean');
+    expect(loaded.masterEnabled).toEqual(expect.any(Boolean));
+    expect(loaded.enabled.porn).toEqual(expect.any(Boolean));
     expect(Number.isFinite(loaded.thresholds.hentai)).toBe(true);
   });
 
@@ -132,21 +136,25 @@ describe('field-level settings changes', () => {
   it('merges independent filter edits and never recreates a deleted filter', () => {
     const original = defaultSettings();
     const id = original.textFilters[0]!.id;
+
     const threshold = applySettingsChange(original, {
       field: 'patchTextFilter',
       id,
       value: { threshold: 0.4 },
     });
+
     const renamed = applySettingsChange(threshold, {
       field: 'patchTextFilter',
       id,
       value: { name: 'Renamed rule', instructions: 'Sports results' },
     });
+
     const toggled = applySettingsChange(renamed, {
       field: 'patchTextFilter',
       id,
       value: { enabled: false },
     });
+
     expect(toggled.textFilters[0]).toEqual({
       ...original.textFilters[0],
       name: 'Renamed rule',
@@ -166,26 +174,31 @@ describe('field-level settings changes', () => {
 
   it('isolates provider credentials and changes revision only for active text configuration', () => {
     const original = defaultSettings();
+
     const vercel = applySettingsChange(original, {
       field: 'providerKey',
       provider: 'vercel',
       value: 'v-key',
     });
+
     const inactive = applySettingsChange(vercel, {
       field: 'providerKey',
       provider: 'typesafe',
       value: 't-key',
     });
+
     expect(inactive.textConfigRevision).toBe(vercel.textConfigRevision);
     const selected = applySettingsChange(inactive, { field: 'textProvider', value: 'typesafe' });
     expect(selected.providerKeys).toEqual({ vercel: 'v-key', typesafe: 't-key', openrouter: '' });
     expect(selected.textConfigRevision).toBe(vercel.textConfigRevision + 1);
     expect(original.providerKeys.vercel).toBe('');
+
     const threshold = applySettingsChange(selected, {
       field: 'threshold',
       category: 'porn',
       value: 0.2,
     });
+
     expect(threshold.textConfigRevision).toBe(selected.textConfigRevision);
   });
 
@@ -207,6 +220,7 @@ describe('custom text filters', () => {
     enabled: true,
     threshold: 0.65,
   };
+
   it('persists independently named rules and restores them from storage', async () => {
     let settings = applySettingsChange(defaultSettings(), { field: 'textFilter', value: filter });
     settings = applySettingsChange(settings, {
@@ -217,10 +231,12 @@ describe('custom text filters', () => {
     const restored = await Effect.runPromise(loadSettings());
     expect(restored.textFilters).toEqual(settings.textFilters);
     expect(restored.textConfigRevision).toBe(2);
+
     const disabled = applySettingsChange(restored, {
       field: 'textFilter',
       value: { ...filter, enabled: false },
     });
+
     expect(disabled.textFilters[2]).toEqual(restored.textFilters[2]);
     expect(disabled.textConfigRevision).toBe(3);
     expect(
@@ -247,10 +263,12 @@ describe('custom text filters', () => {
         value: { ...filter, instructions: '  ' },
       }),
     ).toThrow();
+
     const settings = {
       ...defaultSettings(),
       textFilters: Array.from({ length: 20 }, (_, index) => ({ ...filter, id: `rule-${index}` })),
     };
+
     expect(() => applySettingsChange(settings, { field: 'textFilter', value: filter })).toThrow(
       '20',
     );
@@ -262,27 +280,32 @@ it('persists case-normalized author exceptions, merges category edits and migrat
   const migrated = await Effect.runPromise(loadSettings());
   expect(migrated.authorExceptions).toEqual([]);
   expect(migrated.skipFollowed).toBe(false);
+
   const first = applySettingsChange(migrated, {
     field: 'authorException',
     handle: 'Reader',
     category: 'hentai',
     value: true,
   });
+
   const second = applySettingsChange(first, {
     field: 'authorException',
     handle: 'READER',
     category: 'sexy',
     value: true,
   });
+
   await fakeBrowser.storage.local.set({ settings: second });
   const saved = await Effect.runPromise(loadSettings());
   expect(saved.authorExceptions).toEqual([{ handle: 'reader', categories: ['hentai', 'sexy'] }]);
+
   const removed = applySettingsChange(saved, {
     field: 'authorException',
     handle: 'reader',
     category: 'hentai',
     value: false,
   });
+
   expect(removed.authorExceptions).toEqual([{ handle: 'reader', categories: ['sexy'] }]);
   expect(
     applySettingsChange(removed, {

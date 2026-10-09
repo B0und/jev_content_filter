@@ -26,11 +26,13 @@ describe('category enable transitions', () => {
       textFilters: [],
       enabled: { ...baseSettings().enabled, aiGenerated: false },
     });
+
     const article = buildTweetArticle({
       id: '3001',
       text: 'innocuous text',
       previewText: 'preview page title',
     });
+
     test.handle.discover();
     await until(
       () => aria(iconButton(article)) === 'Not scanned',
@@ -41,9 +43,11 @@ describe('category enable transitions', () => {
     // Assign the classifier reply before the settings write: the runtime
     // scans immediately when the change lands.
     test.bg.respond = () => ({ ok: true, custom: { 'preset-1': 0.9 } });
+
     const enabled: Settings = baseSettings({
       providerKeys: { vercel: 'test-key', typesafe: '', openrouter: '' },
     });
+
     await browser.storage.local.set({ [STORAGE_KEYS.settings]: enabled });
 
     await until(
@@ -65,11 +69,13 @@ describe('category enable transitions', () => {
       request.text === 'preview page about explicit things'
         ? { ok: true, custom: { 'preset-1': 0.9 } }
         : { ok: true, custom: { 'preset-1': 0.01 } };
+
     const article = buildTweetArticle({
       id: '3002',
       text: 'clean text',
       previewText: 'preview page about explicit things',
     });
+
     test.handle.discover();
 
     await until(
@@ -91,6 +97,7 @@ describe('category enable transitions', () => {
     // The logs page unblocks by writing an override — the preview restores.
     await browser.storage.local.set({ [`${STORAGE_KEYS.overrides}:3002`]: 'allow' });
     const card = article.querySelector('[data-testid="card.wrapper"]');
+
     if (!(card instanceof HTMLElement)) throw new Error('card wrapper missing');
     await until(
       () => !card.hasAttribute('data-jev-card-hidden'),

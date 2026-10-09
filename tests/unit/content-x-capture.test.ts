@@ -7,7 +7,9 @@ function article(id: string) {
   const html = readFileSync(`tests/fixtures/x/orca-public-thread/${id}.html`, 'utf8');
   document.body.innerHTML = html;
   const element = document.querySelector<HTMLElement>('article[data-testid="tweet"]');
+
   if (!element) throw new Error('Captured X article missing');
+
   return element;
 }
 
@@ -18,6 +20,7 @@ afterEach(() => {
 describe('captured public X thread', () => {
   it('extracts the full note tweet and photo instead of its truncated legacy text or avatar', () => {
     const tweet = captured.tweets[0];
+
     if (!tweet?.note_tweet || !tweet.legacy.extended_entities)
       throw new Error('Captured note tweet or photo missing');
     const content = readArticle(article(tweet.rest_id));
@@ -37,6 +40,7 @@ describe('captured public X thread', () => {
 
   it('keeps a link-only reply identified even though X renders its URL as a card', () => {
     const tweet = captured.tweets[1];
+
     if (!tweet) throw new Error('Captured link-only reply missing');
     const content = readArticle(article(tweet.rest_id));
     expect(content).toMatchObject({

@@ -6,7 +6,7 @@ import { downloadModelFile } from '../../src/inference/download';
 const MODEL_URL = 'https://example.test/model.onnx';
 
 function payload(length: number): ArrayBuffer {
-  return new Uint8Array(length).fill(7).buffer as ArrayBuffer;
+  return new Uint8Array(length).fill(7).buffer;
 }
 
 function responseWithBody(declaredLength: number, body: ArrayBuffer): Response {
@@ -20,13 +20,17 @@ function responseWithBody(declaredLength: number, body: ArrayBuffer): Response {
 
 function installCacheStub(initial?: Response) {
   const entries = new Map<string, Response>();
+
   if (initial) entries.set(MODEL_URL, initial);
+
   const cache = {
     match: async (url: string) => entries.get(url)?.clone(),
     put: async (url: string, response: Response) => void entries.set(url, response),
     delete: async (url: string) => entries.delete(url),
   };
+
   vi.stubGlobal('caches', { open: async () => cache });
+
   return entries;
 }
 
@@ -39,6 +43,7 @@ describe('model downloads', () => {
     // raw.githubusercontent.com serves model.json gzipped: the header reports
     // the compressed transfer while fetch decodes the body.
     const entries = installCacheStub();
+
     const fetchMock = vi.fn(
       async () =>
         new Response(payload(64), {
@@ -49,6 +54,7 @@ describe('model downloads', () => {
           },
         }),
     );
+
     vi.stubGlobal('fetch', fetchMock);
 
     const buffer = await downloadModelFile(MODEL_URL, () => {});

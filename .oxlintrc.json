@@ -2,16 +2,37 @@
   "$schema": "./node_modules/@effect/tsgo/oxlint-schema.json",
   "extends": ["./node_modules/@effect/tsgo/oxlint-presets/recommended.json"],
   "plugins": ["typescript", "react", "jsx-a11y", "import", "unicorn", "oxc"],
-  "categories": { "correctness": "error" },
-  "jsPlugins": [{ "name": "react-compiler", "specifier": "eslint-plugin-react-hooks" }],
-  "options": { "typeAware": true },
-  "env": { "browser": true, "es2022": true },
+  "categories": {
+    "correctness": "error"
+  },
+  "jsPlugins": [
+    {
+      "name": "react-compiler",
+      "specifier": "eslint-plugin-react-hooks"
+    },
+    {
+      "name": "anti-slop",
+      "specifier": "./tools/oxlint/anti-slop/index.ts"
+    },
+    {
+      "name": "anti-slop-effect",
+      "specifier": "./tools/oxlint/anti-slop/effect/index.ts"
+    }
+  ],
+  "options": {
+    "typeAware": true
+  },
+  "env": {
+    "browser": true,
+    "es2022": true
+  },
   "ignorePatterns": [
     ".output/**",
     ".wxt/**",
     "node_modules/**",
     "test-results/**",
-    "playwright-report/**"
+    "playwright-report/**",
+    "tools/oxlint/anti-slop/**"
   ],
   "rules": {
     "react/rules-of-hooks": "error",
@@ -38,8 +59,39 @@
     "no-eval": "error",
     "no-restricted-imports": [
       "error",
-      { "patterns": [{ "group": ["@base-ui-components/*"], "message": "Use @base-ui/react." }] }
-    ]
+      {
+        "patterns": [
+          {
+            "group": ["@base-ui-components/*"],
+            "message": "Use @base-ui/react."
+          }
+        ]
+      }
+    ],
+    "anti-slop/no-array-filter-map": "error",
+    "anti-slop/no-reduce-accumulator-copy": "error",
+    "anti-slop/no-chained-type-assertions": "error",
+    "anti-slop/no-conditional-empty-object-spread": "error",
+    "anti-slop/no-known-value-widening": "error",
+    "anti-slop/no-module-mocking": "error",
+    "anti-slop/no-object-parameters": "error",
+    "anti-slop/no-reflect-apply": "error",
+    "anti-slop/no-reflect-get": "error",
+    "anti-slop/no-runtime-typeof": "error",
+    "anti-slop/no-unsafe-dictionary-type": "error",
+    "anti-slop/no-shape-in-symbol-names": "error",
+    "anti-slop/no-unknown-parameters": "error",
+    "anti-slop/no-unknown-returns": "error",
+    "anti-slop/no-unknown-type-aliases": "error",
+    "anti-slop/no-widen-then-assert": "error",
+    "anti-slop/require-readable-spacing": "error",
+    "anti-slop/require-safety-comment-for-type-assertion": "error",
+    "anti-slop-effect/no-manual-tag-comparison": "error",
+    "anti-slop-effect/no-manual-tagged-construction": "error",
+    "anti-slop-effect/no-service-constructor-imports": "error",
+    "oxc/no-accumulating-spread": "error",
+    "effecttsgo/catch-all-tag-dispatch-to-catch-tag": "off",
+    "effecttsgo/catch-if-tag-to-catch-tag": "off"
   },
   "overrides": [
     {
@@ -47,7 +99,10 @@
       "rules": {
         "no-restricted-globals": [
           "error",
-          { "name": "chrome", "message": "Import browser from wxt/browser for extension APIs." },
+          {
+            "name": "chrome",
+            "message": "Import browser from wxt/browser for extension APIs."
+          },
           {
             "name": "localStorage",
             "message": "Use extension storage; service workers do not have localStorage."

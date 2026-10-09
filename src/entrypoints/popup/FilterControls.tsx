@@ -16,6 +16,7 @@ export function EngineStatus({ status, onClick }: { status: ModelStatus; onClick
     loading: 'Preparing…',
     error: 'Needs attention',
   }[status.state];
+
   return (
     <button className={`engine-status engine-${status.state}`} type="button" onClick={onClick}>
       {label}
@@ -38,6 +39,7 @@ export function Category({
   onSetup?: () => void;
 }) {
   const toggleId = useId();
+
   const saveThreshold = useCallback(
     /** Persist the selected built-in category threshold. */
     (value: number, expectedThreshold: number) => {
@@ -45,6 +47,7 @@ export function Category({
     },
     [key, update],
   );
+
   return (
     <div className={`category ${settings.enabled[key] ? '' : 'disabled'}`}>
       <div className="category-label">
@@ -89,9 +92,11 @@ export function Threshold({
   const percent = Number((value * 100).toFixed(1));
   const [draft, setDraft] = useState(String(percent));
   const [lastSyncedPercent, setLastSyncedPercent] = useState(percent);
+
   const pendingPercent = useRef<{ percent: number; expectedThreshold: number } | undefined>(
     undefined,
   );
+
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   // A newer saved threshold wins over an unsaved local edit. Cancel before
   // painting it so blur/pagehide cannot flush the previous displayed value.
@@ -100,27 +105,33 @@ export function Threshold({
     timer.current = undefined;
     pendingPercent.current = undefined;
   }, [percent]);
+
   const flush = useCallback(
     /** Save against the captured field value so delayed flushes cannot replace newer edits. */ () => {
       clearTimeout(timer.current);
       timer.current = undefined;
       const value = pendingPercent.current;
       pendingPercent.current = undefined;
+
       if (value !== undefined) save(value.percent / 100, value.expectedThreshold);
     },
     [save],
   );
+
   useEffect(() => {
     window.addEventListener('pagehide', flush);
+
     return () => {
       window.removeEventListener('pagehide', flush);
       flush();
     };
   }, [flush]);
+
   if (lastSyncedPercent !== percent) {
     setLastSyncedPercent(percent);
     setDraft(String(percent));
   }
+
   /** Show the draft immediately and postpone persistence until edits stop. */
   const setPercent = (percent: number) => {
     setDraft(String(percent));
@@ -131,7 +142,9 @@ export function Threshold({
     clearTimeout(timer.current);
     timer.current = setTimeout(flush, 400);
   };
+
   const displayedPercent = draft !== '' && Number.isFinite(Number(draft)) ? Number(draft) : percent;
+
   return (
     <div className="threshold">
       <input
@@ -157,6 +170,7 @@ export function Threshold({
         aria-describedby={hintId}
         onChange={(event) => {
           setDraft(event.target.value);
+
           if (event.target.validity.valid && event.target.value !== '')
             setPercent(event.target.valueAsNumber);
           else {

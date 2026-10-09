@@ -8,6 +8,7 @@ import type { Plugin, ViteDevServer } from 'vite';
 import { initialBenchmarkState, normalizeBenchmarkState, type BenchmarkState } from './model';
 
 export const STORAGE_ENDPOINT = '/api/benchmark/state';
+
 export const DEFAULT_DATABASE_PATH = resolve(
   process.cwd(),
   'benchmarks',
@@ -35,15 +36,19 @@ export class SQLiteBenchmarkStore {
 
   load(): BenchmarkState {
     const row = this.database.prepare('SELECT payload FROM benchmark_state WHERE id = 1').get();
-    if (!row || typeof row.payload !== 'string') return this.save(initialBenchmarkState());
+
+    if (!row || !Schema.is(Schema.String)(row.payload)) return this.save(initialBenchmarkState());
+
     try {
       const payload: unknown = JSON.parse(row.payload);
+
       return normalizeBenchmarkState(payload);
     } catch {
       return this.save(initialBenchmarkState());
     }
   }
 
+  // oxlint-disable-next-line anti-slop/no-unknown-parameters -- This storage entrypoint normalizes imported and historical snapshots.
   save(value: unknown): BenchmarkState {
     const state = normalizeBenchmarkState(value);
     this.database
@@ -53,6 +58,7 @@ export class SQLiteBenchmarkStore {
          ON CONFLICT(id) DO UPDATE SET payload = excluded.payload, updated_at = excluded.updated_at`,
       )
       .run(JSON.stringify(state), new Date().toISOString());
+
     return state;
   }
 
@@ -82,6 +88,7 @@ const readJson = Effect.fn('readBenchmarkJson')(function* (request: IncomingMess
       Effect.gen(function* () {
         const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
         size += buffer.byteLength;
+
         if (size > 16 * 1024 * 1024)
           return yield* new BenchmarkRequestError({
             cause: new Error('Request body is too large.'),
@@ -90,16 +97,22 @@ const readJson = Effect.fn('readBenchmarkJson')(function* (request: IncomingMess
       }),
     ),
   );
+
   return yield* Effect.try({
     try: () => {
       const payload: unknown = JSON.parse(Buffer.concat(chunks).toString('utf8'));
-      return payload;
+
+      return normalizeBenchmarkState(payload);
     },
     catch: (cause) => new BenchmarkRequestError({ cause }),
   });
 });
 
-function sendJson(response: ServerResponse, status: number, value: unknown): void {
+function sendJson(
+  response: ServerResponse,
+  status: number,
+  value: BenchmarkState | { error: string },
+): void {
   const payload = JSON.stringify(value);
   response.statusCode = status;
   response.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -110,23 +123,31 @@ function sendJson(response: ServerResponse, status: number, value: unknown): voi
 const handleRequest = Effect.fn('handleBenchmarkRequest')(
   function* (request: IncomingMessage, response: ServerResponse) {
     const store = yield* BenchmarkDatabase;
+
     if (request.method === 'GET') {
       const state = yield* Effect.try({
         try: () => store.load(),
         catch: (cause) => new BenchmarkRequestError({ cause }),
       });
+
       sendJson(response, 200, state);
+
       return;
     }
+
     if (request.method === 'POST') {
       const value = yield* readJson(request);
+
       const state = yield* Effect.try({
         try: () => store.save(value),
         catch: (cause) => new BenchmarkRequestError({ cause }),
       });
+
       sendJson(response, 200, state);
+
       return;
     }
+
     sendJson(response, 405, { error: 'Only GET and POST are supported.' });
   },
   (effect, _request, response) =>
@@ -135,6 +156,7 @@ const handleRequest = Effect.fn('handleBenchmarkRequest')(
         Effect.sync(() => {
           const message =
             error.cause instanceof Error ? error.cause.message : 'SQLite storage request failed.';
+
           sendJson(response, 400, { error: message });
         }),
       ),
@@ -157,20 +179,25 @@ export function createBenchmarkStoragePlugin(filePath = DEFAULT_DATABASE_PATH): 
           ),
         ),
       );
+
       server.middlewares.use(STORAGE_ENDPOINT, (request, response, next) => {
         if (request.method !== 'GET' && request.method !== 'POST') {
           next();
+
           return;
         }
+
         runtime.runCallback(handleRequest(request, response), {
           onExit: (exit) => {
             if (!Exit.isFailure(exit)) return;
             console.error('Benchmark storage request failed:', Cause.pretty(exit.cause));
+
             if (!response.writableEnded && !response.destroyed)
               sendJson(response, 500, { error: 'Internal server error.' });
           },
         });
       });
+
       return () => {
         server.httpServer?.once('close', () => {
           void runtime.dispose();

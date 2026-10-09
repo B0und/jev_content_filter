@@ -22,14 +22,17 @@ test('the mask follows the native content column and live X theme colors', async
   const mask = await slot.boundingBox();
   expect(mask!.x).toBe(body!.x);
   expect(mask!.width).toBe(body!.width);
+
   const nativeFont = await page.locator('time').evaluate((e) => {
     const style = getComputedStyle(e);
+
     return {
       family: style.fontFamily,
       size: style.fontSize,
       line: style.lineHeight,
     };
   });
+
   for (const element of [
     slot.locator('p'),
     slot.getByRole('button', { name: 'Show post', exact: true }),
@@ -38,12 +41,14 @@ test('the mask follows the native content column and live X theme colors', async
     await expect(element).toHaveCSS('font-size', nativeFont.size);
     await expect(element).toHaveCSS('line-height', nativeFont.line);
   }
+
   await expect(slot.getByRole('img')).toHaveAccessibleName(/90% detected; blocks at 65%/);
   await slot.screenshot({ path: '.wxt/notice-ui-finished.png' });
   const before = (await page.locator('#following').boundingBox())!.y;
   await worker
     .evaluate(async () => {
       const saved = (await chrome.storage.local.get('settings')).settings;
+
       return saved;
     })
     .then(async (saved) => {
@@ -60,11 +65,14 @@ test('the mask follows the native content column and live X theme colors', async
     });
   await expect(slot.getByRole('img')).toHaveAccessibleName(/90% detected; blocks at 70%/);
   expect(
-    await slot
-      .locator('.score-track')
-      .evaluate((e) => (e as HTMLElement).style.getPropertyValue('--cutoff')),
+    await slot.locator('.score-track').evaluate((e) => {
+      if (!(e instanceof HTMLElement)) throw new Error('Expected an HTML score track.');
+
+      return e.style.getPropertyValue('--cutoff');
+    }),
   ).toBe('70%');
   expect((await page.locator('#following').boundingBox())!.y).toBe(before);
+
   for (const theme of [
     {
       background: '#ffffff',
@@ -99,27 +107,34 @@ test('the mask follows the native content column and live X theme colors', async
       style.setProperty('--accent', theme.accent);
     }, theme);
     const nativeMuted = await page.locator('time').evaluate((e) => getComputedStyle(e).color);
+
     const nativeAccent = await page
       .locator('[data-testid="tweetText"] a')
       .evaluate((e) => getComputedStyle(e).color);
+
     await expect(slot.locator('p')).toHaveCSS('color', nativeMuted);
     await expect(slot.getByRole('button', { name: 'Show post', exact: true })).toHaveCSS(
       'background-color',
       nativeAccent,
     );
+
     const exception = slot.getByRole('button', {
       name: 'Skip a filter for @reader',
       exact: true,
     });
+
     await expect(exception).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
     await exception.click();
     const dialog = page.getByRole('dialog');
+
     const nativeInk = await page
       .locator('[data-testid="tweetText"]')
       .evaluate((e) => getComputedStyle(e).color);
+
     const nativeBackground = await page
       .locator('body')
       .evaluate((e) => getComputedStyle(e).backgroundColor);
+
     await expect(dialog).toHaveCSS('color', nativeInk);
     await expect(dialog).toHaveCSS('background-color', nativeBackground);
     await expect(
@@ -129,14 +144,17 @@ test('the mask follows the native content column and live X theme colors', async
       }),
     ).toHaveCSS('background-color', nativeAccent);
     await expect(dialog.getByRole('button', { name: 'Cancel', exact: true })).toBeFocused();
+
     if (theme.background === '#000000') {
       await dialog.screenshot({ path: '.wxt/author-dialog-finished.png' });
     }
+
     await page.keyboard.press('Escape');
     await expect(dialog).toHaveCount(0);
     await expect(slot.locator('.notice')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
     expect((await page.locator('#following').boundingBox())!.y).toBe(before);
   }
+
   await page.setViewportSize({ width: 390, height: 720 });
   await expect
     .poll(async () => (await slot.boundingBox())!.width)
@@ -168,7 +186,10 @@ test('cropped multi-image media keeps recovery controls visible and clickable', 
   expect(
     await show.evaluate((button) => {
       const r = button.getBoundingClientRect();
-      const root = button.getRootNode() as ShadowRoot;
+      const root = button.getRootNode();
+
+      if (!(root instanceof ShadowRoot)) throw new Error('Expected the mask shadow root.');
+
       return document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2) === root.host;
     }),
   ).toBe(true);
@@ -192,10 +213,12 @@ test('one-line replies keep their blocking controls inside the text row beside a
   await page.goto('https://x.com/home');
   const show = page.getByRole('button', { name: 'Show post', exact: true });
   await expect(show).toBeAttached();
+
   const geometry = await page.locator('[data-jev-hidden-slot]').evaluate((slot) => {
     const r = slot.getBoundingClientRect();
     const b = slot.shadowRoot!.querySelector('button')!.getBoundingClientRect();
     const text = document.querySelector('[data-testid=tweetText]')!.getBoundingClientRect();
+
     return {
       height: r.height,
       top: r.top,
@@ -206,6 +229,7 @@ test('one-line replies keep their blocking controls inside the text row beside a
       hit: document.elementFromPoint(b.x + b.width / 2, b.y + b.height / 2) === slot,
     };
   });
+
   expect(geometry.height).toBe(20);
   expect(geometry.top).toBe(geometry.textTop);
   expect(geometry.buttonTop).toBeGreaterThanOrEqual(geometry.top);

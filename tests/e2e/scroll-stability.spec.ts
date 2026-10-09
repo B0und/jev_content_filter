@@ -65,9 +65,11 @@ test('late decisions keep the post being read in place after native scrolling', 
   await hideButton.click();
   await expect(first).toBeHidden();
   expect((await next.boundingBox())!.y).toBe(nextBefore!.y);
+
   const overrides = await worker.evaluate(
     async () => (await chrome.storage.local.get('postOverrides')).postOverrides,
   );
+
   expect(overrides ?? {}).toEqual({});
   // Recycled X cells must shed the previous post's reserved space and controls.
   await first.evaluate((article) => {
@@ -103,8 +105,10 @@ test('shared feed cells remain reserved until their last hidden post is revealed
       },
     });
   });
+
   const article = (id: number, text: string) =>
     `<article data-testid="tweet" data-post="${id}"><div data-testid="User-Name">Reader @reader</div><button data-testid="caret">More</button><a href="/reader/status/${id}"><time>Now</time></a><div data-testid="tweetText">${text}</div></article>`;
+
   await page.route('https://x.com/home', (route) =>
     route.fulfill({
       contentType: 'text/html',

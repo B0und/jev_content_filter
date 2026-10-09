@@ -10,7 +10,9 @@ import { settings, newPost, hits, previewHits } from '../../src/content/state';
 import { defaultSettings } from '../../src/filtering/types';
 
 const secret = Array.from({ length: 32 }, (_, i) => i);
+
 let sequence = 0;
+
 beforeEach(async () => {
   sequence = 0;
   const profile = document.createElement('a');
@@ -19,6 +21,7 @@ beforeEach(async () => {
   document.body.append(profile);
   await configureFollowChannel(secret);
 });
+
 /** Sign synthetic observer packets with the fixture-only key. */
 async function packet(
   epoch: number,
@@ -27,6 +30,7 @@ async function packet(
   viewer: string | null = 'viewer',
 ) {
   const payload = JSON.stringify({ epoch, sequence: seq, viewer, users });
+
   const key = await crypto.subtle.importKey(
     'raw',
     new Uint8Array(secret),
@@ -34,9 +38,11 @@ async function packet(
     false,
     ['sign'],
   );
+
   const signature = [
     ...new Uint8Array(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(payload))),
   ];
+
   return new MessageEvent('message', {
     source: window,
     origin: location.origin,
@@ -143,6 +149,7 @@ it('clears previous-viewer follows and rejects obsolete epochs', async () => {
 
 it('forged epochs, payloads and replayed signatures cannot grant exemptions or poison genuine updates', async () => {
   const good = await packet(1, [{ handle: 'reader', following: false }]);
+
   const forged = new MessageEvent('message', {
     source: window,
     origin: location.origin,
@@ -155,6 +162,7 @@ it('forged epochs, payloads and replayed signatures cannot grant exemptions or p
       }),
     },
   });
+
   expect(await receiveFollowState(forged)).toBe(false);
   expect(isFollowed('reader')).toBe(false);
   expect(await receiveFollowState(good)).toBe(true);
@@ -191,10 +199,12 @@ it('page array setters and regexp patches cannot invent positive native relation
   // oxlint-disable-next-line typescript/unbound-method -- saved only to restore the original RegExp prototype method.
   const originalExec = RegExp.prototype.exec;
   let result: ReturnType<typeof collectFollowStates>;
+
   try {
     Object.defineProperty(Array.prototype, '0', {
       configurable: true,
       set(value) {
+        // oxlint-disable-next-line anti-slop/no-runtime-typeof -- This attack probe replaces a native array setter to test parser integrity.
         if (value && typeof value === 'object' && 'following' in value) value.following = true;
         Object.defineProperty(this, '0', {
           value,
@@ -210,6 +220,7 @@ it('page array setters and regexp patches cannot invent positive native relation
     Reflect.deleteProperty(Array.prototype, '0');
     RegExp.prototype.exec = originalExec;
   }
+
   expect(result!).toEqual([{ handle: 'reader', following: false }]);
 });
 
@@ -230,18 +241,24 @@ it('directional source/target relationships never grant viewer-relative exemptio
 it('a viewer transition immediately denies exemptions and rejects in-flight old-viewer verification', async () => {
   await receiveFollowState(await packet(1, [{ handle: 'reader', following: true }]));
   expect(isFollowed('reader')).toBe(true);
+
   const event = await packet(1, [
     { handle: 'reader', following: true },
     { handle: 'other', following: true },
   ]);
+
   const nativeVerify = crypto.subtle.verify.bind(crypto.subtle);
   const completion = Promise.withResolvers<void>();
+
   const spy = vi.spyOn(crypto.subtle, 'verify').mockImplementation(async (...args) => {
     const verified = await nativeVerify(...args);
     await completion.promise;
+
     return verified;
   });
+
   const pending = receiveFollowState(event);
+
   try {
     document
       .querySelector('[data-testid=AppTabBar_Profile_Link]')!
@@ -254,6 +271,7 @@ it('a viewer transition immediately denies exemptions and rejects in-flight old-
     completion.resolve();
     spy.mockRestore();
   }
+
   await receiveFollowState(
     await packet(2, [{ handle: 'reader', following: true }], ++sequence, 'otherviewer'),
   );

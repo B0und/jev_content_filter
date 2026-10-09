@@ -98,6 +98,7 @@ describe('benchmark metrics', () => {
       'contentMatch',
       0.5,
     );
+
     expect(metrics).toMatchObject({
       truePositive: 0,
       falsePositive: 1,
@@ -131,6 +132,7 @@ describe('benchmark metrics', () => {
         },
       }),
     );
+
     expect(reviewed.predictions.unknown?.review.contentMatch).toBe('unreviewed');
     expect(manualReviewFor(cases, reviewed)).toEqual({ right: 1, wrong: 1, pending: 0 });
   });
@@ -158,6 +160,7 @@ describe('benchmark data migration', () => {
           },
         ],
       });
+
       expect(restored.cases[0]!.labels).toEqual({ contentMatch: 'no', aiGenerated: 'yes' });
       expect(restored.solutions[0]!.predictions.sample).toMatchObject({
         contentMatch: 0.2,
@@ -186,6 +189,7 @@ describe('benchmark data migration', () => {
         },
       ],
     });
+
     expect(restored.cases[0]!.labels).toEqual({ contentMatch: 'no', aiGenerated: 'yes' });
     expect(restored.thresholds.contentMatch).toBe(0.3);
     expect(restored.solutions[0]!.predictions.sample).toMatchObject({
@@ -247,7 +251,9 @@ describe('benchmark data migration', () => {
       thresholds: { explicit: 0.84, aiGenerated: 0.63, nsfwjs: 0.72 },
       selectedCaseId: 'legacy-negative',
     });
+
     const migratedSolution = migrated.solutions[0];
+
     if (!migratedSolution) throw new Error('Legacy solution was not migrated.');
 
     expect(migrated.cases.map((item) => item.id)).toEqual([
@@ -310,6 +316,7 @@ describe('benchmark data boundaries', () => {
         predictions: { safe: { contentMatch: 4, aiGenerated: -1 } },
       }),
     );
+
     expect(imported.predictions.safe).toEqual({
       contentMatch: 1,
       aiGenerated: 0,
@@ -333,6 +340,7 @@ describe('benchmark data boundaries', () => {
         },
       }),
     );
+
     expect(imported.kind).toBe('nsfwjs');
     expect(imported.predictions.safe).toEqual({
       contentMatch: null,
@@ -340,6 +348,7 @@ describe('benchmark data boundaries', () => {
       nsfwjs: { porn: 0.1, hentai: 0.2, sexy: 0.3, drawings: 0.4 },
       review: emptyPredictionReview(),
     });
+
     const direct = parseSolutionImport(
       JSON.stringify({
         name: 'NSFWJS direct',
@@ -347,6 +356,7 @@ describe('benchmark data boundaries', () => {
         predictions: { safe: { porn: 0.7, hentai: 0.8, sexy: 0.9, drawings: 1.1 } },
       }),
     );
+
     expect(direct.predictions.safe?.nsfwjs).toEqual({
       porn: 0.7,
       hentai: 0.8,

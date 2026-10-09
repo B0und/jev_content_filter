@@ -10,14 +10,17 @@ test('filters captured X replies and link cards while keeping the addressed note
 }) => {
   const settings = remoteSettings();
   settings.providerKeys.vercel = 'test-only-not-a-real-key';
+
   for (const category of ['porn', 'hentai', 'sexy', 'drawings'] as const)
     settings.enabled[category] = false;
   await setSettings(settings);
+
   const articles = await Promise.all(
     captured.tweets.map((tweet) =>
       readFile(`tests/fixtures/x/orca-public-thread/${tweet.rest_id}.html`, 'utf8'),
     ),
   );
+
   await context.route('https://x.com/**', (route) =>
     route.fulfill({
       contentType: 'text/html',

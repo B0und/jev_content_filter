@@ -5,25 +5,38 @@ import { createWorker, OEM, PSM, type Worker } from 'tesseract.js';
 import { recognizeOcrImage } from './ocr-image';
 
 let worker: Worker | undefined;
+
 const MAX_SOURCE_PIXELS = 4096 * 4096;
+
 const MAX_OCR_EDGE = 2048;
+
 /**
  * Language codes are deliberately data-only configuration. The traineddata
  * files are fetched on first use and retained by Tesseract.js in IndexedDB,
  * so adding another language does not add megabytes to the extension package.
  */
 export const OCR_LANGUAGES = ['eng', 'rus'];
+
 const OCR_LANG_PATH =
   'https://raw.githubusercontent.com/naptha/tessdata/806cd9adc8c6e8abc11c782db1818c990576bebc/4.0.0_best_int';
+
 let workerLanguages = '';
 
 /** Validate and canonicalize language codes before they become remote paths. */
 function normalizeLanguages(languages: ReadonlyArray<string>): string[] {
   const normalized = [
-    ...new Set(languages.map((language) => language.trim()).filter(Boolean)),
+    ...new Set(
+      languages.flatMap((language) => {
+        const code = language.trim();
+
+        return code ? [code] : [];
+      }),
+    ),
   ].sort();
+
   if (!normalized.length || normalized.some((language) => !/^[A-Za-z0-9_]+$/.test(language)))
     throw new Error('OCR language codes must contain only letters, numbers, or underscores.');
+
   return normalized;
 }
 
@@ -33,24 +46,31 @@ function normalizeLanguages(languages: ReadonlyArray<string>): string[] {
 /** Recognize text from one image using the requested, lazily downloaded languages. */
 async function recognizeImage(dataUrl: string, languages: ReadonlyArray<string>): Promise<string> {
   const response = await fetch(dataUrl);
+
   if (!response.ok) throw new Error(`Image text decoding failed (${response.status}).`);
   const blob = await response.blob();
   const dimensions = imageDimensionsFromData(new Uint8Array(await blob.arrayBuffer()));
+
   if (!dimensions || dimensions.width <= 0 || dimensions.height <= 0)
     throw new Error('Image dimensions could not be read before local OCR decoding.');
+
   if (dimensions.width * dimensions.height > MAX_SOURCE_PIXELS)
     throw new Error('Image exceeds the local OCR pixel budget.');
   const bitmap = await createImageBitmap(blob);
   let image: Blob;
+
   try {
     if (bitmap.width * bitmap.height > MAX_SOURCE_PIXELS)
       throw new Error('Image exceeds the local OCR pixel budget.');
     const scale = Math.min(2, MAX_OCR_EDGE / Math.max(bitmap.width, bitmap.height));
+
     const canvas = new OffscreenCanvas(
       Math.max(1, Math.round(bitmap.width * scale)),
       Math.max(1, Math.round(bitmap.height * scale)),
     );
+
     const context = canvas.getContext('2d');
+
     if (!context) throw new Error('Image text preprocessing is unavailable.');
     context.fillStyle = 'white';
     context.fillRect(0, 0, canvas.width, canvas.height);
@@ -59,9 +79,11 @@ async function recognizeImage(dataUrl: string, languages: ReadonlyArray<string>)
   } finally {
     bitmap.close();
   }
+
   try {
     const normalizedLanguages = normalizeLanguages(languages);
     const languageKey = normalizedLanguages.join('+');
+
     if (!worker) {
       const base = new URL('/ocr/', self.location.href).href;
       worker = await createWorker(normalizedLanguages, OEM.LSTM_ONLY, {
@@ -84,7 +106,9 @@ async function recognizeImage(dataUrl: string, languages: ReadonlyArray<string>)
       workerLanguages = languageKey;
       await worker.setParameters({ tessedit_pageseg_mode: PSM.SPARSE_TEXT });
     }
+
     const activeWorker = worker;
+
     return await recognizeOcrImage(activeWorker, image, async () => {
       worker = undefined;
       workerLanguages = '';

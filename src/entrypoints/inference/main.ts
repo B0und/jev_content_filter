@@ -19,14 +19,21 @@ const WorkerReplySchema = Schema.Union([
   Schema.Struct({ type: Schema.Literal('ocr-result'), id: Schema.Int, reply: Schema.Unknown }),
   Schema.Struct({ type: Schema.Literal('status'), models: ModelStatusesSchema }),
 ]);
+
 const runtime = ManagedRuntime.make(Layer.empty);
+
 const pending = new Map<
   number,
+  // oxlint-disable-next-line anti-slop/no-unknown-parameters -- Worker envelopes carry raw payloads; run and runOcr decode them with their task-specific schemas.
   { resolve: (reply: unknown) => void; reject: (error: Error) => void }
 >();
+
 let nextId = 0;
+
 let statuses = initialModelStatuses();
+
 let persistScheduled = false;
+
 const persistStatus = () => {
   if (persistScheduled) return;
   persistScheduled = true;
@@ -35,6 +42,7 @@ const persistStatus = () => {
       Effect.andThen(
         browserEffect('publish local model status', () => {
           persistScheduled = false;
+
           return browser.runtime.sendMessage({ type: 'local-model-status', models: statuses });
         }),
       ),
@@ -42,13 +50,16 @@ const persistStatus = () => {
     ),
   );
 };
+
 const supervisor = createWorkerSupervisor({
   start: (handlers) => {
     const instance = new Worker(new URL('../../inference/worker.ts', import.meta.url), {
       type: 'module',
     });
+
     instance.onmessage = handlers.onMessage;
     instance.onerror = handlers.onError;
+
     return {
       postMessage: (message) => instance.postMessage(message),
       terminate: () => instance.terminate(),
@@ -56,11 +67,14 @@ const supervisor = createWorkerSupervisor({
   },
   onMessage: (event) => {
     if (!Schema.is(WorkerReplySchema)(event.data)) return;
+
     if (event.data.type === 'status') {
       statuses = event.data.models;
       persistStatus();
+
       return;
     }
+
     const reply = pending.get(event.data.id);
     pending.delete(event.data.id);
     reply?.resolve(event.data.reply);
@@ -72,14 +86,17 @@ const supervisor = createWorkerSupervisor({
   onFailure: (error) => {
     for (const request of pending.values()) request.reject(error);
     pending.clear();
+
     for (const kind of ['image', 'aiText'] as const)
       statuses[kind] = { ...statuses[kind], state: 'error', error: error.message };
     persistStatus();
   },
 });
+
 /** Submit supervised work, correlating its reply and cancelling queued work on interruption. */
 const runRaw = Effect.fn('InferenceWorker.runRaw')(function* (request: InferenceRequest) {
   const id = ++nextId;
+
   return yield* Effect.tryPromise({
     try: (signal) =>
       new Promise<unknown>((resolve, reject) => {
@@ -88,6 +105,7 @@ const runRaw = Effect.fn('InferenceWorker.runRaw')(function* (request: Inference
           supervisor.cancel(id);
           reject(new Error('Local inference request cancelled.'));
         };
+
         signal.addEventListener('abort', onAbort, { once: true });
         const cleanup = () => signal.removeEventListener('abort', onAbort);
         pending.set(id, {
@@ -101,6 +119,7 @@ const runRaw = Effect.fn('InferenceWorker.runRaw')(function* (request: Inference
           },
         });
         const admissionError = supervisor.send({ id, request });
+
         if (admissionError) {
           pending.delete(id);
           cleanup();
@@ -110,32 +129,42 @@ const runRaw = Effect.fn('InferenceWorker.runRaw')(function* (request: Inference
     catch: (cause) => new BrowserError({ operation: 'run local inference', cause }),
   });
 });
+
 /** Validate a classifier reply before returning it across the browser message boundary. */
 const run = Effect.fn('InferenceWorker.run')(function* (request: InferenceRequest) {
   const raw = yield* runRaw(request);
+
   return yield* Schema.decodeUnknownEffect(InferenceReplySchema)(raw).pipe(
     Effect.mapError((cause) => new BrowserError({ operation: 'decode inference result', cause })),
   );
 });
+
 /** Decode an OCR Result and restore its success or OcrError channel. */
 const runOcr = Effect.fn('InferenceWorker.runOcr')(function* (request: InferenceRequest) {
   const raw = yield* runRaw(request);
+
   const result = yield* Schema.decodeUnknownEffect(OcrReplyCodec)(raw).pipe(
     Effect.mapError((cause) => new OcrError({ message: cause.message })),
   );
+
   return yield* Effect.fromResult(result);
 });
+
+// oxlint-disable-next-line anti-slop/no-unknown-parameters -- This boundary validates untrusted data before exposing domain values.
 browser.runtime.onMessage.addListener((request: unknown, sender, sendResponse) => {
   if (sender.id !== browser.runtime.id || sender.tab || !Schema.is(InferenceRequestSchema)(request))
     return undefined;
+
   if (request.operation === 'ocr') {
     runtime.runFork(
       encodeOcrReply(runOcr(request)).pipe(
         Effect.tap((reply) => Effect.sync(() => sendResponse(reply))),
       ),
     );
+
     return true;
   }
+
   runtime.runFork(
     run(request).pipe(
       Effect.match({
@@ -144,12 +173,15 @@ browser.runtime.onMessage.addListener((request: unknown, sender, sendResponse) =
       }),
     ),
   );
+
   return true;
 });
+
 window.addEventListener(
   'pagehide',
   () => {
     supervisor.terminate();
+
     for (const request of pending.values())
       request.reject(new Error('Local inference document closed.'));
     pending.clear();

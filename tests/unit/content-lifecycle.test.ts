@@ -1,3 +1,4 @@
+import { CATEGORY_KEYS } from '../../src/filtering/types';
 // Lifecycle regressions: invalidation removes every trace, late/recycled
 // DOM stays consistent, and a failed scan never hides unrelated content.
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -149,6 +150,7 @@ describe('content lifecycle', () => {
       aiGenerated: true,
     };
     const test = await startRuntime({ enabled: configured.enabled, textFilters: [] });
+
     try {
       const loading = initialModelStatuses();
       loading.aiText = { ...loading.aiText, state: 'loading', total: 1 };
@@ -162,6 +164,7 @@ describe('content lifecycle', () => {
         id: '2012',
         text: 'A generated response that needs its local model to be ready.',
       });
+
       test.handle.discover();
       await until(
         () => test.handle.report().pending === 0 && test.handle.report().failed === 1,
@@ -197,14 +200,17 @@ describe('content lifecycle', () => {
   it('counts duplicate bindings once and follows recycled articles through detach and return', async () => {
     const test = await startRuntime();
     test.bg.respond = () => ({ ok: true, custom: { 'preset-1': 0.99 } });
+
     const first = buildTweetArticle({
       id: '2011',
       text: 'shared explicit text',
     });
+
     const second = buildTweetArticle({
       id: '2011',
       text: 'shared explicit text',
     });
+
     test.handle.discover();
     await until(
       () =>
@@ -235,6 +241,7 @@ describe('content lifecycle', () => {
 
     const statusLink = first.querySelector<HTMLAnchorElement>('a[href*="/status/"]');
     const textNode = first.querySelector('[data-testid="tweetText"]');
+
     if (!statusLink || !textNode) throw new Error('tweet identity nodes missing');
     statusLink.setAttribute('href', '/user/status/2012');
     textNode.textContent = 'recycled explicit text';
@@ -267,15 +274,18 @@ describe('content lifecycle', () => {
     let calls = 0;
     test.bg.respond = () => {
       calls += 1;
+
       return calls === 1
         ? first.promise
         : Promise.resolve({ ok: true, custom: { 'preset-1': 0.99 } });
     };
+
     test.handle.discover();
     await until(() => aria(iconButton(article)).includes('Scanning'), 'scan did not start');
 
     // X replaces the text before the in-flight reply lands: version bump.
     const textNode = article.querySelector('[data-testid="tweetText"]');
+
     if (!textNode) throw new Error('tweet text missing');
     textNode.textContent = 'replaced text';
     test.handle.discover();
@@ -296,17 +306,21 @@ describe('content lifecycle', () => {
   it('keeps attached posts beyond the detached retention limit and retains recent returns', async () => {
     const test = await startRuntime();
     test.bg.respond = () => ({ ok: true, custom: { 'preset-1': 0.99 } });
+
     const oldest = buildTweetArticle({
       id: '2020',
       text: 'oldest retained marker',
     });
+
     const detached = Array.from({ length: 200 }, (_, index) =>
       buildTweetArticle({ id: String(3000 + index) }),
     );
+
     const recent = buildTweetArticle({
       id: '4000',
       text: 'recent retained marker',
     });
+
     test.handle.discover();
     await until(
       () => oldest.hasAttribute('data-jev-hidden') && recent.hasAttribute('data-jev-hidden'),
@@ -316,6 +330,7 @@ describe('content lifecycle', () => {
     expect(test.bg.jevCalls).toHaveLength(2);
 
     oldest.remove();
+
     for (const article of detached) article.remove();
     test.handle.discover();
     expect(test.handle.report().blocked).toBe(1);
@@ -357,22 +372,27 @@ describe('content lifecycle', () => {
     let calls = 0;
     test.bg.respond = () => {
       calls += 1;
+
       return calls === 1
         ? first.promise
         : Promise.resolve({ ok: true, custom: { 'preset-1': 0.99 } });
     };
+
     const article = buildTweetArticle({
       id: '2021',
       text: 'pending eviction marker',
     });
+
     test.handle.discover();
     await until(() => aria(iconButton(article)).includes('Scanning'), 'scan did not start');
 
     const detached = Array.from({ length: 201 }, (_, index) =>
       buildTweetArticle({ id: String(5000 + index) }),
     );
+
     test.handle.discover();
     article.remove();
+
     for (const item of detached) item.remove();
     test.handle.discover();
 
@@ -401,17 +421,21 @@ describe('content lifecycle', () => {
     // post, or trigger a re-scan — that is the visible flapping bug.
     const test = await startRuntime();
     test.bg.respond = () => ({ ok: true, custom: { 'preset-1': 0.99 } });
+
     const article = buildTweetArticle({
       id: '2006',
       text: 'text with media',
       images: ['https://pbs.twimg.com/media/ChurnCase?format=jpg&name=small'],
     });
+
     test.handle.discover();
     await until(() => article.hasAttribute('data-jev-hidden'), 'post not blocked');
 
     const image = article.querySelector('img');
+
     if (!(image instanceof HTMLImageElement)) throw new Error('article image missing');
     const callsAfterScan = test.bg.jevCalls.length;
+
     // Simulate X's size-param oscillation: identical media id, different name.
     for (let index = 0; index < 40; index++) {
       image.src = `https://pbs.twimg.com/media/ChurnCase?format=jpg&name=${
@@ -430,14 +454,17 @@ describe('content lifecycle', () => {
 
   it('a failed scan leaves the post visible and other posts untouched', async () => {
     const test = await startRuntime();
+
     const failing = buildTweetArticle({
       id: '2003',
       text: 'maybe explicit text',
     });
+
     const healthy = buildTweetArticle({
       id: '2004',
       text: 'perfectly normal text',
     });
+
     test.bg.respond = (request) =>
       request.tweetId === '2003'
         ? { ok: false, error: 'Server 500 blew up' }
@@ -465,14 +492,16 @@ describe('content lifecycle', () => {
 
 it('clears custom matches when post text changes and its new decision fails', async () => {
   const configured = baseSettings();
-  for (const key of Object.keys(configured.enabled) as Array<keyof typeof configured.enabled>)
-    configured.enabled[key] = false;
+
+  for (const key of CATEGORY_KEYS) configured.enabled[key] = false;
+
   const test = await startRuntime({
     enabled: configured.enabled,
     textFilters: [
       { id: 'garden', name: 'Gardening', instructions: 'garden', threshold: 0.65, enabled: true },
     ],
   });
+
   try {
     test.bg.respond = () => ({ ok: true, custom: { garden: 0.9 } });
     const article = buildTweetArticle({ id: '5901', text: 'garden advice' });

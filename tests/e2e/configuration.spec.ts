@@ -13,9 +13,11 @@ test('upgrading settings without a filter list does not send text with a saved p
     requests++;
     await route.abort();
   });
+
   const stored = await worker.evaluate(
     async () => (await chrome.storage.local.get('settings')).settings,
   );
+
   const { textFilters: _filters, ...settings } = Schema.decodeUnknownSync(SettingsSchema)(stored);
   await worker.evaluate(async (settings) => {
     await chrome.storage.local.set({ settings });
@@ -47,6 +49,7 @@ test('blocked history displays and filters reason identifiers absent from curren
       ts: 1,
       reasons: [{ key: 'unknownCategory', label: 'Saved rule', score: 0.9 }],
     };
+
     await chrome.storage.local.set({
       blockedLog: [
         entry,
@@ -82,12 +85,15 @@ test('threshold edits apply after a pause and flush when the popup closes', asyn
   await popup.goto(`chrome-extension://${extensionId}/popup.html`);
   await popup.getByRole('tab', { name: 'Images', exact: true }).click();
   const input = popup.getByRole('spinbutton', { name: 'Porn threshold percent', exact: true });
+
   const savedPercent = async () => {
     const stored = await worker.evaluate(
       async () => (await chrome.storage.local.get('settings')).settings,
     );
+
     return Schema.decodeUnknownSync(SettingsSchema)(stored).thresholds.porn * 100;
   };
+
   const initial = await savedPercent();
   await input.fill('75');
   await popup.clock.fastForward(300);
@@ -125,9 +131,11 @@ test('a newer saved threshold cancels an older pending popup edit', async ({
   await expect(input).toHaveValue('35');
   await popup.clock.fastForward(400);
   await popup.close();
+
   const stored = await worker.evaluate(
     async () => (await chrome.storage.local.get('settings')).settings,
   );
+
   expect(Schema.decodeUnknownSync(SettingsSchema)(stored).thresholds.porn).toBe(0.35);
 });
 
@@ -177,6 +185,7 @@ test('late and replaced video posters update the filtering decision without unre
   const settings = remoteSettings();
   settings.textFilters = [];
   settings.enabled.aiGenerated = false;
+
   for (const category of ['porn', 'hentai', 'sexy', 'drawings'] as const)
     settings.thresholds[category] = 0;
   await setSettings(settings);
@@ -223,11 +232,16 @@ test('rapid credential edits survive popup close and independent windows preserv
     .poll(() =>
       worker.evaluate(async () => {
         const stored = (await chrome.storage.local.get('settings')).settings;
+
+        // oxlint-disable-next-line anti-slop/no-runtime-typeof -- This serialized browser probe cannot capture imported validators.
         if (!stored || typeof stored !== 'object' || !('providerKeys' in stored))
           throw new Error('Missing provider credentials.');
         const keys = stored.providerKeys;
+
+        // oxlint-disable-next-line anti-slop/no-runtime-typeof -- This serialized browser probe cannot capture imported validators.
         if (!keys || typeof keys !== 'object' || !('vercel' in keys))
           throw new Error('Missing Vercel key slot.');
+
         return keys.vercel;
       }),
     )
@@ -260,7 +274,9 @@ test('rapid credential edits survive popup close and independent windows preserv
       const stored = await worker.evaluate(
         async () => (await chrome.storage.local.get('settings')).settings,
       );
+
       const parsed = Schema.decodeUnknownSync(SettingsSchema)(stored);
+
       return {
         preset: parsed.textFilters.find((filter) => filter.id === 'preset-1')?.threshold,
         aiGenerated: parsed.thresholds.aiGenerated,
@@ -284,6 +300,7 @@ for (const kind of ['custom', 'builtin']) {
       const popup = await context.newPage();
       await popup.clock.install();
       await popup.goto(`chrome-extension://${extensionId}/popup.html`);
+
       if (kind === 'builtin') await popup.getByRole('tab', { name: 'Images', exact: true }).click();
       await popup.evaluate(
         ({ kind, id }) => {
@@ -295,6 +312,7 @@ for (const kind of ['custom', 'builtin']) {
               change?: { field: string; value?: unknown };
             }) => {
               const change = request.change;
+
               if (
                 !injected &&
                 request.type === 'update-settings' &&
@@ -318,17 +336,21 @@ for (const kind of ['custom', 'builtin']) {
                       : { field: 'threshold', category: 'porn', value: 0.81 },
                 });
               }
+
               return send(request);
             },
           });
         },
         { kind, id: original.id },
       );
+
       const input = popup.getByRole('spinbutton', {
         name: kind === 'custom' ? `${original.name} threshold percent` : 'Porn threshold percent',
         exact: true,
       });
+
       await input.fill('25');
+
       if (flush === 'blur') await input.press('Tab');
       else if (flush === 'pagehide')
         await popup.evaluate(() => window.dispatchEvent(new Event('pagehide')));
@@ -338,11 +360,14 @@ for (const kind of ['custom', 'builtin']) {
           const raw = await worker.evaluate(
             async () => (await chrome.storage.local.get('settings')).settings,
           );
+
           const saved = Schema.decodeUnknownSync(SettingsSchema)(raw);
+
           return kind === 'custom' ? saved.textFilters[0]?.threshold : saved.thresholds.porn;
         })
         .toBe(0.81);
       await expect(input).toHaveValue('81');
+
       if (kind === 'custom') {
         await expect(
           popup.getByRole('switch', { name: `Enable ${original.name}`, exact: true }),

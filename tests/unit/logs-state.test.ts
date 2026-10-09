@@ -25,11 +25,13 @@ function whenSnapshot(state: LogsState, predicate: () => boolean): Promise<void>
   if (predicate()) return Promise.resolve();
   const { promise, resolve } = Promise.withResolvers<void>();
   let unsubscribe = () => {};
+
   unsubscribe = state.subscribe(() => {
     if (!predicate()) return;
     unsubscribe();
     resolve();
   });
+
   return promise;
 }
 
@@ -41,6 +43,7 @@ const blockedEntry: BlockedEntry = {
   ts: 1,
   reasons: [{ key: 'porn', score: 0.99 }],
 };
+
 const scanError: ScanErrorEntry = { ts: 2, message: 'image scan failed' };
 
 function clearReply(type: ClearAction): ClearReply {
@@ -67,11 +70,13 @@ describe('logs state', () => {
     let persistedAllow = false;
     const writeStarted = deferred<void>();
     const writeResult = deferred<void>();
+
     const state = createLogsState(
       logsDependencies({
         unblock: () =>
           browserEffect('test unblock', () => {
             writeStarted.resolve();
+
             return writeResult.promise.then(() => {
               persistedAllow = true;
             });
@@ -82,6 +87,7 @@ describe('logs state', () => {
           ),
       }),
     );
+
     const stop = state.start();
     await whenSnapshot(state, () => state.getSnapshot().log.length === 1);
 
@@ -110,33 +116,40 @@ describe('logs state', () => {
   it('submits unblock and clear writes during a scoped read and preserves a newer post', async () => {
     let storedLog: BlockedEntry[] = [blockedEntry];
     let holdNextRead = false;
-    let persistedOverride: unknown;
+    let persistedOverride: 'allow' | undefined;
+
     let notifyStorage:
       | ((area: string, changes: Readonly<Record<string, { newValue?: unknown }>>) => void)
       | undefined;
+
     const readHeld = deferred<void>();
     const delayedRead = deferred<BlockedEntry[]>();
     const persistedClear = deferred<void>();
     const persistedUnblock = deferred<void>();
     const newerEntry = { ...blockedEntry, tweetId: 'post-2', snippet: 'newer post' };
+
     const state = createLogsState(
       logsDependencies({
         loadLog: Effect.suspend(() => {
           if (!holdNextRead) return Effect.succeed(storedLog);
           holdNextRead = false;
           readHeld.resolve();
+
           return browserEffect('held test log read', () => delayedRead.promise);
         }),
         loadOverrides: (keys) =>
           Effect.sync(() => {
-            const stored: Record<string, unknown> = {};
+            const stored: Record<string, 'allow' | undefined> = {};
+
             if (persistedOverride === 'allow') {
               for (const key of keys) stored[key] = 'allow';
             }
+
             return stored;
           }),
         subscribeStorage: (listener) => {
           notifyStorage = listener;
+
           return () => {
             notifyStorage = undefined;
           };
@@ -150,18 +163,22 @@ describe('logs state', () => {
           Effect.sync(() => {
             storedLog = [];
             persistedClear.resolve();
+
             return clearReply('clear-log');
           }),
       }),
     );
+
     const stop = state.start();
     await whenSnapshot(state, () => state.getSnapshot().log.length === 1);
 
     holdNextRead = true;
     const storageListener = notifyStorage;
+
     if (!storageListener) {
       throw new BrowserError({ operation: 'test setup', cause: 'Missing storage listener' });
     }
+
     storageListener('local', { [STORAGE_KEYS.log]: { newValue: storedLog } });
     await readHeld.promise;
     state.unblock('post-1');
@@ -171,11 +188,13 @@ describe('logs state', () => {
     expect(persistedOverride).toBe('allow');
 
     storedLog = [newerEntry];
+
     const latestLogLoaded = whenSnapshot(
       state,
       () =>
         state.getSnapshot().busyAction === null && state.getSnapshot().log[0]?.tweetId === 'post-2',
     );
+
     delayedRead.resolve([blockedEntry]);
     await latestLogLoaded;
 
@@ -186,15 +205,18 @@ describe('logs state', () => {
   it('clears the transient unblock state and shows a failed write', async () => {
     const writeStarted = deferred<void>();
     const writeResult = deferred<void>();
+
     const state = createLogsState(
       logsDependencies({
         unblock: () =>
           browserEffect('test unblock', () => {
             writeStarted.resolve();
+
             return writeResult.promise;
           }),
       }),
     );
+
     const stop = state.start();
     await whenSnapshot(state, () => state.getSnapshot().log.length === 1);
 
@@ -225,6 +247,7 @@ describe('logs state', () => {
           ),
       }),
     );
+
     const stop = state.start();
     await whenSnapshot(state, () => state.getSnapshot().errors.length === 1);
 
@@ -243,6 +266,7 @@ describe('logs state', () => {
     'removes confirmed %s rows when the following storage read fails',
     async (action) => {
       let cleared = false;
+
       const state = createLogsState(
         logsDependencies({
           loadLog: Effect.suspend(() =>
@@ -260,11 +284,14 @@ describe('logs state', () => {
           clear: (type) =>
             Effect.sync(() => {
               cleared = true;
+
               return clearReply(type);
             }),
         }),
       );
+
       const stop = state.start();
+
       try {
         await whenSnapshot(state, () => state.getSnapshot().errors.length === 2);
         const before = state.getSnapshot();
@@ -296,6 +323,7 @@ describe('logs state', () => {
       const acknowledgement = deferred<void>();
       const newerPost = { ...blockedEntry, snippet: 'new content after clear' };
       const newerError = { ...scanError, handle: 'new-handle-after-clear' };
+
       const state = createLogsState(
         logsDependencies({
           loadLog: Effect.suspend(() =>
@@ -308,6 +336,7 @@ describe('logs state', () => {
           loadScanErrors: Effect.sync(() => storedErrors),
           subscribeStorage: (listener) => {
             notifyStorage = listener;
+
             return () => {
               notifyStorage = undefined;
             };
@@ -318,20 +347,25 @@ describe('logs state', () => {
                 action === 'clear-log'
                   ? { ok: true, type: action, cleared: storedLog }
                   : { ok: true, type: action, cleared: storedErrors };
+
               if (action === 'clear-log') storedLog = [];
               else storedErrors = [];
               submitted.resolve();
+
               return acknowledgement.promise.then(() => reply);
             }),
         }),
       );
+
       const stop = state.start();
+
       try {
         await whenSnapshot(state, () => state.getSnapshot().log.length === 1);
         state.clear(action);
         await submitted.promise;
         storedLog = [newerPost];
         storedErrors = [newerError];
+
         if (!notifyStorage) throw new Error('Missing storage listener');
         notifyStorage('local', {
           [STORAGE_KEYS.log]: { newValue: storedLog },
@@ -354,11 +388,13 @@ describe('logs state', () => {
     const clearStarted = deferred<void>();
     const clearResult = deferred<void>();
     let scanErrors: ScanErrorEntry[] = [scanError];
+
     const failingStatus: FilterStatus = {
       state: 'failing',
       reason: 'text provider unavailable',
       updatedAt: 3,
     };
+
     const state = createLogsState(
       logsDependencies({
         loadScanErrors: Effect.sync(() => scanErrors),
@@ -366,13 +402,16 @@ describe('logs state', () => {
         clear: () =>
           browserEffect('test clear errors', () => {
             clearStarted.resolve();
+
             return clearResult.promise.then(() => {
               scanErrors = [];
+
               return clearReply('clear-errors');
             });
           }),
       }),
     );
+
     const stop = state.start();
     await whenSnapshot(state, () => state.getSnapshot().errors.length === 2);
 
@@ -394,23 +433,28 @@ describe('logs state', () => {
     let notifyStorage:
       | ((area: string, changes: Readonly<Record<string, { newValue?: unknown }>>) => void)
       | undefined;
+
     const state = createLogsState(
       logsDependencies({
         subscribeStorage: (listener) => {
           notifyStorage = listener;
+
           return () => {
             notifyStorage = undefined;
           };
         },
       }),
     );
+
     const stop = state.start();
     await whenSnapshot(state, () => state.getSnapshot().log.length === 1);
 
     const storageListener = notifyStorage;
+
     if (!storageListener) {
       throw new BrowserError({ operation: 'test setup', cause: 'Missing storage listener' });
     }
+
     storageListener('local', {
       [`${STORAGE_KEYS.overrides}:post-1`]: { newValue: 'allow' },
     });
@@ -422,18 +466,22 @@ describe('logs state', () => {
 
   it('does not restore an override removed before unblock acknowledgement', async () => {
     const key = `${STORAGE_KEYS.overrides}:post-1`;
-    let persistedOverride: unknown;
+    let persistedOverride: 'allow' | undefined;
+
     let notifyStorage:
       | ((area: string, changes: Readonly<Record<string, { newValue?: unknown }>>) => void)
       | undefined;
+
     const writeStarted = deferred<void>();
     const writeResult = deferred<void>();
+
     const state = createLogsState(
       logsDependencies({
         loadOverrides: () =>
           Effect.sync(() => (persistedOverride === undefined ? {} : { [key]: persistedOverride })),
         subscribeStorage: (listener) => {
           notifyStorage = listener;
+
           return () => {
             notifyStorage = undefined;
           };
@@ -442,19 +490,23 @@ describe('logs state', () => {
           browserEffect('test unblock', () => {
             persistedOverride = 'allow';
             writeStarted.resolve();
+
             return writeResult.promise;
           }),
       }),
     );
+
     const stop = state.start();
     await whenSnapshot(state, () => state.getSnapshot().log.length === 1);
 
     state.unblock('post-1');
     await writeStarted.promise;
     const storageListener = notifyStorage;
+
     if (!storageListener) {
       throw new BrowserError({ operation: 'test setup', cause: 'Missing storage listener' });
     }
+
     storageListener('local', { [key]: { newValue: 'allow' } });
     await whenSnapshot(
       state,
@@ -463,12 +515,14 @@ describe('logs state', () => {
     );
 
     persistedOverride = undefined;
+
     const observedRemoval = whenSnapshot(
       state,
       () =>
         !state.getSnapshot().unblocked.has('post-1') &&
         state.getSnapshot().unblocking.has('post-1'),
     );
+
     storageListener('local', { [key]: { newValue: undefined } });
     await observedRemoval;
 
@@ -487,6 +541,7 @@ describe('logs state', () => {
   it('cancels a log read when the view scope is disposed', async () => {
     const readStarted = deferred<void>();
     const readAborted = deferred<void>();
+
     const state = createLogsState(
       logsDependencies({
         loadLog: browserEffect('test cancelled log read', (signal) => {
@@ -500,10 +555,12 @@ describe('logs state', () => {
             },
             { once: true },
           );
+
           return read.promise;
         }),
       }),
     );
+
     const stop = state.start();
     await readStarted.promise;
 

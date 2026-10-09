@@ -37,16 +37,20 @@ test('author exceptions require confirmation, persist, stay category scoped and 
   await page.goto('https://x.com/home');
   await expect(page.locator('[data-jev-hidden-slot]')).toHaveCount(3);
   const before = (await page.locator('[data-post="1033"]').boundingBox())!.y;
+
   const opener = page
     .getByRole('button', { name: 'Skip a filter for @Reader', exact: true })
     .first();
+
   await opener.click();
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible();
   await expect(dialog.getByRole('button', { name: 'Cancel', exact: true })).toBeFocused();
+
   const stored = await worker.evaluate(
     async () => (await chrome.storage.local.get('settings')).settings,
   );
+
   expect(Schema.decodeUnknownSync(SettingsSchema)(stored).authorExceptions).toEqual([]);
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
@@ -133,10 +137,12 @@ test('native fetch and XHR relationships drive the all-filter followed-account c
   const popup = await context.newPage();
   await popup.goto(`chrome-extension://${extensionId}/popup.html`);
   await popup.getByRole('tab', { name: 'Settings', exact: true }).click();
+
   const checkbox = popup.getByRole('checkbox', {
     name: "Don't filter posts from accounts I follow",
     exact: true,
   });
+
   await expect(checkbox).not.toBeChecked();
   await expect(popup.getByRole('heading', { name: 'Author exceptions', exact: true })).toHaveCount(
     0,
@@ -216,22 +222,34 @@ test('switching the active viewer invalidates follows and rejects old-account re
     const tracked = new WeakSet<Promise<unknown>>();
     Response.prototype.json = function () {
       const promise = json.call(this);
+
       if (this.url.endsWith('/OldViewer')) tracked.add(promise);
+
       return promise;
     };
+
     // oxlint-disable-next-line typescript/unbound-method -- called with the original Promise receiver.
     const nativeThen = Promise.prototype.then;
     // oxlint-disable-next-line unicorn/no-thenable -- observes completion of an existing native Promise consumer.
     Promise.prototype.then = function (...args) {
+      // oxlint-disable-next-line anti-slop/no-reflect-apply -- This page-world attack probe deliberately observes or replaces native methods.
       const result = Reflect.apply(nativeThen, this, args);
+
       if (tracked.has(this)) {
         tracked.delete(this);
+
         const complete = () => {
+          // oxlint-disable-next-line anti-slop/no-reflect-get -- This page-world attack probe deliberately observes or replaces native methods.
           const callback = Reflect.get(window, 'jevOldViewerProcessed');
+
+          // oxlint-disable-next-line anti-slop/no-runtime-typeof -- This page-world attack probe deliberately observes or replaces native methods.
           if (typeof callback === 'function') void callback();
         };
+
+        // oxlint-disable-next-line anti-slop/no-reflect-apply -- This page-world attack probe deliberately observes or replaces native methods.
         void Reflect.apply(nativeThen, result, [complete, complete]);
       }
+
       return result;
     };
   });
@@ -305,6 +323,8 @@ test('page-forged follow packets cannot exempt posts or poison later genuine obs
     Response.prototype.json = function () {
       if (this.url.startsWith('https://untrusted.example/'))
         Reflect.set(window, 'jevExternalParsed', true);
+
+      // oxlint-disable-next-line anti-slop/no-reflect-apply -- This page-world attack probe deliberately observes or replaces native methods.
       return Reflect.apply(json, this, []);
     };
   });
@@ -323,6 +343,7 @@ test('page-forged follow packets cannot exempt posts or poison later genuine obs
             resolve();
           }
         };
+
         window.addEventListener('message', barrier);
         window.postMessage(
           {
@@ -351,6 +372,7 @@ test('page-forged follow packets cannot exempt posts or poison later genuine obs
     await fetch('https://untrusted.example/i/api/graphql/test/External');
     window.postMessage({ type: 'jev-follow-request' }, location.origin);
   });
+  // oxlint-disable-next-line anti-slop/no-reflect-get -- This page-world attack probe deliberately observes or replaces native methods.
   expect(await page.evaluate(() => Reflect.get(window, 'jevExternalParsed') === true)).toBe(false);
   // A native observation is ordered after the forged messages; its success proves no forged epoch poisoned authority.
   await expect(page.locator('[data-jev-hidden-slot]')).toHaveCount(3);
@@ -370,6 +392,7 @@ test('page-forged follow packets cannot exempt posts or poison later genuine obs
     Object.defineProperty(Array.prototype, '0', {
       configurable: true,
       set(value) {
+        // oxlint-disable-next-line anti-slop/no-runtime-typeof -- This page-world attack probe deliberately observes or replaces native methods.
         if (value && typeof value === 'object' && 'following' in value) value.following = true;
         Object.defineProperty(this, '0', {
           value,
@@ -391,10 +414,14 @@ test('page-forged follow packets cannot exempt posts or poison later genuine obs
   });
   await expect(page.locator('[data-jev-hidden-slot]')).toHaveCount(3);
   await page.evaluate(() => {
+    // oxlint-disable-next-line anti-slop/no-reflect-get -- This page-world attack probe deliberately observes or replaces native methods.
     const restore = Reflect.get(window, 'jevRestoreJson');
+
+    // oxlint-disable-next-line anti-slop/no-runtime-typeof -- This page-world attack probe deliberately observes or replaces native methods.
     if (typeof restore === 'function') restore();
     Reflect.deleteProperty(window, 'jevRestoreJson');
   });
+
   const snapshot = await page.evaluate(async () => {
     await new Promise<void>((resolve, reject) => {
       const xhr = new XMLHttpRequest();
@@ -408,17 +435,21 @@ test('page-forged follow packets cannot exempt posts or poison later genuine obs
       xhr.responseType = 'json';
       xhr.send();
     });
+
     return await new Promise<Array<{ handle: string; following: boolean }>>((resolve) => {
       const listener = (event: MessageEvent) => {
+        // oxlint-disable-next-line anti-slop/no-runtime-typeof -- This page-world attack probe deliberately observes or replaces native methods.
         if (event.data?.type !== 'jev-follow-state' || typeof event.data.payload !== 'string')
           return;
         window.removeEventListener('message', listener);
         resolve(JSON.parse(event.data.payload).users);
       };
+
       window.addEventListener('message', listener);
       window.postMessage({ type: 'jev-follow-request' }, location.origin);
     });
   });
+
   expect(snapshot).toContainEqual({ handle: 'reader', following: false });
   await expect(page.locator('[data-jev-hidden-slot]')).toHaveCount(3);
 });

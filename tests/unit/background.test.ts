@@ -8,16 +8,11 @@ import { Effect, Predicate } from 'effect';
 import { loadLog } from '../../src/history/log';
 import { defaultSettings, type BlockedEntry, type Settings } from '../../src/filtering/types';
 
-const { evaluateMock, createGatewayMock, fetchMock } = vi.hoisted(() => ({
-  evaluateMock: vi.fn(),
-  createGatewayMock: vi.fn(),
-  fetchMock: vi.fn(),
-}));
+const evaluateMock = vi.fn();
 
-vi.mock('ai', () => ({ experimental_decide: evaluateMock }));
-vi.mock('@ai-sdk/gateway', () => ({
-  createGateway: (...args: unknown[]) => createGatewayMock(...args),
-}));
+const createGatewayMock = vi.fn();
+
+const fetchMock = vi.fn();
 
 // Dynamic import here is intentional: it exercises a module-loading boundary.
 // The worker keeps module-level state (settings cache, log queue, tab counts),
@@ -25,6 +20,9 @@ vi.mock('@ai-sdk/gateway', () => ({
 // import would pin one stateful instance for the whole file.
 async function startWorker(): Promise<void> {
   vi.resetModules();
+  const { textProviderSdk } = await import('../../src/background/text-provider');
+  vi.spyOn(textProviderSdk, 'decide').mockImplementation(evaluateMock);
+  vi.spyOn(textProviderSdk, 'createGateway').mockImplementation(createGatewayMock);
   const { startBackground } = await import('../../src/background/runtime');
   startBackground();
 }
@@ -33,7 +31,7 @@ function okAnswer(probability: number) {
   return { type: 'boolean', probability };
 }
 
-function evaluateResult(answers: Record<string, unknown>) {
+function evaluateResult(answers: Record<string, ReturnType<typeof okAnswer>>) {
   return {
     answers,
     usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
@@ -115,6 +113,7 @@ describe('background worker lifecycle', () => {
     const failure = new Error('storage unavailable');
     const get = vi.spyOn(fakeBrowser.storage.local, 'get').mockRejectedValue(failure);
     const report = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
     try {
       await startWorker();
       await expect(fakeBrowser.runtime.sendMessage({ type: 'get-status' })).resolves.toMatchObject({
@@ -133,6 +132,7 @@ describe('jev classification', () => {
     await fakeBrowser.storage.local.set({ settings: SETTINGS });
     await startWorker();
     evaluateMock.mockResolvedValue(evaluateResult({}));
+
     const reply = await fakeBrowser.runtime.sendMessage({
       type: 'jev',
       provider: 'vercel',
@@ -140,6 +140,7 @@ describe('jev classification', () => {
       tweetId: 't1',
       text: 'hi',
     });
+
     expect(reply.ok).toBe(false);
   });
 
@@ -176,8 +177,9 @@ describe('jev classification', () => {
   it('bounds waiting classification requests at 64 while running three providers', async () => {
     await fakeBrowser.storage.local.set({ settings: SETTINGS });
     await startWorker();
-    const gate = Promise.withResolvers<{ answers: Record<string, unknown> }>();
+    const gate = Promise.withResolvers<{ answers: Record<string, ReturnType<typeof okAnswer>> }>();
     evaluateMock.mockImplementation(() => gate.promise);
+
     const requests = Array.from({ length: 68 }, (_, index) =>
       fakeBrowser.runtime.sendMessage({
         type: 'jev',
@@ -189,11 +191,13 @@ describe('jev classification', () => {
     );
 
     let overflowReply: unknown;
+
     for (const request of requests) {
       void request.then((reply) => {
         if (!reply.ok && reply.error?.includes('queue full')) overflowReply = reply;
       });
     }
+
     await vi.waitFor(() => expect(overflowReply).toBeDefined());
     gate.resolve(evaluateResult({ 'custom:preset-1': okAnswer(0.1) }));
     const replies = await Promise.all(requests);
@@ -255,10 +259,12 @@ describe('gateway status surfacing', () => {
     // message that never mentions "401" ("Invalid error response format: …").
     await fakeBrowser.storage.local.set({ settings: SETTINGS });
     await startWorker();
+
     const error = Object.assign(
       new Error('Invalid error response format: Gateway request failed'),
       { statusCode: 401 },
     );
+
     evaluateMock.mockRejectedValue(error);
     await expect(
       fakeBrowser.runtime.sendMessage({
@@ -312,6 +318,7 @@ describe('serialized log queue', () => {
       type: 'log-blocked',
       entry: blockedEntry('b'),
     });
+
     await fakeBrowser.runtime.sendMessage({ type: 'clear-log' });
     await append;
 
@@ -340,11 +347,13 @@ describe('per-tab badge counts', () => {
     await fakeBrowser.storage.local.set({ settings: SETTINGS });
     await startWorker();
     const tab = await fakeBrowser.tabs.create({});
+
     const responses = await fakeBrowser.runtime.onMessage.trigger(
       { type: 'tab-stats', blocked: 1234 },
       { tab },
       () => undefined,
     );
+
     for (const response of responses) if (response) await response;
     // The count and badge are applied asynchronously after the trigger.
     await vi.waitFor(async () => {
@@ -358,11 +367,13 @@ describe('per-tab badge counts', () => {
 
   it('ignores tab-stats without a sender tab', async () => {
     await startWorker();
+
     const responses = await fakeBrowser.runtime.onMessage.trigger(
       { type: 'tab-stats', blocked: 5 },
       {},
       () => undefined,
     );
+
     for (const response of responses) if (response) await response;
     const stored = await fakeBrowser.storage.session.get(null);
     expect(stored).toEqual({});
@@ -372,11 +383,13 @@ describe('per-tab badge counts', () => {
     await fakeBrowser.storage.local.set({ settings: SETTINGS });
     await startWorker();
     const tab = await fakeBrowser.tabs.create({});
+
     const responses = await fakeBrowser.runtime.onMessage.trigger(
       { type: 'tab-stats', blocked: 3 },
       { tab },
       () => undefined,
     );
+
     for (const response of responses) if (response) await response;
     await vi.waitFor(async () => {
       const stored = await fakeBrowser.storage.session.get(null);
@@ -404,9 +417,11 @@ describe('per-tab badge counts', () => {
       await fakeBrowser.action.setBadgeText({ tabId: otherTab.id!, text: 'waiting' });
       // Keep the fresh worker's tab-count map empty until the stale key is cleared.
       const settingsLoad = Promise.withResolvers<{ settings: typeof SETTINGS }>();
+
       const getSettings = vi
         .spyOn(fakeBrowser.storage.local, 'get')
         .mockImplementationOnce(() => settingsLoad.promise);
+
       await startWorker();
 
       if (event === 'navigation') {
@@ -499,13 +514,17 @@ describe('configuration transitions', () => {
         saving.resolve();
         await releaseSave.promise;
       }
+
       await originalSet(entries);
     });
+
     const change = fakeBrowser.runtime.sendMessage({
       type: 'update-settings',
       change: { field: 'textProvider', value: 'typesafe' },
     });
+
     await saving.promise;
+
     const reply = fakeBrowser.runtime.sendMessage({
       type: 'jev',
       tweetId: 'pending-provider-change',
@@ -513,6 +532,7 @@ describe('configuration transitions', () => {
       provider: 'vercel',
       revision: 0,
     });
+
     // Let already-submitted work run while the earlier storage write stays suspended.
     await new Promise<void>((resolve) => setImmediate(resolve));
     releaseSave.resolve();
@@ -524,8 +544,9 @@ describe('configuration transitions', () => {
   it('rejects queued and in-flight old configurations without invoking the new provider for them', async () => {
     await fakeBrowser.storage.local.set({ settings: SETTINGS });
     await startWorker();
-    const gate = Promise.withResolvers<{ answers: Record<string, unknown> }>();
+    const gate = Promise.withResolvers<{ answers: Record<string, ReturnType<typeof okAnswer>> }>();
     evaluateMock.mockImplementation(() => gate.promise);
+
     const oldRequests = Array.from({ length: 4 }, (_, index) =>
       fakeBrowser.runtime.sendMessage({
         type: 'jev',
@@ -535,6 +556,7 @@ describe('configuration transitions', () => {
         revision: 0,
       }),
     );
+
     await vi.waitFor(() => expect(evaluateMock).toHaveBeenCalledTimes(3));
     await fakeBrowser.runtime.sendMessage({
       type: 'update-settings',

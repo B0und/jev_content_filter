@@ -5,15 +5,21 @@ import { extractImageText } from './ocr';
 import { InferenceRequestSchema, encodeOcrReply, type InferenceReply } from './contracts';
 
 const WorkerRequestSchema = Schema.Struct({ id: Schema.Int, request: InferenceRequestSchema });
+
 class LocalInferenceError extends Schema.TaggedError<LocalInferenceError>()('LocalInferenceError', {
   message: Schema.String,
 }) {}
+
 const runtime = ManagedRuntime.make(Layer.empty);
+
 const inference = Semaphore.makeUnsafe(1);
+
 const models = createLocalModels((status) => self.postMessage({ type: 'status', models: status }));
+
 self.addEventListener('message', (event: MessageEvent<unknown>) => {
   if (!Schema.is(WorkerRequestSchema)(event.data)) return;
   const { id, request } = event.data;
+
   if (request.operation === 'ocr') {
     runtime.runFork(
       inference
@@ -24,17 +30,22 @@ self.addEventListener('message', (event: MessageEvent<unknown>) => {
           ),
         ),
     );
+
     return;
   }
+
   const classify = Effect.tryPromise({
     try: async (): Promise<InferenceReply> => {
       if (request.operation === 'warmup') {
         await Promise.all(request.models.map((kind) => models.load(kind)));
+
         return { ok: true, scores: {} };
       }
+
       if (request.operation === 'image')
         return { ok: true, ...(await models.classifyImage(request.dataUrl)) };
       const scores = await models.classifyAiText(request.text);
+
       return { ok: true, scores };
     },
     catch: (error) =>
@@ -42,6 +53,7 @@ self.addEventListener('message', (event: MessageEvent<unknown>) => {
         message: error instanceof Error ? error.message : String(error),
       }),
   });
+
   runtime.runFork(
     inference
       .withPermits(1)(classify)

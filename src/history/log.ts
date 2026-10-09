@@ -7,6 +7,7 @@ import { LOG_LIMIT, STORAGE_KEYS, type BlockedEntry } from '../filtering/types';
 import { BlockedEntrySchema, ScanErrorEntrySchema } from '../filtering/schemas';
 
 const isBlockedEntry = Schema.is(BlockedEntrySchema);
+
 const isScanErrorEntry = Schema.is(ScanErrorEntrySchema);
 
 export const loadLog = Effect.fn('loadLog')(function* (): Effect.fn.Return<
@@ -16,9 +17,12 @@ export const loadLog = Effect.fn('loadLog')(function* (): Effect.fn.Return<
   const stored = yield* browserEffect('load blocked log', () =>
     browser.storage.local.get(STORAGE_KEYS.log),
   );
+
   const value: unknown = stored[STORAGE_KEYS.log];
+
   if (!Array.isArray(value)) return [];
   const entries: unknown[] = value;
+
   return entries.filter(isBlockedEntry);
 });
 
@@ -37,6 +41,7 @@ export const clearLog = Effect.gen(function* () {
   yield* browserEffect('clear blocked log', () =>
     browser.storage.local.set({ [STORAGE_KEYS.log]: [] }),
   );
+
   return cleared;
 });
 
@@ -57,9 +62,12 @@ export const loadScanErrors = Effect.fn('loadScanErrors')(function* (): Effect.f
   const stored = yield* browserEffect('load scan errors', () =>
     browser.storage.local.get(STORAGE_KEYS.scanErrors),
   );
+
   const value: unknown = stored[STORAGE_KEYS.scanErrors];
+
   if (!Array.isArray(value)) return [];
   const entries: unknown[] = value;
+
   return entries.filter(isScanErrorEntry);
 });
 
@@ -74,13 +82,17 @@ export const appendScanError = Effect.fn('appendScanError')(function* (
   tweet?: { tweetId: string; handle?: string },
 ) {
   const entry: ScanErrorEntry = { ts: yield* Clock.currentTimeMillis, message };
+
   if (tweet?.tweetId !== undefined) entry.tweetId = tweet.tweetId;
+
   if (tweet?.handle !== undefined) entry.handle = tweet.handle;
   const list = yield* loadScanErrors();
+
   const next = [
     entry,
     ...list.filter((e) => !(e.message === message && e.tweetId === entry.tweetId)),
   ].slice(0, SCAN_ERROR_LIMIT);
+
   yield* browserEffect('append scan error', () =>
     browser.storage.local.set({ [STORAGE_KEYS.scanErrors]: next }),
   );
@@ -91,5 +103,6 @@ export const clearScanErrors = Effect.gen(function* () {
   yield* browserEffect('clear scan errors', () =>
     browser.storage.local.set({ [STORAGE_KEYS.scanErrors]: [] }),
   );
+
   return cleared;
 });

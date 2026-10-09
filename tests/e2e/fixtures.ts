@@ -22,6 +22,7 @@ const isEvaluationRequest = Schema.is(
 export function remoteSettings(): Settings {
   const settings = defaultSettings();
   settings.enabled.aiGenerated = false;
+
   return settings;
 }
 
@@ -35,9 +36,11 @@ export const test = base.extend<{
   runtimeErrors: [
     async ({ context }, provide) => {
       const errors: string[] = [];
+
       const watch = (page: Page) => {
         page.on('pageerror', (error) => errors.push(error.message));
       };
+
       context.pages().forEach(watch);
       context.on('page', watch);
       await provide();
@@ -49,30 +52,40 @@ export const test = base.extend<{
     if (browserName !== 'chromium') throw new Error('Extension E2E requires Chromium');
     const extension = path.resolve(process.env.JEV_EXTENSION_PATH ?? '.output/chrome-mv3');
     testInfo.annotations.push({ type: 'extension-path', description: extension });
+
     if (process.env.JEV_EXTENSION_PATH) console.info(`Testing installed bundle: ${extension}`);
+
     for (const file of ['manifest.json', 'background.js', 'content-scripts/content.js']) {
       const bytes = await readFile(path.join(extension, file));
       const hash = createHash('sha256').update(bytes).digest('hex');
       testInfo.annotations.push({ type: `extension-sha256:${file}`, description: hash });
+
       if (process.env.JEV_EXTENSION_PATH) console.info(`${file} SHA256: ${hash}`);
     }
+
     const context = await chromium.launchPersistentContext('', {
       channel: 'chromium',
       headless,
       args: [`--disable-extensions-except=${extension}`, `--load-extension=${extension}`],
     });
+
     // No test may send posts or credentials to a real endpoint.
     await context.route('**/*', async (route) => {
       const url = new URL(route.request().url());
+
       if (url.protocol === 'chrome-extension:') return route.continue();
+
       if (url.hostname === 'ai-gateway.vercel.sh') {
         const request: unknown = route.request().postDataJSON();
+
         if (!isEvaluationRequest(request))
           return route.fulfill({ status: 400, json: { error: 'Missing tweet text' } });
         const text = request.state.tweet_text;
+
         if (text.includes('API_FAILURE'))
           return route.fulfill({ status: 401, json: { error: 'Invalid test API key' } });
         const textWords = new Set(text.toLowerCase().match(/\p{L}{4,}/gu) ?? []);
+
         // Deterministic fake provider: shared content words match, and the
         // BLOCK_TEXT fixture marker forces a match for every requested rule.
         const matchesQuestion = (instructions: string) =>
@@ -82,6 +95,7 @@ export const test = base.extend<{
               .toLowerCase()
               .match(/\p{L}{4,}/gu) ?? []
           ).some((word) => !['posts', 'about', 'content'].includes(word) && textWords.has(word));
+
         return route.fulfill({
           json: {
             answers: Object.fromEntries(
@@ -98,24 +112,29 @@ export const test = base.extend<{
           },
         });
       }
+
       if (url.hostname === 'x.com' || url.hostname === 'twitter.com') {
         return route.fulfill({
           contentType: 'text/html',
           body: await readFile('tests/e2e/feed.html', 'utf8'),
         });
       }
+
       if (url.hostname === 'pbs.twimg.com') {
         return route.fulfill({
           contentType: 'image/png',
           body: await readFile('mock/pbs.twimg.com/media/landscape.png'),
         });
       }
+
       if (
         url.hostname === 'raw.githubusercontent.com' &&
         url.pathname.includes('/naptha/tessdata/')
       ) {
         const language = path.basename(url.pathname).replace('.traineddata.gz', '');
+
         if (!['eng', 'rus'].includes(language)) return route.abort();
+
         return route.fulfill({
           contentType: 'application/gzip',
           body: await readFile(
@@ -123,6 +142,7 @@ export const test = base.extend<{
           ),
         });
       }
+
       return route.abort();
     });
     await provide(context);
@@ -132,6 +152,7 @@ export const test = base.extend<{
     const worker = context.serviceWorkers()[0] ?? (await context.waitForEvent('serviceworker'));
     const settings = remoteSettings();
     settings.providerKeys.vercel = 'test-only-not-a-real-key';
+
     for (const key of ['porn', 'hentai', 'sexy', 'drawings'] as const)
       settings.enabled[key] = false;
     await worker.evaluate(async (value) => {

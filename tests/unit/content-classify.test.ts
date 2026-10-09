@@ -1,3 +1,4 @@
+import { Predicate, Effect } from 'effect';
 // Classification/cache regressions: media URL handling, v7 validation,
 // independent text-task caching, and the retry policy for missing keys.
 import {
@@ -10,7 +11,6 @@ import {
   stopRuntime,
   until,
 } from './support';
-import { Effect } from 'effect';
 import { afterEach, describe, expect, it } from 'vitest';
 import { browser } from 'wxt/browser';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
@@ -25,10 +25,12 @@ import { canonicalMediaUrl, readArticle } from '../../src/content/dom';
 import { settings } from '../../src/content/state';
 import { STORAGE_KEYS, type CategoryKey, type Settings } from '../../src/filtering/types';
 import { applySettingsChange } from '../../src/filtering/settings';
+
 afterEach(clearFeed);
 
 function textTaskSettings(overrides: Partial<Settings> = {}): Settings {
   const base = baseSettings();
+
   return baseSettings({
     ...overrides,
     enabled: {
@@ -67,12 +69,15 @@ describe('media URL canonicalization', () => {
   it('keeps card-image URLs fetchable', () => {
     const cardUrl =
       'https://pbs.twimg.com/card_img/2100961645971333120/45zu5XnN?format=jpg&name=small';
+
     const missingVariants = [
       'https://pbs.twimg.com/card_img/2099822332181176320/hs2JqHCK?format=jpg',
       'https://pbs.twimg.com/card_img/2101117402364960768/zvUxTM5k?format=jpg',
       'https://pbs.twimg.com/card_img/2100819766235762688/5A5Jk0Hw?format=jpg',
     ];
+
     expect(canonicalMediaUrl(cardUrl)).toBe(cardUrl);
+
     for (const missingVariant of missingVariants) {
       expect(canonicalMediaUrl(missingVariant)).toBe(`${missingVariant}&name=small`);
     }
@@ -93,12 +98,15 @@ describe('media URL canonicalization', () => {
     );
   });
 });
+
 describe('article media discovery', () => {
   it('collects video thumbnails from images and video posters', () => {
     const thumbnail =
       'https://pbs.twimg.com/ext_tw_video_thumb/1234567890/pu/img/thumb.jpg?name=small';
+
     const poster =
       'https://pbs.twimg.com/ext_tw_video_thumb/9876543210/pu/img/poster.jpg?name=small';
+
     const article = buildTweetArticle({ id: '4100', images: [thumbnail] });
     const video = document.createElement('video');
     video.setAttribute('poster', poster);
@@ -257,12 +265,16 @@ describe('score cache', () => {
     const aiStarted = Promise.withResolvers<void>();
     bg.respond = () => {
       jevStarted.resolve();
+
       return gate.promise;
     };
+
     bg.aiRespond = () => {
       aiStarted.resolve();
+
       return { ok: true, scores: { aiGenerated: 0.2 } };
     };
+
     const old = Effect.runPromise(textScores(post, 'configuration-race'));
     const rejected = expect(old).rejects.toThrow('Text configuration changed');
     await Promise.all([jevStarted.promise, aiStarted.promise]);
@@ -274,11 +286,14 @@ describe('score cache', () => {
     await rejected;
 
     const stored = await browser.storage.local.get(null);
+
     const cachedScores = Object.values(stored).flatMap((value) => {
-      if (typeof value !== 'object' || value === null || !('scores' in value)) return [];
+      if (!Predicate.isObject(value) || !('scores' in value)) return [];
       const scores = value.scores;
-      return typeof scores === 'object' && scores !== null ? [scores] : [];
+
+      return Predicate.isObject(scores) ? [scores] : [];
     });
+
     expect(cachedScores).toEqual([{ aiGenerated: 0.2 }]);
 
     bg.respond = () => ({ ok: true, custom: { 'preset-1': 0.9 } });
@@ -291,20 +306,25 @@ describe('score cache', () => {
     expect(bg.aiCalls).toHaveLength(1);
   });
 });
+
 describe('runtime text task behavior', () => {
   it('hides an AI-classified post without an API key when explicit text is disabled', async () => {
     const configured = textTaskSettings({
       providerKeys: { vercel: '', typesafe: '', openrouter: '' },
     });
+
     configured.textFilters = [];
     configured.thresholds.aiGenerated = 0.65;
     const test = await startRuntime(configured);
+
     try {
       test.bg.aiRespond = () => ({ ok: true, scores: { aiGenerated: 0.93 } });
+
       const article = buildTweetArticle({
         id: '4110',
         text: 'A generated post that has an above-threshold local score.',
       });
+
       test.handle.discover();
 
       await until(
@@ -323,13 +343,16 @@ describe('runtime text task behavior', () => {
     const configured = textTaskSettings();
     configured.thresholds.aiGenerated = 0.65;
     const test = await startRuntime(configured);
+
     try {
       test.bg.respond = () => ({ ok: false, error: 'HTTP 401 unauthorized' });
       test.bg.aiRespond = () => ({ ok: true, scores: { aiGenerated: 0.91 } });
+
       const article = buildTweetArticle({
         id: '4111',
         text: 'A generated post whose remote preset-1 check is unavailable.',
       });
+
       test.handle.discover();
 
       await until(
@@ -358,6 +381,7 @@ describe('retry policy', () => {
     const configured = textTaskSettings({
       providerKeys: { vercel: '', typesafe: '', openrouter: '' },
     });
+
     configured.enabled.aiGenerated = false;
     const test = await startRuntime(configured);
     const article = buildTweetArticle({ id: '4001', text: 'something to check' });
@@ -382,6 +406,7 @@ describe('retry policy', () => {
 
   it('keeps the oldest entries when evicting under the limit', async () => {
     const writes: Promise<unknown>[] = [];
+
     for (let index = 0; index < 50; index++) {
       writes.push(
         browser.storage.local.set({
@@ -389,6 +414,7 @@ describe('retry policy', () => {
         }),
       );
     }
+
     await Promise.all(writes);
     await Effect.runPromise(evictCache()); // limit is 4000: nothing may be dropped
     const stored = await browser.storage.local.get(null);
@@ -399,6 +425,7 @@ describe('retry policy', () => {
 
 it('checks custom rules with built-in text checks off and invalidates their cache after edits', async () => {
   fakeBrowser.reset();
+
   const filter = {
     id: 'garden',
     name: 'Gardening',
@@ -406,6 +433,7 @@ it('checks custom rules with built-in text checks off and invalidates their cach
     enabled: true,
     threshold: 0.65,
   };
+
   const base = textTaskSettings();
   settings.current = textTaskSettings({
     textFilters: [filter],

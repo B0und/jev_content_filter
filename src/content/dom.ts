@@ -28,11 +28,13 @@ export interface ArticleContent {
 export function canonicalMediaUrl(url: string): string {
   if (!url) return '';
   let parsed: URL;
+
   try {
     parsed = new URL(url, location.origin);
   } catch {
     return url;
   }
+
   // Strip the legacy ":small" size suffix first: it hides the extension.
   const sized = parsed.pathname.replace(/:(?:thumb|small|medium|large|orig)$/i, '');
   const suffixFormat = sized.match(/\.(jpe?g|png|webp|gif|avif)$/i)?.[1];
@@ -43,14 +45,17 @@ export function canonicalMediaUrl(url: string): string {
   const params = new URLSearchParams(parsed.search);
   const format = params.get('format') ?? suffixFormat;
   params.delete('format');
+
   // `/media/` uses name only for a volatile size variant. Card-image URLs
   // require their name variant to address the actual stored asset.
   if (isMediaPath) params.delete('name');
   else if (isVideoThumbnail) params.set('name', 'medium');
   else if (isCardPath && !params.has('name')) params.set('name', 'small');
+
   if (format) params.set('format', format.toLowerCase());
   params.sort();
   const query = params.toString();
+
   return `${parsed.protocol}//${parsed.hostname.toLowerCase()}${path}${query ? `?${query}` : ''}`;
 }
 
@@ -83,8 +88,10 @@ function mediaSource(element: HTMLImageElement | HTMLVideoElement): string {
 /** Restrict image discovery to supported X media and preview URLs. */
 function isFilterableMediaUrl(url: string): boolean {
   if (!url) return false;
+
   try {
     const parsed = new URL(url, location.origin);
+
     return (
       parsed.hostname.toLowerCase() === 'pbs.twimg.com' &&
       (FILTERABLE_MEDIA_PATH.test(parsed.pathname) || parsed.pathname.startsWith('/card_img/'))
@@ -93,8 +100,10 @@ function isFilterableMediaUrl(url: string): boolean {
     return false;
   }
 }
+
 function cardPreviewText(card: HTMLElement | null): string {
   if (!card) return '';
+
   return Array.from(card.childNodes)
     .filter((node) => !(node instanceof Element && node.hasAttribute('data-jev-card-link')))
     .map((node) => node.textContent ?? '')
@@ -105,39 +114,51 @@ function cardPreviewText(card: HTMLElement | null): string {
 export function readArticle(article: HTMLElement): ArticleContent | null {
   // Quote hydration must not change the identity of the containing post.
   let link: HTMLAnchorElement | undefined;
+
   for (const candidate of article.querySelectorAll<HTMLAnchorElement>('a[href*="/status/"]')) {
     const container = candidate.parentElement?.closest(
       '[role="link"], [data-testid="card.wrapper"]',
     );
+
     if (
       candidate.closest('article') !== article ||
       (container && container !== article && article.contains(container))
     )
       continue;
     link ??= candidate;
+
     if (candidate.querySelector('time')) {
       link = candidate;
       break;
     }
   }
+
   const href = link?.getAttribute('href') ?? '';
   const idMatch = href.match(/\/([^/]+?)\/status\/(\d+)/);
   const id = idMatch?.[2] ?? link?.getAttribute('href')?.match(/\/status\/(\d+)/)?.[1];
+
   if (!id) return null;
+
   const previewElement = [
     ...article.querySelectorAll<HTMLImageElement | HTMLVideoElement>(
       '[data-testid="card.wrapper"] img, [data-testid="card.wrapper"] video[poster]',
     ),
   ].find((element) => isFilterableMediaUrl(mediaSource(element)));
+
   const urls = [
-    ...Array.from(article.querySelectorAll<HTMLImageElement>('img')),
-    ...Array.from(article.querySelectorAll<HTMLVideoElement>('video[poster]')),
-  ]
-    .filter((element) => !element.closest('[data-testid="card.wrapper"]'))
-    .map(mediaSource)
-    .filter(isFilterableMediaUrl)
-    .map(canonicalMediaUrl)
-    .filter((url, index, all) => all.indexOf(url) === index);
+    ...new Set(
+      [
+        ...Array.from(article.querySelectorAll<HTMLImageElement>('img')),
+        ...Array.from(article.querySelectorAll<HTMLVideoElement>('video[poster]')),
+      ].flatMap((element) => {
+        if (element.closest('[data-testid="card.wrapper"]')) return [];
+        const url = mediaSource(element);
+
+        return isFilterableMediaUrl(url) ? [canonicalMediaUrl(url)] : [];
+      }),
+    ),
+  ];
+
   return {
     id,
     handle: idMatch?.[1] ?? '',
@@ -160,6 +181,7 @@ export function readArticle(article: HTMLElement): ArticleContent | null {
  */
 export function insertHost(article: HTMLElement, host: HTMLElement): void {
   const caret = headerCarets(article)[0];
+
   if (caret?.parentElement) {
     host.dataset.jevSpot = 'header';
     caret.parentElement.insertBefore(host, caret.nextSibling);

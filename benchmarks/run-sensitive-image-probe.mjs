@@ -7,8 +7,11 @@ import { chromium } from 'playwright';
 import { createServer } from 'vite';
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
+
 const root = path.resolve(dir, '..');
+
 const probe = path.join(dir, '.data', 'sensitive-image-probe');
+
 const vite = await createServer({
   root: dir,
   appType: 'mpa',
@@ -21,6 +24,7 @@ const vite = await createServer({
           const u = new URL(req.url ?? '/', 'http://localhost');
           let file;
           let type;
+
           if (u.pathname.startsWith('/probe/')) {
             file = path.join(probe, path.basename(u.pathname));
             type = u.pathname.endsWith('.png') ? 'image/png' : 'image/jpeg';
@@ -31,6 +35,7 @@ const vite = await createServer({
             file = path.join(root, 'node_modules/onnxruntime-web/dist', path.basename(u.pathname));
             type = u.pathname.endsWith('.wasm') ? 'application/wasm' : 'text/javascript';
           } else return next();
+
           try {
             const s = await stat(file);
             res.statusCode = 200;
@@ -46,13 +51,17 @@ const vite = await createServer({
     },
   ],
 });
+
 await vite.listen();
+
 const address = vite.httpServer.address();
+
 const browser = await chromium.launch({
   executablePath: '/usr/bin/chromium',
   headless: true,
   args: ['--no-sandbox', '--disable-dev-shm-usage'],
 });
+
 try {
   const page = await browser.newPage();
   await page.goto(`http://127.0.0.1:${address.port}/sensitive-image-probe.html`);

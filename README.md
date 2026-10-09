@@ -44,6 +44,10 @@ The project uses Effect v4 release candidates with TypeScript 7 and `@effect/tsg
 
 Run both `npm run compile` for TypeScript types and `npm run lint` for lint rules and Effect diagnostics. `.oxlintrc.json` extends the recommended Effect preset. The tsconfig plugin sets `diagnostics: false` to avoid duplicate reports while retaining editor refactors.
 
+The generic and Effect [anti-slop rules](https://github.com/dmmulroy/anti-slop) are vendored in `tools/oxlint/anti-slop/`. Their upstream revision and licenses are retained there. `@oxlint/plugins` and Oxlint use the same exact version. The plugin source is excluded from application linting, formatting, and typechecking so upstream files remain unchanged.
+
+Each rule is registered once. `no-nested-ternary` already covers `anti-slop-effect/prefer-effect-match`; `anti-slop-effect/no-manual-tag-comparison` covers the narrower `no-manual-effect-error-tag` rule and the Effect preset's `catch-all-tag-dispatch-to-catch-tag` and `catch-if-tag-to-catch-tag` checks. Only the broader checks run. Boundary decoders retain explicit `unknown` inputs with local, explained lint exceptions. Browser probes also have local exceptions where Playwright/Puppeteer serialization prevents capturing an imported validator. The native follow-response observer and its attack probes retain local exceptions for captured intrinsics, which prevent page scripts from forging follow exemptions. Internal domain APIs and module mocks remain checked.
+
 Oxlint rejects nested ternary expressions with `no-nested-ternary: error`. Use explicit branches for decisions and typed lookup records for static labels.
 
 VS Code and Cursor settings enable the native TypeScript server at `node_modules/typescript/bin`. Enable TypeScript 7 editor support and select the workspace compiler as the sole TypeScript language server.

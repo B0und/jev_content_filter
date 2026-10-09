@@ -15,6 +15,7 @@ interface FakeWorker extends SupervisedWorker {
 function fakeWorkerFactory() {
   const created: FakeWorker[] = [];
   const handlers: WorkerHandlers[] = [];
+
   const start = (workerHandlers: WorkerHandlers): SupervisedWorker => {
     const worker: FakeWorker = {
       sent: [],
@@ -26,10 +27,13 @@ function fakeWorkerFactory() {
         worker.terminated = true;
       },
     };
+
     created.push(worker);
     handlers.push(workerHandlers);
+
     return worker;
   };
+
   return { created, handlers, start };
 }
 
@@ -44,13 +48,16 @@ describe('inference worker supervisor', () => {
     vi.useFakeTimers();
     const factory = fakeWorkerFactory();
     const failures: Error[] = [];
+
     const supervisor = createWorkerSupervisor({
       start: factory.start,
       onMessage: () => {},
       onFailure: (error) => failures.push(error),
       requestTimeoutMs: 100,
     });
+
     for (let id = 1; id <= 9; id++) supervisor.send({ id });
+
     for (let id = 2; id <= 9; id++) supervisor.cancel(id);
     supervisor.cancel(1);
     supervisor.cancel(999);
@@ -69,12 +76,14 @@ describe('inference worker supervisor', () => {
     vi.useFakeTimers();
     const factory = fakeWorkerFactory();
     const failures: Error[] = [];
+
     const supervisor = createWorkerSupervisor({
       start: factory.start,
       onMessage: () => {},
       onFailure: (error) => failures.push(error),
       requestTimeoutMs: 100,
     });
+
     for (let id = 1; id <= 9; id++) expect(supervisor.send({ id })).toBeUndefined();
     expect(supervisor.send({ id: 10 })?.message).toContain('queue full');
     expect(factory.created[0]!.sent).toEqual([{ id: 1 }]);
@@ -85,6 +94,7 @@ describe('inference worker supervisor', () => {
     vi.advanceTimersByTime(90);
     expect(failures).toEqual([]);
     supervisor.complete(2);
+
     for (let id = 3; id <= 9; id++) supervisor.complete(id);
     vi.advanceTimersByTime(100);
     expect(failures).toEqual([]);
@@ -98,15 +108,18 @@ describe('inference worker supervisor', () => {
     const factory = fakeWorkerFactory();
     const failures: Error[] = [];
     let attempts = 0;
+
     const supervisor = createWorkerSupervisor({
       start: (handlers) => {
         if (++attempts === 1) throw new Error('Worker constructor failed');
+
         return factory.start(handlers);
       },
       onMessage: () => {},
       onFailure: (error) => failures.push(error),
       requestTimeoutMs: 100,
     });
+
     expect(() => supervisor.send({ id: 1 })).not.toThrow();
     expect(failures.map((error) => error.message)).toEqual(['Worker constructor failed']);
     expect(vi.getTimerCount()).toBe(0);
@@ -124,12 +137,14 @@ describe('inference worker supervisor', () => {
     const factory = fakeWorkerFactory();
     const failures: Error[] = [];
     const seen: unknown[] = [];
+
     const supervisor = createWorkerSupervisor({
       start: factory.start,
       onMessage: (event) => seen.push(event.data),
       onFailure: (error) => failures.push(error),
       requestTimeoutMs: 100,
     });
+
     supervisor.send({ id: 1 });
     vi.advanceTimersByTime(50);
     supervisor.send({ id: 2 });
@@ -150,12 +165,14 @@ describe('inference worker supervisor', () => {
     vi.useFakeTimers();
     const factory = fakeWorkerFactory();
     const failures: Error[] = [];
+
     const supervisor = createWorkerSupervisor({
       start: factory.start,
       onMessage: () => {},
       onFailure: (error) => failures.push(error),
       requestTimeoutMs: 100,
     });
+
     supervisor.send({ id: 1 });
     supervisor.complete(1);
     vi.advanceTimersByTime(100);
@@ -169,6 +186,7 @@ describe('inference worker supervisor', () => {
   it('starts a replacement worker after a failure and reports it once', () => {
     const factory = fakeWorkerFactory();
     const failures: Error[] = [];
+
     const supervisor = createWorkerSupervisor({
       start: factory.start,
       onMessage: () => {},
@@ -190,6 +208,7 @@ describe('inference worker supervisor', () => {
   it('ignores a late failure from a worker that was already replaced', () => {
     const factory = fakeWorkerFactory();
     const failures: Error[] = [];
+
     const supervisor = createWorkerSupervisor({
       start: factory.start,
       onMessage: () => {},
@@ -212,6 +231,7 @@ describe('inference worker supervisor', () => {
 
   it('terminates the active worker on teardown and starts fresh afterwards', () => {
     const factory = fakeWorkerFactory();
+
     const supervisor = createWorkerSupervisor({
       start: factory.start,
       onMessage: () => {},
@@ -229,6 +249,7 @@ describe('inference worker supervisor', () => {
   it('delivers messages from the active worker to the page handler', () => {
     const factory = fakeWorkerFactory();
     const seen: unknown[] = [];
+
     const supervisor = createWorkerSupervisor({
       start: factory.start,
       onMessage: (event) => seen.push(event.data),

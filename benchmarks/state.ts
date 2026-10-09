@@ -19,6 +19,7 @@ export function createBenchmarkState(
   const subscribers = new Set<() => void>();
   const writes = Semaphore.makeUnsafe(1);
   let revision = 0;
+
   let snapshot: BenchmarkSnapshot = {
     state: initialBenchmarkState(),
     storageReady: false,
@@ -27,11 +28,13 @@ export function createBenchmarkState(
 
   function publish(changes: Partial<BenchmarkSnapshot>) {
     snapshot = { ...snapshot, ...changes };
+
     for (const listener of subscribers) listener();
   }
 
   function start() {
     if (snapshot.storageReady) return () => {};
+
     const fiber = runtime.runFork(
       loadBenchmarkState.pipe(
         Effect.match({
@@ -40,6 +43,7 @@ export function createBenchmarkState(
         }),
       ),
     );
+
     return () => {
       runtime.runFork(Fiber.interrupt(fiber));
     };
@@ -48,6 +52,7 @@ export function createBenchmarkState(
   function update(edit: (state: BenchmarkState) => BenchmarkState) {
     if (!snapshot.storageReady) return;
     const state = edit(snapshot.state);
+
     if (state === snapshot.state) return;
     const submittedRevision = ++revision;
     publish({ state });
@@ -71,6 +76,7 @@ export function createBenchmarkState(
     getSnapshot: () => snapshot,
     subscribe: (listener: () => void) => {
       subscribers.add(listener);
+
       return () => subscribers.delete(listener);
     },
     start,

@@ -25,10 +25,12 @@ test('the popup keeps everyday controls in view and separates setup from filters
   await popup.locator('.custom-filter label').click();
   await expect(customToggle).toBeChecked();
   const footer = await popup.locator('.popup-footer').boundingBox();
+
   for (const name of ['Content filter threshold', 'AI-written text threshold']) {
     const slider = await popup.getByRole('slider', { name, exact: true }).boundingBox();
     expect(slider!.y + slider!.height).toBeLessThanOrEqual(footer!.y);
   }
+
   expect(await popup.evaluate(() => document.documentElement.scrollWidth)).toBe(460);
   await popup.getByRole('tab', { name: 'Filters', exact: true }).focus();
   await popup.keyboard.press('ArrowRight');
@@ -84,6 +86,7 @@ for (const count of [1, 20]) {
         const raw = await worker.evaluate(
           async () => (await chrome.storage.local.get('settings')).settings,
         );
+
         return Schema.decodeUnknownSync(SettingsSchema)(raw).textFilters;
       })
       .toEqual(expect.arrayContaining(settings.textFilters));
@@ -98,9 +101,11 @@ test('the workspace retains the originating feed and shares saved filter control
 }) => {
   await page.goto('https://x.com/home');
   await expect(page.locator('[data-jev-host]')).toHaveCount(3);
+
   const tabId = await worker.evaluate(
     async () => (await chrome.tabs.query({ url: 'https://x.com/home' }))[0]!.id!,
   );
+
   const workspace = await context.newPage();
   await workspace.goto(`chrome-extension://${extensionId}/options.html?tab=${tabId}`);
   await expect(workspace.locator('.workspace')).toBeVisible();
@@ -153,6 +158,7 @@ test('Undo restores the filter actually removed after a concurrent workspace edi
 }) => {
   const settings = remoteSettings();
   const original = settings.textFilters[0]!;
+
   const updated = {
     ...original,
     name: 'Edited from workspace',
@@ -160,6 +166,7 @@ test('Undo restores the filter actually removed after a concurrent workspace edi
     threshold: 0.48,
     enabled: false,
   };
+
   await setSettings(settings);
   const popup = await context.newPage();
   await popup.goto(`chrome-extension://${extensionId}/popup.html`);
@@ -171,6 +178,7 @@ test('Undo restores the filter actually removed after a concurrent workspace edi
           // Commit another view's edit after Delete captured its row, before the writer removes it.
           await send({ type: 'update-settings', change: { field: 'textFilter', value: filter } });
         }
+
         return send(request);
       },
     });
@@ -183,6 +191,7 @@ test('Undo restores the filter actually removed after a concurrent workspace edi
       const raw = await worker.evaluate(
         async () => (await chrome.storage.local.get('settings')).settings,
       );
+
       return Schema.decodeUnknownSync(SettingsSchema)(raw).textFilters;
     })
     .toEqual([updated]);
@@ -216,6 +225,7 @@ test('a late failed Undo cannot replace a newer deletion recovery action', async
             });
           });
         }
+
         return send(request);
       },
     });
@@ -233,6 +243,7 @@ test('a late failed Undo cannot replace a newer deletion recovery action', async
       const raw = await worker.evaluate(
         async () => (await chrome.storage.local.get('settings')).settings,
       );
+
       return Schema.decodeUnknownSync(SettingsSchema)(raw).textFilters;
     })
     .toEqual([second]);
@@ -260,6 +271,7 @@ for (const failureOrder of ['undo-first', 'delete-first']) {
           change?: { field: string; id?: string; value?: { id: string } };
         }) => {
           const change = request.change;
+
           if (
             request.type === 'update-settings' &&
             change?.field === 'textFilter' &&
@@ -271,6 +283,7 @@ for (const failureOrder of ['undo-first', 'delete-first']) {
               }),
             );
           }
+
           if (
             request.type === 'update-settings' &&
             change?.field === 'deleteTextFilter' &&
@@ -282,6 +295,7 @@ for (const failureOrder of ['undo-first', 'delete-first']) {
               }),
             );
           }
+
           return send(request);
         },
       });
@@ -314,6 +328,7 @@ for (const failureOrder of ['undo-first', 'delete-first']) {
         const raw = await worker.evaluate(
           async () => (await chrome.storage.local.get('settings')).settings,
         );
+
         return Schema.decodeUnknownSync(SettingsSchema)(raw).textFilters;
       })
       .toEqual(expect.arrayContaining([first, second]));

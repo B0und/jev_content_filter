@@ -11,9 +11,11 @@ describe('SQLite benchmark storage', () => {
     const databasePath = join(directory, 'benchmark.sqlite');
     const state = initialBenchmarkState();
     const caseId = state.cases[0]?.id;
+
     if (!caseId) throw new Error('Initial benchmark case is missing.');
 
     const firstStore = new SQLiteBenchmarkStore(databasePath);
+
     try {
       firstStore.save({
         ...state,
@@ -37,6 +39,7 @@ describe('SQLite benchmark storage', () => {
     }
 
     const secondStore = new SQLiteBenchmarkStore(databasePath);
+
     try {
       const restored = secondStore.load();
       expect(restored.solutions[0]?.predictions[caseId]).toMatchObject({

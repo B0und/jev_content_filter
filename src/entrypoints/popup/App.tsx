@@ -49,6 +49,7 @@ export function App({ workspace = false }: { workspace?: boolean }) {
     popupState.getSnapshot,
     popupState.getSnapshot,
   );
+
   const { settings, loadFailed, status, report, missingScript, error, saving, models } = state;
   const [view, setView] = useState('filters');
   const narrow = useSyncExternalStore(subscribeLayout, isNarrowLayout, () => false);
@@ -80,6 +81,7 @@ export function App({ workspace = false }: { workspace?: boolean }) {
 
   const health = scanHealth(settings.masterEnabled, missingScript, report);
   const scanFailed = missingScript || Boolean(report?.failed) || status?.state === 'failing';
+
   return (
     <main className={`popup${workspace ? ' workspace' : ''}`}>
       <header className="popup-header">
@@ -214,13 +216,19 @@ function Brand() {
 /** Describe feed progress without treating unavailable or partially checked feeds as healthy. */
 function scanHealth(enabled: boolean, missingScript: boolean, report: TabReport | null): string {
   if (!enabled) return 'Filtering is paused.';
+
   if (missingScript)
     return 'No filter connected to this tab. Open X, or reload your X tab after updating the extension.';
+
   if (!report) return 'Connecting to this feed…';
+
   if (report.retrying)
     return `Retrying ${report.retrying} post${report.retrying === 1 ? '' : 's'}…`;
+
   if (report.failed) return `${report.failed} posts were not fully checked. See the error log.`;
+
   if (report.pending) return `Checking ${report.pending} post${report.pending === 1 ? '' : 's'}…`;
+
   return report.analyzed ? 'Active on this feed.' : 'Ready. Waiting for posts.';
 }
 
@@ -228,6 +236,7 @@ function scanHealth(enabled: boolean, missingScript: boolean, report: TabReport 
 function ProviderSettings({ settings }: { settings: Settings }) {
   const providerDetails = PROVIDER_DETAILS[settings.textProvider];
   const update = popupState.update;
+
   return (
     <div className="diagnostics">
       <p className="provider-scope">
@@ -240,6 +249,7 @@ function ProviderSettings({ settings }: { settings: Settings }) {
           value={settings.textProvider}
           onChange={(event) => {
             const provider = event.currentTarget.value;
+
             if (isTextProvider(provider)) void update({ field: 'textProvider', value: provider });
           }}
         >
@@ -262,6 +272,7 @@ function ProviderKey({ settings }: { settings: Settings }) {
   const [showGatewayKey, setShowGatewayKey] = useState(false);
   const providerDetails = PROVIDER_DETAILS[settings.textProvider];
   const update = popupState.update;
+
   return (
     <div className="key-field">
       <label htmlFor="gateway-key">{providerDetails.keyLabel}</label>
@@ -318,8 +329,10 @@ function EyeIcon({ hidden }: { hidden: boolean }) {
 function ModelCard({ kind, status }: { kind: ModelKind; status: ModelStatus }) {
   const model = SELECTED_MODELS[kind];
   const totalBytes = status.total > 0 ? status.total : model.downloadBytes;
+
   const loadedBytes =
     totalBytes > 0 ? Math.min(Math.max(status.loaded, 0), totalBytes) : Math.max(status.loaded, 0);
+
   const statusLabel = {
     ready: 'Ready on this device',
     loading: 'Downloading and preparing',
@@ -437,6 +450,7 @@ function PopupFooter({
 function subscribeLayout(listener: () => void): () => void {
   const query = window.matchMedia('(max-width: 640px)');
   query.addEventListener('change', listener);
+
   return () => query.removeEventListener('change', listener);
 }
 

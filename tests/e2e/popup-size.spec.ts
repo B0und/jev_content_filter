@@ -9,9 +9,12 @@ test('popup has an intrinsic size when Chrome starts with a tiny viewport', asyn
   await page.setViewportSize({ width: 10, height: 20 });
   await page.goto(`chrome-extension://${extensionId}/popup.html`);
   await expect(page.getByRole('switch', { name: 'Enable filtering', exact: true })).toBeAttached();
+
   const size = await page.locator('.popup').evaluate((element) => {
     const bounds = element.getBoundingClientRect();
+
     return { width: bounds.width, height: bounds.height };
   });
+
   expect(size).toEqual({ width: 460, height: 590 });
 });
