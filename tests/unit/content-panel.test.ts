@@ -70,6 +70,16 @@ describe('inspector panel', () => {
     outside.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, composed: true }));
     await until(() => !reopened.isConnected, 'outside click did not close the panel');
 
+    button.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }));
+    const scrollingPanel = document.querySelector('[data-jev-panel]');
+    expect(scrollingPanel).not.toBeNull();
+    scrollingPanel?.shadowRoot
+      ?.querySelector('.panel')
+      ?.dispatchEvent(new WheelEvent('wheel', { bubbles: true, composed: true }));
+    expect(scrollingPanel?.isConnected).toBe(true);
+    window.dispatchEvent(new Event('scroll'));
+    expect(document.querySelector('[data-jev-panel]')).toBeNull();
+
     stopRuntime(test);
   });
 
@@ -182,7 +192,10 @@ it.each(['body text', ''])('shows custom preview scores separately with body %j'
     iconButton(article).dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }));
     const root = document.querySelector('[data-jev-panel]')?.shadowRoot;
     expect(root?.textContent).toContain('Preview 90.0%');
-    if (text) expect(root?.textContent).toContain('Post 10.0%');
+    const row = [...(root?.querySelectorAll('tr') ?? [])].find(
+      (row) => row.cells[0]?.textContent === 'Gardening',
+    );
+    expect(row?.cells[1]?.textContent).toBe(text ? '10.0% · Preview 90.0%' : 'Preview 90.0%');
   } finally {
     stopRuntime(test);
     clearFeed();

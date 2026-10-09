@@ -26,7 +26,7 @@ test('upgrading settings without a filter list does not send text with a saved p
   ).toBeVisible();
   const popup = await context.newPage();
   await popup.goto(`chrome-extension://${extensionId}/popup.html`);
-  await popup.getByRole('tab', { name: 'Text', exact: true }).click();
+  await popup.getByRole('tab', { name: 'Filters', exact: true }).click();
   await expect(
     popup.getByRole('button', { name: 'Delete Content filter', exact: true }),
   ).toHaveCount(0);
@@ -150,8 +150,8 @@ test('provider switches isolate credentials and restore each providers own key',
   await expect(post.getByRole('button', { name: 'Allowed', exact: true })).toBeVisible();
   const popup = await context.newPage();
   await popup.goto(`chrome-extension://${extensionId}/popup.html`);
-  await popup.getByRole('tab', { name: 'Text', exact: true }).click();
-  await popup.getByText('Jev provider and scan details', { exact: true }).click();
+  await popup.getByRole('tab', { name: 'Filters', exact: true }).click();
+  await popup.getByRole('tab', { name: 'Settings', exact: true }).click();
   await popup.locator('#text-provider').selectOption('typesafe');
   await expect(popup.locator('#gateway-key')).toHaveValue('');
   await expect(post.getByRole('button', { name: 'Not fully checked', exact: true })).toBeVisible();
@@ -212,8 +212,8 @@ test('rapid credential edits survive popup close and independent windows preserv
   worker,
 }) => {
   await page.goto(`chrome-extension://${extensionId}/popup.html`);
-  await page.getByRole('tab', { name: 'Text', exact: true }).click();
-  await page.getByText('Jev provider and scan details', { exact: true }).click();
+  await page.getByRole('tab', { name: 'Filters', exact: true }).click();
+  await page.getByRole('tab', { name: 'Settings', exact: true }).click();
   const input = page.locator('#gateway-key');
   await input.fill('');
   await input.pressSequentially('synthetic-fast-key', { delay: 0 });
@@ -240,8 +240,8 @@ test('rapid credential edits survive popup close and independent windows preserv
     second.goto(`chrome-extension://${extensionId}/popup.html`),
   ]);
   await Promise.all([
-    first.getByRole('tab', { name: 'Text', exact: true }).click(),
-    second.getByRole('tab', { name: 'Text', exact: true }).click(),
+    first.getByRole('tab', { name: 'Filters', exact: true }).click(),
+    second.getByRole('tab', { name: 'Filters', exact: true }).click(),
   ]);
   await second.getByRole('switch', { name: 'Enable AI-written text', exact: true }).click();
   await expect(
@@ -249,7 +249,7 @@ test('rapid credential edits survive popup close and independent windows preserv
   ).toBeEnabled();
   await first.getByRole('button', { name: 'Edit', exact: true }).click();
   await Promise.all([
-    first.getByLabel('Block at probability (%)').fill('37'),
+    first.getByRole('spinbutton', { name: 'Content filter threshold percent' }).fill('37'),
     second
       .getByRole('spinbutton', { name: 'AI-written text threshold percent', exact: true })
       .fill('48'),
@@ -268,3 +268,87 @@ test('rapid credential edits survive popup close and independent windows preserv
     })
     .toEqual({ preset: 0.37, aiGenerated: 0.48 });
 });
+
+for (const kind of ['custom', 'builtin']) {
+  for (const flush of ['blur', 'pagehide', 'debounce']) {
+    test(`a stale ${kind} threshold ${flush} save preserves a newer field value before reconciliation`, async ({
+      context,
+      worker,
+      extensionId,
+      setSettings,
+    }) => {
+      const settings = remoteSettings();
+      settings.enabled.porn = true;
+      await setSettings(settings);
+      const original = settings.textFilters[0]!;
+      const popup = await context.newPage();
+      await popup.clock.install();
+      await popup.goto(`chrome-extension://${extensionId}/popup.html`);
+      if (kind === 'builtin') await popup.getByRole('tab', { name: 'Images', exact: true }).click();
+      await popup.evaluate(
+        ({ kind, id }) => {
+          const send = chrome.runtime.sendMessage.bind(chrome.runtime);
+          let injected = false;
+          Object.defineProperty(chrome.runtime, 'sendMessage', {
+            value: async (request: {
+              type: string;
+              change?: { field: string; value?: unknown };
+            }) => {
+              const change = request.change;
+              if (
+                !injected &&
+                request.type === 'update-settings' &&
+                change?.field === (kind === 'custom' ? 'patchTextFilter' : 'threshold')
+              ) {
+                injected = true;
+                // The delayed write is already submitted; a newer view commits before it enters the lock.
+                await send({
+                  type: 'update-settings',
+                  change:
+                    kind === 'custom'
+                      ? {
+                          field: 'patchTextFilter',
+                          id,
+                          value: {
+                            threshold: 0.81,
+                            enabled: false,
+                            instructions: 'Newer instructions',
+                          },
+                        }
+                      : { field: 'threshold', category: 'porn', value: 0.81 },
+                });
+              }
+              return send(request);
+            },
+          });
+        },
+        { kind, id: original.id },
+      );
+      const input = popup.getByRole('spinbutton', {
+        name: kind === 'custom' ? `${original.name} threshold percent` : 'Porn threshold percent',
+        exact: true,
+      });
+      await input.fill('25');
+      if (flush === 'blur') await input.press('Tab');
+      else if (flush === 'pagehide')
+        await popup.evaluate(() => window.dispatchEvent(new Event('pagehide')));
+      else await popup.clock.fastForward(400);
+      await expect
+        .poll(async () => {
+          const raw = await worker.evaluate(
+            async () => (await chrome.storage.local.get('settings')).settings,
+          );
+          const saved = Schema.decodeUnknownSync(SettingsSchema)(raw);
+          return kind === 'custom' ? saved.textFilters[0]?.threshold : saved.thresholds.porn;
+        })
+        .toBe(0.81);
+      await expect(input).toHaveValue('81');
+      if (kind === 'custom') {
+        await expect(
+          popup.getByRole('switch', { name: `Enable ${original.name}`, exact: true }),
+        ).not.toBeChecked();
+        await expect(popup.locator('.custom-filter')).toContainText('Newer instructions');
+      }
+    });
+  }
+}

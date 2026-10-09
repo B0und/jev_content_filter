@@ -101,17 +101,23 @@ void test(
     await t.test('popup changes reach the active content-script tab', async () => {
       const popup = await session.popup();
       await session.feed.waitForFunction(
-        () => getComputedStyle(document.querySelector('[data-post="102"]')).display === 'none',
+        () =>
+          getComputedStyle(document.querySelector('[data-post="102"] [data-testid="tweetText"]'))
+            .visibility === 'hidden',
         { polling: 50, timeout: 10_000 },
       );
       await popup.click('[aria-label="Enable filtering"]');
       await session.feed.waitForFunction(
-        () => getComputedStyle(document.querySelector('[data-post="102"]')).display !== 'none',
+        () =>
+          getComputedStyle(document.querySelector('[data-post="102"] [data-testid="tweetText"]'))
+            .visibility !== 'hidden',
         { polling: 50, timeout: 10_000 },
       );
       await popup.click('[aria-label="Enable filtering"]');
       await session.feed.waitForFunction(
-        () => getComputedStyle(document.querySelector('[data-post="102"]')).display === 'none',
+        () =>
+          getComputedStyle(document.querySelector('[data-post="102"] [data-testid="tweetText"]'))
+            .visibility === 'hidden',
         { polling: 50, timeout: 10_000 },
       );
     });

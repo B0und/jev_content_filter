@@ -42,6 +42,8 @@ function evaluateResult(answers: Record<string, unknown>) {
 }
 
 const SETTINGS: Settings = {
+  authorExceptions: [],
+  skipFollowed: false,
   textFilters: defaultSettings().textFilters,
   masterEnabled: true,
   textProvider: 'vercel',

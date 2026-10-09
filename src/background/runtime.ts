@@ -9,6 +9,7 @@ import { BackgroundWorker, type MessageSender } from './worker';
 
 const BG_REQUEST_TYPES: Record<string, true> = {
   jev: true,
+  'follow-bootstrap': true,
   'update-settings': true,
   'classify-image': true,
   'extract-image-text': true,

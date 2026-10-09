@@ -24,7 +24,15 @@ export const TextFilterSchema = Schema.Struct({
   threshold: probability,
 });
 
+export const AuthorHandleSchema = Schema.String.check(Schema.isPattern(/^[a-zA-Z0-9_]{1,15}$/));
+export const AuthorExceptionSchema = Schema.Struct({
+  handle: AuthorHandleSchema,
+  categories: Schema.mutable(Schema.Array(ScoreKeySchema)),
+});
+
 export const SettingsSchema = Schema.Struct({
+  authorExceptions: Schema.mutable(Schema.Array(AuthorExceptionSchema)),
+  skipFollowed: Schema.Boolean,
   textFilters: Schema.mutable(Schema.Array(TextFilterSchema)),
   masterEnabled: Schema.Boolean,
   textProvider: TextProviderSchema,
@@ -35,9 +43,20 @@ export const SettingsSchema = Schema.Struct({
 });
 
 export const SettingsChangeSchema = Schema.Union([
+  Schema.Struct({
+    field: Schema.Literal('authorException'),
+    handle: AuthorHandleSchema,
+    category: ScoreKeySchema,
+    value: Schema.Boolean,
+  }),
+  Schema.Struct({
+    field: Schema.Literal('skipFollowed'),
+    value: Schema.Boolean,
+  }),
   Schema.Struct({ field: Schema.Literal('textFilter'), value: TextFilterSchema }),
   Schema.Struct({
     field: Schema.Literal('patchTextFilter'),
+    expectedThreshold: Schema.optionalKey(probability),
     id: TextFilterSchema.fields.id,
     value: Schema.Struct({
       name: Schema.optionalKey(TextFilterSchema.fields.name),
@@ -61,6 +80,7 @@ export const SettingsChangeSchema = Schema.Union([
   }),
   Schema.Struct({
     field: Schema.Literal('threshold'),
+    expectedThreshold: Schema.optionalKey(probability),
     category: CategoryKeySchema,
     value: probability,
   }),
@@ -125,6 +145,7 @@ export const TabReportSchema = Schema.Struct({
 });
 
 export const BgRequestSchema = Schema.Union([
+  Schema.Struct({ type: Schema.Literal('follow-bootstrap') }),
   Schema.Struct({
     type: Schema.Literal('jev'),
     tweetId: Schema.String,
@@ -153,6 +174,10 @@ export const BgRequestSchema = Schema.Union([
 ]);
 
 export const SettingsReplySchema = Schema.Union([
-  Schema.Struct({ ok: Schema.Literal(true), settings: SettingsSchema }),
+  Schema.Struct({
+    ok: Schema.Literal(true),
+    settings: SettingsSchema,
+    deletedFilter: Schema.optionalKey(TextFilterSchema),
+  }),
   Schema.Struct({ ok: Schema.Literal(false), error: Schema.String }),
 ]);

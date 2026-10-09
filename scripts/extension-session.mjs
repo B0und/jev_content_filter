@@ -78,6 +78,10 @@ export class ExtensionSession {
     }
   }
 
+  /**
+   * Launch the extension in its persistent profile and attach runtime logging.
+   * Live mode uses the OS credential store; fixture mode seeds isolated test settings.
+   */
   async start({ build = true } = {}) {
     await mkdir(this.artifacts, { recursive: true });
     this.logStream = createWriteStream(path.join(this.artifacts, 'console.jsonl'), {
@@ -89,6 +93,8 @@ export class ExtensionSession {
     this.browser = await puppeteer.launch({
       executablePath: process.env.EXTENSION_BROWSER_PATH || chromium.executablePath(),
       userDataDir: this.profile,
+      // Live profiles use the OS keychain, matching desktop Chromium sessions.
+      ignoreDefaultArgs: this.live ? ['--password-store=basic', '--use-mock-keychain'] : [],
       headless: this.headless,
       pipe: true,
       enableExtensions: true,

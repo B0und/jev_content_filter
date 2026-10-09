@@ -40,7 +40,14 @@ export function isTextProvider(value: unknown): value is TextProvider {
   return TEXT_PROVIDERS.some((provider) => provider === value);
 }
 
+export interface AuthorException {
+  handle: string;
+  categories: ScoreKey[];
+}
+
 export interface Settings {
+  authorExceptions: AuthorException[];
+  skipFollowed: boolean;
   textFilters: TextFilter[];
   masterEnabled: boolean;
   /** Provider that evaluates the text questions. */
@@ -55,14 +62,21 @@ export interface Settings {
 }
 
 export type SettingsChange =
+  | { field: 'authorException'; handle: string; category: ScoreKey; value: boolean }
+  | { field: 'skipFollowed'; value: boolean }
   | { field: 'textFilter'; value: TextFilter }
-  | { field: 'patchTextFilter'; id: string; value: Partial<Omit<TextFilter, 'id'>> }
+  | {
+      field: 'patchTextFilter';
+      id: string;
+      value: Partial<Omit<TextFilter, 'id'>>;
+      expectedThreshold?: number;
+    }
   | { field: 'deleteTextFilter'; id: string }
   | { field: 'masterEnabled'; value: boolean }
   | { field: 'textProvider'; value: TextProvider }
   | { field: 'providerKey'; provider: TextProvider; value: string }
   | { field: 'enabled'; category: CategoryKey; value: boolean }
-  | { field: 'threshold'; category: CategoryKey; value: number };
+  | { field: 'threshold'; category: CategoryKey; value: number; expectedThreshold?: number };
 export interface FilterStatus {
   state: 'ok' | 'failing';
   reason?: string;
@@ -95,6 +109,7 @@ export interface TabReport {
   errors: string[];
 }
 export type BgRequest =
+  | { type: 'follow-bootstrap' }
   | { type: 'jev'; tweetId: string; text: string; provider: TextProvider; revision: number }
   | { type: 'update-settings'; change: SettingsChange }
   | { type: 'classify-image'; url: string }
@@ -137,8 +152,11 @@ export const CATEGORY_LABELS: Record<CategoryKey, string> = {
 export const CATEGORY_KEYS: CategoryKey[] = ['porn', 'hentai', 'sexy', 'drawings', 'aiGenerated'];
 export const IMAGE_KEYS: CategoryKey[] = ['porn', 'hentai', 'sexy', 'drawings'];
 export const TEXT_KEYS: CategoryKey[] = ['aiGenerated'];
+/** Return fresh default configuration with author and followed exemptions disabled. */
 export function defaultSettings(): Settings {
   return {
+    authorExceptions: [],
+    skipFollowed: false,
     textFilters: presets.map((filter) => ({ ...filter })),
     masterEnabled: true,
     textProvider: 'vercel',

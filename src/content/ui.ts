@@ -1,6 +1,7 @@
 // Rendering and inspector DOM stay here; Effect values represent external
 // logging requests that the content runtime owns.
 import { Clock, Effect } from 'effect';
+import { BUTTON_CSS } from './buttons';
 import { browserEffect, browserRuntime } from '../platform/browser';
 import type { ContentScriptContext } from 'wxt/utils/content-script-context';
 import {
@@ -52,8 +53,8 @@ const ICON_CSS = `
 `;
 
 const GLOBAL_CSS = `
-article[data-jev-hidden],
-[data-testid="cellInnerDiv"]:has(article[data-jev-hidden]):not(:has(article:not([data-jev-hidden]))) {
+article[data-jev-hidden]:not([data-jev-reserved]),
+[data-testid="cellInnerDiv"]:has(article[data-jev-hidden]):not([data-jev-preserved]):not(:has(article:not([data-jev-hidden]))) {
   display: none !important;
 }
 [data-jev-card-hidden] {
@@ -75,19 +76,66 @@ article[data-jev-hidden],
   overflow-wrap: anywhere;
   visibility: visible !important;
 }
+article[data-jev-hidden][data-jev-reserved],
+article[data-jev-hidden][data-jev-reserved] * {
+  visibility: hidden !important;
+}
+article[data-jev-hidden] [data-jev-retained],
+article[data-jev-hidden] [data-jev-retained] * {
+  visibility: visible !important;
+}
 `;
 
 let globalStyle: HTMLStyleElement | null = null;
+let maskThemeObserver: MutationObserver | null = null;
+let maskThemeFrame = 0;
+let maskColorScheme: MediaQueryList | null = null;
 
+/** Refresh existing masks when native theme classes, variables or styles change. */
+function scheduleMaskThemeRefresh(): void {
+  if (maskThemeFrame) return;
+  maskThemeFrame = requestAnimationFrame(() => {
+    maskThemeFrame = 0;
+    for (const [article, binding] of bindings)
+      if (binding.hiddenSlot) placeHiddenNotice(article, binding);
+  });
+}
+// Multiple articles can share an X cell. Each slot owns one reservation.
+const cellReservations = new WeakMap<HTMLElement, number>();
+
+/** Install masking styles and native theme listeners for this content session. */
 export function injectGlobalStyle(): void {
   if (globalStyle?.isConnected) return;
   globalStyle = document.createElement('style');
   globalStyle.setAttribute('data-jev-style', '');
   globalStyle.textContent = GLOBAL_CSS;
   document.head.append(globalStyle);
+  maskThemeObserver = new MutationObserver(scheduleMaskThemeRefresh);
+  const attributes = {
+    attributes: true,
+    attributeFilter: ['style', 'class', 'data-theme', 'data-color-mode'],
+  };
+  maskThemeObserver.observe(document.documentElement, attributes);
+  maskThemeObserver.observe(document.body, attributes);
+  maskThemeObserver.observe(document.head, {
+    childList: true,
+    subtree: true,
+    characterData: true,
+    attributes: true,
+    attributeFilter: ['href', 'media', 'disabled'],
+  });
+  maskColorScheme = matchMedia('(prefers-color-scheme: dark)');
+  maskColorScheme.addEventListener('change', scheduleMaskThemeRefresh);
 }
 
+/** Dispose native theme listeners and pending refreshes with the masking stylesheet. */
 export function removeGlobalStyle(): void {
+  maskThemeObserver?.disconnect();
+  maskThemeObserver = null;
+  if (maskThemeFrame) cancelAnimationFrame(maskThemeFrame);
+  maskThemeFrame = 0;
+  maskColorScheme?.removeEventListener('change', scheduleMaskThemeRefresh);
+  maskColorScheme = null;
   globalStyle?.remove();
   globalStyle = null;
 }
@@ -102,19 +150,385 @@ export function removeGlobalStyle(): void {
 export function restoreAll(): void {
   for (const [article, binding] of bindings) {
     if (article.isConnected) {
-      article.removeAttribute('data-jev-hidden');
+      restoreBinding(article, binding);
       applyCard(article, binding.post, false);
     }
   }
 }
 
+/** Remove owned layout reservations on pause, unblocking, recycling and teardown. */
+export function restoreBinding(article: HTMLElement, binding: Binding): void {
+  article.removeAttribute('data-jev-hidden');
+  article.removeAttribute('data-jev-reserved');
+  binding.hiddenSizeObserver?.disconnect();
+  delete binding.hiddenSizeObserver;
+  for (const retained of binding.retainedElements ?? [])
+    retained.removeAttribute('data-jev-retained');
+  delete binding.retainedElements;
+  binding.hiddenSlot?.remove();
+  const cell = binding.preservedCell;
+  if (cell) {
+    const remaining = (cellReservations.get(cell) ?? 1) - 1;
+    if (remaining > 0) cellReservations.set(cell, remaining);
+    else {
+      cellReservations.delete(cell);
+      cell.removeAttribute('data-jev-preserved');
+    }
+  }
+  delete binding.hiddenSlot;
+  delete binding.preservedCell;
+}
+
+/** Show the detected score against the user's cutoff without changing post geometry. */
+function updateMaskReason(post: Post, root: ShadowRoot): void {
+  const matches = hits(post);
+  const threshold = (key: ScoreKey) =>
+    key.startsWith('custom:')
+      ? (settings.current.textFilters.find((filter) => `custom:${filter.id}` === key)?.threshold ??
+        0.65)
+      : settings.current.thresholds[key as CategoryKey];
+  const description = matches
+    .map(
+      (hit) =>
+        `${scoreLabel(hit.key, settings.current.textFilters)} (${Math.round(hit.score * 1000) / 10}% ≥ ${Math.round(threshold(hit.key) * 1000) / 10}%)`,
+    )
+    .join(', ');
+  const reason = root.querySelector('p');
+  if (reason) reason.textContent = 'Hidden by ' + description;
+  const evidence = root.querySelector<HTMLElement>('.evidence');
+  const hit = matches[0];
+  if (!evidence || !hit) return;
+  const cutoff = Math.round(threshold(hit.key) * 1000) / 10;
+  const score = Math.round(hit.score * 1000) / 10;
+  evidence.querySelector('.evidence-label')!.textContent =
+    `${score}% detected · blocks at ${cutoff}%`;
+  const meter = evidence.querySelector<HTMLElement>('.score-track')!;
+  meter.setAttribute(
+    'aria-label',
+    `${scoreLabel(hit.key, settings.current.textFilters)}: ${score}% detected; blocks at ${cutoff}%`,
+  );
+  meter.style.setProperty('--score', `${score}%`);
+  meter.style.setProperty('--cutoff', `${cutoff}%`);
+}
+
+/** Confirm a category-specific author exception before saving it. */
+function showAuthorException(post: Post, root: ShadowRoot, opener: HTMLButtonElement): void {
+  if (root.querySelector('dialog')) return;
+  const matches = hits(post);
+  if (!matches.length) return;
+  const dialog = document.createElement('dialog');
+  dialog.setAttribute('aria-labelledby', 'author-exception-title');
+  const title = document.createElement('h2');
+  title.id = 'author-exception-title';
+  title.textContent = 'Skip a filter for @' + post.handle + '?';
+  const description = document.createElement('p');
+  description.textContent =
+    'This applies to this author’s current and future posts. Other filters stay active. You can remove it in Settings.';
+  const label = document.createElement('label');
+  label.textContent = 'Filter to skip';
+  const select = document.createElement('select');
+  select.setAttribute('aria-label', 'Filter to skip');
+  for (const hit of matches) {
+    const option = document.createElement('option');
+    option.value = hit.key;
+    option.textContent = scoreLabel(hit.key, settings.current.textFilters);
+    select.append(option);
+  }
+  label.append(select);
+  const error = document.createElement('p');
+  error.setAttribute('role', 'status');
+  const actions = document.createElement('div');
+  actions.className = 'dialog-actions';
+  const cancel = document.createElement('button');
+  cancel.type = 'button';
+  cancel.textContent = 'Cancel';
+  cancel.autofocus = true;
+  const confirm = document.createElement('button');
+  confirm.type = 'button';
+  confirm.textContent = 'Save author exception';
+  confirm.className = 'primary';
+  cancel.addEventListener('click', () => dialog.close());
+  dialog.addEventListener('click', (event) => event.stopPropagation());
+  dialog.addEventListener('close', () => {
+    dialog.remove();
+    if (opener.isConnected) opener.focus({ preventScroll: true });
+  });
+  confirm.addEventListener('click', () => {
+    const key = matches.find((hit) => hit.key === select.value)?.key;
+    if (!key) return;
+    confirm.disabled = true;
+    select.disabled = true;
+    void browserRuntime
+      .runPromise(
+        updateSettings({
+          field: 'authorException',
+          handle: post.handle,
+          category: key,
+          value: true,
+        }),
+      )
+      .then(() => {
+        dialog.close();
+        const binding = [...bindings.values()].find(
+          (item) => item.post === post && item.host.isConnected,
+        );
+        binding?.button.focus({ preventScroll: true });
+      })
+      .catch(() => {
+        if (!dialog.isConnected) return;
+        error.textContent = 'Could not save the exception. Try again.';
+        confirm.disabled = false;
+        select.disabled = false;
+      });
+  });
+  actions.append(cancel, confirm);
+  dialog.append(title, description, label, error, actions);
+  root.append(dialog);
+  dialog.showModal();
+}
+
+/** Keep the original author header, avatar, menu and action bar accessible. */
+function retainPostControls(article: HTMLElement, binding: Binding): void {
+  for (const element of binding.retainedElements ?? [])
+    element.removeAttribute('data-jev-retained');
+  // Quotes can contain their own avatars, timestamps and action groups.
+  // Retaining those would expose filtered content and shrink the body mask.
+  /** Exclude nested quoted-post controls from the retained author and actions. */
+  const original = (element: HTMLElement) =>
+    element.closest('article') === article &&
+    !article.contains(element.closest('div[role="link"]'));
+  const author = [...article.querySelectorAll<HTMLElement>('[data-testid="User-Name"]')].find(
+    original,
+  );
+  const caret = headerCarets(article)[0];
+  let header = author;
+  while (header?.parentElement && header.parentElement !== article) {
+    const parent = header.parentElement;
+    if (
+      parent.querySelector(
+        '[data-testid="tweetText"], [data-testid="tweetPhoto"], video, [data-testid="card.wrapper"]',
+      )
+    )
+      break;
+    header = parent;
+    if (caret && header.contains(caret)) break;
+  }
+  const avatar = [...article.querySelectorAll<HTMLElement>('[data-testid^="UserAvatar"]')].find(
+    original,
+  );
+  const footer = [
+    ...article.querySelectorAll<HTMLElement>('[role="group"]:has([data-testid="reply"])'),
+  ].find(original);
+  const timestamp = [...article.querySelectorAll<HTMLElement>('time')].find(
+    (element) =>
+      original(element) &&
+      element.closest('a')?.getAttribute('href')?.split('/status/')[1]?.split(/[/?#]/)[0] ===
+        binding.post.id,
+  );
+  const candidates = [header, caret, binding.host, avatar, footer, timestamp];
+  binding.retainedElements = candidates.filter(
+    (element): element is HTMLElement =>
+      element instanceof HTMLElement && element.closest('article') === article,
+  );
+  for (const element of binding.retainedElements) element.dataset.jevRetained = '';
+}
+
+/** Mirror native text typography and resolved colors, including custom CSS variables. */
+function refreshMaskColors(article: HTMLElement, binding: Binding): void {
+  const slot = binding.hiddenSlot;
+  if (!slot) return;
+  const timestamp = binding.retainedElements?.find((element) => element.tagName === 'TIME');
+  const muted = timestamp ?? headerCarets(article)[0] ?? article;
+  const link =
+    article.querySelector('[data-testid="tweetText"] a') ??
+    document.querySelector('[data-testid="tweetText"] a');
+  const foreground =
+    article.querySelector('[data-testid="tweetText"]') ??
+    article.querySelector('[data-testid="User-Name"] span') ??
+    document.body;
+  slot.style.setProperty('--jev-ink', getComputedStyle(foreground).color);
+  slot.style.setProperty('--jev-bg', getComputedStyle(document.body).backgroundColor);
+  slot.style.setProperty('--jev-muted', getComputedStyle(muted).color);
+  const accent = link ? getComputedStyle(link).color : getComputedStyle(foreground).color;
+  slot.style.setProperty('--jev-accent', accent);
+  const rgb = accent
+    .match(/[\d.]+/g)
+    ?.slice(0, 3)
+    .map(Number) ?? [29, 155, 240];
+  const linear = rgb.map((value) =>
+    value / 255 <= 0.04045 ? value / 255 / 12.92 : ((value / 255 + 0.055) / 1.055) ** 2.4,
+  );
+  const luminance = 0.2126 * linear[0]! + 0.7152 * linear[1]! + 0.0722 * linear[2]!;
+  slot.style.setProperty('--jev-on-accent', luminance > 0.179 ? '#000' : '#fff');
+  // X styles text descendants directly; the article wrapper can retain a serif default.
+  const text = timestamp ?? article.querySelector('[data-testid="tweetText"]') ?? muted;
+  const typography = getComputedStyle(text);
+  slot.style.fontFamily = typography.fontFamily;
+  slot.style.fontSize = typography.fontSize;
+  slot.style.lineHeight = typography.lineHeight;
+  slot.style.fontWeight = typography.fontWeight;
+}
+
+/** Position an out-of-flow mask between the native header and action bar. */
+function placeHiddenNotice(article: HTMLElement, binding: Binding): void {
+  const slot = binding.hiddenSlot;
+  if (!slot?.isConnected) return;
+  const rect = article.getBoundingClientRect();
+  const retained = binding.retainedElements ?? [];
+  const footer = retained.find((element) => element.getAttribute('role') === 'group');
+  const headerBottom = Math.max(
+    rect.top,
+    ...retained
+      .filter(
+        (element) =>
+          element !== footer &&
+          element !== binding.host &&
+          // Avatars occupy their own column and can extend below a one-line reply.
+          !element.getAttribute('data-testid')?.startsWith('UserAvatar'),
+      )
+      .map((element) => element.getBoundingClientRect().bottom),
+  );
+  const bottom = footer?.getBoundingClientRect().top ?? rect.bottom;
+  const content = [
+    ...article.querySelectorAll<HTMLElement>(
+      '[data-testid="tweetText"], [data-testid="tweetPhoto"], [data-testid="card.wrapper"], video, img, div[role="link"]',
+    ),
+  ]
+    .filter(
+      (element) =>
+        element.closest('article') === article &&
+        !element.closest('[data-jev-retained]') &&
+        // Cropped media children can be much larger than the visible native container.
+        !element.parentElement?.closest(
+          '[data-testid="tweetPhoto"], [data-testid="card.wrapper"], div[role="link"]',
+        ),
+    )
+    .map((element) => element.getBoundingClientRect())
+    .filter((bounds) => bounds.width > 0 && bounds.height > 0);
+  const computed = getComputedStyle(article);
+  const left = content.length
+    ? Math.max(rect.left, Math.min(...content.map((bounds) => bounds.left)))
+    : rect.left + (parseFloat(computed.paddingLeft) || 0);
+  const right = content.length
+    ? Math.min(rect.right, Math.max(...content.map((bounds) => bounds.right)))
+    : rect.right - (parseFloat(computed.paddingRight) || 0);
+  const top = content.length
+    ? Math.max(headerBottom, Math.min(...content.map((bounds) => bounds.top)))
+    : headerBottom;
+  const contentBottom = content.length
+    ? Math.max(...content.map((bounds) => bounds.bottom))
+    : bottom;
+  refreshMaskColors(article, binding);
+  const parent = slot.offsetParent;
+  const positioned =
+    parent instanceof HTMLElement &&
+    (parent !== document.body || getComputedStyle(parent).position !== 'static');
+  const origin = positioned ? parent.getBoundingClientRect() : null;
+  const originLeft = origin
+    ? origin.left + (parent?.clientLeft ?? 0) - (parent?.scrollLeft ?? 0)
+    : -window.scrollX;
+  const originTop = origin
+    ? origin.top + (parent?.clientTop ?? 0) - (parent?.scrollTop ?? 0)
+    : -window.scrollY;
+  slot.style.left = `${left - originLeft}px`;
+  slot.style.top = `${top - originTop}px`;
+  slot.style.width = `${Math.max(0, right - left)}px`;
+  const height = Math.max(0, Math.min(bottom, contentBottom) - top);
+  slot.style.height = `${height}px`;
+  slot.shadowRoot?.querySelector('.notice')?.classList.toggle('compact', height < 180);
+}
+
+/** Mask posts without removing their native layout, including offscreen posts. */
 function applyVisibility(article: HTMLElement, binding: Binding): void {
   const { post } = binding;
-  if (!blocked(post)) {
-    article.removeAttribute('data-jev-hidden');
+  if (!blocked(post) || binding.revealed) {
+    restoreBinding(article, binding);
+    if (!blocked(post)) binding.revealed = false;
     return;
   }
-  article.setAttribute('data-jev-hidden', '');
+  const cell = article.closest<HTMLElement>('[data-testid="cellInnerDiv"]');
+  // X can reparent connected articles without recycling their post bindings.
+  if (
+    binding.hiddenSlot &&
+    (binding.preservedCell !== (cell ?? undefined) ||
+      binding.hiddenSlot.parentElement !== article.parentElement)
+  ) {
+    restoreBinding(article, binding);
+  }
+  if (!article.hasAttribute('data-jev-hidden')) {
+    const slot = document.createElement('div');
+    slot.dataset.jevHiddenSlot = '';
+    // Keep the real article in layout so media and responsive text continue
+    // to measure normally. The notice overlays it without adding height.
+    slot.style.cssText = 'position: absolute; pointer-events: none;';
+    article.dataset.jevReserved = '';
+    if (cell) {
+      cellReservations.set(cell, (cellReservations.get(cell) ?? 0) + 1);
+      cell.dataset.jevPreserved = '';
+      binding.preservedCell = cell;
+    }
+    const root = slot.attachShadow({ mode: 'open' });
+    const style = document.createElement('style');
+    style.textContent = `:host { display: block; --button-ink: var(--jev-ink); --button-accent: var(--jev-accent); --button-on-accent: var(--jev-on-accent); --button-soft: color-mix(in srgb, var(--jev-ink) 12%, transparent); --button-hover: color-mix(in srgb, var(--jev-ink) 20%, transparent); } .notice { pointer-events: auto; width: 100%; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 12px; color: var(--jev-muted); background: transparent; font: inherit; text-align: center; overflow: hidden; } .evidence { width: min(240px, 100%); font-size: 12px; } .evidence-label { display: block; margin-bottom: 8px; } .score-track { position: relative; height: 6px; border-radius: 999px; background: color-mix(in srgb, var(--jev-ink) 16%, transparent); } .score-fill { width: var(--score); height: 100%; border-radius: inherit; background: var(--jev-accent); } .cutoff { position: absolute; left: var(--cutoff); top: -3px; width: 2px; height: 12px; background: var(--jev-ink); transform: translateX(-1px); } .compact .evidence { display: none; } .notice.compact { flex-direction: row; gap: 6px; padding: 0; font-size: 12px; } .compact p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 70%; } .compact button { padding: 0 6px; line-height: 1.2; } p { margin: 0; overflow-wrap: anywhere; } .exception { font-size: 13px; } .exception .short { display: none; } .compact .exception .long { display: none; } .compact .exception .short { display: inline; } dialog { pointer-events: auto; position: fixed; width: min(420px, calc(100vw - 48px)); box-sizing: border-box; padding: 24px; color: var(--jev-ink); background: var(--jev-bg); border: 1px solid color-mix(in srgb, var(--jev-ink) 25%, transparent); border-radius: 16px; font: inherit; text-align: left; } dialog::backdrop { background: rgb(0 0 0 / .6); } dialog h2 { font: inherit; font-size: 20px; line-height: 1.3; font-weight: 700; margin: 0 0 12px; } dialog p { margin: 12px 0; line-height: 1.5; } dialog [role="status"]:empty { display: none; } dialog label { display: block; margin: 18px 0 20px; font-weight: 600; } dialog select { display: block; width: 100%; min-height: 40px; margin-top: 8px; padding: 8px 12px; font: inherit; background: inherit; color: inherit; border: 1px solid color-mix(in srgb, var(--jev-ink) 40%, transparent); border-radius: 8px; } .dialog-actions { display: flex; justify-content: flex-end; align-items: center; gap: 12px; flex-wrap: wrap; } ${BUTTON_CSS} .compact button { padding: 1px 7px; line-height: 1.2; }`;
+    const notice = document.createElement('div');
+    notice.className = 'notice';
+    const reason = document.createElement('p');
+    const evidence = document.createElement('div');
+    evidence.className = 'evidence';
+    const evidenceLabel = document.createElement('span');
+    evidenceLabel.className = 'evidence-label';
+    const track = document.createElement('div');
+    track.className = 'score-track';
+    track.setAttribute('role', 'img');
+    const fill = document.createElement('div');
+    fill.className = 'score-fill';
+    const cutoff = document.createElement('span');
+    cutoff.className = 'cutoff';
+    track.append(fill, cutoff);
+    evidence.append(evidenceLabel, track);
+    const show = document.createElement('button');
+    show.type = 'button';
+    show.textContent = 'Show post';
+    show.className = 'primary';
+    revealActions.set(show, () => {
+      binding.revealed = true;
+      renderPostAtUiBoundary(post);
+      binding.button.focus({ preventScroll: true });
+    });
+    notice.append(reason, evidence, show);
+    if (/^[a-zA-Z0-9_]{1,15}$/.test(post.handle)) {
+      const allow = document.createElement('button');
+      allow.type = 'button';
+      allow.className = 'exception';
+      allow.setAttribute('aria-label', 'Skip a filter for @' + post.handle);
+      const long = document.createElement('span');
+      long.className = 'long';
+      long.textContent = 'Skip a filter for @' + post.handle + '…';
+      const short = document.createElement('span');
+      short.className = 'short';
+      short.textContent = '…';
+      allow.append(long, short);
+      allow.addEventListener('click', (event) => {
+        event.stopPropagation();
+        showAuthorException(post, root, allow);
+      });
+      notice.append(allow);
+    }
+    root.append(style, notice);
+    article.before(slot);
+    binding.hiddenSlot = slot;
+    retainPostControls(article, binding);
+    const sizeObserver = new ResizeObserver(() => placeHiddenNotice(article, binding));
+    sizeObserver.observe(article);
+    const parent = slot.offsetParent;
+    if (parent instanceof HTMLElement) sizeObserver.observe(parent);
+    binding.hiddenSizeObserver = sizeObserver;
+    placeHiddenNotice(article, binding);
+    article.setAttribute('data-jev-hidden', '');
+  }
+  retainPostControls(article, binding);
+  placeHiddenNotice(article, binding);
+  if (binding.hiddenSlot?.shadowRoot) updateMaskReason(post, binding.hiddenSlot.shadowRoot);
 }
 
 function applyCard(article: HTMLElement, post: Post, hiding: boolean): void {
@@ -141,6 +555,7 @@ function applyCard(article: HTMLElement, post: Post, hiding: boolean): void {
 
 /** Tracks what each button points at so the capture-phase click listener can find the post. */
 const buttonPosts = new WeakMap<HTMLButtonElement, Post>();
+const revealActions = new WeakMap<HTMLButtonElement, () => void>();
 
 export function createBinding(post: Post): Binding {
   const host = document.createElement('div');
@@ -248,12 +663,14 @@ function setHostVisibility(host: HTMLElement, button: HTMLButtonElement, visible
   }
 }
 
+/** Refresh a bound post toolbar and visibility from its current classification. */
 export function render(article: HTMLElement, binding: Binding): void {
   const { post, host, root, button } = binding;
   // Paused: keep the invisible control slot so toggling cannot reflow the feed.
   if (!settings.current.masterEnabled) {
     setHostVisibility(host, button, false);
-    article.removeAttribute('data-jev-hidden');
+    binding.revealed = false;
+    restoreBinding(article, binding);
     applyCard(article, post, false);
     if (openPostId === post.id) closePanel();
     return;
@@ -278,7 +695,7 @@ export function render(article: HTMLElement, binding: Binding): void {
     style.textContent = ICON_CSS;
     shadow.prepend(style);
   }
-  const stateLabel = stateOf(post);
+  const stateLabel = binding.revealed && blocked(post) ? 'Shown temporarily' : stateOf(post);
   const retryLabel = post.retryAt
     ? ` — retrying in ${Math.max(0, Math.ceil((post.retryAt - Date.now()) / 1000))}s`
     : '';
@@ -294,7 +711,7 @@ export function render(article: HTMLElement, binding: Binding): void {
   ].join('|');
   if (binding.renderState === signature) return;
   binding.renderState = signature;
-  button.innerHTML = blocked(post) ? BLOCKED_SVG : EYE_SVG;
+  button.innerHTML = blocked(post) && !binding.revealed ? BLOCKED_SVG : EYE_SVG;
   button.classList.toggle('pending', !!post.pending || post.retryAt !== null);
   button.classList.toggle('warn', post.errors.length > 0 && !post.pending);
   buttonPosts.set(button, post);
@@ -329,15 +746,11 @@ input {
   background: transparent; border: 1px solid var(--p-border); border-radius: 8px; padding: 3px 6px;
 }
 input:focus-visible { outline: 2px solid var(--p-accent); }
-button {
-  font: inherit; font-size: 14px; font-weight: 700; cursor: pointer;
-  color: var(--p-fg); background: transparent;
-  border: 1px solid var(--p-border); border-radius: 9999px; padding: 6px 14px;
-}
-button:hover { background: var(--p-hover); }
-button:disabled { opacity: 0.5; cursor: default; }
-button:focus-visible, a:focus-visible { outline: 2px solid var(--p-accent); outline-offset: 2px; }
-.foot { display: flex; gap: 14px; margin-top: 8px; }
+:host { --button-ink: var(--p-fg); --button-accent: var(--p-accent); --button-soft: color-mix(in srgb, var(--p-fg) 12%, transparent); --button-hover: var(--p-hover); }
+${BUTTON_CSS}
+button { font-size: 14px; font-weight: 700; }
+a:focus-visible { outline: 2px solid var(--p-accent); outline-offset: 2px; }
+.foot { display: flex; align-items: center; gap: 14px; margin-top: 8px; }
 a { color: var(--p-accent); text-decoration: none; font-size: 14px; font-weight: 600; }
 a:hover { text-decoration: underline; }
 .hint { color: var(--p-muted); font-size: 13px; margin: 6px 0 0; }
@@ -398,6 +811,12 @@ export function installActivation(ctx: ContentScriptContext): void {
       if (!(event instanceof MouseEvent)) return;
       for (const node of event.composedPath()) {
         if (!(node instanceof HTMLButtonElement)) continue;
+        const reveal = revealActions.get(node);
+        if (reveal) {
+          event.stopPropagation();
+          reveal();
+          return;
+        }
         const post = buttonPosts.get(node);
         if (!post) continue;
         event.stopPropagation();
@@ -410,6 +829,7 @@ export function installActivation(ctx: ContentScriptContext): void {
   );
 }
 
+/** Open one inspector anchored to a native post without changing feed layout. */
 function openPanel(post: Post, anchor: HTMLButtonElement, _ctx: ContentScriptContext): void {
   closePanel();
   openPostId = post.id;
@@ -429,11 +849,12 @@ function openPanel(post: Post, anchor: HTMLButtonElement, _ctx: ContentScriptCon
     if (panelHost?.contains(event.target) || event.composedPath().includes(anchor)) return;
     closePanel();
   };
+  /** Dismiss the inspector with Escape and restore focus without scrolling. */
   const onKey = (event: KeyboardEvent) => {
     if (event.key !== 'Escape') return;
     // Escape always closes and returns focus to the trigger.
     closePanel();
-    anchor.focus();
+    anchor.focus({ preventScroll: true });
   };
   // Track focus for rebuilds ourselves: shadow-root activeElement reads are
   // not portable, and only threshold inputs carry a category marker.
@@ -444,11 +865,15 @@ function openPanel(post: Post, anchor: HTMLButtonElement, _ctx: ContentScriptCon
   document.addEventListener('pointerdown', outside, { capture: true, signal: panelSignals.signal });
   document.addEventListener('keydown', onKey, { capture: true, signal: panelSignals.signal });
   document.addEventListener('focusin', onFocus, { capture: true, signal: panelSignals.signal });
-  // Follow the post instead of closing: X's feed shifts constantly (new
-  // posts, lazy media), so a plain scroll listener would kill the panel
-  // seconds after opening. Only Escape, outside clicks, or the post
-  // leaving the DOM dismiss it.
-  const onScroll = () => {
+  // Dismiss immediately when the feed scrolls, while allowing the inspector's
+  // own contents to scroll. Wheel/touch intent also dismisses at feed edges.
+  /** Close synchronously for feed movement while allowing inspector interaction. */
+  const dismissOnScroll = (event: Event) => {
+    if (event.composedPath().includes(host)) return;
+    closePanel();
+  };
+  /** Reposition the inspector after a viewport resize. */
+  const onResize = () => {
     if (panelFrame) return;
     panelFrame = requestAnimationFrame(() => {
       panelFrame = 0;
@@ -460,8 +885,13 @@ function openPanel(post: Post, anchor: HTMLButtonElement, _ctx: ContentScriptCon
       placePanel(anchor);
     });
   };
-  window.addEventListener('scroll', onScroll, { capture: true, signal: panelSignals.signal });
-  window.addEventListener('resize', onScroll, { signal: panelSignals.signal });
+  for (const type of ['scroll', 'wheel', 'touchmove'])
+    window.addEventListener(type, dismissOnScroll, {
+      capture: true,
+      passive: true,
+      signal: panelSignals.signal,
+    });
+  window.addEventListener('resize', onResize, { signal: panelSignals.signal });
   stopPanelListeners = () => {
     panelSignals.abort();
     if (panelFrame) cancelAnimationFrame(panelFrame);
@@ -481,6 +911,7 @@ function openPanel(post: Post, anchor: HTMLButtonElement, _ctx: ContentScriptCon
 
 let stopPanelListeners: (() => void) | null = null;
 
+/** Remove inspector listeners and restore the originating control's focus. */
 function closePanel(): void {
   if (!panelHost) {
     openPostId = null;
@@ -505,9 +936,10 @@ function closePanel(): void {
   // Return focus to the button that opened the panel (no-op when focus is
   // already elsewhere, e.g. the user clicked into another control).
   if (anchor?.isConnected && (!document.activeElement || document.activeElement === document.body))
-    anchor.focus();
+    anchor.focus({ preventScroll: true });
 }
 
+/** Build the inspector with temporary reveal and persistent override controls. */
 function renderPanel(post: Post): void {
   const root = panelRoot;
   const host = panelHost;
@@ -551,6 +983,10 @@ function renderPanel(post: Post): void {
   const panel = element('div');
   panel.className = 'panel';
   panel.tabIndex = -1;
+  const revealed = [...bindings.values()].some(
+    (binding) => binding.post === post && binding.revealed,
+  );
+  const panelState = revealed && blocked(post) ? 'Shown temporarily' : stateOf(post);
   const reason = hits(post)
     .map((h) => `${scoreLabel(h.key, settings.current.textFilters)} ${(h.score * 100).toFixed(0)}%`)
     .join(', ');
@@ -564,7 +1000,7 @@ function renderPanel(post: Post): void {
     : '';
   const head = element(
     'div',
-    `${stateOf(post)}${reason ? ` · ${reason}` : ''}${previewReason && !reason ? ` · ${previewReason} (link preview)` : ''}`,
+    `${panelState}${reason ? ` · ${reason}` : ''}${previewReason && !reason ? ` · ${previewReason} (link preview)` : ''}`,
   );
   head.className = 'head';
   const imageCount = post.urls.length + (post.previewUrl ? 1 : 0);
@@ -607,7 +1043,7 @@ function renderPanel(post: Post): void {
       const previewScore = post.previewScores[`custom:${filter.id}`];
       const values: string[] = [];
       if (post.text)
-        values.push(`Post ${score === undefined ? 'not checked' : `${(score * 100).toFixed(1)}%`}`);
+        values.push(score === undefined ? 'not checked' : `${(score * 100).toFixed(1)}%`);
       if (post.previewText)
         values.push(
           `Preview ${previewScore === undefined ? 'not checked' : `${(previewScore * 100).toFixed(1)}%`}`,
@@ -658,6 +1094,18 @@ function renderPanel(post: Post): void {
       )
       .catch(() => {});
   });
+  if (revealed && blocked(post)) {
+    const hide = element('button', 'Hide again');
+    hide.type = 'button';
+    hide.addEventListener('click', () => {
+      for (const binding of bindings.values()) if (binding.post === post) binding.revealed = false;
+      closePanel();
+      renderPostAtUiBoundary(post);
+      const slot = [...bindings.values()].find((binding) => binding.post === post)?.hiddenSlot;
+      slot?.shadowRoot?.querySelector<HTMLButtonElement>('button')?.focus({ preventScroll: true });
+    });
+    foot.append(hide);
+  }
   foot.append(logsLink);
   panel.append(foot);
   const hint = element('p', 'Unblock posts from the logs page.');
@@ -674,7 +1122,7 @@ function renderPanel(post: Post): void {
   }
   if (focusedCategory) {
     const restored = root.querySelector<HTMLInputElement>(`[data-jev-cat="${focusedCategory}"]`);
-    restored?.focus();
+    restored?.focus({ preventScroll: true });
   }
   // Live countdown for retry timers; stops once no retry is pending.
   clearInterval(panelCountdownTimer);
@@ -776,7 +1224,7 @@ export function removeAllUI(): void {
   closePanelIfOpen();
   for (const [article, binding] of bindings) {
     binding.host.remove();
-    article.removeAttribute('data-jev-hidden');
+    restoreBinding(article, binding);
     applyCard(article, binding.post, false);
   }
   bindings.clear();

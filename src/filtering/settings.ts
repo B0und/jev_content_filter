@@ -2,7 +2,14 @@ import { Effect } from 'effect';
 import * as Schema from 'effect/Schema';
 import { BrowserError, browserEffect } from '../platform/browser';
 import { browser } from 'wxt/browser';
-import { FilterStatusSchema, SettingsReplySchema, TextFilterSchema } from './schemas';
+import {
+  AuthorExceptionSchema,
+  AuthorHandleSchema,
+  ScoreKeySchema,
+  FilterStatusSchema,
+  SettingsReplySchema,
+  TextFilterSchema,
+} from './schemas';
 import {
   STORAGE_KEYS,
   defaultSettings,
@@ -87,6 +94,18 @@ export const loadSettings = Effect.fn('loadSettings')(function* () {
     : initialFilters;
 
   return {
+    authorExceptions: Array.isArray(raw.authorExceptions)
+      ? raw.authorExceptions.filter(Schema.is(AuthorExceptionSchema)).map((entry) => ({
+          ...entry,
+          handle: entry.handle.toLowerCase(),
+          categories: [...new Set(entry.categories)],
+        }))
+      : [],
+    skipFollowed:
+      typeof raw.skipFollowed === 'boolean'
+        ? raw.skipFollowed
+        : Array.isArray(raw.followedExemptions) &&
+          raw.followedExemptions.some(Schema.is(ScoreKeySchema)),
     textFilters,
     masterEnabled:
       typeof raw.masterEnabled === 'boolean' ? raw.masterEnabled : defaults.masterEnabled,
@@ -103,9 +122,35 @@ export const loadSettings = Effect.fn('loadSettings')(function* () {
   };
 });
 
+/** Apply field-scoped edits, treating obsolete delayed threshold saves as no-ops. */
 export function applySettingsChange(current: Settings, change: SettingsChange): Settings {
   const next = { ...current };
   switch (change.field) {
+    case 'authorException': {
+      if (
+        !Schema.is(AuthorHandleSchema)(change.handle) ||
+        !Schema.is(ScoreKeySchema)(change.category) ||
+        typeof change.value !== 'boolean'
+      )
+        throw new Error('Invalid author exception.');
+      const handle = change.handle.toLowerCase();
+      const categories = new Set(
+        current.authorExceptions
+          .filter((entry) => entry.handle === handle)
+          .flatMap((entry) => entry.categories),
+      );
+      if (change.value) categories.add(change.category);
+      else categories.delete(change.category);
+      next.authorExceptions = current.authorExceptions.filter((entry) => entry.handle !== handle);
+      if (categories.size) next.authorExceptions.push({ handle, categories: [...categories] });
+      break;
+    }
+    case 'skipFollowed': {
+      if (typeof change.value !== 'boolean')
+        throw new Error('Invalid followed-account preference.');
+      next.skipFollowed = change.value;
+      break;
+    }
     case 'textFilter':
     case 'patchTextFilter': {
       let value;
@@ -113,6 +158,11 @@ export function applySettingsChange(current: Settings, change: SettingsChange): 
         const existing = current.textFilters.find((filter) => filter.id === change.id);
         // A delayed edit must never recreate a rule deleted in another view.
         if (!existing) return current;
+        if (
+          change.expectedThreshold !== undefined &&
+          existing.threshold !== change.expectedThreshold
+        )
+          return current;
         value = { ...existing, ...change.value };
       } else value = change.value;
       if (!Schema.is(TextFilterSchema)(value) || !value.name.trim() || !value.instructions.trim())
@@ -153,6 +203,11 @@ export function applySettingsChange(current: Settings, change: SettingsChange): 
       break;
     case 'threshold':
       if (
+        change.expectedThreshold !== undefined &&
+        current.thresholds[change.category] !== change.expectedThreshold
+      )
+        return current;
+      if (
         !CATEGORY_KEYS.includes(change.category) ||
         !Number.isFinite(change.value) ||
         change.value < 0 ||
@@ -173,8 +228,10 @@ export function applySettingsChange(current: Settings, change: SettingsChange): 
   return next;
 }
 
-/** The worker owns read-modify-write, even when the originating popup closes. */
-export const updateSettings = Effect.fn('updateSettings')(function* (change: SettingsChange) {
+/** Validate the worker receipt for a serialized settings write. */
+const requestSettingsChange = Effect.fn('requestSettingsChange')(function* (
+  change: SettingsChange,
+) {
   const reply: unknown = yield* browserEffect('update settings', () =>
     browser.runtime.sendMessage({ type: 'update-settings', change }),
   );
@@ -188,7 +245,18 @@ export const updateSettings = Effect.fn('updateSettings')(function* (change: Set
       operation: 'update settings',
       cause: reply.error,
     });
-  return reply.settings;
+  return reply;
+});
+
+/** The worker owns read-modify-write, even when the originating popup closes. */
+export const updateSettings = Effect.fn('updateSettings')(function* (change: SettingsChange) {
+  return (yield* requestSettingsChange(change)).settings;
+});
+
+/** Return the exact filter removed inside the worker's write lock for reliable Undo. */
+export const deleteTextFilter = Effect.fn('deleteTextFilter')(function* (id: string) {
+  const reply = yield* requestSettingsChange({ field: 'deleteTextFilter', id });
+  return { settings: reply.settings, filter: reply.deletedFilter };
 });
 
 export const loadStatus = Effect.fn('loadStatus')(function* (): Effect.fn.Return<

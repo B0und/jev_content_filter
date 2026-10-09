@@ -26,13 +26,20 @@ export const ANIME_RATING_MODEL = {
   labels: ['general', 'sensitive', 'questionable', 'explicit'] as const,
 };
 
+export const EXPLICIT_IMAGE_MODEL = {
+  id: 'Marqo/nsfw-image-detection-384',
+  revision: '0c26ec22111b83f106d72a55f611ec35962bcb65',
+  downloadBytes: 22_489_943,
+  sha256: '313c316fa0eab30bf92da132cd5c31e13e8878ecaacf0a27bef2776c063d70fb',
+};
+
 export const SELECTED_MODELS: Record<ModelKind, ModelDescriptor> = {
   image: {
     id: 'nsfwjs/mobilenet_v2',
     revision: 'd55a54c51f14380670064cc129b2ea51029c5e46',
-    title: 'NSFWJS + Anime DBRating',
+    title: 'NSFWJS + Marqo + Anime DBRating',
     description:
-      '19.6 MB of image weights: a 2.7 MB cached NSFWJS download and 16.8 MB of bundled Anime DBRating weights. Anime sensitivity uses a separate rating model.',
+      '42 MB of local image weights. Porn scores require independent Marqo NSFW agreement; Hentai scores require a separate anime explicit-rating check.',
     baseUrl:
       'https://raw.githubusercontent.com/infinitered/nsfwjs/d55a54c51f14380670064cc129b2ea51029c5e46/models/mobilenet_v2',
     sourceUrl:
@@ -56,4 +63,4 @@ export const SELECTED_MODELS: Record<ModelKind, ModelDescriptor> = {
 };
 
 /** Version the whole image pipeline, including routing and score aggregation. */
-export const IMAGE_PIPELINE_REVISION = `${SELECTED_MODELS.image.id}:${SELECTED_MODELS.image.revision}:${ANIME_RATING_MODEL.id}:${ANIME_RATING_MODEL.revision}:routing-v1`;
+export const IMAGE_PIPELINE_REVISION = `${SELECTED_MODELS.image.id}:${SELECTED_MODELS.image.revision}:${ANIME_RATING_MODEL.id}:${ANIME_RATING_MODEL.revision}:verified-explicit-v3:${EXPLICIT_IMAGE_MODEL.revision}:${EXPLICIT_IMAGE_MODEL.sha256}`;

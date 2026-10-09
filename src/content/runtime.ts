@@ -17,9 +17,16 @@ import {
   type TabReport,
 } from '../filtering/types';
 import { canRetry, imageScores, MAX_RETRIES, message, textScores } from './classify';
+import {
+  receiveFollowState,
+  clearFollowStates,
+  configureFollowChannel,
+  FollowBootstrapReplySchema,
+} from './relationships';
 import { readArticle, sameUrls } from './dom';
 import {
   createBinding,
+  restoreBinding,
   injectGlobalStyle,
   installActivation,
   logEffects,
@@ -85,6 +92,7 @@ interface ContentSessionApi {
 class ContentSession extends Context.Service<ContentSession, ContentSessionApi>()(
   'jev/content/ContentSession',
 ) {
+  /** Scope discovery, classification and retries to the lifetime of this content script. */
   static readonly layer = (ctx: ContentScriptContext) =>
     Layer.effect(
       ContentSession,
@@ -122,18 +130,23 @@ class ContentSession extends Context.Service<ContentSession, ContentSessionApi>(
           if (post.partErrors.images.length) post.imagesDone = false;
           if (post.partErrors.preview.length) post.previewDone = false;
         });
-        const detachBinding = Effect.fnUntraced(function* (article: HTMLElement) {
-          const binding = untrackBinding(article);
-          if (!binding) return;
-          binding.host.remove();
-          if (isAttached(binding.post)) return;
-          yield* cancelRetry(binding.post);
-          if (posts.get(binding.post.id) === binding.post) {
-            posts.delete(binding.post.id);
-            posts.set(binding.post.id, binding.post);
-          }
-          if (panelOpenFor(binding.post.id)) closePanelIfOpen();
-        });
+        const detachBinding = Effect.fnUntraced(
+          /** Release controls and reserved geometry before X reuses or removes an article. */ function* (
+            article: HTMLElement,
+          ) {
+            const binding = untrackBinding(article);
+            if (!binding) return;
+            restoreBinding(article, binding);
+            binding.host.remove();
+            if (isAttached(binding.post)) return;
+            yield* cancelRetry(binding.post);
+            if (posts.get(binding.post.id) === binding.post) {
+              posts.delete(binding.post.id);
+              posts.set(binding.post.id, binding.post);
+            }
+            if (panelOpenFor(binding.post.id)) closePanelIfOpen();
+          },
+        );
 
         const evictDetachedPosts = Effect.fnUntraced(function* () {
           let detachedCount = 0;
@@ -548,6 +561,7 @@ class ContentSession extends Context.Service<ContentSession, ContentSessionApi>(
             yield* reportStats();
           });
 
+        /** Install session listeners and discovery under the owned Effect scope. */
         const initialize: ContentSessionApi['initialize'] = (dispatch) =>
           Effect.gen(function* () {
             settings.current = yield* loadSettings();
@@ -593,6 +607,32 @@ class ContentSession extends Context.Service<ContentSession, ContentSessionApi>(
                   dispatch(discover().pipe(Effect.andThen(reportStats())));
               });
             };
+            /** Re-render cached decisions when current-viewer follow policy changes. */
+            const onFollowState = (event: MessageEvent) => {
+              dispatch(
+                Effect.promise(() => receiveFollowState(event)).pipe(
+                  Effect.andThen((changed) =>
+                    Effect.sync(() => {
+                      if (activeCtx !== ctx || ctx.isInvalid || !changed) return;
+                      renderAll();
+                      schedule();
+                    }),
+                  ),
+                ),
+              );
+            };
+            window.addEventListener('message', onFollowState);
+            /** Release this session's page-message subscription during invalidation. */
+            const removeFollowListener = () => window.removeEventListener('message', onFollowState);
+            yield* Scope.addFinalizer(scope, Effect.sync(removeFollowListener));
+            ctx.onInvalidated(removeFollowListener);
+            const bootstrap = yield* browserEffect('bootstrap follow observations', () =>
+              browser.runtime.sendMessage({ type: 'follow-bootstrap' }),
+            ).pipe(Effect.orElseSucceed(() => undefined));
+            if (Schema.is(FollowBootstrapReplySchema)(bootstrap)) {
+              yield* Effect.promise(() => configureFollowChannel(bootstrap.secret));
+              window.postMessage({ type: 'jev-follow-request' }, location.origin);
+            }
             const navigation = window.navigation;
             navigation?.addEventListener('currententrychange', schedule);
             const removeNavigationListener = () =>
@@ -700,12 +740,14 @@ function isOwnMutation(record: MutationRecord): boolean {
 
 // --- Teardown ---------------------------------------------------------------
 
+/** Restore native presentation and release the invalidated content session. */
 function teardown(ctx: ContentScriptContext): void {
   if (activeCtx !== ctx) return;
   observer?.disconnect();
   observer = null;
   activeCtx = null;
   posts.clear();
+  clearFollowStates();
   resetPageStats();
   overrides.clear();
   lastBadgeBlocked = -1;

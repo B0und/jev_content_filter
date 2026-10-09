@@ -13,5 +13,5 @@ test('popup has an intrinsic size when Chrome starts with a tiny viewport', asyn
     const bounds = element.getBoundingClientRect();
     return { width: bounds.width, height: bounds.height };
   });
-  expect(size).toEqual({ width: 400, height: 560 });
+  expect(size).toEqual({ width: 460, height: 590 });
 });

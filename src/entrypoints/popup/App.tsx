@@ -1,29 +1,21 @@
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { Switch } from '@base-ui/react/switch';
 import { Tabs } from '@base-ui/react/tabs';
 import {
-  CATEGORY_LABELS,
   IMAGE_KEYS,
   TEXT_PROVIDER_LABELS,
   TEXT_PROVIDERS,
   isTextProvider,
-  type CategoryKey,
-  type TextFilter,
   type Settings,
-  type SettingsChange,
   type TextProvider,
   type TabReport,
 } from '../../filtering/types';
 import { SELECTED_MODELS } from '../../inference/model-catalog';
 import type { ModelKind, ModelStatus } from '../../inference/contracts';
 import { popupState } from './state';
+import { CustomTextFilters } from './TextFilters';
+import { Category, EngineStatus } from './FilterControls';
+import { Exceptions } from './Exceptions';
 import './popup.css';
 
 const PROVIDER_DETAILS: Record<
@@ -50,61 +42,52 @@ const PROVIDER_DETAILS: Record<
   },
 };
 
-export function App() {
+/** Keep everyday filter controls in the popup and share them with the persistent workspace. */
+export function App({ workspace = false }: { workspace?: boolean }) {
   const state = useSyncExternalStore(
     popupState.subscribe,
     popupState.getSnapshot,
     popupState.getSnapshot,
   );
   const { settings, loadFailed, status, report, missingScript, error, saving, models } = state;
-
+  const [view, setView] = useState('filters');
+  const narrow = useSyncExternalStore(subscribeLayout, isNarrowLayout, () => false);
   useEffect(() => popupState.start(), []);
 
-  if (!settings && loadFailed) {
+  if (!settings)
     return (
-      <main className="popup popup-message-view">
+      <main className={`popup popup-message-view${workspace ? ' workspace' : ''}`}>
         <header className="popup-header">
-          <h1>Jev feed filter</h1>
+          <Brand />
         </header>
         <section className="popup-message">
-          <p role="alert" className="warning">
-            Could not load settings. Check that storage is available, then retry.
-          </p>
-          <button type="button" onClick={() => location.reload()}>
-            Retry
-          </button>
+          {loadFailed ? (
+            <>
+              <h2>Settings are unavailable</h2>
+              <p role="alert">
+                Could not load settings. Check that storage is available, then retry.
+              </p>
+              <button type="button" onClick={() => location.reload()}>
+                Retry
+              </button>
+            </>
+          ) : (
+            <output>Loading your filters…</output>
+          )}
         </section>
-        <footer className="popup-footer popup-message-footer">
-          <button type="button" className="log-button" onClick={popupState.openLogs}>
-            Open logs
-          </button>
-        </footer>
       </main>
     );
-  }
-
-  if (!settings) {
-    return (
-      <main className="popup popup-message-view">
-        <header className="popup-header">
-          <h1>Jev feed filter</h1>
-        </header>
-        <output className="popup-message">Loading settings…</output>
-      </main>
-    );
-  }
 
   const health = scanHealth(settings.masterEnabled, missingScript, report);
   const scanFailed = missingScript || Boolean(report?.failed) || status?.state === 'failing';
-
   return (
-    <main className="popup">
+    <main className={`popup${workspace ? ' workspace' : ''}`}>
       <header className="popup-header">
-        <h1>Jev feed filter</h1>
+        <Brand />
         <div className="master-control">
-          <span>Filtering</span>
+          <span>{settings.masterEnabled ? 'Filtering on' : 'Paused'}</span>
           <Switch.Root
-            className="switch"
+            className="switch master-switch"
             aria-label="Enable filtering"
             checked={settings.masterEnabled}
             onCheckedChange={(checked) =>
@@ -115,325 +98,141 @@ export function App() {
           </Switch.Root>
         </div>
       </header>
-
       <section
-        className={`scan-strip${scanFailed ? ' is-warning' : ''}`}
+        className={`scan-strip${scanFailed ? ' is-warning' : ''}${!settings.masterEnabled ? ' is-paused' : ''}`}
         aria-label="Current tab status"
       >
         <span className="scan-mark" aria-hidden="true" />
         <div className="scan-copy">
-          <span className="scan-label">Current tab</span>
           <output aria-live="polite">{health}</output>
-          {status?.state === 'failing' && (
-            <p className="warning" role="alert">
-              Jev text checks are failing. See Open logs for details. Local AI-text and image checks
-              run separately.
-            </p>
-          )}
         </div>
       </section>
-
-      <Tabs.Root defaultValue="text" className="filter-tabs">
-        <Tabs.List className="popup-tabs" aria-label="Filter type" activateOnFocus>
-          <Tabs.Tab value="text">Text</Tabs.Tab>
+      <Tabs.Root
+        value={view}
+        orientation={workspace && !narrow ? 'vertical' : 'horizontal'}
+        onValueChange={(value) => setView(String(value))}
+        className="filter-tabs"
+      >
+        <Tabs.List className="popup-tabs" aria-label="Filter controls" activateOnFocus>
+          <Tabs.Tab value="filters">Filters</Tabs.Tab>
           <Tabs.Tab value="images">Images</Tabs.Tab>
+          <Tabs.Tab value="settings">Settings</Tabs.Tab>
         </Tabs.List>
-
-        <Tabs.Panel value="text" className="tab-panel" keepMounted>
-          <section className="filter-section" aria-labelledby="ai-text-heading">
-            <div className="section-heading">
-              <h2 id="ai-text-heading">AI-written text</h2>
-              <p>Model files come from Hugging Face; AI checks do not upload post text.</p>
-            </div>
-            <ModelCard kind="aiText" status={models.aiText} />
-            <div className="category-list">
-              <Category category="aiGenerated" settings={settings} update={popupState.update} />
-            </div>
-            <p className="notice">
-              Short text can be falsely flagged. AI scores are estimates, not proof of authorship.
-            </p>
-          </section>
-
-          <CustomTextFilters settings={settings} />
-          <section className="filter-section">
-            <ProviderSettings settings={settings} report={report} />
+        <Tabs.Panel value="filters" className="tab-panel" keepMounted>
+          <CustomTextFilters settings={settings} onSetup={() => setView('settings')} />
+          <section className="filter-section local-filter-section" aria-label="On-device filter">
+            <Category
+              category="aiGenerated"
+              settings={settings}
+              update={popupState.update}
+              modelStatus={models.aiText}
+              onSetup={() => setView('settings')}
+            />
+            <details className="explanation">
+              <summary>How reliable is this?</summary>
+              <p>
+                Short text can be falsely flagged. Scores are estimates, not proof of authorship.
+              </p>
+            </details>
           </section>
         </Tabs.Panel>
-
         <Tabs.Panel value="images" className="tab-panel" keepMounted>
           <section className="filter-section" aria-labelledby="images-heading">
             <div className="section-heading">
-              <h2 id="images-heading">Images</h2>
-              <p>Model files come from the NSFWJS repository. Images are checked on this device.</p>
+              <div>
+                <h2 id="images-heading">Image filters</h2>
+                <p>Hide posts based on their images.</p>
+              </div>
+              <EngineStatus status={models.image} onClick={() => setView('settings')} />
             </div>
-            <ModelCard kind="image" status={models.image} />
-            <p className="notice">
-              An illustration is not automatically explicit. Set each image category separately.
+            <p className="threshold-intro">
+              Lower thresholds hide more. Images stay on your device.
             </p>
-            <div className="threshold-intro">Lower thresholds block more.</div>
             <div className="category-list">
               {IMAGE_KEYS.map((key) => (
                 <Category key={key} category={key} settings={settings} update={popupState.update} />
               ))}
             </div>
+            <p className="quiet-note">
+              Drawings includes illustrations of any kind, not just explicit ones.
+            </p>
           </section>
         </Tabs.Panel>
-      </Tabs.Root>
-
-      <footer className="popup-footer">
-        <div className="footer-main">
-          <div className="counters" aria-live="polite">
-            <div className="count-line">
-              <strong>{report?.pageAnalyzed ?? '—'}</strong> analyzed
-              <span className="count-separator" aria-hidden="true">
-                /
-              </span>
-              <strong>{report?.pageBlocked ?? '—'}</strong> blocked
+        <Tabs.Panel value="settings" className="tab-panel settings-panel" keepMounted>
+          <Exceptions settings={settings} />
+          <section className="filter-section">
+            <div className="section-heading">
+              <div>
+                <h2>Connections & privacy</h2>
+                <p>Choose how your custom filters check posts.</p>
+              </div>
             </div>
-            <p>This tab, since page load</p>
-          </div>
-          <button type="button" className="log-button" onClick={popupState.openLogs}>
-            Open logs
-          </button>
-        </div>
-        {saving && (
-          <output className="footer-message" aria-live="polite">
-            Saving changes…
-          </output>
-        )}
-        {error && (
-          <p className="footer-message warning" role="alert">
-            {error}
-          </p>
-        )}
-        {!saving && !error && (
-          <output className="footer-message" aria-live="polite">
-            Changes save automatically
-          </output>
-        )}
-      </footer>
+            <ProviderSettings settings={settings} />
+          </section>
+          <section className="filter-section">
+            <div className="section-heading">
+              <div>
+                <h2>On-device models</h2>
+                <p>Downloaded once, then checked locally.</p>
+              </div>
+            </div>
+            <ModelCard kind="aiText" status={models.aiText} />
+            <ModelCard kind="image" status={models.image} />
+          </section>
+          {status?.state === 'failing' && (
+            <p className="notice" role="alert">
+              Jev text checks are failing. Open logs for details. Local checks run separately.
+            </p>
+          )}
+        </Tabs.Panel>
+      </Tabs.Root>
+      <PopupFooter
+        report={report}
+        saving={saving}
+        error={error}
+        workspace={workspace}
+        onWorkspace={popupState.openWorkspace}
+      />
     </main>
   );
 }
 
+/** A compact wordmark identifies the toolbar and workspace without consuming a heading row. */
+function Brand() {
+  return (
+    <div className="brand">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M4 5h16M7 12h10M10 19h4" />
+      </svg>
+      <h1>
+        Jev <span>Feed filter</span>
+      </h1>
+    </div>
+  );
+}
+
+/** Describe feed progress without treating unavailable or partially checked feeds as healthy. */
 function scanHealth(enabled: boolean, missingScript: boolean, report: TabReport | null): string {
-  if (!enabled) return 'Paused. Posts are not being filtered.';
+  if (!enabled) return 'Filtering is paused.';
   if (missingScript)
     return 'No filter connected to this tab. Open X, or reload your X tab after updating the extension.';
-  if (!report) return 'Checking this tab…';
+  if (!report) return 'Connecting to this feed…';
   if (report.retrying)
     return `Retrying ${report.retrying} post${report.retrying === 1 ? '' : 's'}…`;
   if (report.failed) return `${report.failed} posts were not fully checked. See the error log.`;
-  if (report.pending) return `Scanning ${report.pending} posts…`;
-  return report.analyzed
-    ? 'Filtering this tab. Use the icon under any post to inspect it.'
-    : 'Waiting for posts. No completed analysis yet.';
+  if (report.pending) return `Checking ${report.pending} post${report.pending === 1 ? '' : 's'}…`;
+  return report.analyzed ? 'Active on this feed.' : 'Ready. Waiting for posts.';
 }
 
-function CustomTextFilters({ settings }: { settings: Settings }) {
-  const [editing, setEditing] = useState<TextFilter | null>(null);
-  const [creating, setCreating] = useState(false);
-  return (
-    <section className="filter-section" aria-labelledby="custom-text-heading">
-      <div className="section-heading">
-        <h2 id="custom-text-heading">Your text filters</h2>
-        <p>
-          Describe posts you want to hide. Jev checks their meaning using the provider below.
-          Filters stay saved after browser restarts.
-        </p>
-      </div>
-      {!settings.providerKeys[settings.textProvider] && (
-        <p className="notice">Add a provider API key below to run these filters.</p>
-      )}
-      <div className="custom-filter-list">
-        {settings.textFilters.map((filter) => (
-          <article className="custom-filter" key={filter.id}>
-            <div className="custom-filter-heading">
-              <Switch.Root
-                className="switch"
-                aria-label={`Enable ${filter.name}`}
-                checked={filter.enabled}
-                onCheckedChange={(enabled) =>
-                  popupState.update({ field: 'patchTextFilter', id: filter.id, value: { enabled } })
-                }
-              >
-                <Switch.Thumb className="thumb" />
-              </Switch.Root>
-              <strong>{filter.name}</strong>
-              <span>{Number((filter.threshold * 100).toFixed(1))}%</span>
-            </div>
-            <p>{filter.instructions}</p>
-            <div className="custom-filter-actions">
-              <button
-                type="button"
-                onClick={() => {
-                  setEditing(filter);
-                  setCreating(false);
-                }}
-              >
-                Edit
-              </button>
-              <button
-                type="button"
-                aria-label={`Delete ${filter.name}`}
-                onClick={() => {
-                  void popupState.update({ field: 'deleteTextFilter', id: filter.id });
-                  if (editing?.id === filter.id) setEditing(null);
-                }}
-              >
-                Delete
-              </button>
-            </div>
-          </article>
-        ))}
-      </div>
-      {creating || editing ? (
-        <TextFilterEditor
-          key={editing?.id ?? 'new'}
-          filter={editing}
-          onClose={() => {
-            setEditing(null);
-            setCreating(false);
-          }}
-        />
-      ) : (
-        <button
-          type="button"
-          disabled={settings.textFilters.length >= 20}
-          onClick={() => setCreating(true)}
-        >
-          Add text filter
-        </button>
-      )}
-      {settings.textFilters.length >= 20 && (
-        <p className="notice">20 filters saved. Delete a filter to add another.</p>
-      )}
-    </section>
-  );
-}
-
-function TextFilterEditor({ filter, onClose }: { filter: TextFilter | null; onClose: () => void }) {
-  const [id] = useState(() => filter?.id ?? crypto.randomUUID());
-  const [editorId] = useState(() => crypto.randomUUID());
-  const active = useRef(true);
-  useEffect(() => {
-    active.current = true;
-    return () => {
-      active.current = false;
-      popupState.dismissEditorError(editorId);
-    };
-  }, [editorId]);
-  const [saving, setSaving] = useState(false);
-  const editedFields = useRef({ name: false, instructions: false, threshold: false });
-  const [name, setName] = useState(filter?.name ?? '');
-  const [instructions, setInstructions] = useState(filter?.instructions ?? '');
-  const [threshold, setThreshold] = useState(String((filter?.threshold ?? 0.65) * 100));
-  return (
-    <form
-      className="text-filter-editor"
-      onSubmit={async (event) => {
-        event.preventDefault();
-        if (saving || !name.trim() || !instructions.trim() || threshold === '') return;
-        setSaving(true);
-        try {
-          const value = {
-            name: name.trim(),
-            instructions: instructions.trim(),
-            threshold: Number(threshold) / 100,
-          };
-          const change: SettingsChange = filter
-            ? {
-                field: 'patchTextFilter',
-                id,
-                value: {
-                  ...(editedFields.current.name ? { name: value.name } : {}),
-                  ...(editedFields.current.instructions
-                    ? { instructions: value.instructions }
-                    : {}),
-                  ...(editedFields.current.threshold ? { threshold: value.threshold } : {}),
-                },
-              }
-            : { field: 'textFilter', value: { id, ...value, enabled: true } };
-          const saved = await popupState.update(change, editorId);
-          if (saved && active.current) onClose();
-        } finally {
-          if (active.current) setSaving(false);
-        }
-      }}
-    >
-      <label htmlFor="filter-name">Filter name</label>
-      <input
-        id="filter-name"
-        required
-        disabled={saving}
-        maxLength={80}
-        value={name}
-        onChange={(event) => {
-          editedFields.current.name = true;
-          setName(event.target.value);
-        }}
-        placeholder="Crypto promotions"
-      />
-      <label htmlFor="filter-instructions">What should be hidden?</label>
-      <textarea
-        id="filter-instructions"
-        required
-        disabled={saving}
-        maxLength={2000}
-        rows={3}
-        value={instructions}
-        onChange={(event) => {
-          editedFields.current.instructions = true;
-          setInstructions(event.target.value);
-        }}
-        placeholder="Posts promoting crypto tokens or get-rich-quick investment schemes"
-      />
-      <label htmlFor="filter-threshold">Block at probability (%)</label>
-      <input
-        id="filter-threshold"
-        type="number"
-        required
-        disabled={saving}
-        min={0}
-        max={100}
-        step={0.1}
-        value={threshold}
-        onChange={(event) => {
-          editedFields.current.threshold = true;
-          setThreshold(event.target.value);
-        }}
-      />
-      <p className="notice">Lower thresholds hide more posts.</p>
-      <div className="custom-filter-actions">
-        <button type="submit" disabled={saving}>
-          {saving ? 'Saving filter…' : 'Save filter'}
-        </button>
-        <button type="button" disabled={saving} onClick={onClose}>
-          Cancel
-        </button>
-      </div>
-    </form>
-  );
-}
-
-function ProviderSettings({ settings, report }: { settings: Settings; report: TabReport | null }) {
+/** Configure text-provider routing and explain which content leaves the device. */
+function ProviderSettings({ settings }: { settings: Settings }) {
   const providerDetails = PROVIDER_DETAILS[settings.textProvider];
   const update = popupState.update;
   return (
-    <details className="diagnostics">
-      <summary>Jev provider and scan details</summary>
+    <div className="diagnostics">
       <p className="provider-scope">
-        Your text filters include words in images (English and Russian) and use this provider and
-        key. AI-written-text checks run locally.
+        Custom filters use a provider. AI-text and image checks stay on this device.
       </p>
-      {report && (
-        <p className="scan-details">
-          {report.pending} pending · {report.failed} incomplete
-          <br />
-          Last scan:{' '}
-          {report.lastScannedAt ? new Date(report.lastScannedAt).toLocaleTimeString() : 'Not yet'}
-        </p>
-      )}
       <div className="provider-field">
         <label htmlFor="text-provider">Provider for Jev text filters</label>
         <select
@@ -455,7 +254,7 @@ function ProviderSettings({ settings, report }: { settings: Settings; report: Ta
       <p className="provider-description">
         {providerDetails.description} Without a key, these text filters are not checked.
       </p>
-    </details>
+    </div>
   );
 }
 
@@ -515,6 +314,7 @@ function EyeIcon({ hidden }: { hidden: boolean }) {
   );
 }
 
+/** Show model readiness with download controls and optional technical details. */
 function ModelCard({ kind, status }: { kind: ModelKind; status: ModelStatus }) {
   const model = SELECTED_MODELS[kind];
   const totalBytes = status.total > 0 ? status.total : model.downloadBytes;
@@ -540,13 +340,16 @@ function ModelCard({ kind, status }: { kind: ModelKind; status: ModelStatus }) {
           >
             {model.title}
           </a>
-          <span className="model-revision">
-            {model.id} · {model.revision}
-          </span>
         </div>
         <span className="model-state">{statusLabel}</span>
       </div>
-      <p className="model-description">{model.description}</p>
+      <details className="model-details">
+        <summary>Model details</summary>
+        <p className="model-description">{model.description}</p>
+        <p className="model-revision">
+          {model.id} · {model.revision}
+        </p>
+      </details>
       {status.state === 'loading' && (
         <div className="model-loading">
           <progress
@@ -581,101 +384,63 @@ function formatMegabytes(bytes: number): string {
   return `${(bytes / 1_000_000).toFixed(1)} MB`;
 }
 
-function Category({
-  category: key,
-  settings,
-  update,
+/** Keep save feedback and secondary actions visible while the filter list scrolls. */
+function PopupFooter({
+  report,
+  saving,
+  error,
+  workspace,
+  onWorkspace,
 }: {
-  category: CategoryKey;
-  settings: Settings;
-  update: (change: SettingsChange) => void;
+  report: TabReport | null;
+  saving: boolean;
+  error: string;
+  workspace: boolean;
+  onWorkspace: () => void;
 }) {
-  const percent = Number((settings.thresholds[key] * 100).toFixed(1));
-  const [draft, setDraft] = useState(String(percent));
-  const [lastSyncedPercent, setLastSyncedPercent] = useState(percent);
-  const pendingPercent = useRef<number | undefined>(undefined);
-  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  // A newer saved threshold wins over an unsaved local edit. Cancel before
-  // painting it so blur/pagehide cannot flush the previous displayed value.
-  useLayoutEffect(() => {
-    clearTimeout(timer.current);
-    timer.current = undefined;
-    pendingPercent.current = undefined;
-  }, [percent]);
-  const flush = useCallback(() => {
-    clearTimeout(timer.current);
-    timer.current = undefined;
-    const value = pendingPercent.current;
-    pendingPercent.current = undefined;
-    if (value !== undefined) update({ field: 'threshold', category: key, value: value / 100 });
-  }, [key, update]);
-  useEffect(() => {
-    window.addEventListener('pagehide', flush);
-    return () => {
-      window.removeEventListener('pagehide', flush);
-      flush();
-    };
-  }, [flush]);
-  if (lastSyncedPercent !== percent) {
-    setLastSyncedPercent(percent);
-    setDraft(String(percent));
-  }
-  const setPercent = (value: number) => {
-    setDraft(String(value));
-    pendingPercent.current = value;
-    clearTimeout(timer.current);
-    timer.current = setTimeout(flush, 400);
-  };
-  const displayedPercent = draft !== '' && Number.isFinite(Number(draft)) ? Number(draft) : percent;
   return (
-    <div className={`category ${settings.enabled[key] ? '' : 'disabled'}`}>
-      <div className="category-label">
-        <Switch.Root
-          className="switch"
-          aria-label={`Enable ${CATEGORY_LABELS[key]}`}
-          checked={settings.enabled[key]}
-          onCheckedChange={(checked) => update({ field: 'enabled', category: key, value: checked })}
+    <footer className="popup-footer">
+      <div className="footer-main">
+        <div
+          className="counters"
+          aria-label="This tab, since page load"
+          title="Since this page loaded"
         >
-          <Switch.Thumb className="thumb" />
-        </Switch.Root>
-        <span>{CATEGORY_LABELS[key]}</span>
+          <span className="counter-scope">This tab</span>
+          <strong>{report?.pageBlocked ?? '—'}</strong> hidden{' '}
+          <span className="count-separator">/</span> {report?.pageAnalyzed ?? '—'} checked
+        </div>
+        <button type="button" className="text-button" onClick={popupState.openLogs}>
+          Open logs
+        </button>
       </div>
-      <div className="threshold">
-        <input
-          type="range"
-          min="0"
-          max="100"
-          step="0.1"
-          value={displayedPercent}
-          disabled={!settings.enabled[key]}
-          aria-label={`${CATEGORY_LABELS[key]} threshold`}
-          onChange={(event) => setPercent(event.target.valueAsNumber)}
-        />
-        <input
-          type="number"
-          min="0"
-          max="100"
-          step="0.1"
-          value={draft}
-          disabled={!settings.enabled[key]}
-          aria-label={`${CATEGORY_LABELS[key]} threshold percent`}
-          onChange={(event) => {
-            setDraft(event.target.value);
-            if (event.target.validity.valid && event.target.value !== '')
-              setPercent(event.target.valueAsNumber);
-            else {
-              clearTimeout(timer.current);
-              pendingPercent.current = undefined;
-            }
-          }}
-          onBlur={() => {
-            const value = pendingPercent.current ?? percent;
-            flush();
-            setDraft(String(value));
-          }}
-        />
-        <span>%</span>
+      <div className="footer-bottom">
+        <output className="footer-message" aria-live="polite">
+          {saving ? 'Saving changes…' : 'Changes save automatically'}
+        </output>
+        {!workspace && (
+          <button type="button" className="text-button workspace-button" onClick={onWorkspace}>
+            Open workspace <span aria-hidden="true">↗</span>
+          </button>
+        )}
       </div>
-    </div>
+      {error && (
+        <p className="footer-message warning" role="alert">
+          {error}
+        </p>
+      )}
+    </footer>
   );
+}
+
+/** Match the workspace tab semantics to its horizontal layout on small screens. */
+function subscribeLayout(listener: () => void): () => void {
+  const query = window.matchMedia('(max-width: 640px)');
+  query.addEventListener('change', listener);
+  return () => query.removeEventListener('change', listener);
+}
+
+/** Read the same media query used by the responsive workspace navigation. */
+function isNarrowLayout(): boolean {
+  return window.matchMedia('(max-width: 640px)').matches;
 }

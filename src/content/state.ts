@@ -1,6 +1,7 @@
 // Shared runtime state and policy for the content filter. Everything the
 // lifecycle, classification, and UI modules agree on lives here so no module
 // reaches into another's internals.
+import { isFollowed } from './relationships';
 import {
   CATEGORY_KEYS,
   defaultSettings,
@@ -44,6 +45,11 @@ export interface Binding {
   button: HTMLButtonElement;
   /** Serialized last-render state; skips identical DOM writes. */
   renderState?: string;
+  hiddenSlot?: HTMLElement;
+  hiddenSizeObserver?: ResizeObserver;
+  retainedElements?: HTMLElement[];
+  preservedCell?: HTMLElement;
+  revealed?: boolean;
 }
 
 export const posts = new Map<string, Post>();
@@ -134,6 +140,17 @@ function customHits(scores: Partial<Record<ScoreKey, number>>) {
   });
 }
 
+/** Exemptions affect decisions, so cached scores remain useful when an exception is removed. */
+export function categoryExempt(post: Post, key: ScoreKey): boolean {
+  const handle = post.handle.toLowerCase();
+  return (
+    settings.current.authorExceptions.some(
+      (entry) => entry.handle === handle && entry.categories.includes(key),
+    ) ||
+    (settings.current.skipFollowed && isFollowed(handle))
+  );
+}
+
 /** Every enabled category the post itself scored at or above its threshold. */
 export function hits(post: Post): Array<{ key: ScoreKey; label?: string; score: number }> {
   return [
@@ -146,7 +163,7 @@ export function hits(post: Post): Array<{ key: ScoreKey; label?: string; score: 
         ? [{ key, score }]
         : [];
     }),
-  ];
+  ].filter((hit) => !categoryExempt(post, hit.key));
 }
 
 /** Same as {@link hits} but against link-preview scores only. */
@@ -161,7 +178,7 @@ export function previewHits(post: Post): Array<{ key: ScoreKey; label?: string; 
         ? [{ key, score }]
         : [];
     }),
-  ];
+  ].filter((hit) => !categoryExempt(post, hit.key));
 }
 
 export function blocked(post: Post): boolean {
