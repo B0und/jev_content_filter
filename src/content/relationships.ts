@@ -6,10 +6,12 @@ export const FollowStateSchema = Schema.Struct({
 });
 export const FollowMessageSchema = Schema.Struct({
   type: Schema.Literal('jev-follow-state'),
+  epoch: Schema.Int,
   users: Schema.Array(FollowStateSchema),
 });
 const record = Schema.is(Schema.Record(Schema.String, Schema.Unknown));
 const followers = new Map<string, boolean>();
+let currentEpoch = -1;
 
 /** Extract explicit viewer-to-author relationships from native X user objects only. */
 export function collectFollowStates(data: unknown): Array<typeof FollowStateSchema.Type> {
@@ -54,7 +56,12 @@ export function receiveFollowState(event: MessageEvent): boolean {
     !Schema.is(FollowMessageSchema)(event.data)
   )
     return false;
-  let changed = false;
+  if (event.data.epoch < 0 || event.data.epoch < currentEpoch) return false;
+  let changed = event.data.epoch !== currentEpoch && followers.size > 0;
+  if (event.data.epoch !== currentEpoch) {
+    followers.clear();
+    currentEpoch = event.data.epoch;
+  }
   for (const user of event.data.users) {
     const handle = user.handle.toLowerCase();
     if (followers.get(handle) !== user.following) changed = true;
@@ -64,6 +71,7 @@ export function receiveFollowState(event: MessageEvent): boolean {
   return changed;
 }
 
+/** Unknown authors and previous-viewer relationships never grant exemptions. */
 export function isFollowed(handle: string): boolean {
   return followers.get(handle.toLowerCase()) === true;
 }
@@ -71,4 +79,5 @@ export function isFollowed(handle: string): boolean {
 /** Page relationships are never persisted across accounts or browsing sessions. */
 export function clearFollowStates(): void {
   followers.clear();
+  currentEpoch = -1;
 }

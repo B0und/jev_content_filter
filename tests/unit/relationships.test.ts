@@ -44,7 +44,7 @@ it('unknown accounts stay filtered, then follow/unfollow updates both body and p
     new MessageEvent('message', {
       source: window,
       origin: location.origin,
-      data: { type: 'jev-follow-state', users: [{ handle: 'reader', following }] },
+      data: { type: 'jev-follow-state', epoch: 1, users: [{ handle: 'reader', following }] },
     });
   expect(receiveFollowState(message(true))).toBe(true);
   expect(isFollowed('READER')).toBe(true);
@@ -58,7 +58,11 @@ it('rejects invalid or foreign-window messages and never grants an exception to 
   expect(
     receiveFollowState(
       new MessageEvent('message', {
-        data: { type: 'jev-follow-state', users: [{ handle: 'reader', following: true }] },
+        data: {
+          type: 'jev-follow-state',
+          epoch: 1,
+          users: [{ handle: 'reader', following: true }],
+        },
       }),
     ),
   ).toBe(false);
@@ -77,4 +81,23 @@ it('modern relationship perspective owns state over conflicting nested legacy fi
       relationship_perspectives: { following: false },
     }),
   ).toEqual([{ handle: 'reader', following: false }]);
+});
+
+it('clears previous-viewer follows and rejects obsolete epochs', () => {
+  const send = (epoch: number, users: Array<{ handle: string; following: boolean }>) =>
+    receiveFollowState(
+      new MessageEvent('message', {
+        source: window,
+        origin: location.origin,
+        data: { type: 'jev-follow-state', epoch, users },
+      }),
+    );
+  send(1, [{ handle: 'reader', following: true }]);
+  expect(isFollowed('reader')).toBe(true);
+  expect(send(2, [])).toBe(true);
+  expect(isFollowed('reader')).toBe(false);
+  expect(send(1, [{ handle: 'reader', following: true }])).toBe(false);
+  expect(isFollowed('reader')).toBe(false);
+  send(2, [{ handle: 'reader', following: true }]);
+  expect(isFollowed('reader')).toBe(true);
 });

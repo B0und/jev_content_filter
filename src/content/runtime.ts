@@ -556,6 +556,7 @@ class ContentSession extends Context.Service<ContentSession, ContentSessionApi>(
             yield* reportStats();
           });
 
+        /** Install session listeners and discovery under the owned Effect scope. */
         const initialize: ContentSessionApi['initialize'] = (dispatch) =>
           Effect.gen(function* () {
             settings.current = yield* loadSettings();
@@ -601,12 +602,14 @@ class ContentSession extends Context.Service<ContentSession, ContentSessionApi>(
                   dispatch(discover().pipe(Effect.andThen(reportStats())));
               });
             };
+            /** Re-render cached decisions when current-viewer follow policy changes. */
             const onFollowState = (event: MessageEvent) => {
               if (activeCtx !== ctx || ctx.isInvalid || !receiveFollowState(event)) return;
               renderAll();
               schedule();
             };
             window.addEventListener('message', onFollowState);
+            /** Release this session's page-message subscription during invalidation. */
             const removeFollowListener = () => window.removeEventListener('message', onFollowState);
             yield* Scope.addFinalizer(scope, Effect.sync(removeFollowListener));
             ctx.onInvalidated(removeFollowListener);
@@ -718,6 +721,7 @@ function isOwnMutation(record: MutationRecord): boolean {
 
 // --- Teardown ---------------------------------------------------------------
 
+/** Restore native presentation and release the invalidated content session. */
 function teardown(ctx: ContentScriptContext): void {
   if (activeCtx !== ctx) return;
   observer?.disconnect();

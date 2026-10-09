@@ -270,6 +270,7 @@ function retainPostControls(article: HTMLElement, binding: Binding): void {
     element.removeAttribute('data-jev-retained');
   // Quotes can contain their own avatars, timestamps and action groups.
   // Retaining those would expose filtered content and shrink the body mask.
+  /** Exclude nested quoted-post controls from the retained author and actions. */
   const original = (element: HTMLElement) =>
     element.closest('article') === article &&
     !article.contains(element.closest('div[role="link"]'));
@@ -781,6 +782,7 @@ export function installActivation(ctx: ContentScriptContext): void {
   );
 }
 
+/** Open one inspector anchored to a native post without changing feed layout. */
 function openPanel(post: Post, anchor: HTMLButtonElement, _ctx: ContentScriptContext): void {
   closePanel();
   openPostId = post.id;
@@ -800,6 +802,7 @@ function openPanel(post: Post, anchor: HTMLButtonElement, _ctx: ContentScriptCon
     if (panelHost?.contains(event.target) || event.composedPath().includes(anchor)) return;
     closePanel();
   };
+  /** Dismiss the inspector with Escape and restore focus without scrolling. */
   const onKey = (event: KeyboardEvent) => {
     if (event.key !== 'Escape') return;
     // Escape always closes and returns focus to the trigger.
@@ -817,10 +820,12 @@ function openPanel(post: Post, anchor: HTMLButtonElement, _ctx: ContentScriptCon
   document.addEventListener('focusin', onFocus, { capture: true, signal: panelSignals.signal });
   // Dismiss immediately when the feed scrolls, while allowing the inspector's
   // own contents to scroll. Wheel/touch intent also dismisses at feed edges.
+  /** Close synchronously for feed movement while allowing inspector interaction. */
   const dismissOnScroll = (event: Event) => {
     if (event.composedPath().includes(host)) return;
     closePanel();
   };
+  /** Reposition the inspector after a viewport resize. */
   const onResize = () => {
     if (panelFrame) return;
     panelFrame = requestAnimationFrame(() => {
@@ -859,6 +864,7 @@ function openPanel(post: Post, anchor: HTMLButtonElement, _ctx: ContentScriptCon
 
 let stopPanelListeners: (() => void) | null = null;
 
+/** Remove inspector listeners and restore the originating control's focus. */
 function closePanel(): void {
   if (!panelHost) {
     openPostId = null;

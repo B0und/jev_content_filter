@@ -151,6 +151,7 @@ export const CATEGORY_LABELS: Record<CategoryKey, string> = {
 export const CATEGORY_KEYS: CategoryKey[] = ['porn', 'hentai', 'sexy', 'drawings', 'aiGenerated'];
 export const IMAGE_KEYS: CategoryKey[] = ['porn', 'hentai', 'sexy', 'drawings'];
 export const TEXT_KEYS: CategoryKey[] = ['aiGenerated'];
+/** Return fresh default configuration with author and followed exemptions disabled. */
 export function defaultSettings(): Settings {
   return {
     authorExceptions: [],

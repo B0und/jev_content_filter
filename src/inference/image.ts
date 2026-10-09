@@ -129,6 +129,7 @@ function animeInput(bitmap: ImageBitmap): ort.Tensor {
   return new ort.Tensor('float32', data, [1, 3, ANIME_SIZE, ANIME_SIZE]);
 }
 
+/** Load local image classifiers and retain lazy independent rating verification. */
 export async function loadImageModel(
   onProgress: (loaded: number, total: number) => void,
 ): Promise<ImageClassifier> {
@@ -142,6 +143,7 @@ export async function loadImageModel(
   const canvas = new OffscreenCanvas(1, 1);
   const context = canvas.getContext('2d', { willReadFrequently: true });
   if (!context) throw new Error('Image decoding is unavailable in this browser.');
+  /** Decode one image and verify plausible drawn content before reporting Hentai. */
   const classify = async (dataUrl: string): Promise<ImageClassification> => {
     const response = await fetch(dataUrl);
     if (!response.ok) throw new Error(`Image decoding failed (${response.status}).`);

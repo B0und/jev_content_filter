@@ -92,7 +92,9 @@ test('native fetch and XHR relationships drive selective followed-account except
   await page.route('https://x.com/home', (route) =>
     route.fulfill({
       contentType: 'text/html',
-      body: fixture + `<script>fetch('/i/api/graphql/test/User')</script>`,
+      body:
+        fixture +
+        `<a data-testid="AppTabBar_Profile_Link" href="/viewerA">Profile</a><script>fetch('/i/api/graphql/test/User')</script>`,
     }),
   );
   await page.goto('https://x.com/home');
@@ -142,5 +144,61 @@ test('native fetch and XHR relationships drive selective followed-account except
   oldResponse.resolve();
   await oldDelivered;
   await page.evaluate(() => new Promise((resolve) => setTimeout(resolve, 100)));
+  await expect(page.locator('[data-jev-hidden-slot]')).toHaveCount(3);
+});
+
+test('switching the active viewer invalidates follows and rejects old-account responses', async ({
+  page,
+  worker,
+  setSettings,
+}) => {
+  expect(worker.url()).toContain('chrome-extension:');
+  const settings = remoteSettings();
+  settings.providerKeys.vercel = 'test-only-not-a-real-key';
+  settings.followedExemptions = settings.textFilters.map((f) => `custom:${f.id}` as const);
+  await setSettings(settings);
+  await page.route('https://x.com/home', (route) =>
+    route.fulfill({
+      contentType: 'text/html',
+      body: fixture + '<a data-testid="AppTabBar_Profile_Link" href="/viewerA">Profile</a>',
+    }),
+  );
+  const oldResponse = Promise.withResolvers<void>();
+  const oldStarted = Promise.withResolvers<void>();
+  await page.route('https://x.com/i/api/graphql/test/OldViewer', async (route) => {
+    oldStarted.resolve();
+    await oldResponse.promise;
+    await route.fulfill({ json: { legacy: { screen_name: 'Reader', following: true } } });
+  });
+  await page.route('https://x.com/i/api/graphql/test/NewViewer', (route) =>
+    route.fulfill({ json: { legacy: { screen_name: 'Reader', following: true } } }),
+  );
+  await page.goto('https://x.com/home');
+  await page.evaluate(async () => {
+    await fetch('/i/api/graphql/test/NewViewer');
+  });
+  await expect(page.locator('[data-jev-hidden-slot]')).toHaveCount(1);
+  await page.evaluate(() => {
+    void fetch('/i/api/graphql/test/OldViewer');
+  });
+  await oldStarted.promise;
+  await page
+    .locator('[data-testid=AppTabBar_Profile_Link]')
+    .evaluate((e) => e.setAttribute('href', '/viewerB'));
+  await expect(page.locator('[data-jev-hidden-slot]')).toHaveCount(3);
+  const delivered = page.waitForResponse('https://x.com/i/api/graphql/test/OldViewer');
+  oldResponse.resolve();
+  await delivered;
+  await page.evaluate(() => new Promise((resolve) => setTimeout(resolve, 100)));
+  await expect(page.locator('[data-jev-hidden-slot]')).toHaveCount(3);
+  await page.evaluate(async () => {
+    await fetch('/i/api/graphql/test/NewViewer');
+  });
+  await expect(page.locator('[data-jev-hidden-slot]')).toHaveCount(1);
+  await page.locator('[data-testid=AppTabBar_Profile_Link]').evaluate((e) => e.remove());
+  await expect(page.locator('[data-jev-hidden-slot]')).toHaveCount(3);
+  await page.evaluate(async () => {
+    await fetch('/i/api/graphql/test/NewViewer');
+  });
   await expect(page.locator('[data-jev-hidden-slot]')).toHaveCount(3);
 });

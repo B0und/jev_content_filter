@@ -2,9 +2,11 @@
 
 Research date: 2026-10-08. The reported post was classified as Hentai 97% across four images. The user says its images contain no hentai. This note audits the classifier and primary-source alternatives; it does not claim to have independently inspected or measured those four images.
 
-## The current verification misses the case it should check
+## The pre-repair verification missed the case it should check
 
-In `src/inference/image.ts`, NSFWJS provides five mutually competing classes. The companion Anime DBRating model runs only when `Drawing >= 0.5`. A Hentai score of 0.97 therefore bypasses that model entirely. Even when the companion runs, the implementation changes only `sexy`; it never verifies `hentai`. This is a concrete routing gap, independent of which model proves best on the reported images.
+Before the repair, the companion Anime DBRating model ran only when NSFWJS reported `Drawing >= 0.5`. A Hentai score of 0.97 could therefore bypass it. Even when the companion ran, it changed only `sexy` and never verified `hentai`.
+
+The repaired `src/inference/image.ts` routes on combined `Drawing + Hentai` evidence and bounds `scores.hentai` by the independent explicit rating. Failed verification omits the Hentai score and reports a warning; the pipeline revision excludes obsolete cached scores. This agreement rule is not a calibrated probability.
 
 NSFWJS defines Drawing as safe drawings/anime and Hentai as pornographic drawings. Those separate classes cannot make a Drawing-only gate cover likely Hentai. Its published aggregate accuracy is not a guarantee about a high-confidence individual prediction. [NSFWJS source and class definitions](https://github.com/infinitered/nsfwjs)
 
