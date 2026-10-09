@@ -1,49 +1,144 @@
 import { defineContentScript } from 'wxt/utils/define-content-script';
 import { collectFollowStates } from '../content/relationships';
 
-/** Observe X's existing responses without extra requests, cookies or credentials. */
+declare global {
+  interface Window {
+    __jevFollowBootstrap?: (secret: number[]) => boolean;
+  }
+}
+
+/** Capture native observers before page scripts; only extension-delivered keys sign updates. */
 export default defineContentScript({
   matches: ['https://x.com/*', 'https://twitter.com/*'],
   runAt: 'document_start',
   world: 'MAIN',
-  /** Observe native responses and keep relationships within the active viewer epoch. */
   main() {
+    const importKey = crypto.subtle.importKey.bind(crypto.subtle);
+    const sign = crypto.subtle.sign.bind(crypto.subtle);
+    const encode = new TextEncoder().encode.bind(new TextEncoder());
+    const nativeFetch = window.fetch.bind(window);
+    // oxlint-disable-next-line typescript/unbound-method -- invoked through captured Reflect.apply with its Response receiver.
+    const clone = Response.prototype.clone;
+    // oxlint-disable-next-line typescript/unbound-method -- captured getter uses the native Response receiver.
+    const responseOk = Object.getOwnPropertyDescriptor(Response.prototype, 'ok')!.get!;
+    // oxlint-disable-next-line typescript/unbound-method -- captured getter uses the native Response receiver.
+    const responseURL = Object.getOwnPropertyDescriptor(Response.prototype, 'url')!.get!;
+    // oxlint-disable-next-line typescript/unbound-method -- invoked through captured Reflect.apply with its Response receiver.
+    const json = Response.prototype.json;
+    // oxlint-disable-next-line typescript/unbound-method -- invoked through captured Reflect.apply with its Promise receiver.
+    const then = Promise.prototype.then;
+    const apply = Reflect.apply;
+    const Uint8 = Uint8Array;
+    const postMessage = window.postMessage.bind(window);
+    // oxlint-disable-next-line typescript/unbound-method -- invoked through captured Reflect.apply with its original receiver.
+    const getAttribute = Element.prototype.getAttribute;
+    const querySelector = document.querySelector.bind(document);
+    // oxlint-disable-next-line typescript/unbound-method -- invoked through captured Reflect.apply with its original receiver.
+    const exec = RegExp.prototype.exec;
+    const define = Object.defineProperty;
+    // oxlint-disable-next-line typescript/unbound-method -- invoked with its original string receiver.
+    const lower = String.prototype.toLowerCase;
+    const api = /^https:\/\/(?:x\.com|twitter\.com)\/i\/api\/(graphql|1\.1)\//;
+    const profilePath = /^\/([a-zA-Z0-9_]{1,15})\/?$/;
     const users = new Map<string, { following: boolean; sequence: number }>();
-    let requestSequence = 0;
+    const get = users.get.bind(users),
+      set = users.set.bind(users),
+      clear = users.clear.bind(users),
+      remove = users.delete.bind(users),
+      forEach = users.forEach.bind(users);
+    const ownKeys = users.keys.bind(users);
+    const iteratorNext = Object.getPrototypeOf(users.keys()).next;
+    let signingKey: Promise<CryptoKey> | null = null;
+    let messageSequence = 0,
+      requestSequence = 0,
+      epoch = 0;
     let viewer: string | null = null;
-    let epoch = 0;
-    /** Fail closed when X changes or removes its own active-profile navigation. */
+    /** Read the captured map without mutable page-side iteration helpers. */
+    const snapshot = () => {
+      const result: Array<{ handle: string; following: boolean }> = [];
+      forEach((state, handle) => {
+        define(result, result.length, {
+          value: { handle, following: state.following },
+          enumerable: true,
+        });
+      });
+      return result;
+    };
+    /** Canonical ASCII serialization avoids page-controlled toJSON hooks. */
+    const send = (updates: Array<{ handle: string; following: boolean }>) => {
+      if (!signingKey) return;
+      let rows = '';
+      for (let i = 0; i < updates.length; i++) {
+        const u = updates[i]!;
+        rows +=
+          (i ? ',' : '') +
+          '{"handle":"' +
+          u.handle +
+          '","following":' +
+          (u.following ? 'true' : 'false') +
+          '}';
+      }
+      const payload =
+        '{"epoch":' + epoch + ',"sequence":' + ++messageSequence + ',"users":[' + rows + ']}';
+      apply(then, signingKey, [
+        (key: CryptoKey) => {
+          apply(then, sign('HMAC', key, encode(payload)), [
+            (mac: ArrayBuffer) => {
+              const bytes = new Uint8(mac),
+                signature: number[] = [];
+              for (let i = 0; i < bytes.length; i++)
+                define(signature, i, { value: bytes[i]!, enumerable: true });
+              postMessage({ type: 'jev-follow-state', payload, signature }, location.origin);
+            },
+            () => {},
+          ]);
+        },
+        () => {},
+      ]);
+    };
+    /** Invalidate relationship observations when X's active profile changes or disappears. */
     const refreshViewer = () => {
-      const href = document
-        .querySelector('[data-testid="AppTabBar_Profile_Link"]')
-        ?.getAttribute('href');
-      const match = href?.match(/^\/([a-zA-Z0-9_]{1,15})\/?$/);
-      const current = match?.[1]?.toLowerCase() ?? null;
+      const profile = querySelector('[data-testid="AppTabBar_Profile_Link"]');
+      const href = profile ? apply(getAttribute, profile, ['href']) : null;
+      const match = typeof href === 'string' ? apply(exec, profilePath, [href]) : null;
+      const current = match?.[1] ? apply(lower, match[1], []) : null;
       if (current === viewer) return;
       viewer = current;
       epoch++;
-      users.clear();
-      window.postMessage({ type: 'jev-follow-state', epoch, users: [] }, location.origin);
+      clear();
+      send([]);
     };
-    const viewerObserver = new MutationObserver(refreshViewer);
-    viewerObserver.observe(document, {
+    new MutationObserver(refreshViewer).observe(document, {
       childList: true,
       subtree: true,
       attributes: true,
       attributeFilter: ['href', 'data-testid'],
     });
-    /** Ignore earlier-viewer and older per-author responses before publishing. */
+    /** Accept only current-viewer native responses and preserve request-start ordering. */
     const publish = (data: unknown, sequence: number, requestEpoch: number) => {
       refreshViewer();
       if (!viewer || requestEpoch !== epoch) return;
-      const updates = collectFollowStates(data).filter(
-        (user) => sequence >= (users.get(user.handle)?.sequence ?? -1),
-      );
-      if (!updates.length) return;
-      for (const user of updates) users.set(user.handle, { following: user.following, sequence });
-      // Retain only a bounded page-local handshake buffer.
-      while (users.size > 5000) users.delete(users.keys().next().value!);
-      window.postMessage({ type: 'jev-follow-state', epoch, users: updates }, location.origin);
+      const updates = collectFollowStates(data);
+      let changed = false;
+      for (let i = 0; i < updates.length; i++) {
+        const u = updates[i]!;
+        if (sequence < (get(u.handle)?.sequence ?? -1)) continue;
+        set(u.handle, { following: u.following, sequence });
+        changed = true;
+      }
+      while (users.size > 5000) {
+        const iterator = ownKeys();
+        const oldest = apply(iteratorNext, iterator, []);
+        if (
+          oldest &&
+          typeof oldest === 'object' &&
+          'value' in oldest &&
+          typeof oldest.value === 'string'
+        )
+          remove(oldest.value);
+        else break;
+      }
+      if (changed) send(snapshot());
     };
     window.addEventListener('message', (event) => {
       if (
@@ -52,63 +147,89 @@ export default defineContentScript({
         event.data?.type === 'jev-follow-request'
       ) {
         refreshViewer();
-        window.postMessage(
-          {
-            type: 'jev-follow-state',
-            epoch,
-            users: [...users].map(([handle, state]) => ({ handle, following: state.following })),
-          },
-          location.origin,
-        );
+        send(snapshot());
       }
     });
-    const nativeFetch = window.fetch;
     window.fetch = async function (...args) {
       refreshViewer();
-      const requestEpoch = epoch;
-      const sequence = ++requestSequence;
-      const response = await nativeFetch.apply(this, args);
-      if (response.ok && /\/i\/api\/(graphql|1\.1)\//.test(response.url)) {
-        void response
-          .clone()
-          .json()
-          .then((data) => publish(data, sequence, requestEpoch))
-          .catch(() => {});
+      const requestEpoch = epoch,
+        sequence = ++requestSequence;
+      const response = await nativeFetch(...args);
+      if (apply(responseOk, response, []) && apply(exec, api, [apply(responseURL, response, [])])) {
+        const body = apply(json, apply(clone, response, []), []);
+        void apply(then, body, [
+          (data: unknown) => publish(data, sequence, requestEpoch),
+          () => {},
+        ]);
       }
       return response;
     };
-    // oxlint-disable-next-line typescript/unbound-method -- invoked with each original XHR receiver.
+    // oxlint-disable-next-line typescript/unbound-method -- invoked through captured Reflect.apply with the original XHR receiver.
     const nativeOpen = XMLHttpRequest.prototype.open;
+    // oxlint-disable-next-line typescript/unbound-method -- invoked through captured Reflect.apply with its original receiver.
+    const addListener = XMLHttpRequest.prototype.addEventListener;
+    const parse = JSON.parse;
+    /* oxlint-disable typescript/unbound-method -- native getters invoked through captured Reflect.apply with the original XHR receiver. */
+    const responseUrl = Object.getOwnPropertyDescriptor(
+      XMLHttpRequest.prototype,
+      'responseURL',
+    )!.get!;
+    const responseStatus = Object.getOwnPropertyDescriptor(
+      XMLHttpRequest.prototype,
+      'status',
+    )!.get!;
+    const responseType = Object.getOwnPropertyDescriptor(
+      XMLHttpRequest.prototype,
+      'responseType',
+    )!.get!;
+    const responseText = Object.getOwnPropertyDescriptor(
+      XMLHttpRequest.prototype,
+      'responseText',
+    )!.get!;
+    /* oxlint-enable typescript/unbound-method */
     XMLHttpRequest.prototype.open = function (
       method: string,
       url: string | URL,
-      async: boolean = true,
+      async = true,
       username: string | null = null,
       password: string | null = null,
     ) {
       refreshViewer();
-      const requestEpoch = epoch;
-      const sequence = ++requestSequence;
-      this.addEventListener(
+      const requestEpoch = epoch,
+        sequence = ++requestSequence;
+      apply(addListener, this, [
         'load',
         () => {
-          if (
-            this.status < 200 ||
-            this.status >= 300 ||
-            !/\/i\/api\/(graphql|1\.1)\//.test(this.responseURL)
-          )
+          const status = apply(responseStatus, this, []);
+          if (status < 200 || status >= 300 || !apply(exec, api, [apply(responseUrl, this, [])]))
             return;
           try {
-            if (this.responseType === 'json') publish(this.response, sequence, requestEpoch);
-            else if (!this.responseType || this.responseType === 'text')
-              publish(JSON.parse(this.responseText), sequence, requestEpoch);
+            const type = apply(responseType, this, []);
+            // JSON-mode XHR exposes a mutable object to earlier page listeners; ignore it.
+            if (!type || type === 'text')
+              publish(parse(apply(responseText, this, [])), sequence, requestEpoch);
           } catch {
-            /* Non-JSON responses do not provide a relationship. */
+            /* Ignore non-JSON native responses. */
           }
         },
         { once: true },
-      );
-      nativeOpen.call(this, method, url, async, username, password);
+      ]);
+      apply(nativeOpen, this, [method, url, async, username, password]);
     };
+    /** The background supplies this key through scripting, never through page messages. */
+    const bootstrap = (secret: number[]) => {
+      if (signingKey) return false;
+      const bytes = new Uint8(32);
+      for (let i = 0; i < 32; i++) bytes[i] = secret[i]!;
+      signingKey = importKey('raw', bytes, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+      refreshViewer();
+      send(snapshot());
+      return true;
+    };
+    define(window, '__jevFollowBootstrap', {
+      value: bootstrap,
+      writable: false,
+      configurable: false,
+    });
   },
 });

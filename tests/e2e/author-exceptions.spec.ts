@@ -15,8 +15,20 @@ test('author exceptions require confirmation, persist, stay category scoped and 
   const settings = remoteSettings();
   settings.providerKeys.vercel = 'test-only-not-a-real-key';
   settings.textFilters = [
-    { id: 'first', name: 'First', instructions: 'BLOCK_TEXT', threshold: 0.65, enabled: true },
-    { id: 'second', name: 'Second', instructions: 'BLOCK_TEXT', threshold: 0.65, enabled: true },
+    {
+      id: 'first',
+      name: 'First',
+      instructions: 'BLOCK_TEXT',
+      threshold: 0.65,
+      enabled: true,
+    },
+    {
+      id: 'second',
+      name: 'Second',
+      instructions: 'BLOCK_TEXT',
+      threshold: 0.65,
+      enabled: true,
+    },
   ];
   await setSettings(settings);
   await page.route('https://x.com/home', (route) =>
@@ -59,7 +71,10 @@ test('author exceptions require confirmation, persist, stay category scoped and 
   await popup.goto(`chrome-extension://${extensionId}/popup.html`);
   await popup.getByRole('tab', { name: 'Settings', exact: true }).click();
   await popup
-    .getByRole('button', { name: 'Remove Second exception for @reader', exact: true })
+    .getByRole('button', {
+      name: 'Remove Second exception for @reader',
+      exact: true,
+    })
     .click();
   await expect(page.locator('[data-jev-hidden-slot]')).toHaveCount(3);
 });
@@ -75,8 +90,20 @@ test('native fetch and XHR relationships drive selective followed-account except
   const settings = remoteSettings();
   settings.providerKeys.vercel = 'test-only-not-a-real-key';
   settings.textFilters = [
-    { id: 'first', name: 'First', instructions: 'BLOCK_TEXT', threshold: 0.65, enabled: true },
-    { id: 'second', name: 'Second', instructions: 'BLOCK_TEXT', threshold: 0.65, enabled: true },
+    {
+      id: 'first',
+      name: 'First',
+      instructions: 'BLOCK_TEXT',
+      threshold: 0.65,
+      enabled: true,
+    },
+    {
+      id: 'second',
+      name: 'Second',
+      instructions: 'BLOCK_TEXT',
+      threshold: 0.65,
+      enabled: true,
+    },
   ];
   await setSettings(settings);
   let following = true;
@@ -84,7 +111,11 @@ test('native fetch and XHR relationships drive selective followed-account except
     route.fulfill({
       json: {
         data: {
-          user: { result: { legacy: { screen_name: 'Reader', following, followed_by: false } } },
+          user: {
+            result: {
+              legacy: { screen_name: 'Reader', following, followed_by: false },
+            },
+          },
         },
       },
     }),
@@ -103,14 +134,20 @@ test('native fetch and XHR relationships drive selective followed-account except
   await popup.goto(`chrome-extension://${extensionId}/popup.html`);
   await popup.getByRole('tab', { name: 'Settings', exact: true }).click();
   await popup
-    .getByRole('switch', { name: 'Skip First for followed accounts', exact: true })
+    .getByRole('switch', {
+      name: 'Skip First for followed accounts',
+      exact: true,
+    })
     .click();
   await expect(page.locator('[data-jev-hidden-slot]').first().locator('p')).not.toContainText(
     'First',
   );
   await expect(page.locator('[data-jev-hidden-slot]')).toHaveCount(3);
   await popup
-    .getByRole('switch', { name: 'Skip Second for followed accounts', exact: true })
+    .getByRole('switch', {
+      name: 'Skip Second for followed accounts',
+      exact: true,
+    })
     .click();
   await expect(page.locator('[data-jev-hidden-slot]')).toHaveCount(1);
   await page.reload();
@@ -121,7 +158,13 @@ test('native fetch and XHR relationships drive selective followed-account except
     oldStarted.resolve();
     await oldResponse.promise;
     await route.fulfill({
-      json: { data: { user: { result: { legacy: { screen_name: 'Reader', following: true } } } } },
+      json: {
+        data: {
+          user: {
+            result: { legacy: { screen_name: 'Reader', following: true } },
+          },
+        },
+      },
     });
   });
   await page.evaluate(() => {
@@ -165,13 +208,44 @@ test('switching the active viewer invalidates follows and rejects old-account re
   );
   const oldResponse = Promise.withResolvers<void>();
   const oldStarted = Promise.withResolvers<void>();
+  const oldProcessed = Promise.withResolvers<void>();
+  await page.exposeFunction('jevOldViewerProcessed', () => oldProcessed.resolve());
+  await page.addInitScript(() => {
+    // oxlint-disable-next-line typescript/unbound-method -- invoked below with the original Response receiver.
+    const json = Response.prototype.json;
+    const tracked = new WeakSet<Promise<unknown>>();
+    Response.prototype.json = function () {
+      const promise = json.call(this);
+      if (this.url.endsWith('/OldViewer')) tracked.add(promise);
+      return promise;
+    };
+    // oxlint-disable-next-line typescript/unbound-method -- called with the original Promise receiver.
+    const nativeThen = Promise.prototype.then;
+    // oxlint-disable-next-line unicorn/no-thenable -- observes completion of an existing native Promise consumer.
+    Promise.prototype.then = function (...args) {
+      const result = Reflect.apply(nativeThen, this, args);
+      if (tracked.has(this)) {
+        tracked.delete(this);
+        const complete = () => {
+          const callback = Reflect.get(window, 'jevOldViewerProcessed');
+          if (typeof callback === 'function') void callback();
+        };
+        void Reflect.apply(nativeThen, result, [complete, complete]);
+      }
+      return result;
+    };
+  });
   await page.route('https://x.com/i/api/graphql/test/OldViewer', async (route) => {
     oldStarted.resolve();
     await oldResponse.promise;
-    await route.fulfill({ json: { legacy: { screen_name: 'Reader', following: true } } });
+    await route.fulfill({
+      json: { legacy: { screen_name: 'Reader', following: true } },
+    });
   });
   await page.route('https://x.com/i/api/graphql/test/NewViewer', (route) =>
-    route.fulfill({ json: { legacy: { screen_name: 'Reader', following: true } } }),
+    route.fulfill({
+      json: { legacy: { screen_name: 'Reader', following: true } },
+    }),
   );
   await page.goto('https://x.com/home');
   await page.evaluate(async () => {
@@ -189,7 +263,7 @@ test('switching the active viewer invalidates follows and rejects old-account re
   const delivered = page.waitForResponse('https://x.com/i/api/graphql/test/OldViewer');
   oldResponse.resolve();
   await delivered;
-  await page.evaluate(() => new Promise((resolve) => setTimeout(resolve, 100)));
+  await oldProcessed.promise;
   await expect(page.locator('[data-jev-hidden-slot]')).toHaveCount(3);
   await page.evaluate(async () => {
     await fetch('/i/api/graphql/test/NewViewer');
@@ -200,5 +274,151 @@ test('switching the active viewer invalidates follows and rejects old-account re
   await page.evaluate(async () => {
     await fetch('/i/api/graphql/test/NewViewer');
   });
+  await expect(page.locator('[data-jev-hidden-slot]')).toHaveCount(3);
+});
+
+test('page-forged follow packets cannot exempt posts or poison later genuine observations', async ({
+  page,
+  worker,
+  setSettings,
+}) => {
+  expect(worker.url()).toContain('chrome-extension:');
+  const settings = remoteSettings();
+  settings.providerKeys.vercel = 'test-only-not-a-real-key';
+  settings.followedExemptions = settings.textFilters.map((f) => `custom:${f.id}` as const);
+  await setSettings(settings);
+  await page.route('https://x.com/home', (route) =>
+    route.fulfill({
+      contentType: 'text/html',
+      body: fixture + '<a data-testid="AppTabBar_Profile_Link" href="/viewerA">Profile</a>',
+    }),
+  );
+  await page.route('https://untrusted.example/i/api/graphql/test/External', (route) =>
+    route.fulfill({
+      headers: { 'Access-Control-Allow-Origin': '*' },
+      json: { legacy: { screen_name: 'Reader', following: true } },
+    }),
+  );
+  await page.addInitScript(() => {
+    // oxlint-disable-next-line typescript/unbound-method -- called with its original Response receiver.
+    const json = Response.prototype.json;
+    Response.prototype.json = function () {
+      if (this.url.startsWith('https://untrusted.example/'))
+        Reflect.set(window, 'jevExternalParsed', true);
+      return Reflect.apply(json, this, []);
+    };
+  });
+  let following = true;
+  await page.route('https://x.com/i/api/graphql/test/Trusted', (route) =>
+    route.fulfill({ json: { legacy: { screen_name: 'Reader', following } } }),
+  );
+  await page.goto('https://x.com/home');
+  await expect(page.locator('[data-jev-hidden-slot]')).toHaveCount(3);
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        const barrier = (event: MessageEvent) => {
+          if (event.source === window && event.data?.type === 'jev-test-barrier') {
+            window.removeEventListener('message', barrier);
+            resolve();
+          }
+        };
+        window.addEventListener('message', barrier);
+        window.postMessage(
+          {
+            type: 'jev-follow-state',
+            epoch: 999999,
+            users: [{ handle: 'reader', following: true }],
+          },
+          location.origin,
+        );
+        window.postMessage(
+          {
+            type: 'jev-follow-state',
+            payload: JSON.stringify({
+              epoch: 999999,
+              sequence: 999999,
+              users: [{ handle: 'reader', following: true }],
+            }),
+            signature: Array(32).fill(0),
+          },
+          location.origin,
+        );
+        window.postMessage({ type: 'jev-test-barrier' }, location.origin);
+      }),
+  );
+  await page.evaluate(async () => {
+    await fetch('https://untrusted.example/i/api/graphql/test/External');
+    window.postMessage({ type: 'jev-follow-request' }, location.origin);
+  });
+  expect(await page.evaluate(() => Reflect.get(window, 'jevExternalParsed') === true)).toBe(false);
+  // A native observation is ordered after the forged messages; its success proves no forged epoch poisoned authority.
+  await expect(page.locator('[data-jev-hidden-slot]')).toHaveCount(3);
+  await page.evaluate(async () => {
+    await fetch('/i/api/graphql/test/Trusted');
+  });
+  await expect(page.locator('[data-jev-hidden-slot]')).toHaveCount(1);
+  following = false;
+  await page.evaluate(() => {
+    // oxlint-disable-next-line typescript/unbound-method -- saved only to restore the original Response prototype method.
+    const original = Response.prototype.json;
+    Reflect.set(window, 'jevRestoreJson', () => {
+      Response.prototype.json = original;
+      Reflect.deleteProperty(Object.prototype, 'toJSON');
+      Reflect.deleteProperty(Array.prototype, '0');
+    });
+    Object.defineProperty(Array.prototype, '0', {
+      configurable: true,
+      set(value) {
+        if (value && typeof value === 'object' && 'following' in value) value.following = true;
+        Object.defineProperty(this, '0', {
+          value,
+          writable: true,
+          configurable: true,
+          enumerable: true,
+        });
+      },
+    });
+    Response.prototype.json = () =>
+      Promise.resolve({ legacy: { screen_name: 'Reader', following: true } });
+    Object.defineProperty(Object.prototype, 'toJSON', {
+      configurable: true,
+      value: () => ({ legacy: { screen_name: 'Reader', following: true } }),
+    });
+  });
+  await page.evaluate(async () => {
+    await fetch('/i/api/graphql/test/Trusted');
+  });
+  await expect(page.locator('[data-jev-hidden-slot]')).toHaveCount(3);
+  await page.evaluate(() => {
+    const restore = Reflect.get(window, 'jevRestoreJson');
+    if (typeof restore === 'function') restore();
+    Reflect.deleteProperty(window, 'jevRestoreJson');
+  });
+  const snapshot = await page.evaluate(async () => {
+    await new Promise<void>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      // This page listener precedes the observer's listener registered during open.
+      xhr.addEventListener('load', () => {
+        xhr.response.legacy.following = true;
+        resolve();
+      });
+      xhr.addEventListener('error', reject);
+      xhr.open('GET', '/i/api/graphql/test/Trusted');
+      xhr.responseType = 'json';
+      xhr.send();
+    });
+    return await new Promise<Array<{ handle: string; following: boolean }>>((resolve) => {
+      const listener = (event: MessageEvent) => {
+        if (event.data?.type !== 'jev-follow-state' || typeof event.data.payload !== 'string')
+          return;
+        window.removeEventListener('message', listener);
+        resolve(JSON.parse(event.data.payload).users);
+      };
+      window.addEventListener('message', listener);
+      window.postMessage({ type: 'jev-follow-request' }, location.origin);
+    });
+  });
+  expect(snapshot).toContainEqual({ handle: 'reader', following: false });
   await expect(page.locator('[data-jev-hidden-slot]')).toHaveCount(3);
 });

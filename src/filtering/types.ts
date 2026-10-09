@@ -109,6 +109,7 @@ export interface TabReport {
   errors: string[];
 }
 export type BgRequest =
+  | { type: 'follow-bootstrap' }
   | { type: 'jev'; tweetId: string; text: string; provider: TextProvider; revision: number }
   | { type: 'update-settings'; change: SettingsChange }
   | { type: 'classify-image'; url: string }

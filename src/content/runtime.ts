@@ -17,7 +17,12 @@ import {
   type TabReport,
 } from '../filtering/types';
 import { canRetry, imageScores, MAX_RETRIES, message, textScores } from './classify';
-import { receiveFollowState, clearFollowStates } from './relationships';
+import {
+  receiveFollowState,
+  clearFollowStates,
+  configureFollowChannel,
+  FollowBootstrapReplySchema,
+} from './relationships';
 import { readArticle, sameUrls } from './dom';
 import {
   createBinding,
@@ -604,16 +609,30 @@ class ContentSession extends Context.Service<ContentSession, ContentSessionApi>(
             };
             /** Re-render cached decisions when current-viewer follow policy changes. */
             const onFollowState = (event: MessageEvent) => {
-              if (activeCtx !== ctx || ctx.isInvalid || !receiveFollowState(event)) return;
-              renderAll();
-              schedule();
+              dispatch(
+                Effect.promise(() => receiveFollowState(event)).pipe(
+                  Effect.andThen((changed) =>
+                    Effect.sync(() => {
+                      if (activeCtx !== ctx || ctx.isInvalid || !changed) return;
+                      renderAll();
+                      schedule();
+                    }),
+                  ),
+                ),
+              );
             };
             window.addEventListener('message', onFollowState);
             /** Release this session's page-message subscription during invalidation. */
             const removeFollowListener = () => window.removeEventListener('message', onFollowState);
             yield* Scope.addFinalizer(scope, Effect.sync(removeFollowListener));
             ctx.onInvalidated(removeFollowListener);
-            window.postMessage({ type: 'jev-follow-request' }, location.origin);
+            const bootstrap = yield* browserEffect('bootstrap follow observations', () =>
+              browser.runtime.sendMessage({ type: 'follow-bootstrap' }),
+            ).pipe(Effect.orElseSucceed(() => undefined));
+            if (Schema.is(FollowBootstrapReplySchema)(bootstrap)) {
+              yield* Effect.promise(() => configureFollowChannel(bootstrap.secret));
+              window.postMessage({ type: 'jev-follow-request' }, location.origin);
+            }
             const navigation = window.navigation;
             navigation?.addEventListener('currententrychange', schedule);
             const removeNavigationListener = () =>
