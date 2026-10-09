@@ -63,3 +63,9 @@ Also monkeypatch MAIN crypto/fetch/response methods after early capture, synthes
 API matching accepts only exact HTTPS x.com/twitter.com response origins and supported API paths. Captured native RegExp.exec avoids an overridden regular-expression exec method. Captured own-property definitions write traversal, snapshot and signature array slots so inherited numeric setters cannot change native observations. Receiver teardown invalidates pending key imports as well as the installed key.
 
 JSON-mode XHR is deliberately ignored: its native getter returns the same mutable parsed object available to page listeners, which can edit it before the observer runs. Fetch clones and native text XHR privately parsed with the captured JSON parser remain supported. This narrower observation support fails closed for unknown followed-account status.
+
+## Viewer-relative interpretation and transition barrier
+
+Directional `relationship.source` / `relationship.target` records are excluded, because their flags describe a source-to-target relationship rather than necessarily the active viewer's relationship to an author. Other supported viewer-relative user shapes remain available.
+
+Signed snapshots include the producer's observed viewer handle. The isolated receiver independently reads the current native profile link before verification and before committing its result. Exemption consumption checks that identity synchronously, clears old relationships on a change or missing link, and invalidates pending verification across that transition. Old-viewer snapshots cannot refill the buffer while the authenticated reset is still in flight. This is a consistency barrier, not authentication of DOM account identity.

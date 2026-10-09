@@ -79,7 +79,15 @@ export default defineContentScript({
           '}';
       }
       const payload =
-        '{"epoch":' + epoch + ',"sequence":' + ++messageSequence + ',"users":[' + rows + ']}';
+        '{"epoch":' +
+        epoch +
+        ',"viewer":' +
+        (viewer ? '"' + viewer + '"' : 'null') +
+        ',"sequence":' +
+        ++messageSequence +
+        ',"users":[' +
+        rows +
+        ']}';
       apply(then, signingKey, [
         (key: CryptoKey) => {
           apply(then, sign('HMAC', key, encode(payload)), [

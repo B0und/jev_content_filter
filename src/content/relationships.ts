@@ -21,6 +21,20 @@ let currentEpoch = -1;
 let acceptedSequence = -1;
 let channelKey: CryptoKey | null = null;
 let channelGeneration = 0;
+let observedViewer: string | null = null;
+let viewerGeneration = 0;
+
+/** Deny old-viewer exemptions synchronously, before any signed reset finishes. */
+function refreshObservedViewer(): string | null {
+  const href = document.querySelector('[data-testid=AppTabBar_Profile_Link]')?.getAttribute('href');
+  const viewer = href?.match(/^\/([a-zA-Z0-9_]{1,15})\/?$/)?.[1]?.toLowerCase() ?? null;
+  if (viewer !== observedViewer) {
+    observedViewer = viewer;
+    viewerGeneration++;
+    followers.clear();
+  }
+  return viewer;
+}
 
 /** Extract JSON-only native relationship values without mutable page-side helpers. */
 export function collectFollowStates(data: unknown): Array<typeof FollowStateSchema.Type> {
@@ -56,6 +70,8 @@ export function collectFollowStates(data: unknown): Array<typeof FollowStateSche
     const names = keys(item);
     for (let i = 0; i < names.length && size < 50000; i++) {
       const name = names[i]!;
+      // Directional source/target records are not viewer-to-author observations.
+      if (name === 'relationship') continue;
       if (
         recognized &&
         (name === 'legacy' || name === 'core' || name === 'relationship_perspectives')
@@ -97,6 +113,7 @@ const SignedFollowSchema = Schema.Struct({
 });
 const VerifiedFollowSchema = Schema.Struct({
   epoch: Schema.Int,
+  viewer: Schema.NullOr(Schema.String),
   sequence: Schema.Int,
   users: Schema.Array(FollowStateSchema),
 });
@@ -123,6 +140,8 @@ export async function receiveFollowState(event: MessageEvent): Promise<boolean> 
     !Schema.is(SignedFollowSchema)(event.data)
   )
     return false;
+  refreshObservedViewer();
+  const generation = viewerGeneration;
   const key = channelKey;
   const verified = await crypto.subtle.verify(
     'HMAC',
@@ -130,7 +149,8 @@ export async function receiveFollowState(event: MessageEvent): Promise<boolean> 
     new Uint8Array(event.data.signature),
     new TextEncoder().encode(event.data.payload),
   );
-  if (!verified || key !== channelKey) return false;
+  const viewer = refreshObservedViewer();
+  if (!verified || key !== channelKey || generation !== viewerGeneration) return false;
   let data: unknown;
   try {
     data = JSON.parse(event.data.payload);
@@ -139,6 +159,8 @@ export async function receiveFollowState(event: MessageEvent): Promise<boolean> 
   }
   if (
     !Schema.is(VerifiedFollowSchema)(data) ||
+    data.viewer !== viewer ||
+    (!viewer && data.users.length > 0) ||
     data.epoch < 0 ||
     data.epoch < currentEpoch ||
     data.sequence <= acceptedSequence
@@ -157,12 +179,15 @@ export async function receiveFollowState(event: MessageEvent): Promise<boolean> 
 
 /** Unknown authors and previous-viewer relationships never grant exemptions. */
 export function isFollowed(handle: string): boolean {
+  if (!refreshObservedViewer()) return false;
   return followers.get(handle.toLowerCase()) === true;
 }
 
 /** Page relationships are never persisted across accounts or browsing sessions. */
 export function clearFollowStates(): void {
   channelGeneration++;
+  viewerGeneration++;
+  observedViewer = null;
   followers.clear();
   currentEpoch = -1;
   acceptedSequence = -1;

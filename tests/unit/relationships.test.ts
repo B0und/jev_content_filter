@@ -1,4 +1,4 @@
-import { expect, it, afterEach, beforeEach } from 'vitest';
+import { expect, it, afterEach, beforeEach, vi } from 'vitest';
 import {
   collectFollowStates,
   receiveFollowState,
@@ -13,6 +13,10 @@ const secret = Array.from({ length: 32 }, (_, i) => i);
 let sequence = 0;
 beforeEach(async () => {
   sequence = 0;
+  const profile = document.createElement('a');
+  profile.dataset.testid = 'AppTabBar_Profile_Link';
+  profile.setAttribute('href', '/viewer');
+  document.body.append(profile);
   await configureFollowChannel(secret);
 });
 /** Sign synthetic observer packets with the fixture-only key. */
@@ -20,8 +24,9 @@ async function packet(
   epoch: number,
   users: Array<{ handle: string; following: boolean }>,
   seq = ++sequence,
+  viewer: string | null = 'viewer',
 ) {
-  const payload = JSON.stringify({ epoch, sequence: seq, users });
+  const payload = JSON.stringify({ epoch, sequence: seq, viewer, users });
   const key = await crypto.subtle.importKey(
     'raw',
     new Uint8Array(secret),
@@ -41,6 +46,7 @@ async function packet(
 
 afterEach(() => {
   clearFollowStates();
+  document.querySelector('[data-testid=AppTabBar_Profile_Link]')?.remove();
   settings.current = defaultSettings();
 });
 
@@ -193,4 +199,53 @@ it('page array setters and regexp patches cannot invent positive native relation
     RegExp.prototype.exec = originalExec;
   }
   expect(result!).toEqual([{ handle: 'reader', following: false }]);
+});
+
+it('directional source/target relationships never grant viewer-relative exemptions', () => {
+  expect(
+    collectFollowStates({
+      relationship: {
+        source: { screen_name: 'Viewer', following: false },
+        target: { screen_name: 'Follower', following: true },
+      },
+    }),
+  ).toEqual([]);
+  expect(
+    collectFollowStates({ user: { legacy: { screen_name: 'Reader', following: true } } }),
+  ).toEqual([{ handle: 'reader', following: true }]);
+});
+
+it('a viewer transition immediately denies exemptions and rejects in-flight old-viewer verification', async () => {
+  await receiveFollowState(await packet(1, [{ handle: 'reader', following: true }]));
+  expect(isFollowed('reader')).toBe(true);
+  const event = await packet(1, [
+    { handle: 'reader', following: true },
+    { handle: 'other', following: true },
+  ]);
+  const nativeVerify = crypto.subtle.verify.bind(crypto.subtle);
+  const completion = Promise.withResolvers<void>();
+  const spy = vi.spyOn(crypto.subtle, 'verify').mockImplementation(async (...args) => {
+    const verified = await nativeVerify(...args);
+    await completion.promise;
+    return verified;
+  });
+  const pending = receiveFollowState(event);
+  try {
+    document
+      .querySelector('[data-testid=AppTabBar_Profile_Link]')!
+      .setAttribute('href', '/otherViewer');
+    expect.soft(isFollowed('reader')).toBe(false);
+    completion.resolve();
+    expect(await pending).toBe(false);
+    expect(isFollowed('other')).toBe(false);
+  } finally {
+    completion.resolve();
+    spy.mockRestore();
+  }
+  await receiveFollowState(
+    await packet(2, [{ handle: 'reader', following: true }], ++sequence, 'otherviewer'),
+  );
+  expect(isFollowed('reader')).toBe(true);
+  document.querySelector('[data-testid=AppTabBar_Profile_Link]')!.remove();
+  expect(isFollowed('reader')).toBe(false);
 });
