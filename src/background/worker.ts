@@ -77,7 +77,6 @@ export type BackgroundReply =
   | FilterStatus
   | { ok: false }
   | { ok: true }
-  | { ok: true; secret: number[] }
   | ({ ok: true } & SettingsWrite)
   | { ok: true; type: 'clear-log'; cleared: Effect.Success<typeof clearLog> }
   | { ok: true; type: 'clear-errors'; cleared: Effect.Success<typeof clearScanErrors> };
@@ -141,7 +140,6 @@ export class BackgroundWorker extends Context.Service<BackgroundWorker, Backgrou
     BackgroundWorker,
     Effect.gen(function* () {
       const scope = yield* Effect.scope;
-      const followKeys = new Map<string, number[]>();
       const settingsState = yield* Ref.make<Settings | null>(null);
       const settingsLock = yield* Semaphore.make(1);
       const settingsReady = yield* Deferred.make<void, BrowserError>();
@@ -506,38 +504,6 @@ export class BackgroundWorker extends Context.Service<BackgroundWorker, Backgrou
           yield* Deferred.await(settingsReady);
 
           switch (request.type) {
-            case 'follow-bootstrap': {
-              if (
-                sender.id !== browser.runtime.id ||
-                sender.frameId !== 0 ||
-                sender.tab?.id === undefined ||
-                !sender.documentId ||
-                !sender.url ||
-                !/^https:\/\/(x\.com|twitter\.com)\//.test(sender.url)
-              )
-                return { ok: false };
-              const existing = followKeys.get(sender.documentId);
-
-              if (existing) return { ok: true, secret: existing };
-              const secret = [...crypto.getRandomValues(new Uint8Array(32))];
-
-              const result = yield* browserEffect('initialize follow observer', () =>
-                browser.scripting.executeScript({
-                  target: { tabId: sender.tab!.id!, documentIds: [sender.documentId!] },
-                  world: 'MAIN',
-                  func: (value: number[]) => window.__jevFollowBootstrap?.(value) ?? false,
-                  args: [secret],
-                }),
-              );
-
-              if (!result.some((entry) => entry.result === true)) return { ok: false };
-              followKeys.set(sender.documentId, secret);
-
-              while (followKeys.size > 256) followKeys.delete(followKeys.keys().next().value!);
-
-              return { ok: true, secret };
-            }
-
             case 'local-model-status':
               if (
                 sender.id !== browser.runtime.id ||

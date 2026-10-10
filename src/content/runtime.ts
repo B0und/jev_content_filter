@@ -17,12 +17,7 @@ import {
   type TabReport,
 } from '../filtering/types';
 import { canRetry, imageScores, MAX_RETRIES, message, textScores } from './classify';
-import {
-  receiveFollowState,
-  clearFollowStates,
-  configureFollowChannel,
-  FollowBootstrapReplySchema,
-} from './relationships';
+import { receiveFollowState, clearFollowStates } from './relationships';
 import { readArticle, sameUrls } from './dom';
 import {
   createBinding,
@@ -727,34 +722,21 @@ class ContentSession extends Context.Service<ContentSession, ContentSessionApi>(
             };
 
             /** Re-render cached decisions when current-viewer follow policy changes. */
-            const onFollowState = (event: MessageEvent) => {
+            const onFollowState = (event: MessageEvent<unknown>) => {
               dispatch(
-                Effect.promise(() => receiveFollowState(event)).pipe(
-                  Effect.andThen((changed) =>
-                    Effect.sync(() => {
-                      if (activeCtx !== ctx || ctx.isInvalid || !changed) return;
-                      renderAll();
-                      schedule();
-                    }),
-                  ),
-                ),
+                Effect.sync(() => {
+                  if (activeCtx !== ctx || ctx.isInvalid || !receiveFollowState(event)) return;
+                  renderAll();
+                  schedule();
+                }),
               );
             };
 
             window.addEventListener('message', onFollowState);
-            /** Release this session's page-message subscription during invalidation. */
             const removeFollowListener = () => window.removeEventListener('message', onFollowState);
             yield* Scope.addFinalizer(scope, Effect.sync(removeFollowListener));
             ctx.onInvalidated(removeFollowListener);
-
-            const bootstrap = yield* browserEffect('bootstrap follow observations', () =>
-              browser.runtime.sendMessage({ type: 'follow-bootstrap' }),
-            ).pipe(Effect.orElseSucceed(() => undefined));
-
-            if (Schema.is(FollowBootstrapReplySchema)(bootstrap)) {
-              yield* Effect.promise(() => configureFollowChannel(bootstrap.secret));
-              window.postMessage({ type: 'jev-follow-request' }, location.origin);
-            }
+            window.postMessage({ type: 'jev-follow-request' }, location.origin);
 
             const navigation = window.navigation;
             navigation?.addEventListener('currententrychange', schedule);

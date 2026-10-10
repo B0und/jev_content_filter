@@ -60,7 +60,7 @@ export default defineConfig({
       48: '/icons/normal-48.png',
       128: '/icons/normal-128.png',
     },
-    permissions: ['storage', 'webNavigation', 'offscreen', 'scripting'],
+    permissions: ['storage', 'webNavigation', 'offscreen'],
     minimum_chrome_version: '116',
     content_security_policy: {
       extension_pages: "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';",

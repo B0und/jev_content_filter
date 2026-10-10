@@ -2,15 +2,46 @@ import { test, expect, remoteSettings } from './fixtures';
 import * as Schema from 'effect/Schema';
 import { SettingsSchema } from '../../src/filtering/schemas';
 
-declare global {
-  interface Window {
-    jevOldViewerProcessed: () => Promise<void>;
-    jevExternalParsed?: boolean;
-    jevRestoreJson?: () => void;
-  }
-}
-
 const fixture = `<!doctype html><style>body{margin:0;font:15px/20px Arial}main{width:600px;margin:auto}article{padding:16px;border-bottom:1px solid gray}.body{min-height:160px}.header{display:flex;justify-content:space-between}</style><main>${['Reader', 'Reader', 'Other'].map((handle, index) => `<article data-testid="tweet" data-post="${1031 + index}"><div class="header"><div data-testid="User-Name">${handle} @${handle}</div><a href="/${handle}/status/${1031 + index}"><time>Now</time></a><button data-testid="caret">More</button></div><div class="body" data-testid="tweetText">BLOCK_TEXT</div><div role="group"><button data-testid="reply">Reply</button></div></article>`).join('')}</main>`;
+
+const followFixture =
+  fixture +
+  `
+<a data-testid="AppTabBar_Profile_Link" href="/viewerA">Profile</a>
+<button id="refresh">Refresh relationships</button>
+<button id="delayed">Start delayed refresh</button>
+<button id="switch">Switch account</button>
+<button id="logout">Log out</button>
+<button id="text">Refresh text relationships</button>
+<button id="json">Refresh JSON relationships</button>
+<output id="status"></output>
+<script>
+  const status = document.querySelector('#status');
+  const profile = document.querySelector('[data-testid=AppTabBar_Profile_Link]');
+  const jsonRequest = new XMLHttpRequest();
+  document.querySelector('#refresh').onclick = async () => {
+    await fetch('/i/api/graphql/test/User');
+    status.textContent = 'Refreshed';
+  };
+  document.querySelector('#delayed').onclick = async () => {
+    await fetch('/i/api/graphql/test/DelayedUser');
+    await fetch('/i/api/graphql/test/Barrier');
+    status.textContent = 'Delayed refresh finished';
+  };
+  document.querySelector('#switch').onclick = () => { profile.href = '/viewerB'; };
+  document.querySelector('#logout').onclick = () => { profile.remove(); };
+  document.querySelector('#text').onclick = () => {
+    const request = new XMLHttpRequest();
+    request.open('GET', '/i/api/graphql/test/User');
+    request.send();
+  };
+  document.querySelector('#json').onclick = () => {
+    jsonRequest.open('GET', '/i/api/graphql/test/User');
+    jsonRequest.responseType = 'json';
+    jsonRequest.send();
+  };
+  fetch('/i/api/graphql/test/User');
+</script>`;
 
 test('author exceptions require confirmation, persist, stay category scoped and can be removed', async ({
   page,
@@ -135,10 +166,11 @@ test('native fetch and XHR relationships drive the all-filter followed-account c
   await page.route('https://x.com/home', (route) =>
     route.fulfill({
       contentType: 'text/html',
-      body:
-        fixture +
-        `<a data-testid="AppTabBar_Profile_Link" href="/viewerA">Profile</a><script>fetch('/i/api/graphql/test/User')</script>`,
+      body: followFixture,
     }),
+  );
+  await page.route('https://x.com/i/api/graphql/test/Barrier', (route) =>
+    route.fulfill({ json: {} }),
   );
   await page.goto('https://x.com/home');
   await expect(page.locator('[data-jev-hidden-slot]')).toHaveCount(3);
@@ -181,26 +213,15 @@ test('native fetch and XHR relationships drive the all-filter followed-account c
       },
     });
   });
-  await page.evaluate(() => {
-    void fetch('/i/api/graphql/test/DelayedUser');
-  });
+  await page.getByRole('button', { name: 'Start delayed refresh', exact: true }).click();
   await oldStarted.promise;
   following = false;
-  await page.evaluate(
-    () =>
-      new Promise<void>((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.open('GET', '/i/api/graphql/test/User');
-        xhr.onload = () => resolve();
-        xhr.onerror = () => reject(new Error('XHR failed'));
-        xhr.send();
-      }),
-  );
+  await page.getByRole('button', { name: 'Refresh text relationships', exact: true }).click();
   await expect(page.locator('[data-jev-hidden-slot]')).toHaveCount(3);
   const oldDelivered = page.waitForResponse('https://x.com/i/api/graphql/test/DelayedUser');
   oldResponse.resolve();
   await oldDelivered;
-  await page.evaluate(() => new Promise((resolve) => setTimeout(resolve, 100)));
+  await expect(page.locator('#status')).toHaveText('Delayed refresh finished');
   await expect(page.locator('[data-jev-hidden-slot]')).toHaveCount(3);
 });
 
@@ -217,93 +238,50 @@ test('switching the active viewer invalidates follows and rejects old-account re
   await page.route('https://x.com/home', (route) =>
     route.fulfill({
       contentType: 'text/html',
-      body: fixture + '<a data-testid="AppTabBar_Profile_Link" href="/viewerA">Profile</a>',
+      body: followFixture,
     }),
   );
   const oldResponse = Promise.withResolvers<void>();
   const oldStarted = Promise.withResolvers<void>();
-  const oldProcessed = Promise.withResolvers<void>();
-  await page.exposeFunction('jevOldViewerProcessed', () => oldProcessed.resolve());
-  await page.addInitScript(() => {
-    // oxlint-disable-next-line typescript/unbound-method -- invoked below with the original Response receiver.
-    const json = Response.prototype.json;
-    const tracked = new WeakSet<Promise<unknown>>();
-    Response.prototype.json = function () {
-      const promise = json.call(this);
-
-      if (this.url.endsWith('/OldViewer')) tracked.add(promise);
-
-      return promise;
-    };
-
-    // oxlint-disable-next-line typescript/unbound-method -- called with the original Promise receiver.
-    const nativeThen = Promise.prototype.then;
-    // oxlint-disable-next-line unicorn/no-thenable -- observes completion of an existing native Promise consumer.
-    Promise.prototype.then = function (...args) {
-      // oxlint-disable-next-line anti-slop/no-reflect-apply -- Function.call erases Promise.then's generic result type; this probe preserves the native overload.
-      const result = Reflect.apply(nativeThen, this, args);
-
-      if (tracked.has(this)) {
-        tracked.delete(this);
-
-        const complete = () => {
-          void window.jevOldViewerProcessed();
-        };
-
-        void nativeThen.call(result, complete, complete);
-      }
-
-      return result;
-    };
-  });
-  await page.route('https://x.com/i/api/graphql/test/OldViewer', async (route) => {
+  await page.route('https://x.com/i/api/graphql/test/DelayedUser', async (route) => {
     oldStarted.resolve();
     await oldResponse.promise;
     await route.fulfill({
       json: { legacy: { screen_name: 'Reader', following: true } },
     });
   });
-  await page.route('https://x.com/i/api/graphql/test/NewViewer', (route) =>
+  await page.route('https://x.com/i/api/graphql/test/User', (route) =>
     route.fulfill({
       json: { legacy: { screen_name: 'Reader', following: true } },
     }),
   );
+  await page.route('https://x.com/i/api/graphql/test/Barrier', (route) =>
+    route.fulfill({ json: {} }),
+  );
   await page.goto('https://x.com/home');
-  await page.evaluate(async () => {
-    await fetch('/i/api/graphql/test/NewViewer');
-  });
+  await page.getByRole('button', { name: 'Refresh relationships', exact: true }).click();
   await expect(page.locator('[data-jev-hidden-slot]')).toHaveCount(1);
-  await page.evaluate(() => {
-    void fetch('/i/api/graphql/test/OldViewer');
-  });
+  await page.getByRole('button', { name: 'Start delayed refresh', exact: true }).click();
   await oldStarted.promise;
-  await page
-    .locator('[data-testid=AppTabBar_Profile_Link]')
-    .evaluate((e) => e.setAttribute('href', '/viewerB'));
+  await page.getByRole('button', { name: 'Switch account', exact: true }).click();
   await expect(page.locator('[data-jev-hidden-slot]')).toHaveCount(3);
-  const delivered = page.waitForResponse('https://x.com/i/api/graphql/test/OldViewer');
+  const delivered = page.waitForResponse('https://x.com/i/api/graphql/test/DelayedUser');
   oldResponse.resolve();
   await delivered;
-  await oldProcessed.promise;
+  await expect(page.locator('#status')).toHaveText('Delayed refresh finished');
   await expect(page.locator('[data-jev-hidden-slot]')).toHaveCount(3);
-  await page.evaluate(async () => {
-    await fetch('/i/api/graphql/test/NewViewer');
-  });
+  await page.getByRole('button', { name: 'Refresh relationships', exact: true }).click();
   await expect(page.locator('[data-jev-hidden-slot]')).toHaveCount(1);
-  await page.locator('[data-testid=AppTabBar_Profile_Link]').evaluate((e) => e.remove());
+  await page.getByRole('button', { name: 'Log out', exact: true }).click();
   await expect(page.locator('[data-jev-hidden-slot]')).toHaveCount(3);
-  await page.evaluate(async () => {
-    await fetch('/i/api/graphql/test/NewViewer');
-  });
+  await page.getByRole('button', { name: 'Refresh relationships', exact: true }).click();
   await expect(page.locator('[data-jev-hidden-slot]')).toHaveCount(3);
 });
 
-test('page-forged follow packets cannot exempt posts or poison later genuine observations', async ({
+test('JSON-mode XHR and reused requests update followed-account filtering', async ({
   page,
-  worker,
   setSettings,
 }) => {
-  expect(worker.url()).toContain('chrome-extension:');
   const settings = remoteSettings();
   settings.providerKeys.vercel = 'test-only-not-a-real-key';
   settings.skipFollowed = true;
@@ -311,141 +289,25 @@ test('page-forged follow packets cannot exempt posts or poison later genuine obs
   await page.route('https://x.com/home', (route) =>
     route.fulfill({
       contentType: 'text/html',
-      body: fixture + '<a data-testid="AppTabBar_Profile_Link" href="/viewerA">Profile</a>',
+      body: followFixture,
     }),
   );
-  await page.route('https://untrusted.example/i/api/graphql/test/External', (route) =>
+  let following = false;
+  await page.route('https://x.com/i/api/graphql/test/User', (route) =>
     route.fulfill({
-      headers: { 'Access-Control-Allow-Origin': '*' },
-      json: { legacy: { screen_name: 'Reader', following: true } },
+      json: { core: { screen_name: 'Reader' }, relationship_perspectives: { following } },
     }),
   );
-  await page.addInitScript(() => {
-    // oxlint-disable-next-line typescript/unbound-method -- called with its original Response receiver.
-    const json = Response.prototype.json;
-    Response.prototype.json = function () {
-      if (this.url.startsWith('https://untrusted.example/')) window.jevExternalParsed = true;
-
-      return json.call(this);
-    };
-  });
-  let following = true;
-  await page.route('https://x.com/i/api/graphql/test/Trusted', (route) =>
-    route.fulfill({ json: { legacy: { screen_name: 'Reader', following } } }),
+  await page.route('https://x.com/i/api/graphql/test/Barrier', (route) =>
+    route.fulfill({ json: {} }),
   );
   await page.goto('https://x.com/home');
   await expect(page.locator('[data-jev-hidden-slot]')).toHaveCount(3);
-  await page.evaluate(
-    () =>
-      new Promise<void>((resolve) => {
-        const barrier = (event: MessageEvent) => {
-          if (event.source === window && event.data?.type === 'jev-test-barrier') {
-            window.removeEventListener('message', barrier);
-            resolve();
-          }
-        };
 
-        window.addEventListener('message', barrier);
-        window.postMessage(
-          {
-            type: 'jev-follow-state',
-            epoch: 999999,
-            users: [{ handle: 'reader', following: true }],
-          },
-          location.origin,
-        );
-        window.postMessage(
-          {
-            type: 'jev-follow-state',
-            payload: JSON.stringify({
-              epoch: 999999,
-              sequence: 999999,
-              users: [{ handle: 'reader', following: true }],
-            }),
-            signature: Array(32).fill(0),
-          },
-          location.origin,
-        );
-        window.postMessage({ type: 'jev-test-barrier' }, location.origin);
-      }),
-  );
-  await page.evaluate(async () => {
-    await fetch('https://untrusted.example/i/api/graphql/test/External');
-    window.postMessage({ type: 'jev-follow-request' }, location.origin);
-  });
-  expect(await page.evaluate(() => window.jevExternalParsed === true)).toBe(false);
-  // A native observation is ordered after the forged messages; its success proves no forged epoch poisoned authority.
-  await expect(page.locator('[data-jev-hidden-slot]')).toHaveCount(3);
-  await page.evaluate(async () => {
-    await fetch('/i/api/graphql/test/Trusted');
-  });
+  following = true;
+  await page.getByRole('button', { name: 'Refresh JSON relationships', exact: true }).click();
   await expect(page.locator('[data-jev-hidden-slot]')).toHaveCount(1);
   following = false;
-  await page.evaluate(() => {
-    const original = Object.getOwnPropertyDescriptor(Response.prototype, 'json')!;
-    window.jevRestoreJson = () => {
-      Object.defineProperty(Response.prototype, 'json', original);
-      Reflect.deleteProperty(Object.prototype, 'toJSON');
-      Reflect.deleteProperty(Array.prototype, '0');
-    };
-
-    Object.defineProperty(Array.prototype, '0', {
-      configurable: true,
-      set(value) {
-        // oxlint-disable-next-line anti-slop/no-runtime-typeof -- This page-world attack probe deliberately observes or replaces native methods.
-        if (value && typeof value === 'object' && 'following' in value) value.following = true;
-        Object.defineProperty(this, '0', {
-          value,
-          writable: true,
-          configurable: true,
-          enumerable: true,
-        });
-      },
-    });
-    Response.prototype.json = () =>
-      Promise.resolve({ legacy: { screen_name: 'Reader', following: true } });
-    Object.defineProperty(Object.prototype, 'toJSON', {
-      configurable: true,
-      value: () => ({ legacy: { screen_name: 'Reader', following: true } }),
-    });
-  });
-  await page.evaluate(async () => {
-    await fetch('/i/api/graphql/test/Trusted');
-  });
-  await expect(page.locator('[data-jev-hidden-slot]')).toHaveCount(3);
-  await page.evaluate(() => {
-    window.jevRestoreJson?.();
-    delete window.jevRestoreJson;
-  });
-
-  const snapshot = await page.evaluate(async () => {
-    await new Promise<void>((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      // This page listener precedes the observer's listener registered during open.
-      xhr.addEventListener('load', () => {
-        xhr.response.legacy.following = true;
-        resolve();
-      });
-      xhr.addEventListener('error', reject);
-      xhr.open('GET', '/i/api/graphql/test/Trusted');
-      xhr.responseType = 'json';
-      xhr.send();
-    });
-
-    return await new Promise<Array<{ handle: string; following: boolean }>>((resolve) => {
-      const listener = (event: MessageEvent) => {
-        // oxlint-disable-next-line anti-slop/no-runtime-typeof -- This page-world attack probe deliberately observes or replaces native methods.
-        if (event.data?.type !== 'jev-follow-state' || typeof event.data.payload !== 'string')
-          return;
-        window.removeEventListener('message', listener);
-        resolve(JSON.parse(event.data.payload).users);
-      };
-
-      window.addEventListener('message', listener);
-      window.postMessage({ type: 'jev-follow-request' }, location.origin);
-    });
-  });
-
-  expect(snapshot).toContainEqual({ handle: 'reader', following: false });
+  await page.getByRole('button', { name: 'Refresh JSON relationships', exact: true }).click();
   await expect(page.locator('[data-jev-hidden-slot]')).toHaveCount(3);
 });

@@ -9,7 +9,6 @@ import { BackgroundWorker, type MessageSender, type BackgroundReply } from './wo
 
 const BG_REQUEST_TYPES = {
   jev: true,
-  'follow-bootstrap': true,
   'update-settings': true,
   'classify-image': true,
   'extract-image-text': true,

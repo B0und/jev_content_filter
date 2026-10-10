@@ -151,7 +151,6 @@ export const TabReportSchema = Schema.Struct({
 });
 
 export const BgRequestSchema = Schema.Union([
-  Schema.Struct({ type: Schema.Literal('follow-bootstrap') }),
   Schema.Struct({
     type: Schema.Literal('jev'),
     tweetId: Schema.String,
