@@ -15,6 +15,7 @@ export default defineConfig({
           relativeDest: `ort/${name}`,
         });
       }
+
       files.push({
         absoluteSrc: resolve(wxt.config.root, 'node_modules/tesseract.js/dist/worker.min.js'),
         relativeDest: 'ocr/worker.min.js',
@@ -24,6 +25,7 @@ export default defineConfig({
         absoluteSrc: resolve(wxt.config.root, 'node_modules/tesseract.js-core', core),
         relativeDest: `ocr/${core}`,
       });
+
       for (const dependency of ['tesseract.js', 'tesseract.js-core']) {
         files.push({
           absoluteSrc: resolve(
@@ -58,7 +60,7 @@ export default defineConfig({
       48: '/icons/normal-48.png',
       128: '/icons/normal-128.png',
     },
-    permissions: ['storage', 'webNavigation', 'offscreen', 'scripting'],
+    permissions: ['storage', 'webNavigation', 'offscreen'],
     minimum_chrome_version: '116',
     content_security_policy: {
       extension_pages: "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';",

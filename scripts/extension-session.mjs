@@ -1,3 +1,4 @@
+import { Predicate } from 'effect';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { createWriteStream, watch } from 'node:fs';
@@ -39,39 +40,49 @@ export class ExtensionSession {
       text,
       url,
     };
+
     this.logs.push(entry);
     this.logStream?.write(`${JSON.stringify(entry)}\n`);
+
     if (this.logs.length > 1000) this.logs.shift();
+
     return entry;
   }
 
   serialize(work) {
     const result = this.queue.then(work);
     this.queue = result.catch(() => {});
+
     return result;
   }
 
   async build() {
     const started = Date.now();
+
     const result = await new Promise((resolve, reject) => {
       const child = spawn('npm', ['run', 'build'], {
         cwd: this.root,
         stdio: ['ignore', 'pipe', 'pipe'],
       });
+
       let output = '';
+
       const collect = (chunk) => {
         output = (output + chunk.toString()).slice(-30_000);
       };
+
       child.stdout.on('data', collect);
       child.stderr.on('data', collect);
       child.on('error', reject);
       child.on('close', (code) => resolve({ code, output }));
     });
+
     this.lastBuild = {
       ...result,
       durationMs: Date.now() - started,
       time: new Date().toISOString(),
     };
+
     if (result.code !== 0) {
       this.record('harness', 'error', result.output);
       throw new Error(`Extension build failed (exit ${result.code}). See status.lastBuild.output.`);
@@ -88,6 +99,7 @@ export class ExtensionSession {
       flags: 'a',
       mode: 0o600,
     });
+
     if (build) await this.build();
     this.manifest = JSON.parse(await readFile(path.join(this.output, 'manifest.json'), 'utf8'));
     this.browser = await puppeteer.launch({
@@ -112,26 +124,31 @@ export class ExtensionSession {
     this.generation = 1;
     this.extensionId = await this.browser.installExtension(this.output);
     const worker = await this.worker();
+
     if (!this.live) {
       // Wait for the application's async initialization before seeding settings.
       // Otherwise its normalization write can overwrite the fixture credentials.
       const setup = await this.browser.newPage();
+
       try {
         await setup.goto(`chrome-extension://${this.extensionId}/logs.html`);
         await setup.evaluate(async () => {
           for (let attempt = 0; attempt < 100; attempt++) {
             try {
               await chrome.runtime.sendMessage({ type: 'get-status' });
+
               return;
             } catch {
               await new Promise((resolve) => setTimeout(resolve, 50));
             }
           }
+
           throw new Error('Background message listener did not initialize');
         });
         // This profile is only for the offline fixture. No real credentials or provider calls.
         await worker.evaluate(async (textFilters) => {
           const existing = await chrome.storage.local.get('agentFixtureInitialized');
+
           if (existing.agentFixtureInitialized) return;
           await chrome.storage.local.set({
             agentFixtureInitialized: true,
@@ -162,16 +179,21 @@ export class ExtensionSession {
         await setup.close();
       }
     }
+
     this.feed = await this.browser.newPage();
     await this.attach(this.feed.target());
+
     if (!this.live) await this.mockRequests(this.feed);
     await this.feed.goto('https://x.com/home', { waitUntil: 'domcontentloaded' });
+
     return this.status();
   }
 
   attach(target) {
     if (this.retiredWorkers.has(target)) return Promise.resolve();
+
     if (!['page', 'service_worker'].includes(target.type())) return Promise.resolve();
+
     if (this.targets.has(target)) return this.targets.get(target).ready;
     const state = { contexts: new Map(), ready: null };
     this.targets.set(target, state);
@@ -185,26 +207,34 @@ export class ExtensionSession {
       client.on('Runtime.executionContextDestroyed', ({ executionContextId }) =>
         state.contexts.delete(executionContextId),
       );
+
       const source = (id, url) => {
         if (target.type() === 'service_worker') return 'background';
         const document = target.url();
+
         if (document.startsWith('chrome-extension://'))
           return document.endsWith('/popup.html') ? 'popup' : 'extension-page';
         const context = state.contexts.get(id);
+
         return context?.origin?.startsWith('chrome-extension://') ||
           url?.startsWith('chrome-extension://')
           ? 'content'
           : 'page';
       };
+
       client.on('Runtime.consoleAPICalled', (event) => {
         const url = event.stackTrace?.callFrames?.[0]?.url ?? target.url();
+
         const text = event.args
           .map((arg) => {
             if (arg.value === undefined) return arg.description ?? arg.type;
-            if (typeof arg.value === 'string') return arg.value;
+
+            if (Predicate.isString(arg.value)) return arg.value;
+
             return JSON.stringify(arg.value);
           })
           .join(' ');
+
         this.record(source(event.executionContextId, url), event.type, text, url);
       });
       client.on('Runtime.exceptionThrown', ({ exceptionDetails: details }) => {
@@ -217,12 +247,14 @@ export class ExtensionSession {
       });
       await client.send('Runtime.enable');
     })();
+
     return state.ready;
   }
 
   async mockRequests(page) {
     const feed = await readFile(path.join(this.root, 'tests/e2e/feed.html'), 'utf8');
     const image = await readFile(path.join(this.root, 'mock/pbs.twimg.com/media/landscape.png'));
+
     const ocrData = new Map(
       await Promise.all(
         ['eng', 'rus'].map(async (language) => [
@@ -236,14 +268,17 @@ export class ExtensionSession {
         ]),
       ),
     );
+
     // Intercept the worker too: page interception alone cannot stop background fetches.
     const workerTarget = await this.browser.waitForTarget(
       (target) =>
         target.type() === 'service_worker' &&
         target.url().startsWith(`chrome-extension://${this.extensionId}/`),
     );
+
     const state = this.targets.get(workerTarget);
     await this.attach(workerTarget);
+
     const mockExtensionTarget = async (target) => {
       if (
         !['service_worker', 'page', 'worker'].includes(target.type()) ||
@@ -253,6 +288,7 @@ export class ExtensionSession {
         return;
       await this.attach(target);
       const state = this.targets.get(target);
+
       if (!state.mockReady)
         state.mockReady = (async () => {
           const client = state.client;
@@ -266,14 +302,17 @@ export class ExtensionSession {
         })();
       await state.mockReady;
     };
+
     const respond = async (client, { requestId, request }) => {
       const url = new URL(request.url);
       let body;
       let contentType = 'application/json';
+
       if (url.hostname === 'ai-gateway.vercel.sh') {
         const payload = JSON.parse(request.postData ?? '{}');
         const text = payload.state?.tweet_text ?? '';
         const textWords = new Set(text.toLowerCase().match(/\p{L}{4,}/gu) ?? []);
+
         const matchesQuestion = (instructions) =>
           text.includes('BLOCK_TEXT') ||
           (
@@ -281,6 +320,7 @@ export class ExtensionSession {
               .toLowerCase()
               .match(/\p{L}{4,}/gu) ?? []
           ).some((word) => !['posts', 'about', 'content'].includes(word) && textWords.has(word));
+
         const customAnswers = Object.fromEntries(
           Object.entries(payload.questions ?? {})
             .filter(([key]) => key.startsWith('custom:'))
@@ -292,6 +332,7 @@ export class ExtensionSession {
               },
             ]),
         );
+
         body = Buffer.from(
           JSON.stringify({
             answers: customAnswers,
@@ -306,15 +347,20 @@ export class ExtensionSession {
       ) {
         const language = path.basename(url.pathname).replace('.traineddata.gz', '');
         body = ocrData.get(language);
+
         if (!body) {
           await client.send('Fetch.failRequest', { requestId, errorReason: 'BlockedByClient' });
+
           return;
         }
+
         contentType = 'application/gzip';
       } else {
         await client.send('Fetch.failRequest', { requestId, errorReason: 'BlockedByClient' });
+
         return;
       }
+
       await client.send('Fetch.fulfillRequest', {
         requestId,
         responseCode: 200,
@@ -322,6 +368,7 @@ export class ExtensionSession {
         body: body.toString('base64'),
       });
     };
+
     // Register before reloads can create a replacement worker.
     this.browser.on('targetcreated', (target) => {
       void mockExtensionTarget(target).catch((error) =>
@@ -335,6 +382,7 @@ export class ExtensionSession {
     page.on('request', (request) => {
       const url = new URL(request.url());
       let action;
+
       if (url.protocol === 'chrome-extension:') action = request.continue();
       else if (['x.com', 'twitter.com'].includes(url.hostname))
         action = request.respond({ contentType: 'text/html', body: feed });
@@ -355,41 +403,50 @@ export class ExtensionSession {
         candidate.url().startsWith(`chrome-extension://${this.extensionId}/`),
       { timeout: 15_000 },
     );
+
     await this.attach(target);
+
     if (this.mockWorker) await this.mockWorker(target);
     const client = this.targets.get(target).client;
     // A new worker target can be discoverable before Chrome installs extension APIs.
     let ready = false;
+
     for (let attempt = 0; attempt < 100; attempt++) {
       const probe = await client.send('Runtime.evaluate', {
         expression:
           "typeof chrome !== 'undefined' && typeof chrome.runtime?.getManifest === 'function'",
         returnByValue: true,
       });
+
       if (probe.result.value === true) {
         ready = true;
         break;
       }
+
       await delay(50);
     }
+
     assert(ready, 'Extension worker did not initialize its Chrome APIs');
+
     // Resolve the current default execution context on each call. Puppeteer's cached
     // WebWorker execution context can remain stale after extension reload/suspension.
     return {
       evaluate: async (expression, ...args) => {
-        const source =
-          typeof expression === 'string'
-            ? expression
-            : `(${expression.toString()})(${args.map((arg) => JSON.stringify(arg)).join(',')})`;
+        const source = Predicate.isString(expression)
+          ? expression
+          : `(${expression.toString()})(${args.map((arg) => JSON.stringify(arg)).join(',')})`;
+
         const response = await client.send('Runtime.evaluate', {
           expression: source,
           awaitPromise: true,
           returnByValue: true,
         });
+
         if (response.exceptionDetails)
           throw new Error(
             response.exceptionDetails.exception?.description ?? response.exceptionDetails.text,
           );
+
         return response.result.value;
       },
     };
@@ -400,6 +457,7 @@ export class ExtensionSession {
     await this.feed.bringToFront();
     const extension = (await this.browser.extensions()).get(this.extensionId);
     assert(extension, 'The extension is not installed');
+
     const popupTarget = this.browser.waitForTarget(
       (target) =>
         target.type() === 'page' &&
@@ -407,35 +465,44 @@ export class ExtensionSession {
           `chrome-extension://${this.extensionId}/${this.manifest.action.default_popup}`,
       { timeout: 15_000 },
     );
+
     await extension.triggerAction(this.feed);
     const target = await popupTarget;
     await this.attach(target);
     this.popupPage = await target.asPage();
     await this.popupPage.waitForSelector('h1', { timeout: 15_000 });
+
     return this.popupPage;
   }
 
   async page(surface) {
     if (surface === 'feed') {
       await this.feed.bringToFront();
+
       return this.feed;
     }
+
     if (surface === 'popup') return this.popup();
+
     if (surface === 'logs') {
       if (!this.logPage || this.logPage.isClosed()) {
         this.logPage = await this.browser.newPage();
         await this.attach(this.logPage.target());
         await this.logPage.goto(`chrome-extension://${this.extensionId}/logs.html`);
       }
+
       await this.logPage.bringToFront();
+
       return this.logPage;
     }
+
     throw new Error('Surface must be popup, feed, or logs');
   }
 
   async inspect(surface = 'popup') {
     const page = await this.page(surface);
     await page.waitForSelector('body');
+
     const snapshot = await page.evaluate(() => ({
       url: location.href,
       title: document.title,
@@ -455,28 +522,35 @@ export class ExtensionSession {
         }),
       ),
     }));
+
     const directory = path.join(this.artifacts, `generation-${this.generation}`);
     await mkdir(directory, { recursive: true });
     const screenshot = path.join(directory, `${surface}.png`);
     const snapshotPath = path.join(directory, `${surface}.json`);
+
     // Mask credentials even if the popup's Show key button has been used.
     const mask = await page.addStyleTag({
       content: '#gateway-key { visibility: hidden !important; }',
     });
+
     try {
       await page.screenshot({ path: screenshot });
     } finally {
       await mask.evaluate((element) => element.remove());
     }
+
     await writeFile(snapshotPath, JSON.stringify(snapshot, null, 2));
+
     return { ...snapshot, screenshot, snapshotPath, generation: this.generation };
   }
 
   async reload({ build = true } = {}) {
     if (build) await this.build();
     this.manifest = JSON.parse(await readFile(path.join(this.output, 'manifest.json'), 'utf8'));
+
     if (this.popupPage && !this.popupPage.isClosed()) await this.popupPage.close();
     this.popupPage = null;
+
     // Debugger attachments can keep the previous worker target alive during reload.
     // Retire those targets and release their sessions before choosing the new worker.
     for (const [target, state] of this.targets) {
@@ -486,19 +560,24 @@ export class ExtensionSession {
       await state.client.detach();
       this.targets.delete(target);
     }
+
     this.generation++;
     this.extensionId = await this.browser.installExtension(this.output);
+
     const runningManifest = await (
       await this.worker()
     ).evaluate(() => chrome.runtime.getManifest());
+
     assert.equal(
       runningManifest.name,
       this.manifest.name,
       'Background worker did not load the current extension',
     );
+
     if (this.logPage && !this.logPage.isClosed()) await this.logPage.reload();
     await this.feed.reload({ waitUntil: 'domcontentloaded' });
     this.record('harness', 'info', 'Extension reloaded and target tab refreshed');
+
     return this.verify();
   }
 
@@ -525,6 +604,7 @@ export class ExtensionSession {
       snapshot.controls.some((control) => control.label === 'Open logs'),
       'Popup log button is missing',
     );
+
     if (!this.live) {
       await this.feed.waitForFunction(
         () =>
@@ -534,11 +614,14 @@ export class ExtensionSession {
         { timeout: 15_000, polling: 50 },
       );
     }
+
     await this.worker();
+
     const errors = this.logs.filter(
       (entry) =>
         entry.generation === this.generation && ['error', 'exception'].includes(entry.type),
     );
+
     this.lastCheck = {
       ok: errors.length === 0,
       generation: this.generation,
@@ -551,6 +634,7 @@ export class ExtensionSession {
       path.join(this.artifacts, 'verification.json'),
       JSON.stringify(this.lastCheck, null, 2),
     );
+
     return this.lastCheck;
   }
 
@@ -568,6 +652,7 @@ export class ExtensionSession {
         path.join(this.artifacts, 'verification.json'),
         JSON.stringify(this.lastCheck, null, 2),
       );
+
       return this.lastCheck;
     }
   }
@@ -581,18 +666,22 @@ export class ExtensionSession {
     await popup.evaluate((text) => console.info(text), `${marker}:popup`);
     const realms = this.feed.extensionRealms();
     let content;
+
     for (const realm of realms) {
       if ((await realm.extension())?.id === this.extensionId) {
         content = realm;
         break;
       }
     }
+
     assert(content, 'Content-script execution context is missing');
     await content.evaluate((text) => console.info(text), `${marker}:content`);
+
     for (let attempt = 0; attempt < 100; attempt++) {
       const entries = this.logs.filter(
         (entry) => entry.sequence > since && entry.text.startsWith(marker),
       );
+
       if (
         ['background', 'popup', 'content'].every((context) =>
           entries.some((entry) => entry.context === context),
@@ -601,6 +690,7 @@ export class ExtensionSession {
         return { ok: true, entries };
       await delay(50);
     }
+
     throw new Error(
       'Log probe failed: background, popup, and content messages must all be captured',
     );
@@ -629,6 +719,7 @@ export class ExtensionSession {
         });
       }, 400);
     };
+
     for (const directory of ['src', 'public'])
       this.watchers.push(watch(path.join(this.root, directory), { recursive: true }, changed));
     this.watchers.push(
@@ -640,6 +731,7 @@ export class ExtensionSession {
 
   status() {
     const check = this.lastCheck;
+
     return {
       running: !this.stopping,
       pid: process.pid,
@@ -668,7 +760,9 @@ export class ExtensionSession {
     clearTimeout(this.watchTimer);
     this.watchers.forEach((watcher) => watcher.close());
     await this.queue;
+
     if (this.browser) await this.browser.close();
+
     if (this.logStream) await new Promise((resolve) => this.logStream.end(resolve));
   }
 }

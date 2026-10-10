@@ -9,7 +9,7 @@ export interface WorkerHandlers {
 }
 
 export interface SupervisedWorker {
-  postMessage(message: unknown): void;
+  postMessage(message: { id: number; request?: unknown }): void;
   terminate(): void;
 }
 
@@ -30,12 +30,14 @@ export function createWorkerSupervisor(options: {
   const queued: Array<{ id: number; request?: unknown }> = [];
   let activeId: number | undefined;
   const deadlines = new Map<number, ReturnType<typeof setTimeout>>();
+
   const clearDeadlines = () => {
     for (const timer of deadlines.values()) clearTimeout(timer);
     deadlines.clear();
     queued.length = 0;
     activeId = undefined;
   };
+
   const fail = (instance: SupervisedWorker, error: Error) => {
     if (worker !== instance) return;
     worker = undefined;
@@ -43,6 +45,7 @@ export function createWorkerSupervisor(options: {
     instance.terminate();
     options.onFailure(error);
   };
+
   const start = (): SupervisedWorker => {
     const created = options.start({
       onMessage: (event) => {
@@ -57,21 +60,28 @@ export function createWorkerSupervisor(options: {
         );
       },
     });
+
     worker = created;
+
     return created;
   };
+
   const dispatch = () => {
     if (activeId !== undefined) return;
     const message = queued.shift();
+
     if (!message) return;
     let instance: SupervisedWorker;
+
     try {
       instance = worker ?? start();
     } catch (cause) {
       clearDeadlines();
       options.onFailure(cause instanceof Error ? cause : new Error(String(cause)));
+
       return;
     }
+
     activeId = message.id;
     deadlines.set(
       message.id,
@@ -79,12 +89,14 @@ export function createWorkerSupervisor(options: {
         fail(instance, new Error('Local inference timed out. Retry to restart it.'));
       }, options.requestTimeoutMs ?? 300_000),
     );
+
     try {
       instance.postMessage(message);
     } catch (cause) {
       fail(instance, cause instanceof Error ? cause : new Error(String(cause)));
     }
   };
+
   return {
     send(message) {
       // Keep at most one active request and eight waiting payloads. Queue time
@@ -92,11 +104,13 @@ export function createWorkerSupervisor(options: {
       if (queued.length >= 8) return new Error('Local inference queue full. Retry shortly.');
       queued.push(message);
       dispatch();
+
       return undefined;
     },
     complete(id) {
       clearTimeout(deadlines.get(id));
       deadlines.delete(id);
+
       if (activeId === id) {
         activeId = undefined;
         dispatch();
@@ -104,6 +118,7 @@ export function createWorkerSupervisor(options: {
     },
     cancel(id) {
       const index = queued.findIndex((message) => message.id === id);
+
       if (index !== -1) queued.splice(index, 1);
       // Already-dispatched execution keeps its deadline and completion path;
       // cancelling a caller must not release the worker for concurrent work.

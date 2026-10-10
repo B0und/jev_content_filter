@@ -15,15 +15,20 @@ test('preserves page-load badge totals during sustained native scrolling and rec
     }),
   );
   await page.goto('https://x.com/home');
+
   const tabId = await worker.evaluate(async () => {
     const id = (await chrome.tabs.query({ url: 'https://x.com/home' }))[0]?.id;
+
     if (id === undefined) throw new Error('Timeline tab missing');
+
     return id;
   });
+
   const report = async () =>
     decodeReport(
       await worker.evaluate((id) => chrome.tabs.sendMessage(id, { type: 'get-report' }), tabId),
     );
+
   const badge = () => worker.evaluate((id) => chrome.action.getBadgeText({ tabId: id }), tabId);
   await expect(page.locator('[data-post="702"]')).toBeHidden();
   await expect(page.locator('[data-post="703"]')).toBeHidden();
@@ -42,6 +47,7 @@ test('preserves page-load badge totals during sustained native scrolling and rec
     samples.push({ scrollStart: step * 10, badge: count });
     expect(count, `Badge reset while scrolling: ${JSON.stringify(samples)}`).toBe('2');
   }
+
   await expect.poll(async () => (await report()).pageAnalyzed).toBeGreaterThan(200);
 
   await page.mouse.wheel(0, -62400);
@@ -58,11 +64,15 @@ test('ignores iframe navigation but clears the badge on a new top-level document
   worker,
 }) => {
   await page.goto('https://x.com/home');
+
   const tabId = await worker.evaluate(async () => {
     const id = (await chrome.tabs.query({ url: 'https://x.com/home' }))[0]?.id;
+
     if (id === undefined) throw new Error('Timeline tab missing');
+
     return id;
   });
+
   const badge = () => worker.evaluate((id) => chrome.action.getBadgeText({ tabId: id }), tabId);
   await expect.poll(badge).toBe('2');
   await page.evaluate(() => {

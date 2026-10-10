@@ -1,46 +1,21 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { ANIME_RATING_MODEL, SELECTED_MODELS } from '../../src/inference/model-catalog';
 import { loadImageModel } from '../../src/inference/image';
 
-const mocks = vi.hoisted(() => ({
+const mocks = {
   create: vi.fn(),
   run: vi.fn(),
   release: vi.fn(),
   classify: vi.fn(),
   explicit: vi.fn(),
   loadExplicit: vi.fn(),
-}));
-vi.mock('../../src/inference/explicit', () => ({
-  loadExplicitImageModel: mocks.loadExplicit,
-  explicitImageScore: mocks.explicit,
-}));
-vi.mock('onnxruntime-web/wasm', () => ({
-  InferenceSession: { create: mocks.create },
-  Tensor: class {
-    constructor(..._args: unknown[]) {}
-  },
-}));
-vi.mock('@tensorflow/tfjs', () => ({ io: { fromMemory: vi.fn() }, ready: vi.fn() }));
-vi.mock('nsfwjs/core', () => ({
-  NSFWJS: class {
-    load = vi.fn();
-    classify = mocks.classify;
-  },
-}));
-vi.mock('../../src/inference/download', () => ({
-  downloadModelFile: async (url: string) => {
-    if (url.endsWith('.onnx')) return new ArrayBuffer(ANIME_RATING_MODEL.downloadBytes);
-    const json = new TextEncoder().encode(
-      JSON.stringify({
-        modelTopology: {},
-        weightsManifest: [{ paths: ['group1-shard1of1'], weights: [] }],
-      }),
-    );
-    return url.endsWith('model.json')
-      ? json.buffer
-      : new ArrayBuffer(SELECTED_MODELS.image.downloadBytes - json.byteLength);
-  },
-}));
+};
+
+const loaders = {
+  nsfw: async () => ({ classify: mocks.classify }),
+  anime: mocks.create,
+  explicit: mocks.loadExplicit,
+  explicitScore: mocks.explicit,
+};
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -88,11 +63,12 @@ beforeEach(() => {
     },
   );
 });
+
 afterEach(() => vi.unstubAllGlobals());
 
 it('keeps NSFWJS scores after anime loading fails and retries the load', async () => {
   mocks.create.mockRejectedValueOnce(new Error('model unavailable'));
-  const classify = await loadImageModel(() => {});
+  const classify = await loadImageModel(() => {}, loaders);
   const degraded = await classify('data:image/png;base64,AA==');
   expect(degraded.scores).toMatchObject({ porn: 0.01, drawings: 0.95, sexy: 0.03 });
   expect(degraded.warning).toContain('model unavailable');
@@ -104,7 +80,7 @@ it('keeps NSFWJS scores after anime loading fails and retries the load', async (
 
 it('keeps NSFWJS scores after anime inference fails and recreates the session', async () => {
   mocks.run.mockRejectedValueOnce(new Error('WASM failure'));
-  const classify = await loadImageModel(() => {});
+  const classify = await loadImageModel(() => {}, loaders);
   const degraded = await classify('data:image/png;base64,AA==');
   expect(degraded.scores.sexy).toBe(0.03);
   expect(degraded.warning).toContain('WASM failure');
@@ -115,7 +91,7 @@ it('keeps NSFWJS scores after anime inference fails and recreates the session', 
 
 it('explicit warmup retries the anime model without classifying another image', async () => {
   mocks.create.mockRejectedValueOnce(new Error('model unavailable'));
-  const classify = await loadImageModel(() => {});
+  const classify = await loadImageModel(() => {}, loaders);
   await expect(classify.warmup()).rejects.toThrow('model unavailable');
   await expect(classify.warmup()).resolves.toBeUndefined();
   expect(mocks.create).toHaveBeenCalledTimes(2);
@@ -130,7 +106,7 @@ it('completes photo classification without loading an unavailable anime model', 
     { className: 'Hentai', probability: 0.01 },
     { className: 'Sexy', probability: 0.03 },
   ]);
-  const classify = await loadImageModel(() => {});
+  const classify = await loadImageModel(() => {}, loaders);
   expect(await classify('data:image/png;base64,AA==')).toEqual({
     scores: { drawings: 0.01, porn: 0.01, hentai: 0, sexy: 0.03 },
   });
@@ -146,7 +122,7 @@ it('verifies a high Hentai false positive even when Drawing is low', async () =>
     { className: 'Sexy', probability: 0.01 },
   ]);
   mocks.run.mockResolvedValue({ output: { data: new Float32Array([0.9, 0.08, 0.015, 0.005]) } });
-  const classify = await loadImageModel(() => {});
+  const classify = await loadImageModel(() => {}, loaders);
   const result = await classify('data:image/png;base64,AA==');
   expect(mocks.run).toHaveBeenCalledOnce();
   expect(result.scores.hentai).toBeCloseTo(0.005);
@@ -155,7 +131,7 @@ it('verifies a high Hentai false positive even when Drawing is low', async () =>
 
 it('independent explicit evidence catches drawn content mislabeled as safe Drawing', async () => {
   mocks.run.mockResolvedValue({ output: { data: new Float32Array([0.01, 0.02, 0.02, 0.95]) } });
-  const classify = await loadImageModel(() => {});
+  const classify = await loadImageModel(() => {}, loaders);
   expect((await classify('data:image/png;base64,AA==')).scores.hentai).toBeCloseTo(0.95);
 });
 
@@ -167,7 +143,7 @@ it('an unavailable verifier never presents raw Hentai as a verified score', asyn
     { className: 'Sexy', probability: 0.01 },
   ]);
   mocks.create.mockRejectedValue(new Error('model unavailable'));
-  const classify = await loadImageModel(() => {});
+  const classify = await loadImageModel(() => {}, loaders);
   const result = await classify('data:image/png;base64,AA==');
   expect(result.scores.hentai).toBeUndefined();
   expect(result.warning).toContain('model unavailable');
@@ -181,14 +157,14 @@ it('requires independent NSFW agreement before a photo can block as Porn', async
     { className: 'Sexy', probability: 0.017 },
   ]);
   mocks.explicit.mockResolvedValueOnce(0.077).mockResolvedValueOnce(0.95);
-  const classify = await loadImageModel(() => {});
+  const classify = await loadImageModel(() => {}, loaders);
   expect((await classify('data:image/png;base64,AA==')).scores.porn).toBeCloseTo(0.077);
   expect((await classify('data:image/png;base64,AA==')).scores.porn).toBeCloseTo(0.683);
 });
 
 it('omits an unverified Porn score, preserves other categories and retries verification', async () => {
   mocks.explicit.mockRejectedValueOnce(new Error('verification failed'));
-  const classify = await loadImageModel(() => {});
+  const classify = await loadImageModel(() => {}, loaders);
   const failed = await classify('data:image/png;base64,AA==');
   expect(failed.scores.porn).toBeUndefined();
   expect(failed.scores.drawings).toBe(0.95);

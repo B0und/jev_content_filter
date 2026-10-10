@@ -16,10 +16,13 @@ import {
 } from './support';
 
 const imageUrl = 'https://pbs.twimg.com/media/text.png?name=small';
+
 const explicitText = 'Как называется этап, когда она не стесняется сосать твой член?';
+
 /** Start a content session with only sexual-text filtering enabled for OCR assertions. */
 function configured() {
   const current = baseSettings();
+
   return baseSettings({
     providerKeys: { vercel: 'test-key', typesafe: '', openrouter: '' },
     enabled: {
@@ -32,7 +35,9 @@ function configured() {
     },
   });
 }
+
 beforeEach(() => fakeBrowser.reset());
+
 afterEach(clearFeed);
 
 it('blocks image-only posts through sexual text with all visual categories off', async () => {
@@ -59,9 +64,11 @@ it('combines caption and all image text, caches size variants, and keeps AI inpu
   bg.ocrRespond = ({ url }) =>
     Effect.succeed(url.includes('second') ? 'Second image words' : explicitText);
   const post = newPostStub('8101');
+
   const first = await Effect.runPromise(
     textScores(post, 'Дегустация', [imageUrl, 'https://pbs.twimg.com/media/second.png']),
   );
+
   expect(first.errors).toEqual([]);
   expect(bg.jevCalls[0]?.text).toContain('Tweet text:\nДегустация');
   expect(bg.jevCalls[0]?.text).toContain(explicitText);

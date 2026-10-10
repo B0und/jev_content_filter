@@ -13,6 +13,7 @@ import {
 import { STORAGE_KEYS, type BlockedEntry, type FilterStatus } from '../../filtering/types';
 
 export type ClearAction = 'clear-log' | 'clear-errors';
+
 export type ErrorRow = ScanErrorEntry & { source: 'Scan' | 'Text API' };
 
 export interface LogsSnapshot {
@@ -37,7 +38,9 @@ export interface LogsStateDependencies {
   loadLog: Effect.Effect<BlockedEntry[], BrowserError>;
   loadScanErrors: Effect.Effect<ScanErrorEntry[], BrowserError>;
   loadStatus: Effect.Effect<FilterStatus, BrowserError>;
-  loadOverrides: (keys: readonly string[]) => Effect.Effect<Record<string, unknown>, BrowserError>;
+  loadOverrides: (
+    keys: readonly string[],
+  ) => Effect.Effect<Record<string, 'allow' | undefined>, BrowserError>;
   subscribeStorage: (
     listener: (area: string, changes: Readonly<Record<string, { newValue?: unknown }>>) => void,
   ) => () => void;
@@ -51,13 +54,17 @@ interface OverrideState {
 }
 
 const OVERRIDES_PREFIX = `${STORAGE_KEYS.overrides}:`;
-const LOG_STORAGE_KEYS: Record<string, true> = {
+
+const LOG_STORAGE_KEYS = {
   [STORAGE_KEYS.log]: true,
   [STORAGE_KEYS.scanErrors]: true,
   [STORAGE_KEYS.status]: true,
 };
+
 const isClearReply = Schema.is(ClearReplySchema);
+
 const sameBlockedEntry = Schema.toEquivalence(BlockedEntrySchema);
+
 const sameScanErrorEntry = Schema.toEquivalence(ScanErrorEntrySchema);
 
 export function createLogsState(dependencies: LogsStateDependencies): LogsState {
@@ -66,6 +73,7 @@ export function createLogsState(dependencies: LogsStateDependencies): LogsState 
   const overrides = new Map<string, OverrideState>();
   // A single gate serializes storage snapshots, action acknowledgements, and override notifications.
   const storageLock = Semaphore.makeUnsafe(1);
+
   let snapshot: LogsSnapshot = {
     log: [],
     errors: [],
@@ -75,16 +83,21 @@ export function createLogsState(dependencies: LogsStateDependencies): LogsState 
     actionError: '',
     busyAction: null,
   };
+
   let viewScopeDisposer: (() => void) | undefined;
 
   function publish(changes: Partial<LogsSnapshot> = {}): void {
     const unblocked = new Set<string>();
     const unblocking = new Set<string>();
+
     for (const [tweetId, state] of overrides) {
       if (state.allowed) unblocked.add(tweetId);
+
       if (state.saving) unblocking.add(tweetId);
     }
+
     snapshot = { ...snapshot, ...changes, unblocked, unblocking };
+
     for (const subscriber of subscribers) subscriber();
   }
 
@@ -95,17 +108,22 @@ export function createLogsState(dependencies: LogsStateDependencies): LogsState 
         const scanErrors = yield* dependencies.loadScanErrors;
         const status = yield* dependencies.loadStatus;
         const rows: ErrorRow[] = scanErrors.map((entry) => ({ ...entry, source: 'Scan' }));
+
         if (status.state === 'failing' && status.reason)
           rows.unshift({ ts: status.updatedAt, message: status.reason, source: 'Text API' });
+
         const overrideKeys = [
           ...new Set(log.map((entry) => `${OVERRIDES_PREFIX}${entry.tweetId}`)),
         ];
+
         const storedOverrides = yield* dependencies.loadOverrides(overrideKeys);
+
         const allowed = new Set(
           Object.entries(storedOverrides)
             .filter(([, value]) => value === 'allow')
             .map(([key]) => key.slice(OVERRIDES_PREFIX.length)),
         );
+
         yield* Effect.sync(() => {
           for (const entry of log) {
             const current = overrides.get(entry.tweetId);
@@ -114,6 +132,7 @@ export function createLogsState(dependencies: LogsStateDependencies): LogsState 
               saving: current?.saving ?? false,
             });
           }
+
           publish({ log, errors: rows, loadError: '' });
         });
       }),
@@ -128,6 +147,7 @@ export function createLogsState(dependencies: LogsStateDependencies): LogsState 
 
   function reconcileOverride(tweetId: string): Effect.Effect<void, never> {
     const key = `${OVERRIDES_PREFIX}${tweetId}`;
+
     return storageLock.withPermits(1)(
       dependencies.loadOverrides([key]).pipe(
         Effect.match({
@@ -155,14 +175,19 @@ export function createLogsState(dependencies: LogsStateDependencies): LogsState 
     if (viewScopeDisposer) return viewScopeDisposer;
 
     const runtime = ManagedRuntime.make(Layer.empty);
+
     const listener = (area: string, changes: Readonly<Record<string, { newValue?: unknown }>>) => {
       if (area !== 'local') return;
       const keys = Object.keys(changes);
+
       if (keys.some((key) => Object.hasOwn(LOG_STORAGE_KEYS, key))) {
         runtime.runFork(refresh);
+
         return;
       }
+
       const overrideKeys = keys.filter((key) => key.startsWith(OVERRIDES_PREFIX));
+
       if (overrideKeys.length === 0) return;
       runtime.runFork(
         storageLock.withPermits(1)(
@@ -175,6 +200,7 @@ export function createLogsState(dependencies: LogsStateDependencies): LogsState 
                 saving: current?.saving ?? false,
               });
             }
+
             publish();
           }),
         ),
@@ -187,6 +213,7 @@ export function createLogsState(dependencies: LogsStateDependencies): LogsState 
         (unsubscribe) => Effect.sync(unsubscribe),
       );
       yield* Effect.forkScoped(refresh);
+
       return yield* Effect.never;
     });
 
@@ -195,13 +222,16 @@ export function createLogsState(dependencies: LogsStateDependencies): LogsState 
       viewScopeDisposer = undefined;
       void runtime.dispose();
     };
+
     viewScopeDisposer = stop;
     runtime.runFork(Effect.scoped(program));
+
     return stop;
   }
 
   function unblock(tweetId: string): void {
     const current = overrides.get(tweetId);
+
     if (current?.allowed || current?.saving) return;
     overrides.set(tweetId, { allowed: false, saving: true });
     publish({ actionError: '' });
@@ -236,6 +266,7 @@ export function createLogsState(dependencies: LogsStateDependencies): LogsState 
                 publish({
                   log: snapshot.log.filter((entry) => {
                     const removed = cleared.get(entry.tweetId);
+
                     return !removed || !sameBlockedEntry(entry, removed);
                   }),
                 });
@@ -255,6 +286,7 @@ export function createLogsState(dependencies: LogsStateDependencies): LogsState 
         Effect.andThen(Effect.sync(() => publish({ busyAction: null }))),
         Effect.catch((cause) => {
           const target = type === 'clear-log' ? 'the log' : 'scan errors';
+
           return Effect.sync(() =>
             publish({
               busyAction: null,
@@ -270,6 +302,7 @@ export function createLogsState(dependencies: LogsStateDependencies): LogsState 
     getSnapshot: () => snapshot,
     subscribe: (listener) => {
       subscribers.add(listener);
+
       return () => subscribers.delete(listener);
     },
     start,
@@ -285,11 +318,19 @@ const browserDependencies: LogsStateDependencies = {
   loadOverrides: (keys) =>
     keys.length === 0
       ? Effect.succeed({})
-      : browserEffect('load allow overrides', () => browser.storage.local.get([...keys])),
+      : browserEffect('load allow overrides', () => browser.storage.local.get([...keys])).pipe(
+          Effect.map((stored) =>
+            Object.fromEntries(
+              keys.map((key) => [key, stored[key] === 'allow' ? ('allow' as const) : undefined]),
+            ),
+          ),
+        ),
   subscribeStorage: (listener) => {
     const onChanged = (changes: Record<string, { newValue?: unknown }>, area: string) =>
       listener(area, changes);
+
     browser.storage.onChanged.addListener(onChanged);
+
     return () => browser.storage.onChanged.removeListener(onChanged);
   },
   unblock: (tweetId) =>

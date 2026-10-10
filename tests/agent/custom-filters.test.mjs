@@ -8,11 +8,13 @@ import { test } from 'node:test';
 import { ExtensionSession } from '../../scripts/extension-session.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
+
 async function waitUntil(check) {
   for (let attempt = 0; attempt < 200; attempt++) {
     if (await check()) return;
     await delay(50);
   }
+
   throw new Error('Custom filter state was not reached');
 }
 
@@ -21,6 +23,7 @@ void test(
   { timeout: 60_000 },
   async (t) => {
     const directory = await mkdtemp(path.join(os.tmpdir(), 'jev-filter-restart-'));
+
     const options = {
       root,
       output: path.join(root, '.output/chrome-mv3'),
@@ -28,6 +31,7 @@ void test(
       artifacts: path.join(directory, 'artifacts'),
       headless: true,
     };
+
     let session = new ExtensionSession(options);
     t.after(async () => {
       await session.close();
@@ -48,18 +52,22 @@ void test(
           async () => (await chrome.storage.local.get('settings')).settings.textFilters.length,
         )) === 1,
     );
+
     const hidden = async () =>
       (await session.page('feed')).$eval(
         '[data-post="101"] [data-testid="tweetText"]',
         (post) => getComputedStyle(post).visibility === 'hidden',
       );
+
     await waitUntil(hidden);
     await session.close();
     session = new ExtensionSession(options);
     await session.start({ build: false });
+
     const restored = await (
       await session.worker()
     ).evaluate(async () => (await chrome.storage.local.get('settings')).settings.textFilters);
+
     assert.equal(restored.length, 1);
     assert.equal(restored[0].name, 'Gardening');
     assert.equal(restored[0].enabled, true);

@@ -31,6 +31,7 @@ export function newPostStub(id: string, text = `text ${id}`): Post {
 
 export function baseSettings(overrides: Partial<Settings> = {}): Settings {
   const base = defaultSettings();
+
   return {
     ...base,
     ...overrides,
@@ -90,11 +91,14 @@ export function installFakeBackground(): FakeBackground {
     openLogs: [],
     stats: [],
   };
+
   // fakeBrowser messaging delivers a response only through sendResponse
   // combined with a literal `true` return (callback style).
   browser.runtime.onMessage.addListener(
-    (request: unknown, _sender, sendResponse: (value: unknown) => void) => {
+    // oxlint-disable-next-line anti-slop/no-unknown-parameters -- This boundary validates untrusted data before exposing domain values.
+    (request: unknown, _sender, sendResponse) => {
       if (!isBgRequest(request)) return false;
+
       if (request.type === 'jev') {
         bg.jevCalls.push(request);
         void (async () => {
@@ -109,55 +113,74 @@ export function installFakeBackground(): FakeBackground {
               : reply,
           );
         })();
+
         return true;
       }
+
       if (request.type === 'classify-ai') {
         bg.aiCalls.push(request);
         void (async () => sendResponse(await bg.aiRespond(request)))();
+
         return true;
       }
+
       if (request.type === 'extract-image-text') {
         bg.ocrCalls.push(request);
         void (async () =>
           sendResponse(await Effect.runPromise(encodeOcrReply(bg.ocrRespond(request)))))();
+
         return true;
       }
+
       if (request.type === 'classify-image') {
         bg.imageCalls.push(request);
         void (async () => sendResponse(await bg.imageRespond(request)))();
+
         return true;
       }
+
       if (request.type === 'update-settings') {
         void (async () => {
           const next = applySettingsChange(await Effect.runPromise(loadSettings()), request.change);
           await browser.storage.local.set({ [STORAGE_KEYS.settings]: next });
           sendResponse({ ok: true, settings: next });
         })();
+
         return true;
       }
+
       if (request.type === 'log-blocked') {
         bg.blockedEntries.push(request.entry);
         sendResponse({ ok: true });
+
         return true;
       }
+
       if (request.type === 'log-error') {
         bg.loggedErrors.push(request.message);
         sendResponse({ ok: true });
+
         return true;
       }
+
       if (request.type === 'open-logs') {
         bg.openLogs.push(request);
         sendResponse({ ok: true });
+
         return true;
       }
+
       if (request.type === 'tab-stats') {
         bg.stats.push(request.blocked);
         sendResponse({ ok: true });
+
         return true;
       }
+
       return false;
     },
   );
+
   return bg;
 }
 
@@ -176,10 +199,12 @@ export async function startRuntime(
   settingsOverrides: Partial<Settings> = {},
 ): Promise<RuntimeTest> {
   fakeBrowser.reset();
+
   const runtimeSettings = baseSettings({
     providerKeys: { vercel: 'test-key', typesafe: 'test-key', openrouter: 'test-key' },
     ...settingsOverrides,
   });
+
   // Default runtime tests exercise remote preset-1 only. Other classifiers
   // must be explicitly enabled by the scenario that uses them.
   if (settingsOverrides.enabled === undefined) {
@@ -189,10 +214,12 @@ export async function startRuntime(
     runtimeSettings.enabled.drawings = false;
     runtimeSettings.enabled.aiGenerated = false;
   }
+
   await browser.storage.local.set({ [STORAGE_KEYS.settings]: runtimeSettings });
   const bg = installFakeBackground();
   const ctx = new ContentScriptContext('test');
   const handle = await startContentFilter(ctx);
+
   return { ctx, handle, bg };
 }
 
@@ -217,13 +244,16 @@ export function buildTweetArticle(options: {
     ${options.previewUrl || options.previewText ? `<div data-testid="card.wrapper"><a href="https://example.com/x/${id}">${options.previewUrl ? `<img src="${options.previewUrl}">` : ''}${options.previewText ?? ''}</a></div>` : ''}
   `;
   document.body.append(article);
+
   return article;
 }
 
 export function iconButton(article: HTMLElement): HTMLButtonElement {
   const host = article.querySelector<HTMLElement>('[data-jev-host]');
   const button = host?.shadowRoot?.querySelector<HTMLButtonElement>('button');
+
   if (!button) throw new Error('Jev icon button not rendered');
+
   return button;
 }
 

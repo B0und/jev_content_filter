@@ -3,33 +3,43 @@ import * as Schema from 'effect/Schema';
 import { CATEGORY_KEYS } from '../filtering/types';
 
 export type ModelKind = 'image' | 'aiText';
+
 export interface ModelStatus {
   state: 'idle' | 'loading' | 'ready' | 'error';
   loaded: number;
   total: number;
   error: string;
 }
+
 export type ModelStatuses = Record<ModelKind, ModelStatus>;
+
 export const MODEL_STATUS_KEY = 'localModelStatus';
+
 export function initialModelStatuses(): ModelStatuses {
   return {
     image: { state: 'idle', loaded: 0, total: 0, error: '' },
     aiText: { state: 'idle', loaded: 0, total: 0, error: '' },
   };
 }
+
 const probability = Schema.Finite.check(Schema.isBetween({ minimum: 0, maximum: 1 }));
+
 const byteCount = Schema.Finite.check(Schema.isGreaterThanOrEqualTo(0));
+
 export const ModelKindSchema = Schema.Literals(['image', 'aiText']);
+
 export const ModelStatusSchema = Schema.Struct({
   state: Schema.Literals(['idle', 'loading', 'ready', 'error']),
   loaded: byteCount,
   total: byteCount,
   error: Schema.String,
 });
+
 export const ModelStatusesSchema = Schema.Struct({
   image: ModelStatusSchema,
   aiText: ModelStatusSchema,
 });
+
 export const InferenceRequestSchema = Schema.Union([
   Schema.Struct({
     target: Schema.Literal('local-inference'),
@@ -52,7 +62,9 @@ export const InferenceRequestSchema = Schema.Union([
     text: Schema.String,
   }),
 ]);
+
 export type InferenceRequest = typeof InferenceRequestSchema.Type;
+
 export const InferenceReplySchema = Schema.Union([
   Schema.Struct({
     ok: Schema.Literal(true),
@@ -61,6 +73,7 @@ export const InferenceReplySchema = Schema.Union([
   }),
   Schema.Struct({ ok: Schema.Literal(false), error: Schema.String }),
 ]);
+
 export type InferenceReply = typeof InferenceReplySchema.Type;
 
 export class OcrError extends Schema.TaggedError<OcrError>()('OcrError', {
@@ -70,6 +83,7 @@ export class OcrError extends Schema.TaggedError<OcrError>()('OcrError', {
 // Browser messages cannot carry a running Effect. Encode its Result only here,
 // then restore the success/error channels immediately on the receiving side.
 export const OcrReplyCodec = Schema.toCodecJson(Schema.Result(Schema.String, OcrError));
+
 /** Encode the typed OCR error channel for a browser message boundary. */
 export const encodeOcrReply = Effect.fnUntraced(function* (
   work: Effect.Effect<string, { readonly message: string }>,
@@ -77,5 +91,6 @@ export const encodeOcrReply = Effect.fnUntraced(function* (
   const result = yield* Effect.result(
     work.pipe(Effect.mapError((error) => new OcrError({ message: error.message }))),
   );
+
   return yield* Schema.encodeEffect(OcrReplyCodec)(result);
 });

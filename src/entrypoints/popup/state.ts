@@ -84,6 +84,7 @@ export function createPopupState(dependencies: PopupStateDependencies): PopupSta
   // Confirmed settings are the latest completed storage read. Edits stay layered
   // over that base until a read started after their worker acknowledgement lands.
   let confirmedSettings: Settings | null = null;
+
   let snapshot: PopupSnapshot = {
     settings: null,
     loadFailed: false,
@@ -94,11 +95,13 @@ export function createPopupState(dependencies: PopupStateDependencies): PopupSta
     saving: false,
     models: initialModelStatuses(),
   };
+
   let viewScopeDisposer: (() => void) | undefined;
   let refreshSettingsWhileMounted: (() => void) | undefined;
 
   function currentSettings(): Settings | null {
     if (!confirmedSettings) return null;
+
     return optimisticEdits.reduce(
       (settings, edit) => applySettingsChange(settings, edit.change),
       confirmedSettings,
@@ -112,6 +115,7 @@ export function createPopupState(dependencies: PopupStateDependencies): PopupSta
       settings: currentSettings(),
       saving: optimisticEdits.some((edit) => edit.phase === 'saving'),
     };
+
     for (const subscriber of subscribers) subscriber();
   }
 
@@ -122,10 +126,13 @@ export function createPopupState(dependencies: PopupStateDependencies): PopupSta
         const settings = yield* dependencies.loadSettings;
         yield* Effect.sync(() => {
           confirmedSettings = settings;
+
           for (const edit of reconciledEdits) {
             const index = optimisticEdits.indexOf(edit);
+
             if (index >= 0) optimisticEdits.splice(index, 1);
           }
+
           publish({ loadFailed: false });
         });
       }),
@@ -144,6 +151,7 @@ export function createPopupState(dependencies: PopupStateDependencies): PopupSta
       yield* Effect.sync(() => publish({ status }));
     }).pipe(Effect.ignore),
   );
+
   const refreshModels = modelReadLock
     .withPermits(1)(
       Effect.gen(function* () {
@@ -152,6 +160,7 @@ export function createPopupState(dependencies: PopupStateDependencies): PopupSta
       }),
     )
     .pipe(Effect.ignore);
+
   /** Scope subscriptions and polling to the mounted popup or workspace. */
   function start(): () => void {
     if (viewScopeDisposer) return viewScopeDisposer;
@@ -162,6 +171,7 @@ export function createPopupState(dependencies: PopupStateDependencies): PopupSta
 
     const failProbe = () => {
       probeFailures++;
+
       if (probeFailures >= 2) publish({ report: null, missingScript: true });
     };
 
@@ -169,14 +179,17 @@ export function createPopupState(dependencies: PopupStateDependencies): PopupSta
     const refreshReport = (tabId: number | undefined) => {
       if (tabId === undefined)
         return Effect.sync(() => publish({ report: null, missingScript: true }));
+
       return reportReadLock.withPermits(1)(
         dependencies.loadTabReport(tabId).pipe(
           Effect.tap((value) =>
             Effect.sync(() => {
               if (!Schema.is(TabReportSchema)(value)) {
                 failProbe();
+
                 return;
               }
+
               probeFailures = 0;
               publish({ report: value, missingScript: false });
             }),
@@ -188,9 +201,13 @@ export function createPopupState(dependencies: PopupStateDependencies): PopupSta
 
     const listener = (area: string, keys: ReadonlySet<string>) => {
       if (area !== 'local') return;
+
       if (keys.has('settings')) runtime.runFork(refreshSettings);
+
       if (keys.has('filterStatus')) runtime.runFork(refreshStatus);
+
       if (keys.has(MODEL_STATUS_KEY)) runtime.runFork(refreshModels);
+
       if (keys.size === 1 && keys.has(MODEL_STATUS_KEY)) return;
       runtime.runFork(refreshReport(activeTabId));
     };
@@ -207,11 +224,13 @@ export function createPopupState(dependencies: PopupStateDependencies): PopupSta
         Effect.catch((cause) =>
           Effect.sync(() => {
             publish({ error: String(cause) });
+
             return undefined;
           }),
         ),
       );
       yield* refreshReport(activeTabId);
+
       return yield* Effect.forever(
         Effect.sleep(1500).pipe(Effect.andThen(refreshReport(activeTabId))),
       );
@@ -223,9 +242,11 @@ export function createPopupState(dependencies: PopupStateDependencies): PopupSta
       refreshSettingsWhileMounted = undefined;
       void runtime.dispose();
     };
+
     viewScopeDisposer = stop;
     refreshSettingsWhileMounted = () => runtime.runFork(refreshSettings);
     runtime.runFork(Effect.scoped(program));
+
     return stop;
   }
 
@@ -265,12 +286,15 @@ export function createPopupState(dependencies: PopupStateDependencies): PopupSta
     if (!confirmedSettings) return Promise.resolve(false);
     const key = editorId ? `editor:${editorId}` : editKey(change);
     const retriedError = saveErrors.get(key);
+
     try {
       applySettingsChange(currentSettings() ?? confirmedSettings, change);
     } catch (cause) {
       saveError(key, cause);
+
       return Promise.resolve(false);
     }
+
     const edit: OptimisticEdit = { change, phase: 'saving', editorId };
     optimisticEdits.push(edit);
     publish();
@@ -282,21 +306,27 @@ export function createPopupState(dependencies: PopupStateDependencies): PopupSta
         Effect.match({
           onSuccess: () => {
             edit.phase = 'confirmed';
+
             if (saveErrors.get(key) === retriedError) saveErrors.delete(key);
             const remainingError = [...saveErrors.values()].at(-1)?.message;
+
             if (remainingError) publish({ error: remainingError });
             else if (retriedError && snapshot.error === retriedError.message)
               publish({ error: '' });
             else publish();
             refreshSettingsWhileMounted?.();
+
             return true;
           },
           onFailure: (cause) => {
             const index = optimisticEdits.indexOf(edit);
+
             if (index >= 0) optimisticEdits.splice(index, 1);
+
             if (edit.abandoned) publish();
             else saveError(key, cause);
             refreshSettingsWhileMounted?.();
+
             return false;
           },
         }),
@@ -307,6 +337,7 @@ export function createPopupState(dependencies: PopupStateDependencies): PopupSta
   /** Keep optimistic deletion while using the worker's authoritative removed value for Undo. */
   async function removeFilter(id: string): Promise<TextFilter | undefined> {
     let filter: TextFilter | undefined;
+
     const saved = await update(
       { field: 'deleteTextFilter', id },
       undefined,
@@ -319,6 +350,7 @@ export function createPopupState(dependencies: PopupStateDependencies): PopupSta
         Effect.map((result) => result.settings),
       ),
     );
+
     return saved ? filter : undefined;
   }
 
@@ -326,9 +358,11 @@ export function createPopupState(dependencies: PopupStateDependencies): PopupSta
     for (const edit of optimisticEdits) {
       if (edit.editorId === id) edit.abandoned = true;
     }
+
     const key = `editor:${id}`;
     const dismissed = saveErrors.get(key);
     saveErrors.delete(key);
+
     if (dismissed && snapshot.error === dismissed.message)
       publish({ error: [...saveErrors.values()].at(-1)?.message ?? '' });
   }
@@ -344,6 +378,7 @@ export function createPopupState(dependencies: PopupStateDependencies): PopupSta
       ),
     );
   }
+
   /** Open a persistent editor and expose navigation failures through the shared status. */
   function openWorkspace(): void {
     browserRuntime.runFork(
@@ -354,6 +389,7 @@ export function createPopupState(dependencies: PopupStateDependencies): PopupSta
       ),
     );
   }
+
   function retryModel(kind: ModelKind): void {
     publish({
       models: {
@@ -381,6 +417,7 @@ export function createPopupState(dependencies: PopupStateDependencies): PopupSta
     getSnapshot: () => snapshot,
     subscribe: (listener) => {
       subscribers.add(listener);
+
       return () => subscribers.delete(listener);
     },
     start,
@@ -431,12 +468,15 @@ const browserDependencies: PopupStateDependencies = {
   findActiveTab: browserEffect('find active tab', async () => {
     const source = new URLSearchParams(location.search).get('tab');
     const tabId = source === null ? undefined : Number(source);
+
     if (tabId !== undefined && Schema.is(Schema.Int)(tabId) && tabId >= 0) return tabId;
+
     const tabs = await browser.tabs.query(
       location.pathname === '/options.html'
         ? { url: ['https://x.com/*', 'https://twitter.com/*'], currentWindow: true }
         : { active: true, currentWindow: true },
     );
+
     return tabs.find((tab) => tab.active)?.id ?? tabs[0]?.id;
   }),
   loadTabReport: (tabId) =>
@@ -444,14 +484,18 @@ const browserDependencies: PopupStateDependencies = {
   subscribeStorage: (listener) => {
     const onChanged = (changes: Record<string, { newValue?: unknown }>, area: string) =>
       listener(area, new Set(Object.keys(changes)));
+
     browser.storage.onChanged.addListener(onChanged);
+
     return () => browser.storage.onChanged.removeListener(onChanged);
   },
   openWorkspace: Effect.gen(function* () {
     const tabs = yield* browserEffect('find workspace source tab', () =>
       browser.tabs.query({ active: true, currentWindow: true }),
     );
+
     const url = new URL(browser.runtime.getURL('/options.html'));
+
     if (tabs[0]?.id !== undefined) url.searchParams.set('tab', String(tabs[0].id));
     yield* browserEffect('open filter workspace', () => browser.tabs.create({ url: url.href }));
   }),

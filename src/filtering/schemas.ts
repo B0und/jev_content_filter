@@ -3,17 +3,21 @@ import { CATEGORY_KEYS, TEXT_PROVIDERS } from './types';
 import { ModelKindSchema, ModelStatusesSchema } from '../inference/contracts';
 
 export const CategoryKeySchema = Schema.Literals(CATEGORY_KEYS);
+
 export const ScoreKeySchema = Schema.Union([
   CategoryKeySchema,
   Schema.TemplateLiteral(['custom:', Schema.String]).check(
     Schema.isPattern(/^custom:[a-zA-Z0-9-]{1,80}$/),
   ),
 ]);
+
 export const TextProviderSchema = Schema.Literals(TEXT_PROVIDERS);
+
 const probability = Schema.Number.check(
   Schema.isFinite(),
   Schema.isBetween({ minimum: 0, maximum: 1 }),
 );
+
 const nonNegativeInt = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0));
 
 export const TextFilterSchema = Schema.Struct({
@@ -25,6 +29,7 @@ export const TextFilterSchema = Schema.Struct({
 });
 
 export const AuthorHandleSchema = Schema.String.check(Schema.isPattern(/^[a-zA-Z0-9_]{1,15}$/));
+
 export const AuthorExceptionSchema = Schema.Struct({
   handle: AuthorHandleSchema,
   categories: Schema.mutable(Schema.Array(ScoreKeySchema)),
@@ -130,6 +135,7 @@ export const ClearReplySchema = Schema.Union([
     cleared: Schema.mutable(Schema.Array(ScanErrorEntrySchema)),
   }),
 ]);
+
 export type ClearReply = typeof ClearReplySchema.Type;
 
 export const TabReportSchema = Schema.Struct({
@@ -145,7 +151,6 @@ export const TabReportSchema = Schema.Struct({
 });
 
 export const BgRequestSchema = Schema.Union([
-  Schema.Struct({ type: Schema.Literal('follow-bootstrap') }),
   Schema.Struct({
     type: Schema.Literal('jev'),
     tweetId: Schema.String,

@@ -53,29 +53,39 @@ export interface Binding {
 }
 
 export const posts = new Map<string, Post>();
+
 export const bindings = new Map<HTMLElement, Binding>();
+
 // Keep only identities so totals survive detached-post eviction without retaining scores or DOM.
 const pageAnalyzed = new Set<string>();
+
 const pageBlocked = new Set<string>();
+
 /** Article bindings grouped by post, so attachment checks don't scan the feed. */
 let articlesByPost = new WeakMap<Post, Set<HTMLElement>>();
+
 export function trackBinding(article: HTMLElement, binding: Binding): void {
   bindings.set(article, binding);
   let articles = articlesByPost.get(binding.post);
+
   if (!articles) {
     articles = new Set();
     articlesByPost.set(binding.post, articles);
   }
+
   articles.add(article);
 }
 
 export function untrackBinding(article: HTMLElement): Binding | undefined {
   const binding = bindings.get(article);
+
   if (!binding) return undefined;
   bindings.delete(article);
   const articles = articlesByPost.get(binding.post);
   articles?.delete(article);
+
   if (articles?.size === 0) articlesByPost.delete(binding.post);
+
   return binding;
 }
 
@@ -84,8 +94,13 @@ export function clearBindingIndex(): void {
 }
 
 export const overrides = new Map<string, 'allow'>();
+
 /** Replaced wholesale whenever settings are loaded; readers always see the latest. */
-export const settings: { current: Settings } = { current: defaultSettings() };
+interface SettingsState {
+  current: Settings;
+}
+
+export const settings: SettingsState = { current: defaultSettings() };
 
 /**
  * Post the URL addresses directly: its status permalink, or the detail view X
@@ -134,6 +149,7 @@ function customHits(scores: Partial<Record<ScoreKey, number>>) {
   return settings.current.textFilters.flatMap((filter) => {
     const key = `custom:${filter.id}` as const;
     const score = scores[key];
+
     return filter.enabled && score !== undefined && score >= filter.threshold
       ? [{ key, label: filter.name, score }]
       : [];
@@ -143,6 +159,7 @@ function customHits(scores: Partial<Record<ScoreKey, number>>) {
 /** Exemptions affect decisions, so cached scores remain useful when an exception is removed. */
 export function categoryExempt(post: Post, key: ScoreKey): boolean {
   const handle = post.handle.toLowerCase();
+
   return (
     settings.current.authorExceptions.some(
       (entry) => entry.handle === handle && entry.categories.includes(key),
@@ -157,6 +174,7 @@ export function hits(post: Post): Array<{ key: ScoreKey; label?: string; score: 
     ...customHits(post.scores),
     ...CATEGORY_KEYS.flatMap((key) => {
       const score = post.scores[key];
+
       return settings.current.enabled[key] &&
         score !== undefined &&
         score >= settings.current.thresholds[key]
@@ -172,6 +190,7 @@ export function previewHits(post: Post): Array<{ key: ScoreKey; label?: string; 
     ...customHits(post.previewScores),
     ...CATEGORY_KEYS.flatMap((key) => {
       const score = post.previewScores[key];
+
       return settings.current.enabled[key] &&
         score !== undefined &&
         score >= settings.current.thresholds[key]
@@ -183,7 +202,9 @@ export function previewHits(post: Post): Array<{ key: ScoreKey; label?: string; 
 
 export function blocked(post: Post): boolean {
   if (!settings.current.masterEnabled || post.id === openedPostId()) return false;
+
   if (overrides.has(post.id)) return false;
+
   return hits(post).length > 0;
 }
 
@@ -196,24 +217,34 @@ export function previewBlocked(post: Post): boolean {
     post.partErrors.preview.length
   )
     return false;
+
   return previewHits(post).length > 0;
 }
 
 export function stateOf(post: Post): string {
   if (!settings.current.masterEnabled) return 'Paused';
+
   if (post.pending) return 'Scanning';
+
   if (post.id === openedPostId()) return 'Opened post';
+
   if (blocked(post)) return 'Blocked';
+
   if (overrides.get(post.id) === 'allow') return 'Allowed by you';
+
   if (post.errors.length > 0)
     return post.retryAt !== null ? 'Retry scheduled' : 'Not fully checked';
+
   if (post.scannedAt) return 'Allowed';
+
   return 'Not scanned';
 }
 
 export function isAttached(post: Post): boolean {
   if (posts.get(post.id) !== post) return false;
+
   for (const article of articlesByPost.get(post) ?? []) if (article.isConnected) return true;
+
   return false;
 }
 
@@ -229,6 +260,7 @@ export function recordPageStats(post: Post): void {
       }
     }
   }
+
   if (!pageBlocked.has(post.id) && (blocked(post) || previewBlocked(post)))
     pageBlocked.add(post.id);
 }
@@ -242,6 +274,7 @@ export function report(): TabReport {
   // Live scan statistics use connected bindings; cumulative totals do not.
   // Reading isConnected avoids stale attachment counters before observer delivery.
   const attached = new Set<Post>();
+
   for (const [article, binding] of bindings)
     if (article.isConnected && posts.get(binding.post.id) === binding.post)
       attached.add(binding.post);
@@ -252,17 +285,25 @@ export function report(): TabReport {
     failed = 0,
     retrying = 0,
     lastScannedAt = 0;
+
   const errors = new Set<string>();
+
   for (const post of attached) {
     if (Object.keys(post.scores).length > 0 || Object.keys(post.previewScores).length > 0)
       analyzed++;
+
     if (blocked(post) || previewBlocked(post)) blockedCount++;
+
     if (post.pending) pending++;
+
     if (post.errors.length > 0) failed++;
+
     if (post.retryAt !== null) retrying++;
     lastScannedAt = Math.max(lastScannedAt, post.scannedAt);
+
     for (const error of post.errors) errors.add(error);
   }
+
   return {
     analyzed,
     blocked: blockedCount,

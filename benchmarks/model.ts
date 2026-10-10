@@ -1,14 +1,24 @@
-import { Predicate } from 'effect';
+import { flow, Option } from 'effect';
+import * as Schema from 'effect/Schema';
 
 export type BenchmarkModality = 'image' | 'text';
+
 export type TruthValue = 'yes' | 'no' | 'unknown';
+
 export type BenchmarkTask = 'contentMatch' | 'aiGenerated';
+
 export type BenchmarkProvenance = 'synthetic-ai' | 'user-reported' | 'user-provided' | 'unknown';
+
 export type NsfwjsTask = 'porn' | 'hentai' | 'sexy' | 'drawings';
+
 export type ScoreKey = BenchmarkTask | NsfwjsTask;
+
 export type SolutionKind = 'llm' | 'nsfwjs' | 'other';
+
 export type ReviewVerdict = 'unreviewed' | 'right' | 'wrong';
+
 export type PredictionReview = Record<ScoreKey, ReviewVerdict>;
+
 export interface BenchmarkLabels {
   contentMatch: TruthValue;
   aiGenerated: TruthValue;
@@ -85,26 +95,31 @@ export const TASK_LABELS: Record<BenchmarkTask, string> = {
   contentMatch: 'Content match',
   aiGenerated: 'AI-generated',
 };
+
 export const CONTENT_MATCH_POLICY =
   'Positive: explicit acts, lewd innuendo, heavily implied intimate activity, and engagement bait designed to arouse. ' +
   'Negative: factual health, news, and relationship discussion without explicit solicitation or arousal-focused framing.';
+
 export const PROVENANCE_LABELS: Record<BenchmarkProvenance, string> = {
   'synthetic-ai': 'Synthetic · AI-authored',
   'user-reported': 'User-reported',
   'user-provided': 'User-provided · source unverified',
   unknown: 'Provenance unknown',
 };
+
 export const NSFWJS_LABELS: Record<NsfwjsTask, string> = {
   porn: 'Porn',
   hentai: 'Hentai',
   sexy: 'Sexy',
   drawings: 'Drawings',
 };
+
 export const SOLUTION_KIND_LABELS: Record<SolutionKind, string> = {
   llm: 'LLM',
   nsfwjs: 'NSFWJS',
   other: 'Other',
 };
+
 const SCORE_KEYS: ScoreKey[] = [
   'contentMatch',
   'aiGenerated',
@@ -237,6 +252,7 @@ export function initialBenchmarkState(): BenchmarkState {
 export function createId(prefix: string): string {
   const randomUuid =
     typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : null;
+
   return `${prefix}-${randomUuid ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`}`;
 }
 
@@ -278,19 +294,29 @@ export function emptyPrediction(): Prediction {
   };
 }
 
-function truthValue(value: unknown): TruthValue {
-  return value === 'yes' || value === 'no' || value === 'unknown' ? value : 'unknown';
-}
+const SnapshotFieldsSchema = Schema.Record(Schema.String, Schema.Unknown);
 
-function score(value: unknown): number | null {
-  return typeof value === 'number' && Number.isFinite(value)
-    ? Math.min(1, Math.max(0, value))
-    : null;
-}
+const snapshotFields = flow(
+  Schema.decodeUnknownOption(SnapshotFieldsSchema),
+  Option.getOrElse((): typeof SnapshotFieldsSchema.Type => ({})),
+);
 
-function normalizeNsfwjsScores(value: unknown): NsfwjsScores {
-  if (!Predicate.isObject(value)) return emptyNsfwjsScores();
+const snapshotItems = Schema.decodeUnknownOption(Schema.Array(Schema.Unknown));
+
+const truthValue = flow(
+  Schema.decodeUnknownOption(Schema.Literals(['yes', 'no', 'unknown'])),
+  Option.getOrElse(() => 'unknown' as const),
+);
+
+const score = flow(
+  Schema.decodeUnknownOption(Schema.Finite),
+  Option.map((value) => Math.min(1, Math.max(0, value))),
+  Option.getOrElse(() => null),
+);
+
+function normalizeNsfwjsScores(value: typeof SnapshotFieldsSchema.Type): NsfwjsScores {
   const scores = value;
+
   return {
     porn: score(scores.porn),
     hentai: score(scores.hentai),
@@ -299,20 +325,29 @@ function normalizeNsfwjsScores(value: unknown): NsfwjsScores {
   };
 }
 
-function matchingTaskValue(record: Record<string, unknown>, previousTaskKey?: string): unknown {
+function matchingTaskValue<T>(record: Record<string, T>, previousTaskKey?: string): T | undefined {
   if (Object.hasOwn(record, 'contentMatch')) return record.contentMatch;
+
   if (previousTaskKey && Object.hasOwn(record, previousTaskKey)) return record[previousTaskKey];
+
   const candidates = Object.keys(record).filter(
     (key) => ![...SCORE_KEYS, 'nsfwjs', 'explicit', 'review', 'reviews'].includes(key),
   );
+
   return candidates.length === 1 ? record[candidates[0]!] : undefined;
 }
 
-function normalizeReview(value: unknown, previousTaskKey?: string): PredictionReview {
-  if (!Predicate.isObject(value)) return emptyPredictionReview();
+function normalizeReview(
+  value: typeof SnapshotFieldsSchema.Type,
+  previousTaskKey?: string,
+): PredictionReview {
   const review = value;
-  const verdict = (entry: unknown): ReviewVerdict =>
-    entry === 'right' || entry === 'wrong' ? entry : 'unreviewed';
+
+  const verdict = flow(
+    Schema.decodeUnknownOption(Schema.Literals(['right', 'wrong'])),
+    Option.getOrElse(() => 'unreviewed' as const),
+  );
+
   return {
     contentMatch: verdict(matchingTaskValue(review, previousTaskKey)),
     aiGenerated: verdict(review.aiGenerated),
@@ -323,105 +358,139 @@ function normalizeReview(value: unknown, previousTaskKey?: string): PredictionRe
   };
 }
 
-function normalizePrediction(value: unknown, previousTaskKey?: string): Prediction {
-  if (!Predicate.isObject(value)) return emptyPrediction();
+function normalizePrediction(
+  value: typeof SnapshotFieldsSchema.Type,
+  previousTaskKey?: string,
+): Prediction {
   const prediction = value;
   const contentMatch = score(matchingTaskValue(prediction, previousTaskKey));
   const aiGenerated = score(prediction.aiGenerated);
-  const nsfwjs = normalizeNsfwjsScores(prediction.nsfwjs ?? prediction);
-  const review = normalizeReview(prediction.review ?? prediction.reviews, previousTaskKey);
+  const nsfwjs = normalizeNsfwjsScores(snapshotFields(prediction.nsfwjs ?? prediction));
+
+  const review = normalizeReview(
+    snapshotFields(prediction.review ?? prediction.reviews),
+    previousTaskKey,
+  );
+
   if (contentMatch === null) review.contentMatch = 'unreviewed';
+
   if (aiGenerated === null) review.aiGenerated = 'unreviewed';
+
   if (nsfwjs.porn === null) review.porn = 'unreviewed';
+
   if (nsfwjs.hentai === null) review.hentai = 'unreviewed';
+
   if (nsfwjs.sexy === null) review.sexy = 'unreviewed';
+
   if (nsfwjs.drawings === null) review.drawings = 'unreviewed';
+
   return { contentMatch, aiGenerated, nsfwjs, review };
 }
 
-function benchmarkProvenance(value: unknown): BenchmarkProvenance {
-  return value === 'synthetic-ai' ||
-    value === 'user-reported' ||
-    value === 'user-provided' ||
-    value === 'unknown'
-    ? value
-    : 'unknown';
-}
+const benchmarkProvenance = flow(
+  Schema.decodeUnknownOption(
+    Schema.Literals(['synthetic-ai', 'user-reported', 'user-provided', 'unknown']),
+  ),
+  Option.getOrElse(() => 'unknown' as const),
+);
 
-function normalizeCase(value: unknown, previousTaskKey?: string): BenchmarkCase | null {
-  if (!Predicate.isObject(value)) return null;
+function normalizeCase(
+  value: typeof SnapshotFieldsSchema.Type,
+  previousTaskKey?: string,
+): BenchmarkCase | null {
   const item = value;
-  if (typeof item.id !== 'string' || typeof item.title !== 'string') return null;
-  const labels = Predicate.isObject(item.labels) ? item.labels : null;
+
+  if (!Schema.is(Schema.String)(item.id) || !Schema.is(Schema.String)(item.title)) return null;
+  const labels = snapshotFields(item.labels);
   let contentMatch: TruthValue = 'unknown';
-  if (labels) {
-    const savedLabel = matchingTaskValue(labels, previousTaskKey);
-    if (savedLabel !== undefined) contentMatch = truthValue(savedLabel);
-    else if (labels.explicit === 'yes') contentMatch = 'yes';
-  }
+
+  const savedLabel = matchingTaskValue(labels, previousTaskKey);
+
+  if (savedLabel !== undefined) contentMatch = truthValue(savedLabel);
+  else if (labels.explicit === 'yes') contentMatch = 'yes';
+
   const modality = item.modality === 'text' ? 'text' : 'image';
+
   const normalized: BenchmarkCase = {
     id: item.id,
     modality,
     title: item.title,
-    labels: { contentMatch, aiGenerated: labels ? truthValue(labels.aiGenerated) : 'unknown' },
+    labels: { contentMatch, aiGenerated: truthValue(labels.aiGenerated) },
     provenance: benchmarkProvenance(item.provenance),
-    notes: typeof item.notes === 'string' ? item.notes : '',
-    createdAt: typeof item.createdAt === 'string' ? item.createdAt : new Date().toISOString(),
+    notes: Schema.is(Schema.String)(item.notes) ? item.notes : '',
+    createdAt: Schema.is(Schema.String)(item.createdAt) ? item.createdAt : new Date().toISOString(),
   };
-  if (typeof item.imageUrl === 'string') normalized.imageUrl = item.imageUrl;
-  if (typeof item.text === 'string') normalized.text = item.text;
+
+  if (Schema.is(Schema.String)(item.imageUrl)) normalized.imageUrl = item.imageUrl;
+
+  if (Schema.is(Schema.String)(item.text)) normalized.text = item.text;
+
   return normalized;
 }
 
-function solutionKind(value: unknown): SolutionKind {
-  return value === 'llm' || value === 'nsfwjs' || value === 'other' ? value : 'other';
-}
+const solutionKind = flow(
+  Schema.decodeUnknownOption(Schema.Literals(['llm', 'nsfwjs', 'other'])),
+  Option.getOrElse(() => 'other' as const),
+);
 
-function normalizeSolution(value: unknown, previousTaskKey?: string): BenchmarkSolution | null {
-  if (!Predicate.isObject(value)) return null;
+function normalizeSolution(
+  value: typeof SnapshotFieldsSchema.Type,
+  previousTaskKey?: string,
+): BenchmarkSolution | null {
   const item = value;
-  if (typeof item.id !== 'string' || typeof item.name !== 'string') return null;
-  const rawPredictions = Predicate.isObject(item.predictions) ? item.predictions : {};
+
+  if (!Schema.is(Schema.String)(item.id) || !Schema.is(Schema.String)(item.name)) return null;
+  const rawPredictions = snapshotFields(item.predictions);
+
   return {
     id: item.id,
     name: item.name,
-    description: typeof item.description === 'string' ? item.description : '',
+    description: Schema.is(Schema.String)(item.description) ? item.description : '',
     kind: solutionKind(item.kind ?? item.type),
     predictions: Object.fromEntries(
       Object.entries(rawPredictions).map(([caseId, prediction]) => [
         caseId,
-        normalizePrediction(prediction, previousTaskKey),
+        normalizePrediction(snapshotFields(prediction), previousTaskKey),
       ]),
     ),
   };
 }
 
-export function normalizeBenchmarkState(value: unknown): BenchmarkState {
+function restoreBenchmarkState(state: typeof SnapshotFieldsSchema.Type): BenchmarkState {
   const fallback = initialBenchmarkState();
-  if (!Predicate.isObject(value)) return fallback;
-  const state = value;
-  const rawThresholds = Predicate.isObject(state.thresholds) ? state.thresholds : {};
+
+  const rawThresholds = snapshotFields(state.thresholds);
+
   const previousTaskKeys = Object.keys(rawThresholds).filter(
     (key) => !['contentMatch', 'aiGenerated', 'nsfwjs', 'explicit'].includes(key),
   );
+
   // Older snapshots used a different name for the sole content-matching task.
   const previousTaskKey = previousTaskKeys.length === 1 ? previousTaskKeys[0] : undefined;
-  const cases = Array.isArray(state.cases)
-    ? state.cases
-        .map((item) => normalizeCase(item, previousTaskKey))
-        .filter((item): item is BenchmarkCase => item !== null)
-    : fallback.cases;
-  const solutions = Array.isArray(state.solutions)
-    ? state.solutions
-        .map((item) => normalizeSolution(item, previousTaskKey))
-        .filter((item): item is BenchmarkSolution => item !== null)
-    : fallback.solutions;
+
+  const cases = Option.getOrElse(snapshotItems(state.cases), () => fallback.cases).flatMap(
+    (raw) => {
+      const item = normalizeCase(snapshotFields(raw), previousTaskKey);
+
+      return item === null ? [] : [item];
+    },
+  );
+
+  const solutions = Option.getOrElse(
+    snapshotItems(state.solutions),
+    () => fallback.solutions,
+  ).flatMap((raw) => {
+    const item = normalizeSolution(snapshotFields(raw), previousTaskKey);
+
+    return item === null ? [] : [item];
+  });
+
   const selectedCaseId =
-    typeof state.selectedCaseId === 'string' &&
+    Schema.is(Schema.String)(state.selectedCaseId) &&
     cases.some((item) => item.id === state.selectedCaseId)
       ? state.selectedCaseId
       : (cases[0]?.id ?? null);
+
   return {
     cases,
     solutions,
@@ -435,6 +504,9 @@ export function normalizeBenchmarkState(value: unknown): BenchmarkState {
     selectedCaseId,
   };
 }
+
+/** Decode historical snapshot fields once before migrating domain values. */
+export const normalizeBenchmarkState = flow(snapshotFields, restoreBenchmarkState);
 
 export function predictionFor(solution: BenchmarkSolution, caseId: string): Prediction {
   return solution.predictions[caseId] ?? emptyPrediction();
@@ -451,16 +523,20 @@ export function manualReviewFor(
   solution: BenchmarkSolution,
 ): ManualReviewMetrics {
   const metrics: ManualReviewMetrics = { right: 0, wrong: 0, pending: 0 };
+
   for (const item of cases) {
     const prediction = predictionFor(solution, item.id);
+
     for (const task of SCORE_KEYS) {
       if (predictionScore(prediction, task) === null) continue;
       const verdict = prediction.review[task];
+
       if (verdict === 'right') metrics.right++;
       else if (verdict === 'wrong') metrics.wrong++;
       else metrics.pending++;
     }
   }
+
   return metrics;
 }
 
@@ -469,6 +545,7 @@ export function predictionLabel(
   threshold: number,
 ): 'positive' | 'negative' | 'missing' {
   if (value === null || !Number.isFinite(value)) return 'missing';
+
   return value >= threshold ? 'positive' : 'negative';
 }
 
@@ -488,23 +565,29 @@ export function metricsFor(
   let falseNegative = 0;
   let labeled = 0;
   let scored = 0;
+
   for (const item of cases) {
     const truth = item.labels[task];
     const value = solution.predictions[item.id]?.[task] ?? null;
+
     if (truth === 'unknown') continue;
     labeled++;
+
     if (value === null) continue;
     scored++;
     const positive = value >= threshold;
+
     if (truth === 'yes' && positive) truePositive++;
     else if (truth === 'yes') falseNegative++;
     else if (positive) falsePositive++;
     else trueNegative++;
   }
+
   const accuracy = ratio(truePositive + trueNegative, scored);
   const precision = ratio(truePositive, truePositive + falsePositive);
   const recall = ratio(truePositive, truePositive + falseNegative);
   const f1 = ratio(2 * truePositive, 2 * truePositive + falsePositive + falseNegative);
+
   return {
     labeled,
     scored,
@@ -522,32 +605,40 @@ export function metricsFor(
 
 export function parseSolutionImport(input: string): BenchmarkSolution {
   let parsed: unknown;
+
   try {
     parsed = JSON.parse(input);
   } catch {
     throw new Error('Solution file is not valid JSON.');
   }
-  if (!Predicate.isObject(parsed)) {
+
+  if (!Schema.is(SnapshotFieldsSchema)(parsed)) {
     throw new Error('Solution JSON needs a non-empty "name".');
   }
+
   const payload = parsed;
-  if (typeof payload.name !== 'string' || !payload.name.trim()) {
+
+  if (!Schema.is(Schema.String)(payload.name) || !payload.name.trim()) {
     throw new Error('Solution JSON needs a non-empty "name".');
   }
-  if (!Predicate.isObject(payload.predictions)) {
+
+  if (!Schema.is(SnapshotFieldsSchema)(payload.predictions)) {
     throw new Error('Solution JSON needs a "predictions" object keyed by case ID.');
   }
+
   const predictions = payload.predictions;
+
   return {
     id: createId('solution'),
     name: payload.name.trim(),
-    description:
-      typeof payload.description === 'string' ? payload.description : 'Imported result set',
+    description: Schema.is(Schema.String)(payload.description)
+      ? payload.description
+      : 'Imported result set',
     kind: solutionKind(payload.kind ?? payload.type),
     predictions: Object.fromEntries(
       Object.entries(predictions).map(([caseId, prediction]) => [
         caseId,
-        normalizePrediction(prediction),
+        normalizePrediction(snapshotFields(prediction)),
       ]),
     ),
   };

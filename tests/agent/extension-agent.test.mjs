@@ -11,10 +11,12 @@ const root = fileURLToPath(new URL('../../', import.meta.url));
 
 async function waitUntil(check, timeout = 20_000) {
   const end = Date.now() + timeout;
+
   while (Date.now() < end) {
     if (await check()) return;
     await delay(50);
   }
+
   throw new Error('Expected browser state was not reached');
 }
 
@@ -25,6 +27,7 @@ void test(
     const project = await mkdtemp(path.join(os.tmpdir(), 'jev-agent-'));
     const output = path.join(project, 'dist');
     await cp(path.join(root, '.output/chrome-mv3'), output, { recursive: true });
+
     for (const directory of ['src', 'public', 'tests/e2e', 'mock/pbs.twimg.com/media'])
       await mkdir(path.join(project, directory), { recursive: true });
     await cp(path.join(root, 'tests/e2e/feed.html'), path.join(project, 'tests/e2e/feed.html'));
@@ -47,6 +50,7 @@ void test(
     await writeFile('dist/popup.html', popup.replace('</body>', '<div id="revision">' + revision + '</div></body>'));
   `,
     );
+
     const session = new ExtensionSession({
       root: project,
       output,
@@ -55,6 +59,7 @@ void test(
       headless: true,
       ocrDataRoot: root,
     });
+
     t.after(async () => {
       await session.close();
       await rm(project, { recursive: true, force: true });
@@ -81,12 +86,14 @@ void test(
       const logs = await session.page('logs');
       assert.equal(await logs.evaluate(() => document.visibilityState), 'visible');
       await logs.waitForSelector('button[role="tab"]');
+
       const errorTabId = await logs.evaluate(
         () =>
           Array.from(document.querySelectorAll('button[role="tab"]')).find((button) =>
             button.textContent.startsWith('Errors'),
           ).id,
       );
+
       await logs.locator(`[id="${errorTabId}"]`).click();
       assert.equal(
         await logs.$eval('button[role="tab"][aria-selected="true"]', (button) =>

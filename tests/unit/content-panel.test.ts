@@ -1,3 +1,4 @@
+import { CATEGORY_KEYS } from '../../src/filtering/types';
 // Inspector panel regressions: Open logs must go through the background
 // message (never a direct extension-URL navigation), Escape closes and
 // restores focus, and scan errors are shown.
@@ -30,10 +31,12 @@ describe('inspector panel', () => {
 
     const button = iconButton(article);
     button.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }));
+
     const panelHost = await untilValue(
       () => document.querySelector<HTMLElement>('[data-jev-panel]'),
       'panel did not open',
     );
+
     const panelRoot = shadowRoot(panelHost);
     const logsLink = panelRoot.querySelector('a');
     expect(logsLink?.textContent).toBe('Open logs');
@@ -61,10 +64,12 @@ describe('inspector panel', () => {
 
     // Outside click also dismisses.
     button.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }));
+
     const reopened = await untilValue(
       () => document.querySelector<HTMLElement>('[data-jev-panel]'),
       'panel did not reopen',
     );
+
     const outside = document.createElement('div');
     document.body.append(outside);
     outside.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, composed: true }));
@@ -96,10 +101,12 @@ describe('inspector panel', () => {
     );
 
     iconButton(article).dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }));
+
     const panelHost = await untilValue(
       () => document.querySelector<HTMLElement>('[data-jev-panel]'),
       'panel did not open',
     );
+
     await until(
       () => shadowRoot(panelHost).querySelectorAll('.errors li').length > 0,
       'scan errors missing from panel',
@@ -115,27 +122,33 @@ describe('inspector panel', () => {
     configured.enabled.drawings = false;
     configured.textFilters = [];
     configured.enabled.aiGenerated = false;
+
     const test = await startRuntime({
       enabled: configured.enabled,
       textFilters: configured.textFilters,
     });
+
     try {
       const article = buildTweetArticle({
         id: '5003',
         text: 'clean text',
         images: ['https://pbs.twimg.com/media/landscape.png'],
       });
+
       test.handle.discover();
       await until(() => aria(iconButton(article)).includes('Allowed'), 'button not ready');
 
       iconButton(article).dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }));
+
       const panelHost = await untilValue(
         () => document.querySelector<HTMLElement>('[data-jev-panel]'),
         'panel did not open',
       );
+
       const rows = [...shadowRoot(panelHost).querySelectorAll('tr')].map(
         (row) => row.textContent?.trim() ?? '',
       );
+
       expect(rows.some((row) => row.includes('Porn'))).toBe(true);
       expect(rows.some((row) => row.includes('Drawings / anime'))).toBe(false);
       expect(rows.some((row) => row.includes('Content filter'))).toBe(false);
@@ -147,24 +160,32 @@ describe('inspector panel', () => {
   it('shows text categories before image categories', async () => {
     const configured = baseSettings();
     const test = await startRuntime({ enabled: configured.enabled });
+
     try {
       const article = buildTweetArticle({
         id: '5004',
         text: 'clean text',
         images: ['https://pbs.twimg.com/media/landscape.png'],
       });
+
       test.handle.discover();
       await until(() => aria(iconButton(article)).includes('Allowed'), 'button not ready');
 
       iconButton(article).dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }));
+
       const panelHost = await untilValue(
         () => document.querySelector<HTMLElement>('[data-jev-panel]'),
         'panel did not open',
       );
+
       const groups = [...shadowRoot(panelHost).querySelectorAll('.group-label')].map((group) =>
         group.textContent?.trim(),
       );
+
       expect(groups).toEqual(['Text', 'Images']);
+      const tables = shadowRoot(panelHost).querySelectorAll('table');
+      expect(tables[0]?.textContent).toContain('Content filter');
+      expect(tables[1]?.textContent).toContain('Porn');
     } finally {
       stopRuntime(test);
     }
@@ -173,14 +194,16 @@ describe('inspector panel', () => {
 
 it.each(['body text', ''])('shows custom preview scores separately with body %j', async (text) => {
   const configured = baseSettings();
-  for (const key of Object.keys(configured.enabled) as Array<keyof typeof configured.enabled>)
-    configured.enabled[key] = false;
+
+  for (const key of CATEGORY_KEYS) configured.enabled[key] = false;
+
   const test = await startRuntime({
     enabled: configured.enabled,
     textFilters: [
       { id: 'garden', name: 'Gardening', instructions: 'garden', threshold: 0.65, enabled: true },
     ],
   });
+
   try {
     test.bg.respond = (request) => ({
       ok: true,
@@ -192,9 +215,11 @@ it.each(['body text', ''])('shows custom preview scores separately with body %j'
     iconButton(article).dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true }));
     const root = document.querySelector('[data-jev-panel]')?.shadowRoot;
     expect(root?.textContent).toContain('Preview 90.0%');
+
     const row = [...(root?.querySelectorAll('tr') ?? [])].find(
       (row) => row.cells[0]?.textContent === 'Gardening',
     );
+
     expect(row?.cells[1]?.textContent).toBe(text ? '10.0% · Preview 90.0%' : 'Preview 90.0%');
   } finally {
     stopRuntime(test);
@@ -204,7 +229,9 @@ it.each(['body text', ''])('shows custom preview scores separately with body %j'
 
 function shadowRoot(host: HTMLElement): ShadowRoot {
   const root = host.shadowRoot;
+
   if (!root) throw new Error('panel shadow root missing');
+
   return root;
 }
 
@@ -212,18 +239,23 @@ async function untilValue<T>(read: () => T | null, message: string): Promise<T> 
   let value: T | null = null;
   await until(() => {
     const current = read();
+
     if (current === null) return false;
     value = current;
+
     return true;
   }, message);
+
   if (value === null) throw new Error(message);
+
   return value;
 }
 
 it('refreshes an open inspector after custom labels and thresholds change without rescanning', async () => {
   const configured = baseSettings();
-  for (const key of Object.keys(configured.enabled) as Array<keyof typeof configured.enabled>)
-    configured.enabled[key] = false;
+
+  for (const key of CATEGORY_KEYS) configured.enabled[key] = false;
+
   const filter = {
     id: 'garden',
     name: 'Gardening',
@@ -231,7 +263,9 @@ it('refreshes an open inspector after custom labels and thresholds change withou
     threshold: 0.65,
     enabled: true,
   };
+
   const test = await startRuntime({ enabled: configured.enabled, textFilters: [filter] });
+
   try {
     test.bg.respond = () => ({ ok: true, custom: { garden: 0.9 } });
     const article = buildTweetArticle({ id: '5902', text: 'garden' });
@@ -267,7 +301,9 @@ it('preserves inspector threshold drafts until that saved threshold changes', as
     threshold: 0.65,
     enabled: true,
   };
+
   const test = await startRuntime({ textFilters: [filter] });
+
   try {
     test.bg.respond = () => ({
       ok: true,
@@ -280,6 +316,7 @@ it('preserves inspector threshold drafts until that saved threshold changes', as
     const root = document.querySelector('[data-jev-panel]')?.shadowRoot;
     const threshold = () => root?.querySelector<HTMLInputElement>('[data-jev-cat="custom:garden"]');
     const input = threshold();
+
     if (!input) throw new Error('threshold input missing');
     input.focus();
     input.value = '42';

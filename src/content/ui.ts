@@ -5,6 +5,7 @@ import { BUTTON_CSS } from './buttons';
 import { browserEffect, browserRuntime } from '../platform/browser';
 import type { ContentScriptContext } from 'wxt/utils/content-script-context';
 import {
+  CATEGORY_KEYS,
   CATEGORY_LABELS,
   scoreLabel,
   IMAGE_KEYS,
@@ -32,6 +33,7 @@ import {
 
 const EYE_SVG =
   '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>';
+
 const BLOCKED_SVG =
   '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.5 10.5 0 0 1 12 20c-7 0-11-8-11-8a18.5 18.5 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.5 9.5 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
 
@@ -87,8 +89,11 @@ article[data-jev-hidden] [data-jev-retained] * {
 `;
 
 let globalStyle: HTMLStyleElement | null = null;
+
 let maskThemeObserver: MutationObserver | null = null;
+
 let maskThemeFrame = 0;
+
 let maskColorScheme: MediaQueryList | null = null;
 
 /** Refresh existing masks when native theme classes, variables or styles change. */
@@ -96,10 +101,12 @@ function scheduleMaskThemeRefresh(): void {
   if (maskThemeFrame) return;
   maskThemeFrame = requestAnimationFrame(() => {
     maskThemeFrame = 0;
+
     for (const [article, binding] of bindings)
       if (binding.hiddenSlot) placeHiddenNotice(article, binding);
   });
 }
+
 // Multiple articles can share an X cell. Each slot owns one reservation.
 const cellReservations = new WeakMap<HTMLElement, number>();
 
@@ -111,10 +118,12 @@ export function injectGlobalStyle(): void {
   globalStyle.textContent = GLOBAL_CSS;
   document.head.append(globalStyle);
   maskThemeObserver = new MutationObserver(scheduleMaskThemeRefresh);
+
   const attributes = {
     attributes: true,
     attributeFilter: ['style', 'class', 'data-theme', 'data-color-mode'],
   };
+
   maskThemeObserver.observe(document.documentElement, attributes);
   maskThemeObserver.observe(document.body, attributes);
   maskThemeObserver.observe(document.head, {
@@ -132,6 +141,7 @@ export function injectGlobalStyle(): void {
 export function removeGlobalStyle(): void {
   maskThemeObserver?.disconnect();
   maskThemeObserver = null;
+
   if (maskThemeFrame) cancelAnimationFrame(maskThemeFrame);
   maskThemeFrame = 0;
   maskColorScheme?.removeEventListener('change', scheduleMaskThemeRefresh);
@@ -162,19 +172,23 @@ export function restoreBinding(article: HTMLElement, binding: Binding): void {
   article.removeAttribute('data-jev-reserved');
   binding.hiddenSizeObserver?.disconnect();
   delete binding.hiddenSizeObserver;
+
   for (const retained of binding.retainedElements ?? [])
     retained.removeAttribute('data-jev-retained');
   delete binding.retainedElements;
   binding.hiddenSlot?.remove();
   const cell = binding.preservedCell;
+
   if (cell) {
     const remaining = (cellReservations.get(cell) ?? 1) - 1;
+
     if (remaining > 0) cellReservations.set(cell, remaining);
     else {
       cellReservations.delete(cell);
       cell.removeAttribute('data-jev-preserved');
     }
   }
+
   delete binding.hiddenSlot;
   delete binding.preservedCell;
 }
@@ -182,21 +196,28 @@ export function restoreBinding(article: HTMLElement, binding: Binding): void {
 /** Show the detected score against the user's cutoff without changing post geometry. */
 function updateMaskReason(post: Post, root: ShadowRoot): void {
   const matches = hits(post);
+
   const threshold = (key: ScoreKey) =>
     key.startsWith('custom:')
       ? (settings.current.textFilters.find((filter) => `custom:${filter.id}` === key)?.threshold ??
         0.65)
-      : settings.current.thresholds[key as CategoryKey];
+      : settings.current.thresholds[
+          CATEGORY_KEYS.find((category) => category === key) ?? 'aiGenerated'
+        ];
+
   const description = matches
     .map(
       (hit) =>
         `${scoreLabel(hit.key, settings.current.textFilters)} (${Math.round(hit.score * 1000) / 10}% ≥ ${Math.round(threshold(hit.key) * 1000) / 10}%)`,
     )
     .join(', ');
+
   const reason = root.querySelector('p');
+
   if (reason) reason.textContent = 'Hidden by ' + description;
   const evidence = root.querySelector<HTMLElement>('.evidence');
   const hit = matches[0];
+
   if (!evidence || !hit) return;
   const cutoff = Math.round(threshold(hit.key) * 1000) / 10;
   const score = Math.round(hit.score * 1000) / 10;
@@ -215,6 +236,7 @@ function updateMaskReason(post: Post, root: ShadowRoot): void {
 function showAuthorException(post: Post, root: ShadowRoot, opener: HTMLButtonElement): void {
   if (root.querySelector('dialog')) return;
   const matches = hits(post);
+
   if (!matches.length) return;
   const dialog = document.createElement('dialog');
   dialog.setAttribute('aria-labelledby', 'author-exception-title');
@@ -228,12 +250,14 @@ function showAuthorException(post: Post, root: ShadowRoot, opener: HTMLButtonEle
   label.textContent = 'Filter to skip';
   const select = document.createElement('select');
   select.setAttribute('aria-label', 'Filter to skip');
+
   for (const hit of matches) {
     const option = document.createElement('option');
     option.value = hit.key;
     option.textContent = scoreLabel(hit.key, settings.current.textFilters);
     select.append(option);
   }
+
   label.append(select);
   const error = document.createElement('p');
   error.setAttribute('role', 'status');
@@ -251,10 +275,12 @@ function showAuthorException(post: Post, root: ShadowRoot, opener: HTMLButtonEle
   dialog.addEventListener('click', (event) => event.stopPropagation());
   dialog.addEventListener('close', () => {
     dialog.remove();
+
     if (opener.isConnected) opener.focus({ preventScroll: true });
   });
   confirm.addEventListener('click', () => {
     const key = matches.find((hit) => hit.key === select.value)?.key;
+
     if (!key) return;
     confirm.disabled = true;
     select.disabled = true;
@@ -269,9 +295,11 @@ function showAuthorException(post: Post, root: ShadowRoot, opener: HTMLButtonEle
       )
       .then(() => {
         dialog.close();
+
         const binding = [...bindings.values()].find(
           (item) => item.post === post && item.host.isConnected,
         );
+
         binding?.button.focus({ preventScroll: true });
       })
       .catch(() => {
@@ -291,19 +319,24 @@ function showAuthorException(post: Post, root: ShadowRoot, opener: HTMLButtonEle
 function retainPostControls(article: HTMLElement, binding: Binding): void {
   for (const element of binding.retainedElements ?? [])
     element.removeAttribute('data-jev-retained');
+
   // Quotes can contain their own avatars, timestamps and action groups.
   // Retaining those would expose filtered content and shrink the body mask.
   /** Exclude nested quoted-post controls from the retained author and actions. */
   const original = (element: HTMLElement) =>
     element.closest('article') === article &&
     !article.contains(element.closest('div[role="link"]'));
+
   const author = [...article.querySelectorAll<HTMLElement>('[data-testid="User-Name"]')].find(
     original,
   );
+
   const caret = headerCarets(article)[0];
   let header = author;
+
   while (header?.parentElement && header.parentElement !== article) {
     const parent = header.parentElement;
+
     if (
       parent.querySelector(
         '[data-testid="tweetText"], [data-testid="tweetPhoto"], video, [data-testid="card.wrapper"]',
@@ -311,53 +344,66 @@ function retainPostControls(article: HTMLElement, binding: Binding): void {
     )
       break;
     header = parent;
+
     if (caret && header.contains(caret)) break;
   }
+
   const avatar = [...article.querySelectorAll<HTMLElement>('[data-testid^="UserAvatar"]')].find(
     original,
   );
+
   const footer = [
     ...article.querySelectorAll<HTMLElement>('[role="group"]:has([data-testid="reply"])'),
   ].find(original);
+
   const timestamp = [...article.querySelectorAll<HTMLElement>('time')].find(
     (element) =>
       original(element) &&
       element.closest('a')?.getAttribute('href')?.split('/status/')[1]?.split(/[/?#]/)[0] ===
         binding.post.id,
   );
+
   const candidates = [header, caret, binding.host, avatar, footer, timestamp];
   binding.retainedElements = candidates.filter(
     (element): element is HTMLElement =>
       element instanceof HTMLElement && element.closest('article') === article,
   );
+
   for (const element of binding.retainedElements) element.dataset.jevRetained = '';
 }
 
 /** Mirror native text typography and resolved colors, including custom CSS variables. */
 function refreshMaskColors(article: HTMLElement, binding: Binding): void {
   const slot = binding.hiddenSlot;
+
   if (!slot) return;
   const timestamp = binding.retainedElements?.find((element) => element.tagName === 'TIME');
   const muted = timestamp ?? headerCarets(article)[0] ?? article;
+
   const link =
     article.querySelector('[data-testid="tweetText"] a') ??
     document.querySelector('[data-testid="tweetText"] a');
+
   const foreground =
     article.querySelector('[data-testid="tweetText"]') ??
     article.querySelector('[data-testid="User-Name"] span') ??
     document.body;
+
   slot.style.setProperty('--jev-ink', getComputedStyle(foreground).color);
   slot.style.setProperty('--jev-bg', getComputedStyle(document.body).backgroundColor);
   slot.style.setProperty('--jev-muted', getComputedStyle(muted).color);
   const accent = link ? getComputedStyle(link).color : getComputedStyle(foreground).color;
   slot.style.setProperty('--jev-accent', accent);
+
   const rgb = accent
     .match(/[\d.]+/g)
     ?.slice(0, 3)
     .map(Number) ?? [29, 155, 240];
+
   const linear = rgb.map((value) =>
     value / 255 <= 0.04045 ? value / 255 / 12.92 : ((value / 255 + 0.055) / 1.055) ** 2.4,
   );
+
   const luminance = 0.2126 * linear[0]! + 0.7152 * linear[1]! + 0.0722 * linear[2]!;
   slot.style.setProperty('--jev-on-accent', luminance > 0.179 ? '#000' : '#fff');
   // X styles text descendants directly; the article wrapper can retain a serif default.
@@ -372,10 +418,12 @@ function refreshMaskColors(article: HTMLElement, binding: Binding): void {
 /** Position an out-of-flow mask between the native header and action bar. */
 function placeHiddenNotice(article: HTMLElement, binding: Binding): void {
   const slot = binding.hiddenSlot;
+
   if (!slot?.isConnected) return;
   const rect = article.getBoundingClientRect();
   const retained = binding.retainedElements ?? [];
   const footer = retained.find((element) => element.getAttribute('role') === 'group');
+
   const headerBottom = Math.max(
     rect.top,
     ...retained
@@ -388,48 +436,62 @@ function placeHiddenNotice(article: HTMLElement, binding: Binding): void {
       )
       .map((element) => element.getBoundingClientRect().bottom),
   );
+
   const bottom = footer?.getBoundingClientRect().top ?? rect.bottom;
+
   const content = [
     ...article.querySelectorAll<HTMLElement>(
       '[data-testid="tweetText"], [data-testid="tweetPhoto"], [data-testid="card.wrapper"], video, img, div[role="link"]',
     ),
-  ]
-    .filter(
-      (element) =>
-        element.closest('article') === article &&
-        !element.closest('[data-jev-retained]') &&
-        // Cropped media children can be much larger than the visible native container.
-        !element.parentElement?.closest(
-          '[data-testid="tweetPhoto"], [data-testid="card.wrapper"], div[role="link"]',
-        ),
+  ].flatMap((element) => {
+    if (
+      element.closest('article') !== article ||
+      element.closest('[data-jev-retained]') ||
+      element.parentElement?.closest(
+        '[data-testid="tweetPhoto"], [data-testid="card.wrapper"], div[role="link"]',
+      )
     )
-    .map((element) => element.getBoundingClientRect())
-    .filter((bounds) => bounds.width > 0 && bounds.height > 0);
+      return [];
+    const bounds = element.getBoundingClientRect();
+
+    return bounds.width > 0 && bounds.height > 0 ? [bounds] : [];
+  });
+
   const computed = getComputedStyle(article);
+
   const left = content.length
     ? Math.max(rect.left, Math.min(...content.map((bounds) => bounds.left)))
     : rect.left + (parseFloat(computed.paddingLeft) || 0);
+
   const right = content.length
     ? Math.min(rect.right, Math.max(...content.map((bounds) => bounds.right)))
     : rect.right - (parseFloat(computed.paddingRight) || 0);
+
   const top = content.length
     ? Math.max(headerBottom, Math.min(...content.map((bounds) => bounds.top)))
     : headerBottom;
+
   const contentBottom = content.length
     ? Math.max(...content.map((bounds) => bounds.bottom))
     : bottom;
+
   refreshMaskColors(article, binding);
   const parent = slot.offsetParent;
+
   const positioned =
     parent instanceof HTMLElement &&
     (parent !== document.body || getComputedStyle(parent).position !== 'static');
+
   const origin = positioned ? parent.getBoundingClientRect() : null;
+
   const originLeft = origin
     ? origin.left + (parent?.clientLeft ?? 0) - (parent?.scrollLeft ?? 0)
     : -window.scrollX;
+
   const originTop = origin
     ? origin.top + (parent?.clientTop ?? 0) - (parent?.scrollTop ?? 0)
     : -window.scrollY;
+
   slot.style.left = `${left - originLeft}px`;
   slot.style.top = `${top - originTop}px`;
   slot.style.width = `${Math.max(0, right - left)}px`;
@@ -441,12 +503,17 @@ function placeHiddenNotice(article: HTMLElement, binding: Binding): void {
 /** Mask posts without removing their native layout, including offscreen posts. */
 function applyVisibility(article: HTMLElement, binding: Binding): void {
   const { post } = binding;
+
   if (!blocked(post) || binding.revealed) {
     restoreBinding(article, binding);
+
     if (!blocked(post)) binding.revealed = false;
+
     return;
   }
+
   const cell = article.closest<HTMLElement>('[data-testid="cellInnerDiv"]');
+
   // X can reparent connected articles without recycling their post bindings.
   if (
     binding.hiddenSlot &&
@@ -455,6 +522,7 @@ function applyVisibility(article: HTMLElement, binding: Binding): void {
   ) {
     restoreBinding(article, binding);
   }
+
   if (!article.hasAttribute('data-jev-hidden')) {
     const slot = document.createElement('div');
     slot.dataset.jevHiddenSlot = '';
@@ -462,11 +530,13 @@ function applyVisibility(article: HTMLElement, binding: Binding): void {
     // to measure normally. The notice overlays it without adding height.
     slot.style.cssText = 'position: absolute; pointer-events: none;';
     article.dataset.jevReserved = '';
+
     if (cell) {
       cellReservations.set(cell, (cellReservations.get(cell) ?? 0) + 1);
       cell.dataset.jevPreserved = '';
       binding.preservedCell = cell;
     }
+
     const root = slot.attachShadow({ mode: 'open' });
     const style = document.createElement('style');
     style.textContent = `:host { display: block; --button-ink: var(--jev-ink); --button-accent: var(--jev-accent); --button-on-accent: var(--jev-on-accent); --button-soft: color-mix(in srgb, var(--jev-ink) 12%, transparent); --button-hover: color-mix(in srgb, var(--jev-ink) 20%, transparent); } .notice { pointer-events: auto; width: 100%; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 12px; color: var(--jev-muted); background: transparent; font: inherit; text-align: center; overflow: hidden; } .evidence { width: min(240px, 100%); font-size: 12px; } .evidence-label { display: block; margin-bottom: 8px; } .score-track { position: relative; height: 6px; border-radius: 999px; background: color-mix(in srgb, var(--jev-ink) 16%, transparent); } .score-fill { width: var(--score); height: 100%; border-radius: inherit; background: var(--jev-accent); } .cutoff { position: absolute; left: var(--cutoff); top: -3px; width: 2px; height: 12px; background: var(--jev-ink); transform: translateX(-1px); } .compact .evidence { display: none; } .notice.compact { flex-direction: row; gap: 6px; padding: 0; font-size: 12px; } .compact p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 70%; } .compact button { padding: 0 6px; line-height: 1.2; } p { margin: 0; overflow-wrap: anywhere; } .exception { font-size: 13px; } .exception .short { display: none; } .compact .exception .long { display: none; } .compact .exception .short { display: inline; } dialog { pointer-events: auto; position: fixed; width: min(420px, calc(100vw - 48px)); box-sizing: border-box; padding: 24px; color: var(--jev-ink); background: var(--jev-bg); border: 1px solid color-mix(in srgb, var(--jev-ink) 25%, transparent); border-radius: 16px; font: inherit; text-align: left; } dialog::backdrop { background: rgb(0 0 0 / .6); } dialog h2 { font: inherit; font-size: 20px; line-height: 1.3; font-weight: 700; margin: 0 0 12px; } dialog p { margin: 12px 0; line-height: 1.5; } dialog [role="status"]:empty { display: none; } dialog label { display: block; margin: 18px 0 20px; font-weight: 600; } dialog select { display: block; width: 100%; min-height: 40px; margin-top: 8px; padding: 8px 12px; font: inherit; background: inherit; color: inherit; border: 1px solid color-mix(in srgb, var(--jev-ink) 40%, transparent); border-radius: 8px; } .dialog-actions { display: flex; justify-content: flex-end; align-items: center; gap: 12px; flex-wrap: wrap; } ${BUTTON_CSS} .compact button { padding: 1px 7px; line-height: 1.2; }`;
@@ -496,6 +566,7 @@ function applyVisibility(article: HTMLElement, binding: Binding): void {
       binding.button.focus({ preventScroll: true });
     });
     notice.append(reason, evidence, show);
+
     if (/^[a-zA-Z0-9_]{1,15}$/.test(post.handle)) {
       const allow = document.createElement('button');
       allow.type = 'button';
@@ -514,6 +585,7 @@ function applyVisibility(article: HTMLElement, binding: Binding): void {
       });
       notice.append(allow);
     }
+
     root.append(style, notice);
     article.before(slot);
     binding.hiddenSlot = slot;
@@ -521,21 +593,27 @@ function applyVisibility(article: HTMLElement, binding: Binding): void {
     const sizeObserver = new ResizeObserver(() => placeHiddenNotice(article, binding));
     sizeObserver.observe(article);
     const parent = slot.offsetParent;
+
     if (parent instanceof HTMLElement) sizeObserver.observe(parent);
     binding.hiddenSizeObserver = sizeObserver;
     placeHiddenNotice(article, binding);
     article.setAttribute('data-jev-hidden', '');
   }
+
   retainPostControls(article, binding);
   placeHiddenNotice(article, binding);
+
   if (binding.hiddenSlot?.shadowRoot) updateMaskReason(post, binding.hiddenSlot.shadowRoot);
 }
 
 function applyCard(article: HTMLElement, post: Post, hiding: boolean): void {
   const card = article.querySelector<HTMLElement>('[data-testid="card.wrapper"]');
+
   if (!card) return;
+
   if (hiding && previewBlocked(post)) {
     card.dataset.jevCardHidden = '';
+
     if (!card.querySelector('[data-jev-card-link]')) {
       // Keep the card's layout box and put the link over its hidden contents.
       const link = document.createElement('a');
@@ -555,6 +633,7 @@ function applyCard(article: HTMLElement, post: Post, hiding: boolean): void {
 
 /** Tracks what each button points at so the capture-phase click listener can find the post. */
 const buttonPosts = new WeakMap<HTMLButtonElement, Post>();
+
 const revealActions = new WeakMap<HTMLButtonElement, () => void>();
 
 export function createBinding(post: Post): Binding {
@@ -567,6 +646,7 @@ export function createBinding(post: Post): Binding {
   button.addEventListener('pointerdown', (event) => event.stopPropagation());
   root.append(button);
   host.addEventListener('click', (event) => event.stopPropagation());
+
   return { post, host, root, button };
 }
 
@@ -574,19 +654,24 @@ export function isDark(element: Element): boolean {
   const color = getComputedStyle(element).color;
   const parts = color.match(/\d+/g)?.slice(0, 3).map(Number) ?? [15, 20, 25];
   const [r = 15, g = 20, b = 25] = parts;
+
   return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255 > 0.5;
 }
 
 export function renderAll(): void {
   for (const [article, binding] of bindings) render(article, binding);
   const openPost = openPostId ? posts.get(openPostId) : undefined;
+
   if (openPost) renderPanel(openPost);
 }
 
 export function renderPost(post: Post): Array<Effect.Effect<void>> {
   if (posts.get(post.id) !== post) return [];
+
   for (const [article, binding] of bindings) if (binding.post === post) render(article, binding);
+
   if (openPostId === post.id) renderPanel(post);
+
   return logEffects(post);
 }
 
@@ -600,21 +685,24 @@ export function renderPost(post: Post): Array<Effect.Effect<void>> {
 export function logEffects(post: Post): Array<Effect.Effect<void>> {
   if (!isAttached(post)) return [];
   const effects: Array<Effect.Effect<void>> = [];
+
   if (blocked(post) && !post.logged) {
     post.logged = true;
     effects.push(logBlocked(post, hits(post), post.text, 'post'));
   }
+
   if (previewBlocked(post) && !post.previewLogged) {
     post.previewLogged = true;
     effects.push(logBlocked(post, previewHits(post), post.previewText || post.text, 'preview'));
   }
+
   return effects;
 }
 
 function renderPostAtUiBoundary(post: Post): void {
   for (const effect of renderPost(post)) {
-    void browserRuntime.runPromise(effect).catch((error: unknown) => {
-      console.error('Content logging effect failed', error);
+    void browserRuntime.runPromise(effect).catch((cause: unknown) => {
+      console.error('Content logging effect failed', cause);
     });
   }
 }
@@ -636,6 +724,7 @@ function logBlocked(
       ts: yield* Clock.currentTimeMillis,
       reasons,
     };
+
     yield* browserEffect('log blocked content', () =>
       browser.runtime.sendMessage({ type: 'log-blocked', entry }),
     ).pipe(
@@ -654,6 +743,7 @@ function logBlocked(
 function setHostVisibility(host: HTMLElement, button: HTMLButtonElement, visible: boolean): void {
   host.style.visibility = visible ? '' : 'hidden';
   host.style.pointerEvents = visible ? '' : 'none';
+
   if (visible) {
     host.removeAttribute('aria-hidden');
     button.removeAttribute('tabindex');
@@ -666,40 +756,51 @@ function setHostVisibility(host: HTMLElement, button: HTMLButtonElement, visible
 /** Refresh a bound post toolbar and visibility from its current classification. */
 export function render(article: HTMLElement, binding: Binding): void {
   const { post, host, root, button } = binding;
+
   // Paused: keep the invisible control slot so toggling cannot reflow the feed.
   if (!settings.current.masterEnabled) {
     setHostVisibility(host, button, false);
     binding.revealed = false;
     restoreBinding(article, binding);
     applyCard(article, post, false);
+
     if (openPostId === post.id) closePanel();
+
     return;
   }
+
   if (!article.isConnected) return;
   recordPageStats(post);
   setHostVisibility(host, button, true);
   applyVisibility(article, binding);
   applyCard(article, post, true);
+
   if (!host.isConnected) insertHost(article, host);
   else if (host.dataset.jevSpot === 'below' && headerCarets(article).length > 0) {
     // X may add the ⋯ cluster after first paint; move up beside it.
     host.remove();
     insertHost(article, host);
   }
+
   const dark = isDark(article);
   host.style.setProperty('--jev-fg', dark ? '#71767b' : '#536471');
   host.style.setProperty('--jev-hover', dark ? 'rgba(239,243,244,0.1)' : 'rgba(15,20,25,0.05)');
   const shadow = root;
+
   if (!shadow.querySelector('style')) {
     const style = document.createElement('style');
     style.textContent = ICON_CSS;
     shadow.prepend(style);
   }
+
   const stateLabel = binding.revealed && blocked(post) ? 'Shown temporarily' : stateOf(post);
+
   const retryLabel = post.retryAt
     ? ` — retrying in ${Math.max(0, Math.ceil((post.retryAt - Date.now()) / 1000))}s`
     : '';
+
   const expanded = openPostId === post.id;
+
   const signature = [
     blocked(post) ? 'b' : 'e',
     String(post.pending || post.retryAt !== null),
@@ -709,6 +810,7 @@ export function render(article: HTMLElement, binding: Binding): void {
     String(expanded),
     dark ? 'd' : 'l',
   ].join('|');
+
   if (binding.renderState === signature) return;
   binding.renderState = signature;
   button.innerHTML = blocked(post) && !binding.revealed ? BLOCKED_SVG : EYE_SVG;
@@ -757,13 +859,21 @@ a:hover { text-decoration: underline; }
 `;
 
 let openPostId: string | null = null;
+
 let panelHost: HTMLElement | null = null;
+
 let panelRoot: ShadowRoot | null = null;
+
 let panelAnchor: HTMLButtonElement | null = null;
+
 let panelPos: { left: number; top: number } | null = null;
+
 let panelSize = { width: 0, height: 0 };
+
 let panelCountdownTimer: ReturnType<typeof setInterval> | undefined;
+
 let panelFrame = 0;
+
 /** data-jev-cat of the threshold input last focused inside the panel, if any. */
 let panelFocusCategory: string | null = null;
 
@@ -776,20 +886,26 @@ function element<K extends keyof HTMLElementTagNameMap>(
   text?: string,
 ): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag);
+
   if (text) node.textContent = text;
+
   return node;
 }
 
 function placePanel(anchor: HTMLElement): void {
   if (!panelRoot) return;
   const panel = panelRoot.querySelector('.panel');
+
   if (!(panel instanceof HTMLElement)) return;
   const rect = anchor.getBoundingClientRect();
+
   let left = Math.min(
     Math.max(8, rect.right - panelSize.width + 30),
     window.innerWidth - panelSize.width - 8,
   );
+
   let top = rect.bottom + 6;
+
   if (top + panelSize.height > window.innerHeight - 8)
     top = Math.max(8, rect.top - panelSize.height - 6);
   panelPos = { left, top };
@@ -809,19 +925,26 @@ export function installActivation(ctx: ContentScriptContext): void {
     'click',
     (event: Event) => {
       if (!(event instanceof MouseEvent)) return;
+
       for (const node of event.composedPath()) {
         if (!(node instanceof HTMLButtonElement)) continue;
         const reveal = revealActions.get(node);
+
         if (reveal) {
           event.stopPropagation();
           reveal();
+
           return;
         }
+
         const post = buttonPosts.get(node);
+
         if (!post) continue;
         event.stopPropagation();
+
         if (panelOpenFor(post.id)) closePanel();
         else if (node.isConnected) openPanel(post, node, ctx);
+
         return;
       }
     },
@@ -844,11 +967,14 @@ function openPanel(post: Post, anchor: HTMLButtonElement, _ctx: ContentScriptCon
   // Keep this panel's dismissal listeners independent of script-wide
   // invalidation: each open gets its own lifetime, torn down on close.
   const panelSignals = new AbortController();
+
   const outside = (event: Event) => {
     if (!(event.target instanceof Node)) return;
+
     if (panelHost?.contains(event.target) || event.composedPath().includes(anchor)) return;
     closePanel();
   };
+
   /** Dismiss the inspector with Escape and restore focus without scrolling. */
   const onKey = (event: KeyboardEvent) => {
     if (event.key !== 'Escape') return;
@@ -856,15 +982,18 @@ function openPanel(post: Post, anchor: HTMLButtonElement, _ctx: ContentScriptCon
     closePanel();
     anchor.focus({ preventScroll: true });
   };
+
   // Track focus for rebuilds ourselves: shadow-root activeElement reads are
   // not portable, and only threshold inputs carry a category marker.
   const onFocus = (event: FocusEvent) => {
     if (event.target instanceof Element)
       panelFocusCategory = event.target.getAttribute('data-jev-cat');
   };
+
   document.addEventListener('pointerdown', outside, { capture: true, signal: panelSignals.signal });
   document.addEventListener('keydown', onKey, { capture: true, signal: panelSignals.signal });
   document.addEventListener('focusin', onFocus, { capture: true, signal: panelSignals.signal });
+
   // Dismiss immediately when the feed scrolls, while allowing the inspector's
   // own contents to scroll. Wheel/touch intent also dismisses at feed edges.
   /** Close synchronously for feed movement while allowing inspector interaction. */
@@ -872,19 +1001,25 @@ function openPanel(post: Post, anchor: HTMLButtonElement, _ctx: ContentScriptCon
     if (event.composedPath().includes(host)) return;
     closePanel();
   };
+
   /** Reposition the inspector after a viewport resize. */
   const onResize = () => {
     if (panelFrame) return;
     panelFrame = requestAnimationFrame(() => {
       panelFrame = 0;
+
       if (!panelHost) return;
+
       if (!anchor.isConnected) {
         closePanel();
+
         return;
       }
+
       placePanel(anchor);
     });
   };
+
   for (const type of ['scroll', 'wheel', 'touchmove'])
     window.addEventListener(type, dismissOnScroll, {
       capture: true,
@@ -894,15 +1029,20 @@ function openPanel(post: Post, anchor: HTMLButtonElement, _ctx: ContentScriptCon
   window.addEventListener('resize', onResize, { signal: panelSignals.signal });
   stopPanelListeners = () => {
     panelSignals.abort();
+
     if (panelFrame) cancelAnimationFrame(panelFrame);
     panelFrame = 0;
   };
+
   renderPanel(post);
   const panel = root.querySelector('.panel');
+
   if (!(panel instanceof HTMLElement)) {
     closePanel();
+
     return;
   }
+
   panelSize = { width: panel.offsetWidth, height: panel.offsetHeight };
   placePanel(anchor);
   // Keyboard users land in the panel itself, not nowhere.
@@ -915,8 +1055,10 @@ let stopPanelListeners: (() => void) | null = null;
 function closePanel(): void {
   if (!panelHost) {
     openPostId = null;
+
     return;
   }
+
   clearInterval(panelCountdownTimer);
   panelCountdownTimer = undefined;
   stopPanelListeners?.();
@@ -929,10 +1071,13 @@ function closePanel(): void {
   panelPos = null;
   openPostId = null;
   panelAnchor = null;
+
   if (previous) {
     const post = posts.get(previous);
+
     if (post) renderPostAtUiBoundary(post);
   }
+
   // Return focus to the button that opened the panel (no-op when focus is
   // already elsewhere, e.g. the user clicked into another control).
   if (anchor?.isConnected && (!document.activeElement || document.activeElement === document.body))
@@ -943,8 +1088,10 @@ function closePanel(): void {
 function renderPanel(post: Post): void {
   const root = panelRoot;
   const host = panelHost;
+
   if (!root || !host || openPostId !== post.id) return;
   const dark = isDark(document.body);
+
   const vars = dark
     ? {
         '--p-bg': 'rgb(21,32,43)',
@@ -964,16 +1111,23 @@ function renderPanel(post: Post): void {
         '--p-accent': '#1d9bf0',
         '--p-shadow': 'rgba(101,119,134,0.28)',
       };
+
   for (const [name, value] of Object.entries(vars)) host.style.setProperty(name, value);
+
   // Preserve focus across rebuilds (countdown ticks re-render the panel);
   // threshold inputs are found again by category instead of label escaping.
-  const drafts = [...root.querySelectorAll<HTMLInputElement>('[data-jev-cat]')]
-    .filter((input) => input.value !== input.defaultValue)
-    .map((input) => ({
-      category: input.dataset.jevCat,
-      value: input.value,
-      saved: input.defaultValue,
-    }));
+  const drafts = [...root.querySelectorAll<HTMLInputElement>('[data-jev-cat]')].flatMap((input) =>
+    input.value !== input.defaultValue
+      ? [
+          {
+            category: input.dataset.jevCat,
+            value: input.value,
+            saved: input.defaultValue,
+          },
+        ]
+      : [],
+  );
+
   const focusedCategory = panelFocusCategory;
   panelFocusCategory = null;
   root.replaceChildren();
@@ -983,13 +1137,17 @@ function renderPanel(post: Post): void {
   const panel = element('div');
   panel.className = 'panel';
   panel.tabIndex = -1;
+
   const revealed = [...bindings.values()].some(
     (binding) => binding.post === post && binding.revealed,
   );
+
   const panelState = revealed && blocked(post) ? 'Shown temporarily' : stateOf(post);
+
   const reason = hits(post)
     .map((h) => `${scoreLabel(h.key, settings.current.textFilters)} ${(h.score * 100).toFixed(0)}%`)
     .join(', ');
+
   const previewReason = previewBlocked(post)
     ? previewHits(post)
         .map(
@@ -998,31 +1156,41 @@ function renderPanel(post: Post): void {
         )
         .join(', ')
     : '';
+
   const head = element(
     'div',
     `${panelState}${reason ? ` · ${reason}` : ''}${previewReason && !reason ? ` · ${previewReason} (link preview)` : ''}`,
   );
+
   head.className = 'head';
   const imageCount = post.urls.length + (post.previewUrl ? 1 : 0);
+
   const meta = element(
     'p',
     `${[imageCount ? `${imageCount} image${imageCount === 1 ? '' : 's'} found` : '', post.text ? 'Text found' : ''].filter(Boolean).join(' · ') || 'Nothing to check'} · ${post.scannedAt ? `Last scan ${new Date(post.scannedAt).toLocaleTimeString()}` : 'No completed scan yet'}`,
   );
+
   meta.className = 'meta';
   panel.append(head, meta);
+
   if (post.retryAt) {
     panel.append(retryLine(post));
   }
+
   // Surface scan errors so failures are visible, not just a warn dot.
   const errors = [...new Set(post.errors)];
+
   if (errors.length) {
     const list = element('ul');
     list.className = 'errors';
+
     for (const error of errors) list.append(element('li', `⚠ ${error}`));
     panel.append(list);
   }
+
   // Text categories — shown when the post has text and the category is enabled.
   const visibleTextKeys = TEXT_KEYS.filter((key) => settings.current.enabled[key]);
+
   if (
     (post.text || post.previewText) &&
     (visibleTextKeys.length > 0 || settings.current.textFilters.some((filter) => filter.enabled))
@@ -1032,18 +1200,23 @@ function renderPanel(post: Post): void {
     panel.append(groupLabel);
     const textTable = element('table');
     const heading = element('tr');
+
     for (const title of ['Category', 'Score', 'Block at']) heading.append(element('th', title));
     textTable.append(heading);
+
     for (const key of visibleTextKeys) {
       textTable.append(buildCategoryRow(post, key));
     }
+
     for (const filter of settings.current.textFilters.filter((item) => item.enabled)) {
       const row = element('tr');
       const score = post.scores[`custom:${filter.id}`];
       const previewScore = post.previewScores[`custom:${filter.id}`];
       const values: string[] = [];
+
       if (post.text)
         values.push(score === undefined ? 'not checked' : `${(score * 100).toFixed(1)}%`);
+
       if (post.previewText)
         values.push(
           `Preview ${previewScore === undefined ? 'not checked' : `${(previewScore * 100).toFixed(1)}%`}`,
@@ -1057,9 +1230,12 @@ function renderPanel(post: Post): void {
       row.append(cell);
       textTable.append(row);
     }
+
     panel.append(textTable);
   }
+
   const visibleImageKeys = IMAGE_KEYS.filter((key) => settings.current.enabled[key]);
+
   // Image categories disabled in the popup are not relevant in this inspector.
   if (imageCount > 0 && visibleImageKeys.length > 0) {
     const groupLabel = element('div', 'Images');
@@ -1067,13 +1243,17 @@ function renderPanel(post: Post): void {
     panel.append(groupLabel);
     const imageTable = element('table');
     const heading = element('tr');
+
     for (const title of ['Category', 'Score', 'Block at']) heading.append(element('th', title));
     imageTable.append(heading);
+
     for (const key of visibleImageKeys) {
       imageTable.append(buildCategoryRow(post, key, { ...post.scores, ...post.previewScores }));
     }
+
     panel.append(imageTable);
   }
+
   panel.append(element('p', 'Lower thresholds block more. Applies to the whole feed.'));
   const foot = element('div');
   foot.className = 'foot';
@@ -1094,6 +1274,7 @@ function renderPanel(post: Post): void {
       )
       .catch(() => {});
   });
+
   if (revealed && blocked(post)) {
     const hide = element('button', 'Hide again');
     hide.type = 'button';
@@ -1106,35 +1287,45 @@ function renderPanel(post: Post): void {
     });
     foot.append(hide);
   }
+
   foot.append(logsLink);
   panel.append(foot);
   const hint = element('p', 'Unblock posts from the logs page.');
   hint.className = 'hint';
   panel.append(hint);
   root.append(panel);
+
   if (panelPos) {
     panel.style.left = `${panelPos.left}px`;
     panel.style.top = `${panelPos.top}px`;
   }
+
   for (const draft of drafts) {
     const input = root.querySelector<HTMLInputElement>(`[data-jev-cat="${draft.category}"]`);
+
     if (input?.defaultValue === draft.saved) input.value = draft.value;
   }
+
   if (focusedCategory) {
     const restored = root.querySelector<HTMLInputElement>(`[data-jev-cat="${focusedCategory}"]`);
     restored?.focus({ preventScroll: true });
   }
+
   // Live countdown for retry timers; stops once no retry is pending.
   clearInterval(panelCountdownTimer);
   panelCountdownTimer = undefined;
+
   if (post.retryAt) {
     panelCountdownTimer = setInterval(() => {
       const current = posts.get(post.id);
+
       if (!panelHost || openPostId !== post.id || !current) {
         clearInterval(panelCountdownTimer);
         panelCountdownTimer = undefined;
+
         return;
       }
+
       if (!current.retryAt) renderPanel(current);
       else root.querySelector<HTMLElement>('.retry-status')?.replaceChildren(retryText(current));
     }, 1000);
@@ -1145,11 +1336,13 @@ function retryLine(post: Post): HTMLElement {
   const line = element('p');
   line.className = 'retry-status';
   line.replaceChildren(retryText(post));
+
   return line;
 }
 
 function retryText(post: Post): Text {
   const secs = Math.max(0, Math.ceil(((post.retryAt ?? 0) - Date.now()) / 1000));
+
   return document.createTextNode(`Retrying in ${secs}s…`);
 }
 
@@ -1170,6 +1363,7 @@ function buildCategoryRow(
     document.createTextNode('%'),
   );
   row.append(cell);
+
   return row;
 }
 
@@ -1188,7 +1382,11 @@ function thresholdInput(post: Post, key: ScoreKey, threshold: number): HTMLInput
   input.addEventListener('change', () => {
     if (!input.validity.valid || input.value === '') return;
     const filter = settings.current.textFilters.find((item) => `custom:${item.id}` === key);
+
     if (key.startsWith('custom:') && !filter) return;
+    const category = CATEGORY_KEYS.find((category) => category === key);
+
+    if (!filter && !category) return;
     void browserRuntime
       .runPromise(
         updateSettings(
@@ -1200,16 +1398,17 @@ function thresholdInput(post: Post, key: ScoreKey, threshold: number): HTMLInput
               }
             : {
                 field: 'threshold',
-                category: key as CategoryKey,
+                category: category!,
                 value: input.valueAsNumber / 100,
               },
         ),
       )
-      .catch((error: unknown) => {
-        post.errors.push(`Settings: ${message(error)}`);
+      .catch((cause: unknown) => {
+        post.errors.push(`Settings: ${message(cause)}`);
         renderPostAtUiBoundary(post);
       });
   });
+
   return input;
 }
 
@@ -1222,11 +1421,13 @@ export function closePanelIfOpen(): void {
 /** Remove every trace of injected UI and hiding. Used on invalidation. */
 export function removeAllUI(): void {
   closePanelIfOpen();
+
   for (const [article, binding] of bindings) {
     binding.host.remove();
     restoreBinding(article, binding);
     applyCard(article, binding.post, false);
   }
+
   bindings.clear();
   removeGlobalStyle();
 }

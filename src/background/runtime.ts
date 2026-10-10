@@ -1,15 +1,14 @@
+import { Predicate, Effect, ManagedRuntime } from 'effect';
 // MV3 listeners register synchronously before the runtime initializes its Layer.
-import { Effect, ManagedRuntime } from 'effect';
 import * as Schema from 'effect/Schema';
 import { browser } from 'wxt/browser';
 import type { BrowserError } from '../platform/browser';
 import { BgRequestSchema } from '../filtering/schemas';
 import { STORAGE_KEYS } from '../filtering/types';
-import { BackgroundWorker, type MessageSender } from './worker';
+import { BackgroundWorker, type MessageSender, type BackgroundReply } from './worker';
 
-const BG_REQUEST_TYPES: Record<string, true> = {
+const BG_REQUEST_TYPES = {
   jev: true,
-  'follow-bootstrap': true,
   'update-settings': true,
   'classify-image': true,
   'extract-image-text': true,
@@ -35,39 +34,44 @@ function runBackgroundEffect(
 ): void {
   void backgroundRuntime
     .runPromise(effect)
-    .catch((error: unknown) => console.error(`[jev-filter] ${operation}`, error));
+    .catch((cause: unknown) => console.error(`[jev-filter] ${operation}`, cause));
 }
 
 function onMessageListener(
+  // oxlint-disable-next-line anti-slop/no-unknown-parameters -- This boundary validates untrusted data before exposing domain values.
   request: unknown,
   sender: MessageSender,
-  sendResponse: (reply: unknown) => void,
+  sendResponse: (reply: BackgroundReply) => void,
 ): true | undefined {
   if (
-    typeof request !== 'object' ||
-    request === null ||
+    !Predicate.isObject(request) ||
     !('type' in request) ||
-    typeof request.type !== 'string' ||
+    !Schema.is(Schema.String)(request.type) ||
     !Object.hasOwn(BG_REQUEST_TYPES, request.type)
   ) {
     return;
   }
+
   if (!isBgRequest(request)) {
     sendResponse({ ok: false, error: 'Invalid request.' });
+
     return true;
   }
+
   const effect = Effect.flatMap(BackgroundWorker, (worker) =>
     worker.handleRequest(request, sender),
   );
+
   void backgroundRuntime
     .runPromise(effect)
     .then((reply) => sendResponse(reply))
-    .catch((error: unknown) =>
+    .catch((cause: unknown) =>
       sendResponse({
         ok: false,
-        error: error instanceof Error ? error.message : String(error),
+        error: cause instanceof Error ? cause.message : String(cause),
       }),
     );
+
   return true;
 }
 

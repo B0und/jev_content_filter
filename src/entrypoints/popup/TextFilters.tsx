@@ -28,11 +28,13 @@ export function CustomTextFilters({
   }, [deleted]);
   const returnFocus = useRef<HTMLElement | null>(null);
   const addButton = useRef<HTMLButtonElement>(null);
+
   /** Return from the editor to its initiating control, with Add as a stable fallback. */
   const rememberFocus = () => {
     returnFocus.current =
       document.activeElement instanceof HTMLElement ? document.activeElement : null;
   };
+
   return (
     <section className="filter-section custom-section" aria-labelledby="custom-text-heading">
       <div className="section-heading">
@@ -99,6 +101,7 @@ export function CustomTextFilters({
               const owner = recoveryOwner.current;
               setDeleted(null);
               const restored = await popupState.update({ field: 'textFilter', value: filter });
+
               if (!restored && token === undoAttempt.current && owner === recoveryOwner.current)
                 setDeleted(filter);
             }}
@@ -123,11 +126,13 @@ export function CustomTextFilters({
                 onDelete={async (restoreFocus) => {
                   const token = ++removal.current;
                   const removed = await popupState.deleteTextFilter(filter.id);
+
                   if (removed && token > recoveryOwner.current) {
                     recoveryOwner.current = token;
                     focusUndo.current = restoreFocus && document.activeElement === document.body;
                     setDeleted(removed);
                   }
+
                   if (removed && editing?.id === filter.id) setEditing(null);
                 }}
               />
@@ -176,6 +181,7 @@ function CustomFilter({
   onDelete: (restoreFocus: boolean) => void;
 }) {
   const toggleId = useId();
+
   const saveThreshold = useCallback(
     /** Persist only this filter threshold so concurrent edits keep their other fields. */
     (value: number, expectedThreshold: number) => {
@@ -188,6 +194,7 @@ function CustomFilter({
     },
     [filter.id],
   );
+
   return (
     <article className={`custom-filter category ${filter.enabled ? '' : 'disabled'}`}>
       <div className="custom-filter-heading category-label">
@@ -237,6 +244,7 @@ function TextFilterEditor({ filter, onClose }: { filter: TextFilter | null; onCl
   const active = useRef(true);
   useEffect(() => {
     active.current = true;
+
     return () => {
       active.current = false;
       popupState.dismissEditorError(editorId);
@@ -250,32 +258,35 @@ function TextFilterEditor({ filter, onClose }: { filter: TextFilter | null; onCl
   }, []);
   const [name, setName] = useState(filter?.name ?? '');
   const [instructions, setInstructions] = useState(filter?.instructions ?? '');
+
   return (
     <form
       className="text-filter-editor"
       onSubmit={async (event) => {
         event.preventDefault();
+
         if (saving || !name.trim() || !instructions.trim()) return;
         setSaving(true);
+
         try {
           const value = {
             name: name.trim(),
             instructions: instructions.trim(),
             threshold: 0.65,
           };
+
+          const patch: Partial<typeof value> = {};
+
+          if (editedFields.current.name) patch.name = value.name;
+
+          if (editedFields.current.instructions) patch.instructions = value.instructions;
+
           const change: SettingsChange = filter
-            ? {
-                field: 'patchTextFilter',
-                id,
-                value: {
-                  ...(editedFields.current.name ? { name: value.name } : {}),
-                  ...(editedFields.current.instructions
-                    ? { instructions: value.instructions }
-                    : {}),
-                },
-              }
+            ? { field: 'patchTextFilter', id, value: patch }
             : { field: 'textFilter', value: { id, ...value, enabled: true } };
+
           const saved = await popupState.update(change, editorId);
+
           if (saved && active.current) onClose();
         } finally {
           if (active.current) setSaving(false);

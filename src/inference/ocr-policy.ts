@@ -5,7 +5,9 @@ export const OCR_PIPELINE_REVISION =
 /** Read text from a larger media variant while retaining the canonical cache identity. */
 export function ocrImageUrl(url: string): string {
   const parsed = new URL(url);
+
   if (parsed.hostname === 'pbs.twimg.com' && parsed.pathname.startsWith('/media/'))
     parsed.searchParams.set('name', 'large');
+
   return parsed.href;
 }

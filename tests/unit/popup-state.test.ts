@@ -28,11 +28,13 @@ function whenSnapshot(state: PopupState, predicate: () => boolean): Promise<void
   if (predicate()) return Promise.resolve();
   const { promise, resolve } = Promise.withResolvers<void>();
   let unsubscribe = () => {};
+
   unsubscribe = state.subscribe(() => {
     if (!predicate()) return;
     unsubscribe();
     resolve();
   });
+
   return promise;
 }
 
@@ -77,6 +79,7 @@ describe('popup settings state', () => {
         ),
       }),
     );
+
     state.openWorkspace();
     await whenSnapshot(state, () => Boolean(state.getSnapshot().error));
     expect(state.getSnapshot().error).toContain('Could not open workspace');
@@ -89,15 +92,19 @@ describe('popup settings state', () => {
     const externalRead = deferred<void>();
     const requests: WriteRequest[] = [];
     const bothWritesStarted = deferred<void>();
+
     const state = createPopupState(
       popupDependencies({
         loadSettings: Effect.sync(() => {
           reads++;
+
           if (reads === 2) externalRead.resolve();
+
           return stored;
         }),
         subscribeStorage: (listener) => {
           notifyStorage = listener;
+
           return () => {
             notifyStorage = undefined;
           };
@@ -106,11 +113,14 @@ describe('popup settings state', () => {
           browserEffect('test update settings', () => {
             const complete = deferred<Settings>();
             requests.push({ change, complete });
+
             if (requests.length === 2) bothWritesStarted.resolve();
+
             return complete.promise;
           }),
       }),
     );
+
     const stop = state.start();
     await whenSnapshot(state, () => state.getSnapshot().settings !== null);
 
@@ -121,23 +131,29 @@ describe('popup settings state', () => {
       ...stored,
       enabled: { ...stored.enabled, hentai: false },
     };
+
     const observedExternalRefresh = whenSnapshot(
       state,
       () => reads >= 2 && state.getSnapshot().saving,
     );
+
     const storageListener = notifyStorage;
+
     if (!storageListener) {
       throw new BrowserError({ operation: 'test setup', cause: 'Missing storage listener' });
     }
+
     storageListener('local', new Set(['settings']));
     await externalRead.promise;
     await observedExternalRefresh;
 
     const firstRequest = requests[0];
     const secondRequest = requests[1];
+
     if (!firstRequest || !secondRequest) {
       throw new BrowserError({ operation: 'test setup', cause: 'Missing settings writes' });
     }
+
     expect(state.getSnapshot().settings?.masterEnabled).toBe(false);
     expect(state.getSnapshot().settings?.thresholds.porn).toBe(0.61);
     expect(state.getSnapshot().settings?.enabled.hentai).toBe(false);
@@ -148,6 +164,7 @@ describe('popup settings state', () => {
       masterEnabled: false,
       thresholds: { ...stored.thresholds, porn: 0.61 },
     };
+
     stored = afterBoth;
     secondRequest.complete.resolve(afterBoth);
     firstRequest.complete.resolve({ ...defaultSettings(), masterEnabled: false });
@@ -171,19 +188,23 @@ describe('popup settings state', () => {
     const writeResult = deferred<Settings>();
     let reads = 0;
     const savedSettings = { ...stored, masterEnabled: false };
+
     const state = createPopupState(
       popupDependencies({
         loadSettings: Effect.sync(() => {
           reads++;
+
           return stored;
         }),
         updateSettings: () =>
           browserEffect('test update settings', () => {
             writeStarted.resolve();
+
             return writeResult.promise;
           }),
       }),
     );
+
     const stop = state.start();
     await whenSnapshot(state, () => state.getSnapshot().settings !== null);
     void state.update({ field: 'masterEnabled', value: false });
@@ -209,6 +230,7 @@ describe('popup settings state', () => {
           ),
       }),
     );
+
     const stop = state.start();
     await whenSnapshot(state, () => state.getSnapshot().settings !== null);
 
@@ -226,6 +248,7 @@ describe('popup settings state', () => {
   it('cancels tab-report reads on view disposal without disturbing loaded settings', async () => {
     const reportStarted = deferred<void>();
     const reportAborted = deferred<void>();
+
     const state = createPopupState(
       popupDependencies({
         findActiveTab: Effect.succeed(42),
@@ -241,10 +264,12 @@ describe('popup settings state', () => {
               },
               { once: true },
             );
+
             return read.promise;
           }),
       }),
     );
+
     const stop = state.start();
     await reportStarted.promise;
     await whenSnapshot(state, () => state.getSnapshot().settings !== null);
@@ -257,6 +282,7 @@ describe('popup settings state', () => {
 
 it('reports the save outcome and clears a failed-save message after a successful retry', async () => {
   let fail = true;
+
   const state = createPopupState(
     popupDependencies({
       updateSettings: () =>
@@ -265,9 +291,12 @@ it('reports the save outcome and clears a failed-save message after a successful
           : Effect.succeed(defaultSettings()),
     }),
   );
+
   const stop = state.start();
+
   try {
     await whenSnapshot(state, () => state.getSnapshot().settings !== null);
+
     const filter = {
       id: 'draft',
       name: 'Gardening',
@@ -275,6 +304,7 @@ it('reports the save outcome and clears a failed-save message after a successful
       enabled: true,
       threshold: 0.72,
     };
+
     await expect(state.update({ field: 'textFilter', value: filter })).resolves.toBe(false);
     expect(state.getSnapshot().settings?.textFilters).toEqual(defaultSettings().textFilters);
     expect(state.getSnapshot().error).toContain('Could not save settings');
@@ -288,24 +318,30 @@ it('reports the save outcome and clears a failed-save message after a successful
 
 it('keeps another edits save error until that edit is successfully retried', async () => {
   const requests: WriteRequest[] = [];
+
   const state = createPopupState(
     popupDependencies({
       updateSettings: (change) =>
         browserEffect('test save', () => {
           const complete = deferred<Settings>();
           requests.push({ change, complete });
+
           return complete.promise;
         }),
     }),
   );
+
   const stop = state.start();
+
   try {
     await whenSnapshot(state, () => state.getSnapshot().settings !== null);
     const failed = state.update({ field: 'masterEnabled', value: false });
+
     const successful = state.update({
       field: 'textFilter',
       value: { ...defaultSettings().textFilters[0]!, threshold: 0.75 },
     });
+
     await whenSnapshot(state, () => requests.length === 2);
     requests[0]?.complete.reject('first write failed');
     await expect(failed).resolves.toBe(false);
@@ -329,7 +365,9 @@ it('dismisses an abandoned filter error without clearing another failed edit', a
         Effect.fail(new BrowserError({ operation: 'test save', cause: change.field })),
     }),
   );
+
   const stop = state.start();
+
   try {
     await whenSnapshot(state, () => state.getSnapshot().settings !== null);
     await state.update({ field: 'masterEnabled', value: false });
@@ -356,14 +394,18 @@ it('dismisses an abandoned filter error without clearing another failed edit', a
 
 it('ignores a save error arriving after its editor closes', async () => {
   const complete = deferred<Settings>();
+
   const state = createPopupState(
     popupDependencies({
       updateSettings: () => browserEffect('test delayed save', () => complete.promise),
     }),
   );
+
   const stop = state.start();
+
   try {
     await whenSnapshot(state, () => state.getSnapshot().settings !== null);
+
     const saving = state.update(
       {
         field: 'textFilter',
@@ -377,6 +419,7 @@ it('ignores a save error arriving after its editor closes', async () => {
       },
       'closed-editor',
     );
+
     state.dismissEditorError('closed-editor');
     complete.reject('late save failure');
     await expect(saving).resolves.toBe(false);

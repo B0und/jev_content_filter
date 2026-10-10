@@ -23,27 +23,34 @@ it('keeps a blocked video stable when X changes only its thumbnail size', async 
   };
   const runtime = await startRuntime({ enabled: configured.enabled });
   runtime.bg.imageRespond = () => ({ ok: true, scores: { porn: 0.99 } });
+
   const article = buildTweetArticle({
     id: '2105016474192515573',
     handle: 'personakoto',
     text: "Genuinely the best purchase of my life, I finally get to know what it's like for Makoto to listen to music :D",
   });
+
   const video = document.createElement('video');
+
   const thumbnail =
     'https://pbs.twimg.com/amplify_video_thumb/2105016301022289920/img/wOMgFoWLEu-N1SAL?format=webp&name=';
+
   video.setAttribute('poster', `${thumbnail}medium`);
   article.append(video);
   runtime.handle.discover();
   await until(() => article.hasAttribute('data-jev-hidden'));
 
   let unhideTransitions = 0;
+
   try {
     for (let index = 0; index < 12; index++) {
       video.setAttribute('poster', `${thumbnail}${index % 2 ? 'medium' : 'small'}`);
       runtime.handle.discover();
+
       if (!article.hasAttribute('data-jev-hidden')) unhideTransitions++;
       await until(() => runtime.handle.report().pending === 0);
     }
+
     expect(
       unhideTransitions,
       'size-only video thumbnail changes must not repeatedly unhide a classified post',
@@ -57,10 +64,12 @@ it('keeps a blocked video stable when X changes only its thumbnail size', async 
 it('keeps the parent post blocked when quoted-post metadata mounts before its timestamp', async () => {
   const runtime = await startRuntime();
   runtime.bg.respond = () => ({ ok: true, custom: { 'preset-1': 0.99 } });
+
   const article = buildTweetArticle({
     id: '2105016474192515573',
     text: 'The parent post stays unchanged while its quote hydrates.',
   });
+
   try {
     runtime.handle.discover();
     await until(() => article.hasAttribute('data-jev-hidden'));

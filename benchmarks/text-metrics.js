@@ -5,20 +5,25 @@ function confusion(cases, byId, threshold) {
   let fp = 0;
   let tn = 0;
   let fn = 0;
+
   for (const item of cases) {
     const score = byId.get(item.id)?.aiProbability;
+
     if (!Number.isFinite(score)) continue;
     const actual = item.labels.aiGenerated === 'yes';
     const predicted = score >= threshold;
+
     if (actual && predicted) tp += 1;
     else if (actual) fn += 1;
     else if (predicted) fp += 1;
     else tn += 1;
   }
+
   const divide = (a, b) => (b === 0 ? null : a / b);
   const precision = divide(tp, tp + fp);
   const recall = divide(tp, tp + fn);
   const f1Denominator = 2 * tp + fp + fn;
+
   return {
     n: tp + fp + tn + fn,
     tp,
@@ -36,20 +41,25 @@ function confusion(cases, byId, threshold) {
 function auc(cases, byId) {
   const positives = [];
   const negatives = [];
+
   for (const item of cases) {
     const score = byId.get(item.id)?.aiProbability;
+
     if (!Number.isFinite(score)) continue;
     (item.labels.aiGenerated === 'yes' ? positives : negatives).push(score);
   }
+
   if (positives.length === 0 || negatives.length === 0) return null;
   let wins = 0;
   let ties = 0;
+
   for (const positive of positives) {
     for (const negative of negatives) {
       if (positive > negative) wins += 1;
       else if (positive === negative) ties += 1;
     }
   }
+
   return (wins + ties / 2) / (positives.length * negatives.length);
 }
 
@@ -58,8 +68,10 @@ function latencySummary(rows) {
     .map((row) => row.inferenceMs)
     .filter(Number.isFinite)
     .sort((a, b) => a - b);
+
   if (values.length === 0) return { n: 0, meanMs: null, medianMs: null, p95Ms: null };
   const middle = Math.floor(values.length / 2);
+
   return {
     n: values.length,
     meanMs: values.reduce((sum, value) => sum + value, 0) / values.length,
@@ -71,13 +83,17 @@ function latencySummary(rows) {
 export function calculateMetrics(items, rows, threshold = 0.5) {
   const byId = new Map(rows.map((row) => [row.caseId, row]));
   const scored = items.filter((item) => Number.isFinite(byId.get(item.id)?.aiProbability));
+
   const lengthBins = Object.fromEntries(
     LENGTH_BINS.map((bin) => {
       const cases = scored.filter((item) => item.lengthBin === bin);
+
       return [bin, { ...confusion(cases, byId, threshold), auc: auc(cases, byId) }];
     }),
   );
+
   const under80Characters = scored.filter((item) => item.charCount < 80);
+
   return {
     threshold,
     overall: { ...confusion(scored, byId, threshold), auc: auc(scored, byId) },

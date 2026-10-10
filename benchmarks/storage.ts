@@ -24,6 +24,7 @@ export class BenchmarkStorage extends Context.Service<
     BenchmarkStorage,
     Effect.gen(function* () {
       const writes = yield* Semaphore.make(1);
+
       const request = Effect.fn('BenchmarkStorage.request')(function* (
         method: 'GET' | 'POST',
         state?: BenchmarkState,
@@ -31,20 +32,26 @@ export class BenchmarkStorage extends Context.Service<
         const value = yield* Effect.tryPromise({
           try: async (signal) => {
             const init: RequestInit = { method, credentials: 'same-origin', signal };
+
             if (method === 'POST' && state) {
               init.headers = { 'Content-Type': 'application/json' };
               init.body = JSON.stringify(state);
             }
+
             const response = await fetch('/api/benchmark/state', init);
+
             if (!response.ok)
               throw new Error(`SQLite storage request failed (${response.status}).`);
             const payload: unknown = await response.json();
+
             return payload;
           },
           catch: (cause) => new BenchmarkStorageError({ cause }),
         });
+
         return normalizeBenchmarkState(value);
       });
+
       return BenchmarkStorage.of({
         load: request('GET'),
         save: (state) =>

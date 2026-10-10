@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { Predicate } from 'effect';
 import { createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
 import { access, mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises';
@@ -9,33 +10,55 @@ import { chromium } from 'playwright';
 import { createServer } from 'vite';
 
 const benchmarkDirectory = path.dirname(fileURLToPath(import.meta.url));
+
 const repositoryDirectory = path.resolve(benchmarkDirectory, '..');
+
 const cacheDirectory = path.join(benchmarkDirectory, '.data', 'image-model-comparison');
+
 const fixtureCacheDirectory = path.join(cacheDirectory, 'fixtures');
+
 const modelCacheDirectory = path.join(cacheDirectory, 'models');
+
 const freshChromiumProfile = process.argv.includes('--fresh-profile');
+
 const chromeProfileDirectory = path.join(
   cacheDirectory,
   freshChromiumProfile ? `chrome-profile-cold-${Date.now()}` : 'chrome-profile',
 );
+
 const manifestPath = path.join(benchmarkDirectory, 'image-model-fixtures.json');
+
 const outputPath = path.join(benchmarkDirectory, 'image-model-results.json');
+
 const fixtureOutputDirectory = path.join(benchmarkDirectory, 'image-model-imports');
+
 const comparisonOutputPath = path.join(benchmarkDirectory, 'image-comparison.json');
+
 const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
+
 const DATASET_ID = 'wallstoneai/civitai-top-nsfw-images-with-metadata';
+
 const DATASET_REVISION = '4580a03472a54768a8d47a87822cab14e6a75996';
+
 const MODEL_URL =
   'https://huggingface.co/taufiqdp/mobilenetv4_conv_small.e2400_r224_in1k_nsfw_classifier/resolve/504317ad62086f357c9c5f70cf983726ff47efdb/mobilenetv4_conv_small.e2400_r224_in1k_nsfw_classifier.onnx';
+
 const MODEL_PATH = path.join(modelCacheDirectory, 'mobilenetv4-conv-small.onnx');
+
 const MODEL_SHA256 = '46995c000cb285d0c0a0e5b58cc618012ed2e649d326d4fddae910951848fc40';
+
 const MODEL_BYTES = 9_974_311;
+
 const TRANSFORMERS_MODEL_BYTES = 56_757_898;
+
 const TRANSFORMERS_MODEL_REVISION = '1ceb3c7fe1e9f3f2507e6df577437f23a9149fd5';
+
 const THRESHOLD = 0.5;
 
 const help = process.argv.includes('--help') || process.argv.includes('-h');
+
 const prepareOnly = process.argv.includes('--prepare-only');
+
 if (help) {
   console.log(
     'Usage: node benchmarks/image-model-benchmark.mjs [--prepare-only] [--fresh-profile]\n\nDownloads the fixed corpus/model artifacts into ignored benchmarks/.data, then runs packaged NSFWJS, the deferred pinned NSFWJS adapter, and two Hugging Face candidates in headless Chromium. --prepare-only downloads/validates assets and prints byte counts and SHA-256 hashes. --fresh-profile bypasses prior browser model cache for a cold-start measurement.',
@@ -49,37 +72,46 @@ function sha256(bytes) {
 
 async function download(url, destination, expectedSha256 = null) {
   await mkdir(path.dirname(destination), { recursive: true });
+
   try {
     const existing = await readFile(destination);
     const digest = sha256(existing);
+
     if (expectedSha256 && digest !== expectedSha256) {
       throw new Error(`Cached file failed SHA-256 check: ${destination}`);
     }
+
     return { bytes: existing.byteLength, sha256: digest, cached: true };
   } catch (error) {
     if (error instanceof Error && error.message.startsWith('Cached file failed')) throw error;
   }
 
   const response = await fetch(url, { redirect: 'follow' });
+
   if (!response.ok) throw new Error(`Download failed with HTTP ${response.status}: ${url}`);
   const bytes = Buffer.from(await response.arrayBuffer());
   const digest = sha256(bytes);
+
   if (expectedSha256 && digest !== expectedSha256) {
     throw new Error(
       `SHA-256 mismatch for ${String(url)}: expected ${String(expectedSha256)}, got ${String(digest)}`,
     );
   }
+
   const temporaryPath = `${destination}.tmp-${process.pid}`;
   await writeFile(temporaryPath, bytes);
   await rename(temporaryPath, destination);
+
   return { bytes: bytes.byteLength, sha256: digest, cached: false };
 }
 
 async function selectDatasetCases() {
   const url = `https://huggingface.co/datasets/${DATASET_ID}/resolve/${DATASET_REVISION}/prompts.json`;
   const response = await fetch(url);
+
   if (!response.ok) throw new Error(`Dataset metadata returned HTTP ${response.status}`);
   const metadata = await response.json();
+
   const candidates = Object.entries(metadata)
     .filter(
       ([, value]) => value?.[manifest.selectionRule.labelKey] === manifest.selectionRule.labelValue,
@@ -89,18 +121,22 @@ async function selectDatasetCases() {
       hash: sha256(Buffer.from(`${manifest.split.seed}:${filename}`)),
     }))
     .sort((left, right) => left.hash.localeCompare(right.hash));
+
   const selected = candidates
     .slice(0, manifest.selectionRule.count)
     .map(({ filename }) => filename);
+
   if (JSON.stringify(selected) !== JSON.stringify(manifest.selectionRule.expectedFilenames)) {
     throw new Error(
       `Pinned split changed. Expected ${manifest.selectionRule.expectedFilenames.join(', ')}, got ${selected.join(', ')}`,
     );
   }
+
   for (const filename of selected) {
     if (metadata[filename]?.nsfwLevel !== 'X')
       throw new Error(`Expected nsfwLevel=X for ${filename}`);
   }
+
   return { url, revision: DATASET_REVISION, selectedFilenames: selected };
 }
 
@@ -112,6 +148,7 @@ async function prepareAssets() {
   ]);
   const selection = await selectDatasetCases();
   const assets = [];
+
   for (const item of manifest.cases) {
     if (item.assetFile.startsWith('existing/')) {
       const sourcePath = path.join(
@@ -119,6 +156,7 @@ async function prepareAssets() {
         'images',
         item.assetFile.slice('existing/'.length),
       );
+
       const bytes = await readFile(sourcePath);
       assets.push({
         caseId: item.id,
@@ -130,16 +168,20 @@ async function prepareAssets() {
       });
       continue;
     }
+
     const destination = path.join(fixtureCacheDirectory, item.assetFile);
     const result = await download(item.source, destination, item.sha256 ?? null);
     assets.push({ caseId: item.id, path: item.assetFile, ...result, source: item.source });
   }
+
   const model = await download(MODEL_URL, MODEL_PATH, MODEL_SHA256);
   const modelStat = await stat(MODEL_PATH);
+
   if (modelStat.size !== MODEL_BYTES)
     throw new Error(
       `MobileNetV4 artifact size mismatch: expected ${MODEL_BYTES}, got ${modelStat.size}`,
     );
+
   return { selection, assets, model: { path: 'models/mobilenetv4-conv-small.onnx', ...model } };
 }
 
@@ -154,6 +196,7 @@ function localAssetPath(assetFile) {
   if (assetFile.startsWith('existing/')) {
     return path.join(benchmarkDirectory, 'images', assetFile.slice('existing/'.length));
   }
+
   return path.join(fixtureCacheDirectory, assetFile);
 }
 
@@ -164,18 +207,23 @@ function viteAssetPlugin() {
       server.middlewares.use(async (request, response, next) => {
         const requestUrl = new URL(request.url ?? '/', 'http://localhost');
         const pathname = requestUrl.pathname;
+
         if (pathname.startsWith('/__benchmark_onnxruntime/')) {
           const filename = path.basename(pathname);
+
           if (!/^ort-wasm-simd-threaded(?:\.asyncify)?\.(?:mjs|wasm)$/.test(filename)) {
             response.statusCode = 404;
             response.end('Unknown ONNX Runtime Web asset');
+
             return;
           }
+
           const wasmPath = path.join(
             repositoryDirectory,
             'node_modules/onnxruntime-web/dist',
             filename,
           );
+
           try {
             const fileStat = await stat(wasmPath);
             response.statusCode = 200;
@@ -189,8 +237,10 @@ function viteAssetPlugin() {
           } catch (error) {
             next(error);
           }
+
           return;
         }
+
         if (pathname === '/__benchmark_model/mobilenetv4.onnx') {
           try {
             const fileStat = await stat(MODEL_PATH);
@@ -202,16 +252,21 @@ function viteAssetPlugin() {
           } catch (error) {
             next(error);
           }
+
           return;
         }
+
         if (!pathname.startsWith('/__benchmark_asset/')) return next();
         const caseId = decodeURIComponent(pathname.slice('/__benchmark_asset/'.length));
         const item = manifest.cases.find((candidate) => candidate.id === caseId);
+
         if (!item) {
           response.statusCode = 404;
           response.end('Unknown benchmark case');
+
           return;
         }
+
         try {
           const filePath = localAssetPath(item.assetFile);
           const fileStat = await stat(filePath);
@@ -236,57 +291,71 @@ function metricsFor(cases, predictions) {
   const predictionById = Object.fromEntries(
     predictions.map((prediction) => [prediction.caseId, prediction]),
   );
+
   let tp = 0;
   let fp = 0;
   let tn = 0;
   let fn = 0;
   let missing = 0;
+
   for (const item of cases) {
     const prediction = predictionById[item.id];
+
     if (!prediction || prediction.score === null) {
       missing += 1;
       continue;
     }
+
     const expected = item.labels.contentMatch === 'yes';
     const predicted = prediction.score >= THRESHOLD;
+
     if (expected && predicted) tp += 1;
     else if (!expected && predicted) fp += 1;
     else if (!expected && !predicted) tn += 1;
     else fn += 1;
   }
+
   const positiveCount = tp + fn;
   const negativeCount = tn + fp;
   const ratio = (numerator, denominator) => (denominator === 0 ? null : numerator / denominator);
   const precision = ratio(tp, tp + fp);
   const recall = ratio(tp, tp + fn);
   const specificity = ratio(tn, tn + fp);
+
   const f1 =
     precision === null || recall === null || precision + recall === 0
       ? null
       : (2 * precision * recall) / (precision + recall);
+
   const scores = cases
     .map((item) => ({
       expected: item.labels.contentMatch === 'yes',
       score: predictionById[item.id]?.score,
     }))
-    .filter((item) => typeof item.score === 'number');
+    .filter((item) => Predicate.isNumber(item.score));
+
   const positives = scores.filter((item) => item.expected);
   const negatives = scores.filter((item) => !item.expected);
   let auc = null;
+
   if (positives.length > 0 && negatives.length > 0) {
     let wins = 0;
+
     for (const positive of positives) {
       for (const negative of negatives) {
         if (positive.score > negative.score) wins += 1;
         else if (positive.score === negative.score) wins += 0.5;
       }
     }
+
     auc = wins / (positives.length * negatives.length);
   }
+
   const latencies = predictions
     .map((prediction) => prediction.latencyMs)
-    .filter((value) => typeof value === 'number')
+    .filter((value) => Predicate.isNumber(value))
     .sort((a, b) => a - b);
+
   return {
     threshold: THRESHOLD,
     labeled: cases.length,
@@ -316,6 +385,7 @@ function importSolution(model, cases) {
   const predictions = Object.fromEntries(
     model.predictions.map((item) => {
       const raw = item.rawScores ?? {};
+
       const nsfwjs =
         model.id === 'nsfwjs-mobilenet-v2' ||
         model.id === 'nsfwjs-mobilenet-v2-static' ||
@@ -327,6 +397,7 @@ function importSolution(model, cases) {
               drawings: raw.drawings ?? null,
             }
           : { porn: null, hentai: null, sexy: null, drawings: null };
+
       return [
         item.caseId,
         {
@@ -345,6 +416,7 @@ function importSolution(model, cases) {
       ];
     }),
   );
+
   return {
     id: `image-${model.id}`,
     name: model.name,
@@ -365,15 +437,20 @@ async function runBrowser() {
     server: { host: '127.0.0.1', port: 0, strictPort: false, hmr: false },
     plugins: [viteAssetPlugin()],
   });
+
   let context;
+
   try {
     await vite.listen();
     const address = vite.httpServer.address();
-    if (!address || typeof address === 'string')
+
+    if (!address || Predicate.isString(address))
       throw new Error('Vite did not expose its listening port');
+
     const executablePath = await access('/usr/bin/chromium')
       .then(() => '/usr/bin/chromium')
       .catch(() => undefined);
+
     context = await chromium.launchPersistentContext(chromeProfileDirectory, {
       executablePath,
       headless: true,
@@ -393,6 +470,7 @@ async function runBrowser() {
     await page.waitForFunction(
       () => {
         const result = document.querySelector('#result');
+
         return result?.dataset.state === 'done' || result?.dataset.state === 'failed';
       },
       null,
@@ -400,9 +478,12 @@ async function runBrowser() {
     );
     const state = await page.locator('#result').getAttribute('data-state');
     const raw = await page.locator('#result').textContent();
+
     if (!raw) throw new Error('Browser did not return benchmark output');
     const browserOutput = JSON.parse(raw);
+
     if (state === 'failed') throw new Error(browserOutput.error ?? 'Browser benchmark failed');
+
     return browserOutput;
   } finally {
     await context?.close();
@@ -411,33 +492,40 @@ async function runBrowser() {
 }
 
 const assetPreparation = await prepareAssets();
+
 if (prepareOnly) {
   console.log(JSON.stringify(assetPreparation, null, 2));
   process.exit(0);
 }
 
 const browserOutput = await runBrowser();
+
 const resultModels = browserOutput.models.map((model) => ({
   ...model,
   metrics: metricsFor(manifest.cases, model.predictions),
 }));
+
 const nsfwjsPackage = JSON.parse(
   await readFile(path.join(repositoryDirectory, 'node_modules/nsfwjs/package.json'), 'utf8'),
 );
+
 const transformersPackage = JSON.parse(
   await readFile(
     path.join(repositoryDirectory, 'node_modules/@huggingface/transformers/package.json'),
     'utf8',
   ),
 );
+
 const onnxPackage = JSON.parse(
   await readFile(
     path.join(repositoryDirectory, 'node_modules/onnxruntime-web/package.json'),
     'utf8',
   ),
 );
+
 const cases = manifest.cases.map((item) => {
   const asset = assetPreparation.assets.find((candidate) => candidate.caseId === item.id);
+
   return {
     ...item,
     imageReference: item.assetFile.startsWith('existing/')
@@ -447,7 +535,9 @@ const cases = manifest.cases.map((item) => {
     assetSha256: asset?.sha256 ?? null,
   };
 });
+
 const staticNsfwjsModel = resultModels.find((model) => model.id === 'nsfwjs-mobilenet-v2-static');
+
 const finalResult = {
   schemaVersion: 1,
   executedAt: new Date().toISOString(),
@@ -509,7 +599,9 @@ const finalResult = {
   cases,
   models: resultModels,
 };
+
 await writeFile(outputPath, `${JSON.stringify(finalResult, null, 2)}\n`);
+
 const comparisonCases = cases.map((item) => ({
   id: item.id,
   modality: 'image',
@@ -536,6 +628,7 @@ const comparisonCases = cases.map((item) => ({
     .join('\n'),
   createdAt: manifest.createdAt,
 }));
+
 const comparisonExport = {
   schemaVersion: 1,
   corpusId: manifest.corpusId,
@@ -561,10 +654,14 @@ const comparisonExport = {
   })),
   resultsFile: path.basename(outputPath),
 };
+
 await writeFile(comparisonOutputPath, `${JSON.stringify(comparisonExport, null, 2)}\n`);
+
 await mkdir(fixtureOutputDirectory, { recursive: true });
+
 for (const model of resultModels) {
   let filename;
+
   if (model.id === 'nsfwjs-mobilenet-v2') {
     filename = 'image-model-import-nsfwjs.json';
   } else if (model.id === 'nsfwjs-mobilenet-v2-static') {
@@ -574,12 +671,14 @@ for (const model of resultModels) {
   } else {
     filename = 'image-model-import-transformersjs.json';
   }
+
   const solution = importSolution(model, cases);
   await writeFile(
     path.join(fixtureOutputDirectory, filename),
     `${JSON.stringify(solution, null, 2)}\n`,
   );
 }
+
 const summary = resultModels.map((model) => ({
   model: model.name,
   artifactBytes: model.artifactBytes,
@@ -587,6 +686,7 @@ const summary = resultModels.map((model) => ({
   metrics: model.metrics,
   error: model.error ?? null,
 }));
+
 console.log(
   JSON.stringify(
     {
@@ -599,5 +699,6 @@ console.log(
     2,
   ),
 );
+
 if (resultModels.some((model) => model.error || model.metrics.scored !== manifest.cases.length))
   process.exitCode = 1;

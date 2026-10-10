@@ -40,6 +40,7 @@
   "devDependencies": {
     "@babel/core": "^7.29.7",
     "@effect/tsgo": "0.47.1",
+    "@oxlint/plugins": "1.83.0",
     "@paddleocr/paddleocr-js": "^0.4.2",
     "@playwright/test": "^1.63.0",
     "@rolldown/plugin-babel": "^0.2.4",

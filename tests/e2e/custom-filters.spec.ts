@@ -1,3 +1,4 @@
+import { CATEGORY_KEYS } from '../../src/filtering/types';
 import { test, expect, remoteSettings } from './fixtures';
 import * as Schema from 'effect/Schema';
 import { SettingsSchema } from '../../src/filtering/schemas';
@@ -28,25 +29,31 @@ for (const editThreshold of [false, true]) {
     await popup.goto(`chrome-extension://${extensionId}/popup.html`);
     await popup.getByRole('button', { name: 'Edit', exact: true }).click();
     await popup.getByLabel('Filter name', { exact: true }).fill('Renamed rule');
+
     const threshold = page
       .locator('[data-jev-panel]')
       .getByRole('spinbutton', { name: 'Content filter threshold percent' });
+
     await threshold.fill('40');
     await threshold.press('Tab');
     await expect(
       popup.getByRole('spinbutton', { name: 'Content filter threshold percent' }),
     ).toHaveValue('40');
+
     if (editThreshold) {
       await popup.getByRole('spinbutton', { name: 'Content filter threshold percent' }).fill('70');
       await popup.getByRole('spinbutton', { name: 'Content filter threshold percent' }).fill('65');
     }
+
     await popup.getByRole('button', { name: 'Save filter' }).click();
     await expect
       .poll(async () => {
         const raw = await worker.evaluate(
           async () => (await chrome.storage.local.get('settings')).settings,
         );
+
         const filter = Schema.decodeUnknownSync(SettingsSchema)(raw).textFilters[0]!;
+
         return { name: filter.name, threshold: filter.threshold };
       })
       .toEqual({ name: 'Renamed rule', threshold: editThreshold ? 0.65 : 0.4 });
@@ -91,8 +98,8 @@ test('custom filters can be created, edited, disabled and deleted while the feed
 }) => {
   const settings = remoteSettings();
   settings.textFilters = [];
-  for (const key of Object.keys(settings.enabled) as Array<keyof typeof settings.enabled>)
-    settings.enabled[key] = false;
+
+  for (const key of CATEGORY_KEYS) settings.enabled[key] = false;
   settings.providerKeys.vercel = 'test-only-not-a-real-key';
   await setSettings(settings);
   await page.goto('https://x.com/home');
@@ -113,6 +120,7 @@ test('custom filters can be created, edited, disabled and deleted while the feed
   const slider = popup.getByRole('slider', { name: 'Gardening threshold', exact: true });
   await slider.focus();
   await slider.press('Home');
+
   for (let percent = 0; percent < 65; percent++) await slider.press('ArrowRight');
   await expect(slider).toHaveValue('65');
   await expect(garden).toBeHidden();
@@ -145,6 +153,7 @@ test('custom filters can be created, edited, disabled and deleted while the feed
       const stored = await worker.evaluate(
         async () => (await chrome.storage.local.get('settings')).settings,
       );
+
       return Schema.decodeUnknownSync(SettingsSchema)(stored).textFilters;
     })
     .toEqual([]);
@@ -173,6 +182,7 @@ test('a failed filter save preserves the draft for a successful retry', async ({
         ? Promise.reject(new Error('Test storage unavailable'))
         : originalSet(items);
   });
+
   try {
     await popup.getByRole('button', { name: 'Save filter' }).click();
     await expect(
@@ -184,6 +194,7 @@ test('a failed filter save preserves the draft for a successful retry', async ({
   } finally {
     await worker.evaluate('globalThis.restoreCustomFilterStorage()');
   }
+
   await popup.getByRole('button', { name: 'Save filter' }).click();
   await expect(popup.getByLabel('Filter name', { exact: true })).toHaveCount(0);
   await expect(popup.getByRole('switch', { name: 'Enable Gardening', exact: true })).toBeChecked();
@@ -204,6 +215,7 @@ test('cancelled and deleted editors clear their abandoned save errors', async ({
     chrome.storage.local.set = (items) => {
       if (!('settings' in items)) return originalSet(items);
       chrome.storage.local.set = originalSet;
+
       return Promise.reject(new Error('Test storage unavailable'));
     };
   });
@@ -226,6 +238,7 @@ test('cancelled and deleted editors clear their abandoned save errors', async ({
     chrome.storage.local.set = (items) => {
       if (!('settings' in items)) return originalSet(items);
       chrome.storage.local.set = originalSet;
+
       return Promise.reject(new Error('Test edited filter save unavailable'));
     };
   });
@@ -255,6 +268,7 @@ test('cancelling an untouched editor keeps a failed filter switch error', async 
     chrome.storage.local.set = (items) => {
       if (!('settings' in items)) return originalSet(items);
       chrome.storage.local.set = originalSet;
+
       return Promise.reject(new Error('Test switch save unavailable'));
     };
   });
@@ -290,6 +304,7 @@ test('a late successful save leaves the newer editor open', async ({
     chrome.storage.local.set = (items) => {
       if (!('settings' in items)) return originalSet(items);
       chrome.storage.local.set = originalSet;
+
       return delay.promise.then(() => originalSet(items));
     };
   });
