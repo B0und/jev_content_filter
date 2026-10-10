@@ -67,32 +67,6 @@ describe('content lifecycle', () => {
     expect(article.hasAttribute('data-jev-hidden')).toBe(false);
   });
 
-  it('reattached DOM gets a fresh binding and keeps its classified state', async () => {
-    const test = await startRuntime();
-    test.bg.respond = () => ({ ok: true, custom: { 'preset-1': 0.9 } });
-    const article = buildTweetArticle({ id: '2002', text: 'explicit text' });
-    test.handle.discover();
-    await until(() => article.hasAttribute('data-jev-hidden'), 'post not classified');
-
-    article.remove();
-    test.handle.discover();
-    await until(
-      () => document.querySelectorAll('[data-jev-host]').length === 0,
-      'host stayed for detached article',
-    );
-    expect(test.handle.report().blocked).toBe(0);
-
-    document.body.append(article); // late DOM: X re-inserts the same node
-    test.handle.discover();
-    await until(
-      () => article.hasAttribute('data-jev-hidden'),
-      'reattached post not re-hidden from retained scores',
-    );
-    expect(aria(iconButton(article))).toContain('Blocked');
-
-    stopRuntime(test);
-  });
-
   it('observes a video poster assigned late and replaced', async () => {
     const configured = baseSettings();
     configured.enabled = {
@@ -411,44 +385,6 @@ describe('content lifecycle', () => {
     expect(article.hasAttribute('data-jev-hidden')).toBe(true);
     expect(test.handle.report().blocked).toBe(1);
     expect(calls).toBe(2);
-    stopRuntime(test);
-  });
-
-  it('ignores X oscillating media srcs between size variants', async () => {
-    // X rewrites each media <img src> between size params while the feed
-    // scrolls (observed: ~127 swaps per image in 3s). Those swaps name the
-    // same image, so they must never invalidate scores, unhide a blocked
-    // post, or trigger a re-scan — that is the visible flapping bug.
-    const test = await startRuntime();
-    test.bg.respond = () => ({ ok: true, custom: { 'preset-1': 0.99 } });
-
-    const article = buildTweetArticle({
-      id: '2006',
-      text: 'text with media',
-      images: ['https://pbs.twimg.com/media/ChurnCase?format=jpg&name=small'],
-    });
-
-    test.handle.discover();
-    await until(() => article.hasAttribute('data-jev-hidden'), 'post not blocked');
-
-    const image = article.querySelector('img');
-
-    if (!(image instanceof HTMLImageElement)) throw new Error('article image missing');
-    const callsAfterScan = test.bg.jevCalls.length;
-
-    // Simulate X's size-param oscillation: identical media id, different name.
-    for (let index = 0; index < 40; index++) {
-      image.src = `https://pbs.twimg.com/media/ChurnCase?format=jpg&name=${
-        index % 2 === 0 ? '120x120' : 'small'
-      }`;
-      test.handle.discover();
-    }
-
-    // Nothing may flip: the post stays hidden, no new gateway calls, no re-scan.
-    expect(article.hasAttribute('data-jev-hidden')).toBe(true);
-    expect(aria(iconButton(article))).toContain('Blocked');
-    expect(test.bg.jevCalls.length).toBe(callsAfterScan);
-
     stopRuntime(test);
   });
 

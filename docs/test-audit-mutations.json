@@ -1,0 +1,1794 @@
+{
+  "sourceBaseCommit": "56ec95203f581db780191cd37c6764861e659c1a",
+  "trialCounts": {
+    "unit": 211,
+    "playwright": 23,
+    "browserLoop": 9
+  },
+  "note": "Representative mutation evidence for this audit, not an exhaustive mutation score. Production and harness changes were temporary. Test-only fixes in this commit were included in the final audit.",
+  "mutations": [
+    {
+      "id": "U162",
+      "description": "defer listener registration",
+      "patches": [
+        {
+          "file": "src/background/runtime.ts",
+          "line": 83,
+          "before": "browser.runtime.onMessage.addListener(onMessageListener);",
+          "after": "void Promise.resolve().then(() => browser.runtime.onMessage.addListener(onMessageListener));",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U104",
+      "description": "Change the recorded production expression",
+      "patches": [
+        {
+          "file": "src/background/runtime.ts",
+          "line": 55,
+          "before": "!isBgRequest(request)",
+          "after": "!(!isBgRequest(request))",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U187",
+      "description": "forget API error response handling",
+      "patches": [
+        {
+          "file": "src/background/worker.ts",
+          "line": 380,
+          "before": "return { ok: false, error: message };",
+          "after": "return { ok: true, custom: {} };",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "U101",
+      "description": "Change the recorded production expression",
+      "patches": [
+        {
+          "file": "src/background/worker.ts",
+          "line": 108,
+          "before": "parsed.protocol === 'https:'",
+          "after": "!(parsed.protocol === 'https:')",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U97",
+      "description": "Change the recorded production expression",
+      "patches": [
+        {
+          "file": "src/history/log.ts",
+          "line": 32,
+          "before": "e.tweetId !== entry.tweetId",
+          "after": "!(e.tweetId !== entry.tweetId)",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U35",
+      "description": "Change the recorded production expression",
+      "patches": [
+        {
+          "file": "src/history/log.ts",
+          "line": 68,
+          "before": "!Array.isArray(value)",
+          "after": "!(!Array.isArray(value))",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U93",
+      "description": "Change the recorded production expression",
+      "patches": [
+        {
+          "file": "src/filtering/types.ts",
+          "line": 207,
+          "before": "count < 1_000_000",
+          "after": "!(count < 1_000_000)",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U163",
+      "description": "attribute senderless counts to invalid tab",
+      "patches": [
+        {
+          "file": "src/background/worker.ts",
+          "line": 611,
+          "before": "const tabId = sender.tab?.id;",
+          "after": "const tabId = sender.tab?.id ?? -1;",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U117",
+      "description": "Change the recorded production expression",
+      "patches": [
+        {
+          "file": "src/background/runtime.ts",
+          "line": 100,
+          "before": "frameId !== 0",
+          "after": "!(frameId !== 0)",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U80",
+      "description": "Change the recorded production expression",
+      "patches": [
+        {
+          "file": "src/filtering/types.ts",
+          "line": 205,
+          "before": "count < 1000",
+          "after": "!(count < 1000)",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U188",
+      "description": "allow classification to read old settings during a save",
+      "patches": [
+        {
+          "file": "src/background/worker.ts",
+          "line": 368,
+          "before": "const settings = yield* settingsLock.withPermits(1)(Ref.get(settingsState));",
+          "after": "const settings = yield* Ref.get(settingsState);",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "U123",
+      "description": "Change the recorded production expression",
+      "patches": [
+        {
+          "file": "src/background/text-provider.ts",
+          "line": 88,
+          "before": "provider === 'vercel'",
+          "after": "!(provider === 'vercel')",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U189",
+      "description": "allow edits after failed benchmark hydration",
+      "patches": [
+        {
+          "file": "benchmarks/state.ts",
+          "line": 42,
+          "before": "onFailure: (error) => publish({ storageReady: false, storageError: error.message })",
+          "after": "onFailure: (error) => publish({ storageReady: true, storageError: error.message })",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "U13",
+      "description": "Change the recorded production expression",
+      "patches": [
+        {
+          "file": "benchmarks/storage-server.ts",
+          "line": 40,
+          "before": "!row || !Schema.is(Schema.String)(row.payload)",
+          "after": "!(!row || !Schema.is(Schema.String)(row.payload))",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U148",
+      "description": "invert prediction cutoff",
+      "patches": [
+        {
+          "file": "benchmarks/model.ts",
+          "line": 578,
+          "before": "const positive = value >= threshold;",
+          "after": "const positive = value < threshold;",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U94",
+      "description": "Change the recorded production expression",
+      "patches": [
+        {
+          "file": "benchmarks/model.ts",
+          "line": 375,
+          "before": "contentMatch === null",
+          "after": "!(contentMatch === null)",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U63",
+      "description": "Change the recorded production expression",
+      "patches": [
+        {
+          "file": "benchmarks/model.ts",
+          "line": 331,
+          "before": "previousTaskKey && Object.hasOwn(record, previousTaskKey)",
+          "after": "!(previousTaskKey && Object.hasOwn(record, previousTaskKey))",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U134",
+      "description": "Change the recorded production expression",
+      "patches": [
+        {
+          "file": "benchmarks/model.ts",
+          "line": 377,
+          "before": "aiGenerated === null",
+          "after": "!(aiGenerated === null)",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U42",
+      "description": "Change the recorded production expression",
+      "patches": [
+        {
+          "file": "benchmarks/model.ts",
+          "line": 329,
+          "before": "Object.hasOwn(record, 'contentMatch')",
+          "after": "!(Object.hasOwn(record, 'contentMatch'))",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U151",
+      "description": "forget imported solution kind",
+      "patches": [
+        {
+          "file": "benchmarks/model.ts",
+          "line": 637,
+          "before": "kind: solutionKind(payload.kind ?? payload.type),",
+          "after": "kind: 'other',",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U161",
+      "description": "retain malformed benchmark cases",
+      "patches": [
+        {
+          "file": "benchmarks/model.ts",
+          "line": 473,
+          "before": "const item = normalizeCase(snapshotFields(raw), previousTaskKey);\n\n      return item === null ? [] : [item];",
+          "after": "const item = normalizeCase(snapshotFields(raw), previousTaskKey);\n\n      return [item];",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U122",
+      "description": "Change the recorded production expression",
+      "patches": [
+        {
+          "file": "src/content/dom.ts",
+          "line": 59,
+          "before": "query",
+          "after": "!(query)",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U51",
+      "description": "Change the recorded production expression",
+      "patches": [
+        {
+          "file": "src/content/dom.ts",
+          "line": 52,
+          "before": "isVideoThumbnail",
+          "after": "!(isVideoThumbnail)",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U9",
+      "description": "Change the recorded production expression",
+      "patches": [
+        {
+          "file": "src/content/dom.ts",
+          "line": 29,
+          "before": "!url",
+          "after": "!(!url)",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U21",
+      "description": "Change the recorded production expression",
+      "patches": [
+        {
+          "file": "src/content/classify.ts",
+          "line": 130,
+          "before": "!key.startsWith(CACHE_PREFIX)",
+          "after": "!(!key.startsWith(CACHE_PREFIX))",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U174",
+      "description": "reuse legacy model cache revision",
+      "patches": [
+        {
+          "file": "src/content/classify.ts",
+          "line": 89,
+          "before": "revision = IMAGE_PIPELINE_REVISION;",
+          "after": "revision = 'nsfwjs/mobilenet_v2:d55a54c51f14380670064cc129b2ea51029c5e46';",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "U182",
+      "description": "ignore local AI block scores",
+      "patches": [
+        {
+          "file": "src/content/classify.ts",
+          "line": 377,
+          "before": "const scores = { aiGenerated: reply.scores.aiGenerated };",
+          "after": "const scores = { aiGenerated: 0 };",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "U92",
+      "description": "Change the recorded production expression",
+      "patches": [
+        {
+          "file": "src/content/state.ts",
+          "line": 178,
+          "before": "settings.current.enabled[key] &&\n        score !== undefined &&\n        score >= settings.current.thresholds[key]",
+          "after": "!(settings.current.enabled[key] &&\n        score !== undefined &&\n        score >= settings.current.thresholds[key])",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U18",
+      "description": "Change the recorded production expression",
+      "patches": [
+        {
+          "file": "src/filtering/settings.ts",
+          "line": 71,
+          "before": "Schema.is(Schema.Boolean)(storedEnabled)",
+          "after": "!(Schema.is(Schema.Boolean)(storedEnabled))",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U7",
+      "description": "Change the recorded production expression",
+      "patches": [
+        {
+          "file": "src/filtering/types.ts",
+          "line": 20,
+          "before": "enabled",
+          "after": "!(enabled)",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U164",
+      "description": "omit invalidation DOM cleanup",
+      "patches": [
+        {
+          "file": "src/content/runtime.ts",
+          "line": 876,
+          "before": "  removeAllUI();",
+          "after": "",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "U165",
+      "description": "stop discovering late video posters",
+      "patches": [
+        {
+          "file": "src/content/runtime.ts",
+          "line": 767,
+          "before": "attributeFilter: ['src', 'srcset', 'href', 'poster']",
+          "after": "attributeFilter: ['src', 'srcset', 'href']",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "U191",
+      "description": "hide failed scan status",
+      "patches": [
+        {
+          "file": "src/content/state.ts",
+          "line": 235,
+          "before": "if (post.errors.length > 0)",
+          "after": "if (false)",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "U209",
+      "description": "count duplicate bindings separately",
+      "patches": [
+        {
+          "file": "src/content/state.ts",
+          "line": 276,
+          "before": "const attached = new Set<Post>();\n\n  for (const [article, binding] of bindings)\n    if (article.isConnected && posts.get(binding.post.id) === binding.post)\n      attached.add(binding.post);",
+          "after": "const attached: Post[] = [];\n\n  for (const [article, binding] of bindings)\n    if (article.isConnected && posts.get(binding.post.id) === binding.post)\n      attached.push(binding.post);",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "U166",
+      "description": "stop discarding superseded scan results",
+      "patches": [
+        {
+          "file": "src/content/runtime.ts",
+          "line": 295,
+          "before": "post.version !== version",
+          "after": "false",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "U167",
+      "description": "stop evicting detached posts",
+      "patches": [
+        {
+          "file": "src/content/runtime.ts",
+          "line": 170,
+          "before": "if (detachedCount <= MAX_DETACHED_POSTS) return;",
+          "after": "return;\n          if (detachedCount <= MAX_DETACHED_POSTS) return;",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "U168",
+      "description": "retain scores after changed text fails",
+      "patches": [
+        {
+          "file": "src/content/runtime.ts",
+          "line": 454,
+          "before": "for (const key of textScoreKeys(post)) delete post.scores[key];",
+          "after": ";",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "U2",
+      "description": "Change the recorded production expression",
+      "patches": [
+        {
+          "file": "src/inference/ocr-policy.ts",
+          "line": 9,
+          "before": "parsed.hostname === 'pbs.twimg.com' && parsed.pathname.startsWith('/media/')",
+          "after": "!(parsed.hostname === 'pbs.twimg.com' && parsed.pathname.startsWith('/media/'))",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U31",
+      "description": "Change the recorded production expression",
+      "patches": [
+        {
+          "file": "src/content/dom.ts",
+          "line": 51,
+          "before": "isMediaPath",
+          "after": "!(isMediaPath)",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U183",
+      "description": "hide OCR extraction failures",
+      "patches": [
+        {
+          "file": "src/content/classify.ts",
+          "line": 240,
+          "before": "if (Result.isFailure(outcome)) errors.push(message(outcome.failure));",
+          "after": "if (Result.isFailure(outcome)) ;",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "U195",
+      "description": "omit rescan when text filters become enabled",
+      "patches": [
+        {
+          "file": "src/content/runtime.ts",
+          "line": 136,
+          "before": "post.textDone = false;",
+          "after": ";",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "U160",
+      "description": "ignore filter disabling while OCR is pending",
+      "patches": [
+        {
+          "file": "src/content/classify.ts",
+          "line": 271,
+          "before": "      const filters = current.textFilters.filter((filter) => filter.enabled);\n\n      if (!filters.length) return {};\n\n      const combined = [\n        text && `Tweet text:\\n${text}`,\n        ...ocr.texts.map((words, index) => `Text in attached image ${index + 1}:\\n${words}`),\n      ]\n        .filter(Boolean)\n        .join('\\n\\n');\n\n      if (!combined) return {};\n      const input = ocr.texts.length ? combined : text;\n\n      const key = cacheKey({\n        task: 'textFilters',\n        provider,\n        signature: textDecisionSignature(current.textFilters),\n        text: input,\n      });\n\n      const cached = yield* readCache(key);\n\n      if (cached && filters.every((filter) => cached.scores[`custom:${filter.id}`] !== undefined))\n        return cached.scores;\n\n      if (\n        !settings.current.masterEnabled ||\n        !settings.current.textFilters.some((filter) => filter.enabled) ||\n        settings.current.textProvider !== provider ||\n        settings.current.textConfigRevision !== revision\n      )\n        return {};\n\n",
+          "after": "      const filters = current.textFilters.map((filter) => ({ ...filter, enabled: true }));\n\n      if (!filters.length) return {};\n\n      const combined = [\n        text && `Tweet text:\\n${text}`,\n        ...ocr.texts.map((words, index) => `Text in attached image ${index + 1}:\\n${words}`),\n      ]\n        .filter(Boolean)\n        .join('\\n\\n');\n\n      if (!combined) return {};\n      const input = ocr.texts.length ? combined : text;\n\n      const key = cacheKey({\n        task: 'textFilters',\n        provider,\n        signature: textDecisionSignature(current.textFilters),\n        text: input,\n      });\n\n      const cached = yield* readCache(key);\n\n      if (cached && filters.every((filter) => cached.scores[`custom:${filter.id}`] !== undefined))\n        return cached.scores;\n\n      if (\n        !settings.current.masterEnabled ||\n        false ||\n        settings.current.textProvider !== provider ||\n        settings.current.textConfigRevision !== revision\n      )\n        return {};\n\n",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U171",
+      "description": "ignore opened post protection",
+      "patches": [
+        {
+          "file": "src/content/state.ts",
+          "line": 204,
+          "before": "post.id === openedPostId()",
+          "after": "false",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "U192",
+      "description": "log decisions completed while a post is detached",
+      "patches": [
+        {
+          "file": "src/content/ui.ts",
+          "line": 686,
+          "before": "if (!isAttached(post)) return [];",
+          "after": ";",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "U173",
+      "description": "suppress inspector logs action",
+      "patches": [
+        {
+          "file": "src/content/ui.ts",
+          "line": 1272,
+          "before": "browser.runtime.sendMessage({ type: 'open-logs', errors: false })",
+          "after": "Promise.resolve()",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "U89",
+      "description": "Change the recorded production expression",
+      "patches": [
+        {
+          "file": "src/filtering/settings.ts",
+          "line": 94,
+          "before": "Schema.is(Schema.String)(key)",
+          "after": "!(Schema.is(Schema.String)(key))",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U205",
+      "description": "put actual image rows before text rows",
+      "patches": [
+        {
+          "file": "src/content/ui.ts",
+          "line": 1254,
+          "before": "panel.append(imageTable);",
+          "after": "panel.prepend(imageTable);",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "U132",
+      "description": "Change the recorded production expression",
+      "patches": [
+        {
+          "file": "src/content/state.ts",
+          "line": 194,
+          "before": "settings.current.enabled[key] &&\n        score !== undefined &&\n        score >= settings.current.thresholds[key]",
+          "after": "!(settings.current.enabled[key] &&\n        score !== undefined &&\n        score >= settings.current.thresholds[key])",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U194",
+      "description": "replace draft values during inspector rerender",
+      "patches": [
+        {
+          "file": "src/content/ui.ts",
+          "line": 1376,
+          "before": "input.defaultValue = String(Number((threshold * 100).toFixed(1)));",
+          "after": "input.value = String(Number((threshold * 100).toFixed(1)));",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "U186",
+      "description": "keep paused filtering controls visible",
+      "patches": [
+        {
+          "file": "src/content/ui.ts",
+          "line": 744,
+          "before": "host.style.visibility = visible ? '' : 'hidden';",
+          "after": "host.style.visibility = '';",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "U210",
+      "description": "skip preview text checks after filters are enabled",
+      "patches": [
+        {
+          "file": "src/content/runtime.ts",
+          "line": 262,
+          "before": "!post.previewDone && (!!post.previewUrl || (!!post.previewText && textEnabled))",
+          "after": "false",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "U172",
+      "description": "skip blocked preview rendering",
+      "patches": [
+        {
+          "file": "src/content/state.ts",
+          "line": 221,
+          "before": "return previewHits(post).length > 0;",
+          "after": "return false;",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "U184",
+      "description": "treat video thumbnail size as changed media",
+      "patches": [
+        {
+          "file": "src/content/dom.ts",
+          "line": 52,
+          "before": "else if (isVideoThumbnail) params.set('name', 'medium');",
+          "after": "else if (isVideoThumbnail) params.set('name', params.get('name') ?? 'medium');",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "U185",
+      "description": "accept quoted timestamp as parent identity",
+      "patches": [
+        {
+          "file": "src/content/dom.ts",
+          "line": 125,
+          "before": "(container && container !== article && article.contains(container))",
+          "after": "false",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "U25",
+      "description": "Change the recorded production expression",
+      "patches": [
+        {
+          "file": "src/inference/download.ts",
+          "line": 20,
+          "before": "url.startsWith('chrome-extension:')",
+          "after": "!(url.startsWith('chrome-extension:'))",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U1",
+      "description": "Change the recorded production expression",
+      "patches": [
+        {
+          "file": "src/inference/download.ts",
+          "line": 9,
+          "before": "encoding && encoding !== 'identity'",
+          "after": "!(encoding && encoding !== 'identity')",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U83",
+      "description": "Change the recorded production expression",
+      "patches": [
+        {
+          "file": "src/inference/download.ts",
+          "line": 43,
+          "before": "cachedTotal === 0 || buffer.byteLength === cachedTotal",
+          "after": "!(cachedTotal === 0 || buffer.byteLength === cachedTotal)",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U142",
+      "description": "remove independent Porn agreement",
+      "patches": [
+        {
+          "file": "src/inference/image.ts",
+          "line": 252,
+          "before": "scores.porn = Math.min(scores.porn!, await loaders.explicitScore(explicitModel, bitmap));",
+          "after": "scores.porn = await loaders.explicitScore(explicitModel, bitmap);",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U153",
+      "description": "skip anime verification even for drawn content",
+      "patches": [
+        {
+          "file": "src/inference/image.ts",
+          "line": 264,
+          "before": "if (drawnEvidence < 0.2)",
+          "after": "if (drawnEvidence < 2)",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U150",
+      "description": "ignore Hentai evidence when Drawing is low",
+      "patches": [
+        {
+          "file": "src/inference/image.ts",
+          "line": 261,
+          "before": "const drawnEvidence = Math.min(1, scores.drawings! + scores.hentai!);",
+          "after": "const drawnEvidence = scores.drawings!;",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U147",
+      "description": "publish a Porn score after verification fails",
+      "patches": [
+        {
+          "file": "src/inference/image.ts",
+          "line": 257,
+          "before": "delete scores.porn;",
+          "after": "scores.porn = 0.99;",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U11",
+      "description": "Change the recorded production expression",
+      "patches": [
+        {
+          "file": "src/entrypoints/inference/pending-replies.ts",
+          "line": 35,
+          "before": "!Schema.is(CorrelationSchema)(event.data)",
+          "after": "!(!Schema.is(CorrelationSchema)(event.data))",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U175",
+      "description": "do not remove cancelled queued requests",
+      "patches": [
+        {
+          "file": "src/entrypoints/inference/worker-supervisor.ts",
+          "line": 122,
+          "before": "if (index !== -1) queued.splice(index, 1);",
+          "after": ";",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "U176",
+      "description": "leave completed execution deadlines alive",
+      "patches": [
+        {
+          "file": "src/entrypoints/inference/worker-supervisor.ts",
+          "line": 111,
+          "before": "clearTimeout(deadlines.get(id));",
+          "after": ";",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "U14",
+      "description": "Change the recorded production expression",
+      "patches": [
+        {
+          "file": "src/entrypoints/inference/worker-supervisor.ts",
+          "line": 42,
+          "before": "worker !== instance",
+          "after": "!(worker !== instance)",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U177",
+      "description": "do not terminate disposed inference worker",
+      "patches": [
+        {
+          "file": "src/entrypoints/inference/worker-supervisor.ts",
+          "line": 130,
+          "before": "instance?.terminate();",
+          "after": ";",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "U32",
+      "description": "Change the recorded production expression",
+      "patches": [
+        {
+          "file": "src/entrypoints/inference/worker-supervisor.ts",
+          "line": 52,
+          "before": "worker === created",
+          "after": "!(worker === created)",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U39",
+      "description": "Change the recorded production expression",
+      "patches": [
+        {
+          "file": "src/entrypoints/logs/state.ts",
+          "line": 96,
+          "before": "state.saving",
+          "after": "!(state.saving)",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U208",
+      "description": "queue clear writes behind a held view read",
+      "patches": [
+        {
+          "file": "src/entrypoints/logs/state.ts",
+          "line": 260,
+          "before": "dependencies.clear(type).pipe(",
+          "after": "storageLock.withPermits(1)(dependencies.clear(type)).pipe(",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "U207",
+      "description": "claim every acknowledged override is allowed",
+      "patches": [
+        {
+          "file": "src/entrypoints/logs/state.ts",
+          "line": 156,
+          "before": "allowed: storedOverrides[key] === 'allow'",
+          "after": "allowed: true",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "U202",
+      "description": "hide rejected clear-operation error",
+      "patches": [
+        {
+          "file": "src/entrypoints/logs/state.ts",
+          "line": 293,
+          "before": "actionError: `Could not clear ${target}: ${String(cause)}`",
+          "after": "actionError: ''",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "U199",
+      "description": "leave removed log rows visible after acknowledgement",
+      "patches": [
+        {
+          "file": "src/entrypoints/logs/state.ts",
+          "line": 270,
+          "before": "return !removed || !sameBlockedEntry(entry, removed);",
+          "after": "return true;",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "U200",
+      "description": "leave removed scan errors visible after acknowledgement",
+      "patches": [
+        {
+          "file": "src/entrypoints/logs/state.ts",
+          "line": 278,
+          "before": "!reply.cleared.some((entry) => sameScanErrorEntry(row, entry))",
+          "after": "true",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "U211",
+      "description": "drop provider errors after scan errors are cleared",
+      "patches": [
+        {
+          "file": "src/entrypoints/logs/state.ts",
+          "line": 112,
+          "before": "status.state === 'failing' && status.reason",
+          "after": "status.state === 'failing' && status.reason && scanErrors.length > 0",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "U198",
+      "description": "leave log reads running after disposal",
+      "patches": [
+        {
+          "file": "src/entrypoints/logs/state.ts",
+          "line": 223,
+          "before": "void runtime.dispose();",
+          "after": ";",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "U50",
+      "description": "Change the recorded production expression",
+      "patches": [
+        {
+          "file": "src/inference/ocr.ts",
+          "line": 50,
+          "before": "!response.ok",
+          "after": "!(!response.ok)",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U4",
+      "description": "Change the recorded production expression",
+      "patches": [
+        {
+          "file": "src/inference/ocr-image.ts",
+          "line": 13,
+          "before": "data.confidence >= 80 || !data.text.trim()",
+          "after": "!(data.confidence >= 80 || !data.text.trim())",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U26",
+      "description": "Change the recorded production expression",
+      "patches": [
+        {
+          "file": "src/inference/ocr-image.ts",
+          "line": 23,
+          "before": "!context",
+          "after": "!(!context)",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U139",
+      "description": "swallow primary OCR errors",
+      "patches": [
+        {
+          "file": "src/inference/ocr-image.ts",
+          "line": 11,
+          "before": "const { data } = await worker.recognize(image);",
+          "after": "const { data } = await worker.recognize(image).catch(() => ({data: {text:'',confidence:100}}));",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U67",
+      "description": "Change the recorded production expression",
+      "patches": [
+        {
+          "file": "src/inference/ocr-image.ts",
+          "line": 50,
+          "before": "alternate.confidence > data.confidence && second && second !== first",
+          "after": "!(alternate.confidence > data.confidence && second && second !== first)",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U196",
+      "description": "report missing tabs as available",
+      "patches": [
+        {
+          "file": "src/entrypoints/popup/state.ts",
+          "line": 175,
+          "before": "publish({ report: null, missingScript: true })",
+          "after": "publish({ report: null, missingScript: false })",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "U144",
+      "description": "hide workspace navigation failures",
+      "patches": [
+        {
+          "file": "src/entrypoints/popup/state.ts",
+          "line": 387,
+          "before": "publish({ error: `Could not open workspace: ${String(cause)}` })",
+          "after": "publish({ error: '' })",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U179",
+      "description": "omit optimistic settings projection",
+      "patches": [
+        {
+          "file": "src/entrypoints/popup/state.ts",
+          "line": 105,
+          "before": "return optimisticEdits.reduce(\n      (settings, edit) => applySettingsChange(settings, edit.change),\n      confirmedSettings,\n    );",
+          "after": "return confirmedSettings;",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "U178",
+      "description": "hide popup save error messages",
+      "patches": [
+        {
+          "file": "src/entrypoints/popup/state.ts",
+          "line": 277,
+          "before": "publish({ error });",
+          "after": "publish({ error: '' });",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "U197",
+      "description": "leave popup reads running after disposal",
+      "patches": [
+        {
+          "file": "src/entrypoints/popup/state.ts",
+          "line": 243,
+          "before": "void runtime.dispose();",
+          "after": ";",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "U180",
+      "description": "let completed save forget another save error",
+      "patches": [
+        {
+          "file": "src/entrypoints/popup/state.ts",
+          "line": 310,
+          "before": "if (saveErrors.get(key) === retriedError) saveErrors.delete(key);",
+          "after": "saveErrors.clear();",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "U181",
+      "description": "keep abandoned editor errors",
+      "patches": [
+        {
+          "file": "src/entrypoints/popup/state.ts",
+          "line": 326,
+          "before": "if (edit.abandoned) publish();",
+          "after": "if (false) publish();",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "U71",
+      "description": "Change the recorded production expression",
+      "patches": [
+        {
+          "file": "src/content/follow-observation.ts",
+          "line": 72,
+          "before": "queue.length >= 50000",
+          "after": "!(queue.length >= 50000)",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U70",
+      "description": "Change the recorded production expression",
+      "patches": [
+        {
+          "file": "src/content/relationships.ts",
+          "line": 59,
+          "before": "!refreshObservedViewer()",
+          "after": "!(!refreshObservedViewer())",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U27",
+      "description": "Change the recorded production expression",
+      "patches": [
+        {
+          "file": "src/content/relationships.ts",
+          "line": 27,
+          "before": "event.source !== window ||\n    event.origin !== location.origin ||\n    !Schema.is(FollowSnapshotSchema)(event.data)",
+          "after": "!(event.source !== window ||\n    event.origin !== location.origin ||\n    !Schema.is(FollowSnapshotSchema)(event.data))",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U87",
+      "description": "Change the recorded production expression",
+      "patches": [
+        {
+          "file": "src/content/follow-observation.ts",
+          "line": 80,
+          "before": "item == null ||\n      Predicate.isString(item) ||\n      Predicate.isNumber(item) ||\n      Predicate.isBoolean(item)",
+          "after": "!(item == null ||\n      Predicate.isString(item) ||\n      Predicate.isNumber(item) ||\n      Predicate.isBoolean(item))",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U6",
+      "description": "Change the recorded production expression",
+      "patches": [
+        {
+          "file": "src/content/relationships.ts",
+          "line": 16,
+          "before": "viewer !== observedViewer",
+          "after": "!(viewer !== observedViewer)",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U140",
+      "description": "discard saved filters",
+      "patches": [
+        {
+          "file": "src/filtering/settings.ts",
+          "line": 106,
+          "before": "? raw.textFilters",
+          "after": "? []",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U74",
+      "description": "Change the recorded production expression",
+      "patches": [
+        {
+          "file": "src/filtering/settings.ts",
+          "line": 88,
+          "before": "isTextProvider(raw.textProvider)",
+          "after": "!(isTextProvider(raw.textProvider))",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U37",
+      "description": "Change the recorded production expression",
+      "patches": [
+        {
+          "file": "src/filtering/settings.ts",
+          "line": 78,
+          "before": "storedThreshold === undefined",
+          "after": "!(storedThreshold === undefined)",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U154",
+      "description": "recreate deleted rules on late edits",
+      "patches": [
+        {
+          "file": "src/filtering/settings.ts",
+          "line": 183,
+          "before": "if (!existing) return current;",
+          "after": "if (!existing) return { ...current, textFilters: [...current.textFilters, { id: change.id, name: 'Restored', instructions: 'Restored', enabled: true, threshold: 0.3 }] };",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U157",
+      "description": "stop revising text configuration",
+      "patches": [
+        {
+          "file": "src/filtering/settings.ts",
+          "line": 258,
+          "before": "next.textConfigRevision++;",
+          "after": ";",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U156",
+      "description": "accept invalid threshold values",
+      "patches": [
+        {
+          "file": "src/filtering/settings.ts",
+          "line": 242,
+          "before": "!Number.isFinite(change.value) ||\n        change.value < 0 ||\n        change.value > 1",
+          "after": "false",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U146",
+      "description": "admit corrupt stored rules",
+      "patches": [
+        {
+          "file": "src/filtering/settings.ts",
+          "line": 107,
+          "before": ".filter(Schema.is(TextFilterSchema))",
+          "after": ".filter(() => true)",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U155",
+      "description": "allow more than twenty rules",
+      "patches": [
+        {
+          "file": "src/filtering/settings.ts",
+          "line": 205,
+          "before": "throw new Error('You can save up to 20 text filters.');",
+          "after": ";",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U152",
+      "description": "retain removed author exceptions",
+      "patches": [
+        {
+          "file": "src/filtering/settings.ts",
+          "line": 161,
+          "before": "categories.delete(change.category);",
+          "after": "categories.add(change.category);",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U149",
+      "description": "invert persisted follow checkbox",
+      "patches": [
+        {
+          "file": "src/filtering/settings.ts",
+          "line": 120,
+          "before": "? raw.skipFollowed",
+          "after": "? !raw.skipFollowed",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U28",
+      "description": "Change the recorded production expression",
+      "patches": [
+        {
+          "file": "src/filtering/types.ts",
+          "line": 30,
+          "before": "key.startsWith('custom:')",
+          "after": "!(key.startsWith('custom:'))",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U159",
+      "description": "publish malformed stored status",
+      "patches": [
+        {
+          "file": "src/filtering/settings.ts",
+          "line": 308,
+          "before": "return isFilterStatus(status) ? status : { state: 'ok', updatedAt: 0 };",
+          "after": "return status ?? { state: 'ok', updatedAt: 0 };",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U158",
+      "description": "accept invalid settings receipts",
+      "patches": [
+        {
+          "file": "src/filtering/settings.ts",
+          "line": 271,
+          "before": "if (!isSettingsReply(reply))",
+          "after": "if (false)",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U203",
+      "description": "call provider with no enabled text filters",
+      "patches": [
+        {
+          "file": "src/background/text-provider.ts",
+          "line": 76,
+          "before": "if (!activeFilters.length) return { custom: {} };",
+          "after": ";",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "U52",
+      "description": "Change the recorded production expression",
+      "patches": [
+        {
+          "file": "src/background/text-provider.ts",
+          "line": 56,
+          "before": "cause instanceof Error",
+          "after": "!(cause instanceof Error)",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U85",
+      "description": "Change the recorded production expression",
+      "patches": [
+        {
+          "file": "src/background/text-provider.ts",
+          "line": 76,
+          "before": "!activeFilters.length",
+          "after": "!(!activeFilters.length)",
+          "replace": "the expression at this line"
+        }
+      ]
+    },
+    {
+      "id": "U204",
+      "description": "do not abort interrupted provider calls",
+      "patches": [
+        {
+          "file": "src/background/text-provider.ts",
+          "line": 103,
+          "before": "AbortSignal.any([signal, AbortSignal.timeout(8000)])",
+          "after": "AbortSignal.timeout(8000)",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "B4",
+      "description": "ignore author and followed-account exemptions",
+      "patches": [
+        {
+          "file": "src/content/state.ts",
+          "before": "const handle = post.handle.toLowerCase();",
+          "after": "return false;\n  const handle = post.handle.toLowerCase();",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "B8",
+      "description": "invent a preset during historical settings migration",
+      "patches": [
+        {
+          "file": "src/filtering/settings.ts",
+          "before": "defaults.textFilters : [];",
+          "after": "defaults.textFilters : defaults.textFilters;",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "B7",
+      "description": "render zero virtual log rows",
+      "patches": [
+        {
+          "file": "src/entrypoints/logs/virtual-rows.ts",
+          "before": "count: keys.length,",
+          "after": "count: 0,",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "B2",
+      "description": "discard setting edits",
+      "patches": [
+        {
+          "file": "src/filtering/settings.ts",
+          "before": "const next = { ...current };",
+          "after": "return current;\n  const next = { ...current };",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "B15",
+      "description": "ignore video thumbnails and size identity",
+      "patches": [
+        {
+          "file": "src/content/dom.ts",
+          "before": "if (isMediaPath) params.delete('name');",
+          "after": "if (isMediaPath) params.set('name', params.get('name') ?? 'small');",
+          "replace": "all matches"
+        },
+        {
+          "file": "src/content/dom.ts",
+          "before": "(FILTERABLE_MEDIA_PATH.test(parsed.pathname) || parsed.pathname.startsWith('/card_img/'))",
+          "after": "(parsed.pathname.startsWith('/media/') || parsed.pathname.startsWith('/card_img/'))",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "B10",
+      "description": "hide save errors",
+      "patches": [
+        {
+          "file": "src/entrypoints/popup/state.ts",
+          "before": "saveErrors.set(key, { message: error });\n    publish({ error });",
+          "after": "saveErrors.set(key, { message: error });\n    publish({ error: \"\" });",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "B11",
+      "description": "close a newer editor when an older save completes",
+      "patches": [
+        {
+          "file": "src/entrypoints/popup/TextFilters.tsx",
+          "before": "if (saved && active.current) onClose();",
+          "after": "if (saved) onClose();",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "B1",
+      "description": "disable post and preview blocking",
+      "patches": [
+        {
+          "file": "src/content/state.ts",
+          "before": "return hits(post).length > 0;",
+          "after": "return false;",
+          "replace": "all matches"
+        },
+        {
+          "file": "src/content/state.ts",
+          "before": "return previewHits(post).length > 0;",
+          "after": "return false;",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "B21",
+      "description": "discard inspector edits with saved-value assertion",
+      "patches": [
+        {
+          "file": "src/filtering/settings.ts",
+          "before": "const next = { ...current };",
+          "after": "return current;\n  const next = { ...current };",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "B19",
+      "description": "hide content errors and show disabled inspector categories",
+      "patches": [
+        {
+          "file": "src/content/state.ts",
+          "before": "if (post.errors.length > 0)",
+          "after": "if (false)",
+          "replace": "all matches"
+        },
+        {
+          "file": "src/content/ui.ts",
+          "before": "const visibleImageKeys = IMAGE_KEYS.filter((key) => settings.current.enabled[key]);",
+          "after": "const visibleImageKeys = IMAGE_KEYS;",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "B14",
+      "description": "discard settings edited through the feed inspector",
+      "patches": [
+        {
+          "file": "src/filtering/settings.ts",
+          "before": "const next = { ...current };",
+          "after": "return current;\n  const next = { ...current };",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "B6",
+      "description": "erase published model scores",
+      "patches": [
+        {
+          "file": "src/inference/image.ts",
+          "before": "scores.porn = Math.min(scores.porn!, await loaders.explicitScore(explicitModel, bitmap));",
+          "after": "scores.porn = 0.99;",
+          "replace": "all matches"
+        },
+        {
+          "file": "src/inference/ai-text.ts",
+          "before": "return { aiGenerated };",
+          "after": "return { aiGenerated: 1 };",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "B23",
+      "description": "disable opened-post exemption with persistent image fixture",
+      "patches": [
+        {
+          "file": "src/content/state.ts",
+          "before": "post.id === openedPostId()",
+          "after": "false",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "B3",
+      "description": "collapse retained layout and shrink popup",
+      "patches": [
+        {
+          "file": "src/content/ui.ts",
+          "before": "const GLOBAL_CSS = `",
+          "after": "const GLOBAL_CSS = `\narticle[data-jev-hidden][data-jev-reserved]{height:0!important;min-height:0!important;overflow:hidden!important}",
+          "replace": "all matches"
+        },
+        {
+          "file": "src/entrypoints/popup/popup.css",
+          "before": "height: 590px;",
+          "after": "height: 20px;",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "B9",
+      "description": "drop recognized image text",
+      "patches": [
+        {
+          "file": "src/inference/ocr.ts",
+          "before": "return await recognizeOcrImage(activeWorker, image, async () => {",
+          "after": "return \"\";\n    return await recognizeOcrImage(activeWorker, image, async () => {",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "B12",
+      "description": "stop reporting a missing content script",
+      "patches": [
+        {
+          "file": "src/entrypoints/popup/state.ts",
+          "before": "missingScript: true",
+          "after": "missingScript: false",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "B16",
+      "description": "restore the stale row instead of the worker deletion receipt",
+      "patches": [
+        {
+          "file": "src/entrypoints/popup/TextFilters.tsx",
+          "before": "setDeleted(removed);",
+          "after": "setDeleted(filter);",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "B18",
+      "description": "let an obsolete failed Undo replace the current recovery action",
+      "patches": [
+        {
+          "file": "src/entrypoints/popup/TextFilters.tsx",
+          "before": "!restored && token === undoAttempt.current && owner === recoveryOwner.current",
+          "after": "!restored",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "B17",
+      "description": "handoff recovery ownership before deletion succeeds",
+      "patches": [
+        {
+          "file": "src/entrypoints/popup/TextFilters.tsx",
+          "before": "const token = ++removal.current;",
+          "after": "const token = ++removal.current;\n                  recoveryOwner.current = token;",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "B22",
+      "description": "ignore concurrency guards in retained race cases",
+      "patches": [
+        {
+          "file": "src/filtering/settings.ts",
+          "before": "change.expectedThreshold !== undefined &&",
+          "after": "false &&",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "A1",
+      "description": "expose synthetic fixture key in snapshots",
+      "patches": [
+        {
+          "file": "scripts/extension-session.mjs",
+          "before": "? '<REDACTED>'",
+          "after": "? element.value",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "A2",
+      "description": "omit feed tab activation",
+      "patches": [
+        {
+          "file": "scripts/extension-session.mjs",
+          "before": "if (surface === 'feed') {\n      await this.feed.bringToFront();",
+          "after": "if (surface === 'feed') {",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "A9",
+      "description": "discard changes to the filtering switch",
+      "patches": [
+        {
+          "file": "src/filtering/settings.ts",
+          "before": "const next = { ...current };",
+          "after": "if (change.field === 'masterEnabled') return current;\n  const next = { ...current };",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "A5",
+      "description": "reload without rebuilding changed code",
+      "patches": [
+        {
+          "file": "scripts/extension-session.mjs",
+          "before": "if (build) await this.build();\n    this.manifest =",
+          "after": "if (build && this.generation === 0) await this.build();\n    this.manifest =",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "A3",
+      "description": "report success despite collected exceptions",
+      "patches": [
+        {
+          "file": "scripts/extension-session.mjs",
+          "before": "ok: errors.length === 0,",
+          "after": "ok: true,",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "A6",
+      "description": "advance generation on a failed rebuild",
+      "patches": [
+        {
+          "file": "scripts/extension-session.mjs",
+          "before": "} catch (error) {\n            this.lastCheck =",
+          "after": "} catch (error) {\n            this.generation++;\n            this.lastCheck =",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "A4",
+      "description": "stop validating popup heading",
+      "patches": [
+        {
+          "file": "scripts/extension-session.mjs",
+          "before": "    assert.equal(\n      await popup.$eval('h1', (element) => element.textContent.trim().toLowerCase()),\n      this.manifest.name.toLowerCase(),\n      'Popup heading is incorrect',\n    );",
+          "after": "",
+          "replace": "all matches"
+        }
+      ]
+    },
+    {
+      "id": "A8",
+      "description": "overwrite saved fixture settings on browser restart",
+      "patches": [
+        {
+          "file": "scripts/extension-session.mjs",
+          "before": "if (existing.agentFixtureInitialized) return;",
+          "after": "if (false) return;",
+          "replace": "all matches"
+        }
+      ]
+    }
+  ]
+}

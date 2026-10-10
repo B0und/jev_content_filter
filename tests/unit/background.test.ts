@@ -88,13 +88,12 @@ beforeEach(() => {
 });
 
 describe('background worker lifecycle', () => {
-  it('registers the message listener synchronously with no awaits', async () => {
-    await startWorker();
-    expect(fakeBrowser.runtime.onMessage.hasListeners()).toBe(true);
-  });
+  it('registers synchronously and serves messages after initialization', async () => {
+    vi.resetModules();
+    const { startBackground } = await import('../../src/background/runtime');
 
-  it('answers a get-status message before settings finish loading', async () => {
-    await startWorker();
+    startBackground();
+    expect(fakeBrowser.runtime.onMessage.hasListeners()).toBe(true);
     await expect(fakeBrowser.runtime.sendMessage({ type: 'get-status' })).resolves.toEqual({
       state: 'ok',
       updatedAt: 0,
@@ -365,18 +364,12 @@ describe('per-tab badge counts', () => {
     });
   });
 
-  it('ignores tab-stats without a sender tab', async () => {
+  it('rejects senderless tab counts before they reach session storage', async () => {
     await startWorker();
-
-    const responses = await fakeBrowser.runtime.onMessage.trigger(
-      { type: 'tab-stats', blocked: 5 },
-      {},
-      () => undefined,
-    );
-
-    for (const response of responses) if (response) await response;
-    const stored = await fakeBrowser.storage.session.get(null);
-    expect(stored).toEqual({});
+    await expect(
+      fakeBrowser.runtime.sendMessage({ type: 'tab-stats', blocked: 5 }),
+    ).resolves.toEqual({ ok: false });
+    expect(await fakeBrowser.storage.session.get(null)).toEqual({});
   });
 
   it('drops the tab count when the tab closes', async () => {

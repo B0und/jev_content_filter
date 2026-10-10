@@ -183,6 +183,9 @@ describe('inspector panel', () => {
       );
 
       expect(groups).toEqual(['Text', 'Images']);
+      const tables = shadowRoot(panelHost).querySelectorAll('table');
+      expect(tables[0]?.textContent).toContain('Content filter');
+      expect(tables[1]?.textContent).toContain('Porn');
     } finally {
       stopRuntime(test);
     }

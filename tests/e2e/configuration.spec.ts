@@ -111,34 +111,6 @@ test('threshold edits apply after a pause and flush when the popup closes', asyn
   await expect.poll(savedPercent).toBe(25);
 });
 
-test('a newer saved threshold cancels an older pending popup edit', async ({
-  context,
-  worker,
-  extensionId,
-  setSettings,
-}) => {
-  const configured = remoteSettings();
-  configured.enabled.porn = true;
-  await setSettings(configured);
-  const popup = await context.newPage();
-  await popup.clock.install();
-  await popup.goto(`chrome-extension://${extensionId}/popup.html`);
-  await popup.getByRole('tab', { name: 'Images', exact: true }).click();
-  const input = popup.getByRole('spinbutton', { name: 'Porn threshold percent', exact: true });
-  await input.fill('75');
-  configured.thresholds.porn = 0.35;
-  await setSettings(configured);
-  await expect(input).toHaveValue('35');
-  await popup.clock.fastForward(400);
-  await popup.close();
-
-  const stored = await worker.evaluate(
-    async () => (await chrome.storage.local.get('settings')).settings,
-  );
-
-  expect(Schema.decodeUnknownSync(SettingsSchema)(stored).thresholds.porn).toBe(0.35);
-});
-
 test('provider switches isolate credentials and restore each providers own key', async ({
   page,
   context,

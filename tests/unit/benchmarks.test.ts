@@ -3,7 +3,6 @@ import {
   exportBenchmarkState,
   emptyNsfwjsScores,
   emptyPredictionReview,
-  initialBenchmarkState,
   manualReviewFor,
   metricsFor,
   normalizeBenchmarkState,
@@ -110,11 +109,17 @@ describe('benchmark metrics', () => {
   });
 
   it('keeps missing predictions visible as incomplete coverage', () => {
-    const metrics = metricsFor(cases, solution, 'aiGenerated', 0.5);
+    const metrics = metricsFor(
+      cases,
+      { ...solution, predictions: { ordinary: solution.predictions.ordinary! } },
+      'aiGenerated',
+      0.5,
+    );
+
     expect(metrics.labeled).toBe(2);
-    expect(metrics.scored).toBe(2);
-    expect(metrics.coverage).toBe(1);
-    expect(metrics.trueNegative).toBe(2);
+    expect(metrics.scored).toBe(1);
+    expect(metrics.coverage).toBe(0.5);
+    expect(metrics.trueNegative).toBe(1);
     expect(metrics.f1).toBeNull();
     expect(predictionLabel(null, 0.5)).toBe('missing');
     expect(predictionLabel(0.49, 0.5)).toBe('negative');
@@ -393,11 +398,10 @@ describe('benchmark data boundaries', () => {
     });
   });
 
-  it('falls back to a usable dataset when persisted state is malformed', () => {
-    const fallback = initialBenchmarkState();
+  it('drops malformed cases and normalizes an invalid solution list', () => {
     const loaded = normalizeBenchmarkState({ cases: [null, { id: 'bad' }], solutions: 'nope' });
     expect(loaded.cases).toEqual([]);
-    expect(loaded.solutions).toEqual(fallback.solutions);
+    expect(loaded.solutions).toEqual([]);
     expect(loaded.selectedCaseId).toBeNull();
   });
 });

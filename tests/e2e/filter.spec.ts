@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises';
 import * as Schema from 'effect/Schema';
 import { test, expect, remoteSettings } from './fixtures';
 import { TabReportSchema } from '../../src/filtering/schemas';
@@ -226,6 +227,11 @@ test('inspects a post, changes its threshold, and opens extension logs', async (
   await expect(logs.getByRole('tab', { name: /Blocked/ })).toBeVisible();
   await logs.getByRole('tab', { name: /Errors/ }).click();
   await expect(logs.getByRole('tabpanel', { name: /Errors/ })).toContainText('No scan errors');
+  const popup = await context.newPage();
+  await popup.goto(`chrome-extension://${extensionId}/popup.html`);
+  await expect(
+    popup.getByRole('spinbutton', { name: 'Content filter threshold percent', exact: true }),
+  ).toHaveValue('50');
 });
 
 test('a failed text request stays visible and exposes an error', async ({ page, extensionId }) => {
@@ -500,13 +506,19 @@ test('opens blocked image posts from the logs without hiding them', async ({
 
   for (const key of ['hentai', 'sexy', 'drawings'] as const) settings.thresholds[key] = 1;
   await setSettings(settings);
+
+  const feed = (await readFile('tests/e2e/feed.html', 'utf8')).replace(
+    'A calm afternoon in the garden.</div>',
+    'A calm afternoon in the garden.</div><img src="https://pbs.twimg.com/media/landscape.png" />',
+  );
+
+  await context.route('https://x.com/**', (route) =>
+    route.fulfill({ contentType: 'text/html', body: feed }),
+  );
   await page.goto('https://x.com/home');
-  await page.locator('[data-post="101"]').evaluate((post) => {
-    const image = document.createElement('img');
-    image.src = 'https://pbs.twimg.com/media/landscape.png';
-    post.append(image);
-  });
+
   const post = page.locator('[data-post="101"]');
+
   await expect(post).toBeHidden({ timeout: 60_000 });
 
   const popup = await context.newPage();
@@ -522,7 +534,11 @@ test('opens blocked image posts from the logs without hiding them', async ({
   const review = await reviewPromise;
   await review.waitForLoadState();
   await expect(review).toHaveURL('https://x.com/gardener/status/101');
-  await expect(review.locator('[data-post="101"]')).toBeVisible();
+  const reviewedPost = review.locator('[data-post="101"]');
+  await expect(reviewedPost.getByRole('button', { name: 'Opened post', exact: true })).toBeVisible({
+    timeout: 60_000,
+  });
+  await expect(reviewedPost.locator('img')).toBeVisible();
   await review.close();
   await logs.close();
   await popup.close();
