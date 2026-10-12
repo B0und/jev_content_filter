@@ -1,12 +1,15 @@
 import * as ort from 'onnxruntime-web/wasm';
 
 const result = document.querySelector('#result');
+
 const files = ['reported-video-poster.jpg', 'reported-quote.png', 'second-post.jpg'];
+
 const labels = ['general', 'sensitive', 'questionable', 'explicit'];
 
 function image(file) {
   const img = new Image();
   img.src = `/probe/${file}`;
+
   return new Promise((resolve, reject) => {
     img.onload = () => resolve(img);
     img.onerror = reject;
@@ -23,6 +26,7 @@ function inputFor(img, size) {
   ctx.drawImage(img, 0, 0, size, size);
   const pixels = ctx.getImageData(0, 0, size, size).data;
   const data = new Float32Array(3 * size * size);
+
   for (let y = 0; y < size; y++)
     for (let x = 0; x < size; x++) {
       const p = (y * size + x) * 4;
@@ -31,19 +35,23 @@ function inputFor(img, size) {
       data[size * size + q] = (pixels[p + 1] / 255) * 2 - 1;
       data[2 * size * size + q] = (pixels[p + 2] / 255) * 2 - 1;
     }
+
   return new ort.Tensor('float32', data, [1, 3, size, size]);
 }
 
 async function main() {
   ort.env.wasm.wasmPaths = '/ort/';
+
   const session = await ort.InferenceSession.create('/model/anime-dbrating.onnx', {
     executionProviders: ['wasm'],
   });
+
   const input = session.inputNames[0];
   const output = session.outputNames[0];
-  const shape = session.inputMetadata?.[input]?.dimensions ?? null;
-  const size = Number(shape?.at(-1)) || 384;
+  const dimensions = session.inputMetadata?.[input]?.dimensions ?? null;
+  const size = Number(dimensions?.at(-1)) || 384;
   const outputs = [];
+
   for (const file of files) {
     const started = performance.now();
     const bitmap = await image(file);
@@ -56,6 +64,7 @@ async function main() {
       latencyMs: performance.now() - started,
     });
   }
+
   document.querySelector('#result').dataset.state = 'done';
   document.querySelector('#result').textContent = JSON.stringify(
     {
@@ -67,6 +76,7 @@ async function main() {
     2,
   );
 }
+
 main().catch((error) => {
   result.dataset.state = 'failed';
   result.textContent = JSON.stringify({ error: String(error), stack: error?.stack }, null, 2);

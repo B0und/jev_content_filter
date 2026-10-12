@@ -1,4 +1,4 @@
-import { Effect } from 'effect';
+import { Result, Effect } from 'effect';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { loadLog, loadScanErrors } from '../../src/history/log';
@@ -17,11 +17,13 @@ describe('stored data validation', () => {
       ts: 1,
       reasons: [{ key: 'custom:preset-1', score: 0.9 }],
     };
+
     const unknownReason = {
       ...entry,
       tweetId: 'unknown-category',
       reasons: [{ key: 'unknownCategory', score: 0.9 }],
     };
+
     await fakeBrowser.storage.local.set({
       blockedLog: [
         null,
@@ -64,13 +66,17 @@ describe('stored data validation', () => {
   it('rejects a successful write reply whose settings payload is invalid', async () => {
     fakeBrowser.runtime.onMessage.addListener((_request, _sender, respond) => {
       respond({ ok: true, settings: { ...defaultSettings(), thresholds: {} } });
+
       return true;
     });
+
     const result = await Effect.runPromise(
       Effect.result(updateSettings({ field: 'masterEnabled', value: false })),
     );
+
     expect(result._tag).toBe('Failure');
-    if (result._tag === 'Failure')
+
+    if (Result.isFailure(result))
       expect(result.failure.message).toBe('update settings: Invalid settings response.');
   });
 });

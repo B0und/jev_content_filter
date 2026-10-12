@@ -2,6 +2,7 @@ import { env, pipeline } from '@huggingface/transformers';
 import { calculateMetrics } from './text-metrics.js';
 
 const THRESHOLD = 0.5;
+
 const MODEL_CANDIDATES = [
   {
     name: 'E5 small LoRA AI text detector q8',
@@ -22,12 +23,16 @@ const MODEL_CANDIDATES = [
 ];
 
 const status = document.querySelector('#status');
+
 const summary = document.querySelector('#summary');
+
 const runButton = document.querySelector('#run');
+
 const downloadButton = document.querySelector('#download');
 
 const corpus = await fetch('./text-cases.json').then(async (response) => {
   if (!response.ok) throw new Error(`Could not load corpus (${response.status})`);
+
   return response.json();
 });
 
@@ -39,28 +44,38 @@ if (corpus.cases.length !== 120 || corpus.cases.some((item) => item.charCount > 
 
 // A single WASM worker makes the measurements repeatable and does not require cross-origin isolation.
 env.allowRemoteModels = true;
+
 env.allowLocalModels = false;
+
 env.useBrowserCache = true;
+
 env.backends.onnx.wasm.numThreads = 1;
+
 env.backends.onnx.wasm.proxy = false;
 
 function classId(label) {
   const value = String(label).trim().toLowerCase();
+
   if (value === 'ai' || value.includes('generated')) return 1;
+
   if (value === 'human' || value.includes('real')) return 0;
   const match = value.match(/(?:label[_ -]?)?([01])$/);
+
   return match ? Number(match[1]) : null;
 }
 
 function aiProbability(output, aiLabelId) {
   const rows = Array.isArray(output) ? output.flat() : [output];
   const selected = rows.find((item) => classId(item.label) === aiLabelId);
+
   if (selected && Number.isFinite(selected.score)) return selected.score;
   const top = rows[0];
   const topId = top ? classId(top.label) : null;
+
   if (top && Number.isFinite(top.score) && topId !== null) {
     return topId === aiLabelId ? top.score : 1 - top.score;
   }
+
   throw new Error(`Cannot map classifier output to AI label: ${JSON.stringify(output)}`);
 }
 
@@ -81,6 +96,7 @@ function importSolution(candidate, rows) {
 async function runCandidate(candidate) {
   status.textContent = `Downloading/loading ${candidate.name}…`;
   const loadStart = performance.now();
+
   const classifier = await pipeline('text-classification', candidate.id, {
     revision: candidate.revision,
     dtype: 'q8',
@@ -91,6 +107,7 @@ async function runCandidate(candidate) {
       }
     },
   });
+
   const loadMs = performance.now() - loadStart;
 
   const warmupStart = performance.now();
@@ -98,10 +115,12 @@ async function runCandidate(candidate) {
   const warmupMs = performance.now() - warmupStart;
 
   const predictions = [];
+
   for (let index = 0; index < corpus.cases.length; index += 1) {
     const item = corpus.cases[index];
     status.textContent = `${candidate.name}: ${index + 1}/${corpus.cases.length}`;
     const started = performance.now();
+
     try {
       const output = await classifier(item.text, { top_k: 2 });
       const inferenceMs = performance.now() - started;
@@ -145,9 +164,12 @@ async function runBenchmark() {
   runButton.disabled = true;
   downloadButton.disabled = true;
   summary.textContent = '';
+
   try {
     const models = [];
+
     for (const candidate of MODEL_CANDIDATES) models.push(await runCandidate(candidate));
+
     const result = {
       schemaVersion: 1,
       completedAt: new Date().toISOString(),
@@ -172,6 +194,7 @@ async function runBenchmark() {
         measured: false,
       },
     };
+
     window.__textModelBenchmark = result;
     const blob = new Blob([JSON.stringify(result, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -181,6 +204,7 @@ async function runBenchmark() {
       .map((entry) => `${entry.model.name}: ${JSON.stringify(entry.metrics.overall)}`)
       .join('\n');
     status.textContent = 'Benchmark complete. Results are in window.__textModelBenchmark.';
+
     return result;
   } catch (error) {
     status.textContent = error instanceof Error ? (error.stack ?? error.message) : String(error);
@@ -191,6 +215,7 @@ async function runBenchmark() {
 }
 
 runButton.addEventListener('click', () => void runBenchmark());
+
 downloadButton.addEventListener('click', () => {
   const link = document.createElement('a');
   link.href = downloadButton.dataset.url;
@@ -199,5 +224,7 @@ downloadButton.addEventListener('click', () => {
 });
 
 window.runTextModelBenchmark = runBenchmark;
+
 window.textModelBenchmarkReady = true;
+
 status.textContent = `Ready: ${corpus.cases.length} pinned test tweets, balanced 60/60.`;

@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { describe, expect, it } from 'vitest';
-import { initialBenchmarkState } from '../../benchmarks/model';
+import { initialBenchmarkState, normalizeBenchmarkState } from '../../benchmarks/model';
 import { SQLiteBenchmarkStore } from '../../benchmarks/storage-server';
 
 describe('SQLite benchmark storage', () => {
@@ -11,32 +11,37 @@ describe('SQLite benchmark storage', () => {
     const databasePath = join(directory, 'benchmark.sqlite');
     const state = initialBenchmarkState();
     const caseId = state.cases[0]?.id;
+
     if (!caseId) throw new Error('Initial benchmark case is missing.');
 
     const firstStore = new SQLiteBenchmarkStore(databasePath);
+
     try {
-      firstStore.save({
-        ...state,
-        solutions: [
-          {
-            id: 'solution-sqlite',
-            name: 'SQLite candidate',
-            description: '',
-            kind: 'llm',
-            predictions: {
-              [caseId]: {
-                contentMatch: 0.23,
-                review: { contentMatch: 'wrong' },
+      firstStore.save(
+        normalizeBenchmarkState({
+          ...state,
+          solutions: [
+            {
+              id: 'solution-sqlite',
+              name: 'SQLite candidate',
+              description: '',
+              kind: 'llm',
+              predictions: {
+                [caseId]: {
+                  contentMatch: 0.23,
+                  review: { contentMatch: 'wrong' },
+                },
               },
             },
-          },
-        ],
-      });
+          ],
+        }),
+      );
     } finally {
       firstStore.close();
     }
 
     const secondStore = new SQLiteBenchmarkStore(databasePath);
+
     try {
       const restored = secondStore.load();
       expect(restored.solutions[0]?.predictions[caseId]).toMatchObject({

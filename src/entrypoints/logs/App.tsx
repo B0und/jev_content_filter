@@ -1,8 +1,10 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import * as Schema from 'effect/Schema';
+import { useCallback, useEffect, useLayoutEffect, useState, useSyncExternalStore } from 'react';
 import { Button } from '@base-ui/react/button';
 import { Select } from '@base-ui/react/select';
 import { Tabs } from '@base-ui/react/tabs';
-import { useVirtualizer, type VirtualItem } from '@tanstack/react-virtual';
+import type { VirtualItem } from '@tanstack/react-virtual';
+import { createVirtualRows } from './virtual-rows';
 import {
   CATEGORY_KEYS,
   CATEGORY_LABELS,
@@ -13,6 +15,7 @@ import { logsState, type ErrorRow } from './state';
 import './logs.css';
 
 type Tab = 'blocked' | 'errors';
+
 type ReasonFilter = string;
 
 const TABS: readonly Tab[] = ['blocked', 'errors'];
@@ -28,6 +31,7 @@ function isTab(value: string): value is Tab {
 
 function subscribeHash(listener: () => void) {
   window.addEventListener('hashchange', listener);
+
   return () => window.removeEventListener('hashchange', listener);
 }
 
@@ -37,6 +41,7 @@ function currentTab(): Tab {
 
 function switchTab(next: Tab) {
   const hash = `#${next}`;
+
   if (location.hash === hash) return;
   const oldURL = location.href;
   history.replaceState(null, '', hash);
@@ -46,14 +51,12 @@ function switchTab(next: Tab) {
 /** Every entry with an ID links to its permalink, which is never hidden. */
 function postUrl(entry: { tweetId?: string; handle?: string }): string | null {
   if (!entry.tweetId) return null;
+
   return entry.handle
     ? `https://x.com/${entry.handle}/status/${entry.tweetId}`
     : `https://x.com/i/status/${entry.tweetId}`;
 }
 
-// The virtualizer manages its own refs/effects and is incompatible with React
-// Compiler memoization, so the row list is an isolated component marked with
-// 'use no memo'; everything above stays compiler-optimized.
 function BlockedRow(props: {
   vRow: VirtualItem;
   entry: BlockedEntry;
@@ -62,13 +65,13 @@ function BlockedRow(props: {
   onUnblock: (tweetId: string) => void;
   measure: (node: Element | null) => void;
 }) {
-  'use no memo';
   const { vRow, entry, unblocked, unblocking, onUnblock, measure } = props;
   const url = postUrl(entry);
   const preview = entry.target === 'preview';
   const isUnblocked = unblocked.has(entry.tweetId);
   const isUnblocking = unblocking.has(entry.tweetId);
   let action: React.ReactNode;
+
   if (isUnblocking)
     action = (
       <button className="unblock-btn" disabled>
@@ -82,6 +85,7 @@ function BlockedRow(props: {
         Unblock
       </button>
     );
+
   return (
     <div
       className={preview ? 'row preview-row' : 'row'}
@@ -125,9 +129,9 @@ function ErrorRowView(props: {
   entry: ErrorRow;
   measure: (node: Element | null) => void;
 }) {
-  'use no memo';
   const { vRow, entry, measure } = props;
   const url = postUrl(entry);
+
   return (
     <div
       className="row error-row"
@@ -155,37 +159,29 @@ function ErrorRowView(props: {
   );
 }
 
-/** Virtualizer instance for one tab's rows; refs inside, so it opts out of the compiler. */
 function VirtualList(props: {
   rows: Array<{
     key: string;
     node: (vRow: VirtualItem, measure: (node: Element | null) => void) => React.ReactNode;
   }>;
 }) {
-  'use no memo';
-  const scrollRef = useRef<HTMLDivElement>(null);
-  // TanStack Virtual's API returns functions that cannot be memoized; the
-  // compiler directive above skips this component, and this rule disable
-  // records that decision (isolated here, per the audit's instruction to
-  // not broadly suppress compiler rules).
-  // oxlint-disable-next-line react/incompatible-library react-compiler/incompatible-library
-  const virtualizer = useVirtualizer({
-    count: props.rows.length,
-    getScrollElement: () => scrollRef.current,
-    estimateSize: () => 64,
-    overscan: 8,
-    getItemKey: (index) => props.rows[index]?.key ?? String(index),
-  });
+  const [store] = useState(createVirtualRows);
+  const attach = useCallback((node: HTMLDivElement | null) => store.attach(node), [store]);
+  const snapshot = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
+
+  useLayoutEffect(() => {
+    store.setKeys(props.rows.map((row) => row.key));
+  }, [store, props.rows]);
+
   return (
-    <div className="virtual-scroll" ref={scrollRef}>
-      <div
-        className="virtual-inner"
-        style={{ height: virtualizer.getTotalSize(), position: 'relative' }}
-      >
-        {virtualizer.getVirtualItems().map((vRow) => {
+    <div className="virtual-scroll" ref={attach}>
+      <div className="virtual-inner" style={{ height: snapshot.height, position: 'relative' }}>
+        {snapshot.items.map((vRow) => {
           const row = props.rows[vRow.index];
+
           if (!row) return null;
-          return <div key={vRow.key}>{row.node(vRow, virtualizer.measureElement)}</div>;
+
+          return <div key={vRow.key}>{row.node(vRow, store.measure)}</div>;
         })}
       </div>
     </div>
@@ -194,25 +190,30 @@ function VirtualList(props: {
 
 function logReasonOptions(log: BlockedEntry[]) {
   const storedReasons = new Map<string, string>();
+
   for (const entry of log)
     for (const reason of entry.reasons)
       if (!REASON_OPTIONS.some((option) => option.value === reason.key))
         storedReasons.set(reason.key, reason.label ?? scoreLabel(reason.key));
+
   return [...REASON_OPTIONS, ...Array.from(storedReasons, ([value, label]) => ({ value, label }))];
 }
 
 export function App() {
   const tab = useSyncExternalStore(subscribeHash, currentTab, currentTab);
   const [filter, setFilter] = useState<ReasonFilter>('all');
+
   const snapshot = useSyncExternalStore(
     logsState.subscribe,
     logsState.getSnapshot,
     logsState.getSnapshot,
   );
+
   const { log, errors, unblocked, unblocking, loadError, actionError, busyAction } = snapshot;
   useEffect(() => logsState.start(), []);
 
   const reasonOptions = logReasonOptions(log);
+
   const filtered =
     filter === 'all' ? log : log.filter((entry) => entry.reasons.some((r) => r.key === filter));
 
@@ -232,6 +233,7 @@ export function App() {
       />
     ),
   }));
+
   const errorRows = errors.map((entry) => ({
     key: `e:${entry.ts}:${entry.tweetId ?? ''}:${entry.message}`,
     node: (vRow: VirtualItem, measure: (node: Element | null) => void) => (
@@ -244,7 +246,7 @@ export function App() {
       <Tabs.Root
         value={tab}
         onValueChange={(value) => {
-          if (typeof value === 'string' && isTab(value)) switchTab(value);
+          if (Schema.is(Schema.String)(value) && isTab(value)) switchTab(value);
         }}
       >
         <header className="logs-header">
@@ -265,7 +267,7 @@ export function App() {
                 value={filter}
                 onValueChange={(value) => {
                   if (
-                    typeof value === 'string' &&
+                    Schema.is(Schema.String)(value) &&
                     reasonOptions.some((option) => option.value === value)
                   )
                     setFilter(value);

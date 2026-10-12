@@ -1,7 +1,10 @@
 import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
-  testDir: './tests/e2e',
+  projects: [
+    { name: 'e2e', testDir: './tests/e2e' },
+    { name: 'integration', testDir: './tests/browser-integration' },
+  ],
   fullyParallel: false,
   workers: 1,
   timeout: 45_000,

@@ -3,17 +3,21 @@ import { CATEGORY_KEYS, TEXT_PROVIDERS } from './types';
 import { ModelKindSchema, ModelStatusesSchema } from '../inference/contracts';
 
 const CategoryKeySchema = Schema.Literals(CATEGORY_KEYS);
+
 export const ScoreKeySchema = Schema.Union([
   CategoryKeySchema,
   Schema.TemplateLiteral(['custom:', Schema.String]).check(
     Schema.isPattern(/^custom:[a-zA-Z0-9-]{1,80}$/),
   ),
 ]);
+
 const TextProviderSchema = Schema.Literals(TEXT_PROVIDERS);
+
 const probability = Schema.Number.check(
   Schema.isFinite(),
   Schema.isBetween({ minimum: 0, maximum: 1 }),
 );
+
 const nonNegativeInt = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0));
 
 export const TextFilterSchema = Schema.Struct({
@@ -24,7 +28,16 @@ export const TextFilterSchema = Schema.Struct({
   threshold: probability,
 });
 
+export const AuthorHandleSchema = Schema.String.check(Schema.isPattern(/^[a-zA-Z0-9_]{1,15}$/));
+
+export const AuthorExceptionSchema = Schema.Struct({
+  handle: AuthorHandleSchema,
+  categories: Schema.mutable(Schema.Array(ScoreKeySchema)),
+});
+
 export const SettingsSchema = Schema.Struct({
+  authorExceptions: Schema.mutable(Schema.Array(AuthorExceptionSchema)),
+  skipFollowed: Schema.Boolean,
   textFilters: Schema.mutable(Schema.Array(TextFilterSchema)),
   masterEnabled: Schema.Boolean,
   textProvider: TextProviderSchema,
@@ -35,9 +48,20 @@ export const SettingsSchema = Schema.Struct({
 });
 
 const SettingsChangeSchema = Schema.Union([
+  Schema.Struct({
+    field: Schema.Literal('authorException'),
+    handle: AuthorHandleSchema,
+    category: ScoreKeySchema,
+    value: Schema.Boolean,
+  }),
+  Schema.Struct({
+    field: Schema.Literal('skipFollowed'),
+    value: Schema.Boolean,
+  }),
   Schema.Struct({ field: Schema.Literal('textFilter'), value: TextFilterSchema }),
   Schema.Struct({
     field: Schema.Literal('patchTextFilter'),
+    expectedThreshold: Schema.optionalKey(probability),
     id: TextFilterSchema.fields.id,
     value: Schema.Struct({
       name: Schema.optionalKey(TextFilterSchema.fields.name),
@@ -61,6 +85,7 @@ const SettingsChangeSchema = Schema.Union([
   }),
   Schema.Struct({
     field: Schema.Literal('threshold'),
+    expectedThreshold: Schema.optionalKey(probability),
     category: CategoryKeySchema,
     value: probability,
   }),
@@ -110,6 +135,7 @@ export const ClearReplySchema = Schema.Union([
     cleared: Schema.mutable(Schema.Array(ScanErrorEntrySchema)),
   }),
 ]);
+
 export type ClearReply = typeof ClearReplySchema.Type;
 
 export const TabReportSchema = Schema.Struct({
@@ -153,6 +179,10 @@ export const BgRequestSchema = Schema.Union([
 ]);
 
 export const SettingsReplySchema = Schema.Union([
-  Schema.Struct({ ok: Schema.Literal(true), settings: SettingsSchema }),
+  Schema.Struct({
+    ok: Schema.Literal(true),
+    settings: SettingsSchema,
+    deletedFilter: Schema.optionalKey(TextFilterSchema),
+  }),
   Schema.Struct({ ok: Schema.Literal(false), error: Schema.String }),
 ]);

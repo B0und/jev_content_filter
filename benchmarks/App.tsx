@@ -1,3 +1,4 @@
+import * as Schema from 'effect/Schema';
 import { Effect } from 'effect';
 import { BrowserError, browserEffect } from '../src/platform/browser';
 import {
@@ -48,13 +49,17 @@ const FILTER_LABELS: Record<CaseFilter, string> = {
 };
 
 const TASKS: BenchmarkTask[] = ['contentMatch', 'aiGenerated'];
+
 const NSFWJS_TASKS: NsfwjsTask[] = ['porn', 'hentai', 'sexy', 'drawings'];
+
 const SOLUTION_KINDS: SolutionKind[] = ['llm', 'nsfwjs', 'other'];
+
 const TRUTH_OPTIONS: Array<{ value: TruthValue; label: string }> = [
   { value: 'yes', label: 'Yes' },
   { value: 'no', label: 'No' },
   { value: 'unknown', label: 'Unknown' },
 ];
+
 function isNsfwjsTask(task: ScoreKey): task is NsfwjsTask {
   return Object.prototype.hasOwnProperty.call(NSFWJS_LABELS, task);
 }
@@ -64,7 +69,7 @@ const readFileAsDataUrl = (file: File) =>
     const reader = new FileReader();
     reader.onload = () =>
       resume(
-        typeof reader.result === 'string'
+        Schema.is(Schema.String)(reader.result)
           ? Effect.succeed(reader.result)
           : Effect.fail(
               new BrowserError({
@@ -83,9 +88,11 @@ const readFileAsDataUrl = (file: File) =>
         ),
       );
     reader.readAsDataURL(file);
+
     return Effect.sync(() => {
       reader.onload = null;
       reader.onerror = null;
+
       if (reader.readyState === FileReader.LOADING) reader.abort();
     });
   });
@@ -104,6 +111,7 @@ export function App() {
     benchmarkState.getSnapshot,
     benchmarkState.getSnapshot,
   );
+
   const [filter, setFilter] = useState<CaseFilter>('all');
   const [solutionDraft, setSolutionDraft] = useState('');
   const [solutionKind, setSolutionKind] = useState<SolutionKind>('llm');
@@ -118,10 +126,12 @@ export function App() {
 
   const selectedCase =
     state.cases.find((item) => item.id === state.selectedCaseId) ?? state.cases[0];
+
   const visibleCases = useMemo(
     () => state.cases.filter((item) => filter === 'all' || item.modality === filter),
     [filter, state.cases],
   );
+
   const labeledCount = selectedCase
     ? TASKS.filter((task) => selectedCase.labels[task] !== 'unknown').length
     : 0;
@@ -142,6 +152,7 @@ export function App() {
 
   function updateThreshold(task: BenchmarkTask | 'nsfwjs', value: string) {
     const numeric = Number(value);
+
     if (!Number.isFinite(numeric)) return;
     benchmarkState.update((current) => ({
       ...current,
@@ -151,6 +162,7 @@ export function App() {
 
   function updatePrediction(solutionId: string, task: ScoreKey, value: string) {
     const numeric = value === '' ? null : Number(value);
+
     if (numeric !== null && (!Number.isFinite(numeric) || numeric < 0 || numeric > 1)) return;
     const caseId = selectedCase?.id ?? '';
     benchmarkState.update((current) => ({
@@ -158,13 +170,16 @@ export function App() {
       solutions: current.solutions.map((solution) => {
         if (solution.id !== solutionId) return solution;
         const previous = predictionFor(solution, caseId);
+
         const review =
           numeric === null
             ? { ...previous.review, [task]: 'unreviewed' as const }
             : previous.review;
+
         const prediction = isNsfwjsTask(task)
           ? { ...previous, nsfwjs: { ...previous.nsfwjs, [task]: numeric }, review }
           : { ...previous, [task]: numeric, review };
+
         return {
           ...solution,
           predictions: { ...solution.predictions, [caseId]: prediction },
@@ -180,7 +195,9 @@ export function App() {
       solutions: current.solutions.map((solution) => {
         if (solution.id !== solutionId) return solution;
         const previous = predictionFor(solution, caseId);
+
         if (predictionScore(previous, task) === null) return solution;
+
         return {
           ...solution,
           predictions: {
@@ -194,6 +211,7 @@ export function App() {
       }),
     }));
   }
+
   function renderPredictionCell(solution: BenchmarkState['solutions'][number], task: ScoreKey) {
     const prediction = predictionFor(solution, selectedCase?.id ?? '');
     const value = predictionScore(prediction, task);
@@ -201,6 +219,7 @@ export function App() {
     const label = isNsfwjsTask(task) ? NSFWJS_LABELS[task] : TASK_LABELS[task];
     const stateLabel = predictionLabel(value, threshold);
     const verdict = prediction.review[task];
+
     return (
       <td key={task}>
         <div className="score-editor">
@@ -259,6 +278,7 @@ export function App() {
   function addSolution(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const name = solutionDraft.trim();
+
     if (!name) return;
     benchmarkState.update((current) => ({
       ...current,
@@ -279,14 +299,17 @@ export function App() {
   function importSolution(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     event.target.value = '';
+
     if (!file) return;
     benchmarkRuntime.runFork(
       Effect.gen(function* () {
         const text = yield* browserEffect('read solution', () => file.text());
+
         const solution = yield* Effect.try({
           try: () => parseSolutionImport(text),
           catch: (cause) => new BrowserError({ operation: 'import solution', cause }),
         });
+
         benchmarkState.update((current) => ({
           ...current,
           solutions: [...current.solutions, solution],
@@ -304,12 +327,16 @@ export function App() {
       const existingCases = new Set(current.cases.map((item) => item.id));
       const existingSolutions = new Set(current.solutions.map((solution) => solution.id));
       const cases = measured.cases.filter((item) => !existingCases.has(item.id));
+
       const solutions = measured.solutions.filter(
         (solution) => !existingSolutions.has(solution.id),
       );
+
       addedCases = cases.length;
       addedSolutions = solutions.length;
+
       if (!addedCases && !addedSolutions) return current;
+
       return {
         ...current,
         cases: [...current.cases, ...cases],
@@ -334,18 +361,25 @@ export function App() {
   function addSample(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const title = sampleTitle.trim();
+
     if (!title) {
       setNotice('Give the sample a short title first.');
+
       return;
     }
+
     if (sampleType === 'image' && !sampleImage) {
       setNotice('Choose an image before adding this sample.');
+
       return;
     }
+
     if (sampleType === 'text' && !sampleText.trim()) {
       setNotice('Paste some text before adding this sample.');
+
       return;
     }
+
     const item: BenchmarkCase = {
       id: createId('case'),
       modality: sampleType,
@@ -357,6 +391,7 @@ export function App() {
         : 'User-provided sample; original author/source is unverified.',
       createdAt: new Date().toISOString(),
     };
+
     if (sampleType === 'image') item.imageUrl = sampleImage;
     else item.text = sampleText.trim();
     benchmarkState.update((current) => ({
@@ -373,6 +408,7 @@ export function App() {
 
   function chooseSampleImage(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
+
     if (!file) return;
     benchmarkRuntime.runFork(
       readFileAsDataUrl(file).pipe(
@@ -548,6 +584,7 @@ export function App() {
                   value={sampleType}
                   onChange={(event) => {
                     const value = event.target.value;
+
                     if (value === 'text' || value === 'image') setSampleType(value);
                   }}
                 >
@@ -668,6 +705,7 @@ export function App() {
                       value={solutionKind}
                       onChange={(event) => {
                         const value = event.target.value;
+
                         if (value === 'llm' || value === 'nsfwjs' || value === 'other')
                           setSolutionKind(value);
                       }}
@@ -743,13 +781,16 @@ export function App() {
                               'contentMatch',
                               state.thresholds.contentMatch,
                             );
+
                             const aiGenerated = metricsFor(
                               state.cases,
                               solution,
                               'aiGenerated',
                               state.thresholds.aiGenerated,
                             );
+
                             const review = manualReviewFor(state.cases, solution);
+
                             return (
                               <tr key={solution.id} data-testid={`metric-row-${solution.id}`}>
                                 <th scope="row">

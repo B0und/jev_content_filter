@@ -7,14 +7,17 @@ import { BenchmarkStorage, BenchmarkStorageError } from '../../benchmarks/storag
 it('rejects edits after failed hydration, then saves the recovered dataset after retry', async () => {
   let stored = initialBenchmarkState();
   const firstCase = stored.cases[0];
+
   if (!firstCase) throw new Error('Initial benchmark case is missing.');
   stored.cases = [{ ...firstCase, id: 'saved-case', title: 'Saved custom dataset' }];
   let reads = 0;
   const saved = Promise.withResolvers<void>();
+
   const runtime = ManagedRuntime.make(
     Layer.succeed(BenchmarkStorage, {
       load: Effect.suspend(() => {
         reads++;
+
         return reads === 1
           ? Effect.fail(new BenchmarkStorageError({ cause: 'Storage unavailable' }))
           : Effect.succeed(stored);
@@ -26,20 +29,26 @@ it('rejects edits after failed hydration, then saves the recovered dataset after
         }),
     }),
   );
+
   const state = createBenchmarkState(runtime);
   const failed = Promise.withResolvers<void>();
   const loaded = Promise.withResolvers<void>();
+
   const unsubscribe = state.subscribe(() => {
     if (state.getSnapshot().storageError) failed.resolve();
+
     if (state.getSnapshot().storageReady) loaded.resolve();
   });
+
   let stop = state.start();
+
   try {
     await failed.promise;
     expect(state.getSnapshot().storageReady).toBe(false);
     let editAccepted = false;
     state.update((current) => {
       editAccepted = true;
+
       return { ...current, cases: [] };
     });
     expect(editAccepted).toBe(false);

@@ -15,6 +15,7 @@ export default defineConfig({
           relativeDest: `ort/${name}`,
         });
       }
+
       files.push({
         absoluteSrc: resolve(wxt.config.root, 'node_modules/tesseract.js/dist/worker.min.js'),
         relativeDest: 'ocr/worker.min.js',
@@ -24,6 +25,7 @@ export default defineConfig({
         absoluteSrc: resolve(wxt.config.root, 'node_modules/tesseract.js-core', core),
         relativeDest: `ocr/${core}`,
       });
+
       for (const dependency of ['tesseract.js', 'tesseract.js-core']) {
         files.push({
           absoluteSrc: resolve(

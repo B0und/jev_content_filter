@@ -1,20 +1,17 @@
 // @vitest-environment node
-import { Effect, Exit } from 'effect';
+import { Result, Effect, Exit } from 'effect';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { http, HttpResponse } from 'msw/http';
 import { setupServer } from 'msw/node';
 
-const { createGatewayMock, evaluateMock } = vi.hoisted(() => ({
-  createGatewayMock: vi.fn(),
-  evaluateMock: vi.fn(),
-}));
+const createGatewayMock = vi.fn();
 
-vi.mock('ai', () => ({ experimental_decide: evaluateMock }));
-vi.mock('@ai-sdk/gateway', () => ({
-  createGateway: (...args: unknown[]) => createGatewayMock(...args),
-}));
+const evaluateMock = vi.fn();
 
-import { evaluateText as evaluateProviderText } from '../../src/background/text-provider';
+import {
+  textProviderSdk,
+  evaluateText as evaluateProviderText,
+} from '../../src/background/text-provider';
 import { defaultSettings } from '../../src/filtering/types';
 
 const evaluateText = (
@@ -24,15 +21,21 @@ const evaluateText = (
 ) => evaluateProviderText({ filters: defaultSettings().textFilters, ...request });
 
 const API_KEY = 'provider-secret-token';
+
 const server = setupServer();
+
 beforeAll(() => server.listen({ onUnhandledFrame: 'error' }));
+
 afterAll(() => server.close());
 
 beforeEach(() => {
+  vi.spyOn(textProviderSdk, 'decide').mockImplementation(evaluateMock);
+  vi.spyOn(textProviderSdk, 'createGateway').mockImplementation(createGatewayMock);
   createGatewayMock.mockReset();
   evaluateMock.mockReset();
   evaluateMock.mockImplementation(async (options) => {
-    const actual = await vi.importActual<typeof import('ai')>('ai');
+    const actual = await import('ai');
+
     return actual.experimental_decide(options);
   });
   server.resetHandlers();
@@ -55,6 +58,7 @@ describe('text provider effects', () => {
         ),
       ).toEqual({ custom: {} });
     }
+
     expect(evaluateMock).not.toHaveBeenCalled();
   });
   it('returns a typed status error without exposing the provider key', async () => {
@@ -67,10 +71,12 @@ describe('text provider effects', () => {
     const result = await Effect.runPromise(
       Effect.result(evaluateText({ provider: 'typesafe', apiKey: API_KEY, text: 'hello' })),
     );
+
     expect(result._tag).toBe('Failure');
-    if (result._tag === 'Failure') {
+
+    if (Result.isFailure(result)) {
+      expect(result.failure._tag).toBe('TextProviderError');
       expect(result.failure).toMatchObject({
-        _tag: 'TextProviderError',
         provider: 'typesafe',
         statusCode: 401,
         message: 'Invalid key [redacted]',
@@ -108,6 +114,7 @@ describe('text provider effects', () => {
         HttpResponse.json({ answers: { 'custom:preset-1': { type: 'noul', noul: 1.1 } } }),
       ),
     );
+
     const result = await Effect.runPromise(
       Effect.result(
         evaluateText({
@@ -117,13 +124,16 @@ describe('text provider effects', () => {
         }),
       ),
     );
+
     expect(result._tag).toBe('Failure');
-    if (result._tag === 'Failure')
+
+    if (Result.isFailure(result))
       expect(result.failure.message).toMatch(/probability|Invalid response|invalid/i);
   });
 
   it('reports a network failure as a typed provider error', async () => {
     server.use(http.post('https://api.typesafe.ai/v1/systemone', () => HttpResponse.error()));
+
     const result = await Effect.runPromise(
       Effect.result(
         evaluateText({
@@ -133,8 +143,10 @@ describe('text provider effects', () => {
         }),
       ),
     );
+
     expect(result._tag).toBe('Failure');
-    if (result._tag === 'Failure') {
+
+    if (Result.isFailure(result)) {
       expect(result.failure._tag).toBe('TextProviderError');
       expect(result.failure.provider).toBe('typesafe');
       expect(result.failure.statusCode).toBeUndefined();
@@ -149,17 +161,22 @@ describe('text provider effects', () => {
     'sends enabled custom filters in one SDK decision call through %s',
     async (provider, endpoint) => {
       let body: unknown;
+      let calls = 0;
       server.use(
         http.post(endpoint, async ({ request }) => {
+          calls++;
           expect(request.headers.get('authorization')).toBe(`Bearer ${API_KEY}`);
           body = await request.json();
+
           return HttpResponse.json({
             answers: {
               'custom:garden': { type: 'noul', noul: 0.9 },
+              'custom:sports': { type: 'noul', noul: 0.2 },
             },
           });
         }),
       );
+
       const filter = {
         id: 'garden',
         name: 'Gardening',
@@ -167,16 +184,21 @@ describe('text provider effects', () => {
         enabled: true,
         threshold: 0.65,
       };
+
       expect(
         await Effect.runPromise(
           evaluateText({
             provider,
             apiKey: API_KEY,
             text: 'Garden advice',
-            filters: [filter, { ...filter, id: 'disabled', enabled: false }],
+            filters: [
+              filter,
+              { ...filter, id: 'sports', instructions: 'Posts about sports' },
+              { ...filter, id: 'disabled', enabled: false },
+            ],
           }),
         ),
-      ).toEqual({ custom: { garden: 0.9 } });
+      ).toEqual({ custom: { garden: 0.9, sports: 0.2 } });
       expect(body).toMatchObject({
         state: { tweet_text: 'Garden advice' },
         questions: {
@@ -186,6 +208,8 @@ describe('text provider effects', () => {
           },
         },
       });
+      expect(calls).toBe(1);
+      expect(body).toHaveProperty('questions.custom:sports');
       expect(body).not.toHaveProperty('questions.custom:disabled');
     },
   );
@@ -194,10 +218,12 @@ describe('text provider effects', () => {
     'interrupts the pending %s request',
     async (provider) => {
       const requestSignal = Promise.withResolvers<AbortSignal>();
+
       const rejectOnAbort = (signal: AbortSignal) => {
         const { promise, reject } = Promise.withResolvers<never>();
         requestSignal.resolve(signal);
         signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+
         return promise;
       };
 
@@ -212,11 +238,13 @@ describe('text provider effects', () => {
         let transportSignal: AbortSignal | undefined;
         vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
           transportSignal = init?.signal ?? undefined;
+
           return originalFetch(input, init);
         });
         server.use(
           http.post('https://api.typesafe.ai/v1/systemone', () => {
             const response = Promise.withResolvers<Response>();
+
             if (!transportSignal) throw new Error('Missing transport abort signal');
             requestSignal.resolve(transportSignal);
             transportSignal.addEventListener(
@@ -229,16 +257,19 @@ describe('text provider effects', () => {
                 ),
               { once: true },
             );
+
             return response.promise;
           }),
         );
       }
 
       const controller = new AbortController();
+
       const pending = Effect.runPromiseExit(
         evaluateText({ provider, apiKey: API_KEY, text: 'hello' }),
         { signal: controller.signal },
       );
+
       const signal = await requestSignal.promise;
       controller.abort();
       await vi.waitFor(() => expect(signal.aborted).toBe(true));

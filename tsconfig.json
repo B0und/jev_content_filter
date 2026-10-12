@@ -10,6 +10,12 @@
     "noUnusedLocals": true,
     "rewriteRelativeImportExtensions": true,
     "sourceMap": true,
-    "plugins": [{ "name": "@effect/language-service", "diagnostics": false }]
-  }
+    "plugins": [
+      {
+        "name": "@effect/language-service",
+        "diagnostics": false
+      }
+    ]
+  },
+  "exclude": ["tools/oxlint/anti-slop"]
 }

@@ -1,7 +1,7 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
   "entry": [
-    "src/entrypoints/{background,content}.ts",
+    "src/entrypoints/*.ts",
     "src/entrypoints/*/main.{ts,tsx}",
     "src/inference/worker.ts",
     "benchmarks/main.tsx",
@@ -9,6 +9,8 @@
     "benchmarks/{image-model-benchmark,ocr-benchmark,ocr-extension-probe,ocr-installed,ocr-metrics,run-jev-comparison,run-sensitive-image-probe,text-playwright}.mjs",
   ],
   "project": ["**/*.{js,mjs,ts,tsx}"],
+  // Preserve upstream declarations in vendored lint rules.
+  "ignore": ["tools/oxlint/anti-slop/vendor/**"],
   "vite": { "config": ["benchmarks/vite.config.ts"] },
   // @effect/tsgo uses this editor plugin key; it does not load the package.
   "ignoreDependencies": [

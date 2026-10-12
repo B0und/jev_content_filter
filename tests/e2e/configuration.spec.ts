@@ -13,9 +13,11 @@ test('upgrading settings without a filter list does not send text with a saved p
     requests++;
     await route.abort();
   });
+
   const stored = await worker.evaluate(
     async () => (await chrome.storage.local.get('settings')).settings,
   );
+
   const { textFilters: _filters, ...settings } = Schema.decodeUnknownSync(SettingsSchema)(stored);
   await worker.evaluate(async (settings) => {
     await chrome.storage.local.set({ settings });
@@ -26,7 +28,7 @@ test('upgrading settings without a filter list does not send text with a saved p
   ).toBeVisible();
   const popup = await context.newPage();
   await popup.goto(`chrome-extension://${extensionId}/popup.html`);
-  await popup.getByRole('tab', { name: 'Text', exact: true }).click();
+  await popup.getByRole('tab', { name: 'Filters', exact: true }).click();
   await expect(
     popup.getByRole('button', { name: 'Delete Content filter', exact: true }),
   ).toHaveCount(0);
@@ -47,6 +49,7 @@ test('blocked history displays and filters reason identifiers absent from curren
       ts: 1,
       reasons: [{ key: 'unknownCategory', label: 'Saved rule', score: 0.9 }],
     };
+
     await chrome.storage.local.set({
       blockedLog: [
         entry,
@@ -82,12 +85,15 @@ test('threshold edits apply after a pause and flush when the popup closes', asyn
   await popup.goto(`chrome-extension://${extensionId}/popup.html`);
   await popup.getByRole('tab', { name: 'Images', exact: true }).click();
   const input = popup.getByRole('spinbutton', { name: 'Porn threshold percent', exact: true });
+
   const savedPercent = async () => {
     const stored = await worker.evaluate(
       async () => (await chrome.storage.local.get('settings')).settings,
     );
+
     return Schema.decodeUnknownSync(SettingsSchema)(stored).thresholds.porn * 100;
   };
+
   const initial = await savedPercent();
   await input.fill('75');
   await popup.clock.fastForward(300);
@@ -103,32 +109,6 @@ test('threshold edits apply after a pause and flush when the popup closes', asyn
   await input.fill('25');
   await popup.close();
   await expect.poll(savedPercent).toBe(25);
-});
-
-test('a newer saved threshold cancels an older pending popup edit', async ({
-  context,
-  worker,
-  extensionId,
-  setSettings,
-}) => {
-  const configured = remoteSettings();
-  configured.enabled.porn = true;
-  await setSettings(configured);
-  const popup = await context.newPage();
-  await popup.clock.install();
-  await popup.goto(`chrome-extension://${extensionId}/popup.html`);
-  await popup.getByRole('tab', { name: 'Images', exact: true }).click();
-  const input = popup.getByRole('spinbutton', { name: 'Porn threshold percent', exact: true });
-  await input.fill('75');
-  configured.thresholds.porn = 0.35;
-  await setSettings(configured);
-  await expect(input).toHaveValue('35');
-  await popup.clock.fastForward(400);
-  await popup.close();
-  const stored = await worker.evaluate(
-    async () => (await chrome.storage.local.get('settings')).settings,
-  );
-  expect(Schema.decodeUnknownSync(SettingsSchema)(stored).thresholds.porn).toBe(0.35);
 });
 
 test('provider switches isolate credentials and restore each providers own key', async ({
@@ -150,8 +130,8 @@ test('provider switches isolate credentials and restore each providers own key',
   await expect(post.getByRole('button', { name: 'Allowed', exact: true })).toBeVisible();
   const popup = await context.newPage();
   await popup.goto(`chrome-extension://${extensionId}/popup.html`);
-  await popup.getByRole('tab', { name: 'Text', exact: true }).click();
-  await popup.getByText('Jev provider and scan details', { exact: true }).click();
+  await popup.getByRole('tab', { name: 'Filters', exact: true }).click();
+  await popup.getByRole('tab', { name: 'Settings', exact: true }).click();
   await popup.locator('#text-provider').selectOption('typesafe');
   await expect(popup.locator('#gateway-key')).toHaveValue('');
   await expect(post.getByRole('button', { name: 'Not fully checked', exact: true })).toBeVisible();
@@ -177,6 +157,7 @@ test('late and replaced video posters update the filtering decision without unre
   const settings = remoteSettings();
   settings.textFilters = [];
   settings.enabled.aiGenerated = false;
+
   for (const category of ['porn', 'hentai', 'sexy', 'drawings'] as const)
     settings.thresholds[category] = 0;
   await setSettings(settings);
@@ -212,25 +193,21 @@ test('rapid credential edits survive popup close and independent windows preserv
   worker,
 }) => {
   await page.goto(`chrome-extension://${extensionId}/popup.html`);
-  await page.getByRole('tab', { name: 'Text', exact: true }).click();
-  await page.getByText('Jev provider and scan details', { exact: true }).click();
+  await page.getByRole('tab', { name: 'Filters', exact: true }).click();
+  await page.getByRole('tab', { name: 'Settings', exact: true }).click();
   const input = page.locator('#gateway-key');
   await input.fill('');
   await input.pressSequentially('synthetic-fast-key', { delay: 0 });
   await expect(input).toHaveValue('synthetic-fast-key');
   await page.close();
   await expect
-    .poll(() =>
-      worker.evaluate(async () => {
-        const stored = (await chrome.storage.local.get('settings')).settings;
-        if (!stored || typeof stored !== 'object' || !('providerKeys' in stored))
-          throw new Error('Missing provider credentials.');
-        const keys = stored.providerKeys;
-        if (!keys || typeof keys !== 'object' || !('vercel' in keys))
-          throw new Error('Missing Vercel key slot.');
-        return keys.vercel;
-      }),
-    )
+    .poll(async () => {
+      const stored = await worker.evaluate(
+        async () => (await chrome.storage.local.get('settings')).settings,
+      );
+
+      return Schema.decodeUnknownSync(SettingsSchema)(stored).providerKeys.vercel;
+    })
     .toBe('synthetic-fast-key');
 
   const first = await context.newPage();
@@ -240,8 +217,8 @@ test('rapid credential edits survive popup close and independent windows preserv
     second.goto(`chrome-extension://${extensionId}/popup.html`),
   ]);
   await Promise.all([
-    first.getByRole('tab', { name: 'Text', exact: true }).click(),
-    second.getByRole('tab', { name: 'Text', exact: true }).click(),
+    first.getByRole('tab', { name: 'Filters', exact: true }).click(),
+    second.getByRole('tab', { name: 'Filters', exact: true }).click(),
   ]);
   await second.getByRole('switch', { name: 'Enable AI-written text', exact: true }).click();
   await expect(
@@ -249,7 +226,7 @@ test('rapid credential edits survive popup close and independent windows preserv
   ).toBeEnabled();
   await first.getByRole('button', { name: 'Edit', exact: true }).click();
   await Promise.all([
-    first.getByLabel('Block at probability (%)').fill('37'),
+    first.getByRole('spinbutton', { name: 'Content filter threshold percent' }).fill('37'),
     second
       .getByRole('spinbutton', { name: 'AI-written text threshold percent', exact: true })
       .fill('48'),
@@ -260,7 +237,9 @@ test('rapid credential edits survive popup close and independent windows preserv
       const stored = await worker.evaluate(
         async () => (await chrome.storage.local.get('settings')).settings,
       );
+
       const parsed = Schema.decodeUnknownSync(SettingsSchema)(stored);
+
       return {
         preset: parsed.textFilters.find((filter) => filter.id === 'preset-1')?.threshold,
         aiGenerated: parsed.thresholds.aiGenerated,

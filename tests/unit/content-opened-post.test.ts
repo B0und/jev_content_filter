@@ -61,12 +61,15 @@ describe('opened post', () => {
   it('leaves the opened post and its link preview alone', async () => {
     const test = await startRuntime();
     test.bg.respond = explicit;
+
     const article = buildTweetArticle({
       id: '2022',
       text: 'an ordinary link',
       previewText: 'explicit preview text',
     });
+
     const card = article.querySelector<HTMLElement>('[data-testid="card.wrapper"]');
+
     if (!card) throw new Error('card wrapper missing');
     window.history.replaceState({}, '', '/user/status/2022');
     test.handle.discover();
@@ -87,6 +90,7 @@ describe('opened post', () => {
     test.handle.discover();
     await until(() => test.bg.jevCalls.length === 1);
     const post = posts.get('2023');
+
     if (!post) throw new Error('post missing from runtime state');
     article.remove();
     response.resolve(explicit());

@@ -2,7 +2,9 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { recognizeOcrImage } from '../../src/inference/ocr-image';
 
 const close = vi.fn();
+
 const image = new Blob(['test image']);
+
 const reading = (text: string, confidence: number) => ({ data: { text, confidence } });
 
 beforeEach(() => {
@@ -25,6 +27,7 @@ beforeEach(() => {
     },
   );
 });
+
 afterEach(() => vi.unstubAllGlobals());
 
 it('retains dim first-pass wording when the clearer reading omits it', async () => {
@@ -32,6 +35,7 @@ it('retains dim first-pass wording when the clearer reading omits it', async () 
     .fn()
     .mockResolvedValueOnce(reading('nude photos\nWelcome home', 60))
     .mockResolvedValueOnce(reading('Welcome home', 95));
+
   const text = await recognizeOcrImage({ recognize }, image);
   expect(text).toContain('nude photos\nWelcome home');
   expect(text).toContain('Welcome home');
@@ -43,6 +47,7 @@ it('keeps successful text and releases the worker if the retry rejects', async (
     .fn()
     .mockResolvedValueOnce(reading('nude photos', 60))
     .mockRejectedValueOnce(new Error('OCR child worker crashed'));
+
   const release = vi.fn().mockResolvedValue(undefined);
   await expect(recognizeOcrImage({ recognize }, image, release)).resolves.toBe('nude photos');
   expect(release).toHaveBeenCalledOnce();
@@ -68,6 +73,7 @@ it('does not duplicate an unchanged reading', async () => {
     .fn()
     .mockResolvedValueOnce(reading('nude photos', 60))
     .mockResolvedValueOnce(reading('nude photos', 95));
+
   await expect(recognizeOcrImage({ recognize }, image)).resolves.toBe('nude photos');
 });
 
@@ -76,5 +82,6 @@ it('does not add a less confident alternate reading', async () => {
     .fn()
     .mockResolvedValueOnce(reading('nude photos', 60))
     .mockResolvedValueOnce(reading('Welcome home', 30));
+
   await expect(recognizeOcrImage({ recognize }, image)).resolves.toBe('nude photos');
 });

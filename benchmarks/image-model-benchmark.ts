@@ -1,3 +1,5 @@
+import { Predicate } from 'effect';
+import * as Schema from 'effect/Schema';
 import { pipeline, env as transformersEnv } from '@huggingface/transformers';
 import * as ort from 'onnxruntime-web/wasm';
 import * as tf from '@tensorflow/tfjs';
@@ -7,13 +9,21 @@ import { ANIME_RATING_MODEL, SELECTED_MODELS } from '../src/inference/model-cata
 import { loadImageModel } from '../src/inference/image';
 
 const FIXTURES_URL = '/image-model-fixtures.json';
+
 const SMALL_MODEL_URL = '/__benchmark_model/mobilenetv4.onnx';
+
 const SMALL_MODEL_LABELS = ['drawings', 'hentai', 'neutral', 'porn', 'sexy'] as const;
+
 const IMAGE_SIZE = 224;
+
 const RESIZE_EDGE = Math.round(IMAGE_SIZE / 0.875);
+
 const IMAGE_MEAN = [0.485, 0.456, 0.406] as const;
+
 const IMAGE_STD = [0.229, 0.224, 0.225] as const;
+
 const NSFWJS_CLASSES = ['drawings', 'hentai', 'neutral', 'porn', 'sexy'] as const;
+
 const NSFWJS_MODEL_BYTES = 3_600_073;
 
 interface FixtureCase {
@@ -22,20 +32,6 @@ interface FixtureCase {
   labels: { contentMatch: 'yes' | 'no' };
   category: string;
   assetFile: string;
-}
-
-interface FixtureManifest {
-  corpusId: string;
-  split: { name: string; seed: string; method: string };
-  cases: FixtureCase[];
-  selectionRule: {
-    revision: string;
-    expectedFilenames: string[];
-    labelKey: string;
-    labelValue: string;
-    sortKey: string;
-    count: number;
-  };
 }
 
 type PredictionCase = {
@@ -62,8 +58,31 @@ type ModelRun = {
   preprocessing?: string;
 };
 
-function setResult(state: 'running' | 'done' | 'failed', value: unknown) {
+interface BenchmarkEnvironment {
+  browser: string;
+  hardwareConcurrency: number;
+  crossOriginIsolated: boolean;
+  tfjsVersion: string;
+  tfjsBackend: string;
+  transformersJsVersion: string;
+  onnxRuntimeWebVersion: string | undefined;
+  wasmThreads: number;
+  caseCount: number;
+}
+
+function setResult(
+  state: 'running' | 'done' | 'failed',
+  value:
+    | { error: string; stack?: string | undefined }
+    | {
+        corpusId: string;
+        split: { name: string; seed: string; method: string };
+        environment: BenchmarkEnvironment;
+        models: ModelRun[];
+      },
+) {
   const element = document.querySelector<HTMLPreElement>('#result');
+
   if (!element) throw new Error('Missing result element');
   element.dataset.state = state;
   element.textContent = JSON.stringify(value);
@@ -80,30 +99,38 @@ async function loadImage(caseId: string): Promise<HTMLImageElement> {
   image.decoding = 'async';
   image.src = `/__benchmark_asset/${encodeURIComponent(caseId)}`;
   await image.decode();
+
   return image;
 }
+
 function canvasInput(image: HTMLImageElement): HTMLCanvasElement {
   const canvas = document.createElement('canvas');
   canvas.width = image.naturalWidth;
   canvas.height = image.naturalHeight;
   const context = canvas.getContext('2d');
+
   if (!context) throw new Error('Could not create the Transformers.js input canvas');
   context.drawImage(image, 0, 0);
+
   return canvas;
 }
 
 function contentScoreFromFiveClass(scores: Record<string, number>): number {
   const porn = scores.porn;
-  if (typeof porn !== 'number') throw new Error("Model omitted required 'porn' label");
+
+  if (!Predicate.isNumber(porn)) throw new Error("Model omitted required 'porn' label");
   const hentai = scores.hentai;
-  if (typeof hentai !== 'number') throw new Error("Model omitted required 'hentai' label");
+
+  if (!Predicate.isNumber(hentai)) throw new Error("Model omitted required 'hentai' label");
   const sexy = scores.sexy;
-  if (typeof sexy !== 'number') throw new Error("Model omitted required 'sexy' label");
+
+  if (!Predicate.isNumber(sexy)) throw new Error("Model omitted required 'sexy' label");
+
   return porn + hentai + sexy;
 }
 
 function summarizePredictions(
-  cases: FixtureCase[],
+  cases: readonly FixtureCase[],
   raw: Array<{
     caseId: string;
     score: number;
@@ -113,6 +140,7 @@ function summarizePredictions(
 ): PredictionCase[] {
   return cases.map((item) => {
     const prediction = raw.find((candidate) => candidate.caseId === item.id);
+
     if (!prediction) {
       return {
         caseId: item.id,
@@ -124,7 +152,9 @@ function summarizePredictions(
         error: 'No prediction returned',
       };
     }
+
     const label = prediction.score >= 0.5 ? 'yes' : 'no';
+
     return {
       caseId: item.id,
       score: prediction.score,
@@ -136,16 +166,21 @@ function summarizePredictions(
   });
 }
 
-function firstCase(cases: FixtureCase[]): FixtureCase {
+function firstCase(cases: readonly FixtureCase[]): FixtureCase {
   const item = cases[0];
+
   if (!item) throw new Error('Image benchmark requires at least one fixture case.');
+
   return item;
 }
 
 function cubicWeight(x: number): number {
   const distance = Math.abs(x);
+
   if (distance < 1) return (1.5 * distance - 2.5) * distance * distance + 1;
+
   if (distance < 2) return ((-0.5 * distance + 2.5) * distance - 4) * distance + 2;
+
   return 0;
 }
 
@@ -153,18 +188,22 @@ function axisWeights(sourceLength: number, targetLength: number) {
   const scale = sourceLength / targetLength;
   const filterScale = Math.max(1, scale);
   const support = 2 * filterScale;
+
   return Array.from({ length: targetLength }, (_, outputIndex) => {
     const center = (outputIndex + 0.5) * scale;
     const first = Math.max(0, Math.ceil(center - support - 0.5));
     const last = Math.min(sourceLength - 1, Math.floor(center + support - 0.5));
     const samples: Array<{ index: number; weight: number }> = [];
     let total = 0;
+
     for (let sourceIndex = first; sourceIndex <= last; sourceIndex += 1) {
       const weight = cubicWeight((sourceIndex + 0.5 - center) / filterScale);
+
       if (weight === 0) continue;
       samples.push({ index: sourceIndex, weight });
       total += weight;
     }
+
     return samples.map(({ index, weight }) => ({ index, weight: weight / total }));
   });
 }
@@ -184,6 +223,7 @@ function resizeBicubic(
   for (let y = 0; y < sourceHeight; y += 1) {
     for (let x = 0; x < width; x += 1) {
       const targetOffset = (y * width + x) * 3;
+
       for (const { index, weight } of horizontalWeights[x]!) {
         const sourceOffset = (y * sourceWidth + index) * 4;
         horizontal[targetOffset] = horizontal[targetOffset]! + rgb[sourceOffset]! * weight;
@@ -198,6 +238,7 @@ function resizeBicubic(
   for (let y = 0; y < height; y += 1) {
     for (let x = 0; x < width; x += 1) {
       const targetOffset = (y * width + x) * 3;
+
       for (const { index, weight } of verticalWeights[y]!) {
         const sourceOffset = (index * width + x) * 3;
         output[targetOffset] = output[targetOffset]! + horizontal[sourceOffset]! * weight;
@@ -208,6 +249,7 @@ function resizeBicubic(
       }
     }
   }
+
   return output;
 }
 
@@ -220,14 +262,17 @@ function prepareMobileNetV4Input(image: HTMLImageElement): ort.Tensor {
   sourceCanvas.width = image.naturalWidth;
   sourceCanvas.height = image.naturalHeight;
   const sourceContext = sourceCanvas.getContext('2d', { willReadFrequently: true });
+
   if (!sourceContext) throw new Error('Could not create source canvas context');
   sourceContext.drawImage(image, 0, 0);
+
   const sourcePixels = sourceContext.getImageData(
     0,
     0,
     image.naturalWidth,
     image.naturalHeight,
   ).data;
+
   const resized = resizeBicubic(
     sourcePixels,
     image.naturalWidth,
@@ -235,6 +280,7 @@ function prepareMobileNetV4Input(image: HTMLImageElement): ort.Tensor {
     width,
     height,
   );
+
   const left = Math.floor((width - IMAGE_SIZE) / 2);
   const top = Math.floor((height - IMAGE_SIZE) / 2);
   const planar = new Float32Array(3 * IMAGE_SIZE * IMAGE_SIZE);
@@ -243,6 +289,7 @@ function prepareMobileNetV4Input(image: HTMLImageElement): ort.Tensor {
     for (let x = 0; x < IMAGE_SIZE; x += 1) {
       const sourceOffset = ((y + top) * width + x + left) * 3;
       const targetOffset = y * IMAGE_SIZE + x;
+
       for (let channel = 0; channel < 3; channel += 1) {
         const value = resized[sourceOffset + channel]! / 255;
         planar[channel * IMAGE_SIZE * IMAGE_SIZE + targetOffset] =
@@ -250,6 +297,7 @@ function prepareMobileNetV4Input(image: HTMLImageElement): ort.Tensor {
       }
     }
   }
+
   return new ort.Tensor('float32', planar, [3, IMAGE_SIZE, IMAGE_SIZE]);
 }
 
@@ -257,35 +305,43 @@ function softmax(values: ArrayLike<number>): Record<string, number> {
   const maximum = Math.max(...Array.from(values));
   const exponents = Array.from(values, (value) => Math.exp(value - maximum));
   const denominator = exponents.reduce((sum, value) => sum + value, 0);
+
   return Object.fromEntries(
     SMALL_MODEL_LABELS.map((label, index) => [label, exponents[index]! / denominator]),
   );
 }
 
 async function runNsfwjs(
-  cases: FixtureCase[],
+  cases: readonly FixtureCase[],
   images: Map<string, HTMLImageElement>,
 ): Promise<ModelRun> {
   const start = performance.now();
+
   const model = await loadNsfwCore('MobileNetV2', {
     size: 224,
     modelDefinitions: [MobileNetV2Model],
   });
+
   const loadingMs = performance.now() - start;
 
   const predictOne = async (item: FixtureCase) => {
     const tensor = tf.browser.fromPixels(images.get(item.id)!, 3);
+
     try {
       const predictions = await model.classify(tensor);
+
       const scores = Object.fromEntries(
         predictions.map(({ className, probability }) => [
           className.toLowerCase() === 'drawing' ? 'drawings' : className.toLowerCase(),
           probability,
         ]),
       );
+
       for (const className of NSFWJS_CLASSES) {
-        if (typeof scores[className] !== 'number') throw new Error(`NSFWJS omitted '${className}'`);
+        if (!Predicate.isNumber(scores[className]))
+          throw new Error(`NSFWJS omitted '${className}'`);
       }
+
       return scores;
     } finally {
       tensor.dispose();
@@ -296,6 +352,7 @@ async function runNsfwjs(
   await predictOne(firstCase(cases));
   const warmupMs = performance.now() - warmupStart;
   const raw = [];
+
   for (const item of cases) {
     const started = performance.now();
     const scores = await predictOne(item);
@@ -308,7 +365,9 @@ async function runNsfwjs(
     });
     await waitForFrame();
   }
+
   model.dispose();
+
   return {
     id: 'nsfwjs-mobilenet-v2',
     name: 'NSFWJS MobileNetV2 baseline',
@@ -325,11 +384,12 @@ async function runNsfwjs(
 }
 
 async function runMobileNetV4(
-  cases: FixtureCase[],
+  cases: readonly FixtureCase[],
   images: Map<string, HTMLImageElement>,
 ): Promise<ModelRun> {
   const start = performance.now();
   const response = await fetch(SMALL_MODEL_URL);
+
   if (!response.ok)
     throw new Error(`Could not load local MobileNetV4 ONNX: HTTP ${response.status}`);
   const modelBytes = await response.arrayBuffer();
@@ -338,19 +398,24 @@ async function runMobileNetV4(
   const session = await ort.InferenceSession.create(modelBytes, { executionProviders: ['wasm'] });
   const loadingMs = performance.now() - start;
   const inputName = session.inputNames[0];
+
   if (!inputName) throw new Error('ONNX model omitted an input name.');
   const outputName = session.outputNames[0];
+
   if (!outputName) throw new Error('ONNX model omitted an output name.');
 
   const predictOne = async (item: FixtureCase) => {
     const input = prepareMobileNetV4Input(images.get(item.id)!);
     const result = await session.run({ [inputName]: input });
     const output = result[outputName];
+
     if (!output) throw new Error(`ONNX model omitted output '${outputName}'`);
-    const values = Array.from(output.data as ArrayLike<number>);
+    const values = Array.from(output.data, Number);
+
     if (values.length !== SMALL_MODEL_LABELS.length) {
       throw new Error(`Expected five class logits, received ${values.length}`);
     }
+
     return softmax(values);
   };
 
@@ -358,6 +423,7 @@ async function runMobileNetV4(
   await predictOne(firstCase(cases));
   const warmupMs = performance.now() - warmupStart;
   const raw = [];
+
   for (const item of cases) {
     const started = performance.now();
     const scores = await predictOne(item);
@@ -370,7 +436,9 @@ async function runMobileNetV4(
     });
     await waitForFrame();
   }
+
   await session.release();
+
   return {
     id: 'taufiqdp-mobilenetv4-conv-small',
     name: 'MobileNetV4 Conv Small NSFW classifier',
@@ -387,10 +455,11 @@ async function runMobileNetV4(
 }
 
 async function runTransformersJs(
-  cases: FixtureCase[],
+  cases: readonly FixtureCase[],
   images: Map<string, HTMLImageElement>,
 ): Promise<ModelRun> {
   const start = performance.now();
+
   const classifier = await pipeline(
     'image-classification',
     'onnx-community/nsfw_image_detection-ONNX',
@@ -399,6 +468,7 @@ async function runTransformersJs(
       dtype: 'q4',
     },
   );
+
   const loadingMs = performance.now() - start;
 
   const predictOne = async (item: FixtureCase) => {
@@ -407,9 +477,11 @@ async function runTransformersJs(
         ({ label, score }) => [label.toLowerCase(), score],
       ),
     );
-    if (typeof scores.nsfw !== 'number' || typeof scores.normal !== 'number') {
+
+    if (!Predicate.isNumber(scores.nsfw) || !Predicate.isNumber(scores.normal)) {
       throw new Error('Expected `normal` and `nsfw` output labels');
     }
+
     return scores;
   };
 
@@ -417,6 +489,7 @@ async function runTransformersJs(
   await predictOne(firstCase(cases));
   const warmupMs = performance.now() - warmupStart;
   const raw = [];
+
   for (const item of cases) {
     const started = performance.now();
     const scores = await predictOne(item);
@@ -424,7 +497,9 @@ async function runTransformersJs(
     raw.push({ caseId: item.id, score: scores.nsfw!, rawScores: scores, latencyMs });
     await waitForFrame();
   }
+
   await classifier.dispose();
+
   return {
     id: 'onnx-community-falconsai-nsfw-q4',
     name: 'Falconsai NSFW image detector (q4 ONNX)',
@@ -456,13 +531,14 @@ type RawFourImageScores = {
 
 function readFourImageScores(scores: RawFourImageScores): FourImageScores {
   if (
-    typeof scores.porn !== 'number' ||
-    typeof scores.hentai !== 'number' ||
-    typeof scores.sexy !== 'number' ||
-    typeof scores.drawings !== 'number'
+    !Predicate.isNumber(scores.porn) ||
+    !Predicate.isNumber(scores.hentai) ||
+    !Predicate.isNumber(scores.sexy) ||
+    !Predicate.isNumber(scores.drawings)
   ) {
     throw new Error('The deferred image adapter omitted a category score.');
   }
+
   return {
     porn: scores.porn,
     hentai: scores.hentai,
@@ -472,17 +548,19 @@ function readFourImageScores(scores: RawFourImageScores): FourImageScores {
 }
 
 async function runStaticNsfwjs(
-  cases: FixtureCase[],
+  cases: readonly FixtureCase[],
   images: Map<string, HTMLImageElement>,
 ): Promise<ModelRun> {
   const selected = SELECTED_MODELS.image;
   const loadStart = performance.now();
   let progressBytes = 0;
   let progressTotal = 0;
+
   const classify = await loadImageModel((loaded, total) => {
     progressBytes = loaded;
     progressTotal = total;
   });
+
   if (
     progressBytes !== selected.downloadBytes ||
     progressTotal !== selected.downloadBytes + ANIME_RATING_MODEL.downloadBytes
@@ -491,16 +569,20 @@ async function runStaticNsfwjs(
       'The deferred image adapter did not report completion for its pinned model files.',
     );
   }
+
   const loadingMs = performance.now() - loadStart;
 
   const predictOne = async (item: FixtureCase) => {
     const image = images.get(item.id);
+
     if (!image) throw new Error(`Missing loaded image '${item.id}'.`);
     const dataUrl = canvasInput(image).toDataURL('image/png');
     const started = performance.now();
     const result = await classify(dataUrl);
+
     if (result.warning) throw new Error(result.warning);
     const scores = readFourImageScores(result.scores);
+
     return {
       score: scores.porn + scores.hentai + scores.sexy,
       rawScores: scores,
@@ -512,11 +594,13 @@ async function runStaticNsfwjs(
   await predictOne(firstCase(cases));
   const warmupMs = performance.now() - warmupStart;
   const raw = [];
+
   for (const item of cases) {
     const result = await predictOne(item);
     raw.push({ caseId: item.id, ...result });
     await waitForFrame();
   }
+
   return {
     id: 'nsfwjs-mobilenet-v2-static',
     name: 'NSFWJS MobileNetV2 (pinned static weights; deferred fetch)',
@@ -548,6 +632,7 @@ function failureMetadataForRunner(
       quantization: 'float32 TensorFlow.js graph model',
     };
   }
+
   if (runner === runMobileNetV4) {
     return {
       id: 'taufiqdp-mobilenetv4-conv-small',
@@ -557,6 +642,7 @@ function failureMetadataForRunner(
       quantization: 'unquantized ONNX float32',
     };
   }
+
   if (runner === runTransformersJs) {
     return {
       id: 'onnx-community-falconsai-nsfw-q4',
@@ -566,6 +652,7 @@ function failureMetadataForRunner(
       quantization: 'q4 ONNX',
     };
   }
+
   if (runner === runStaticNsfwjs) {
     return {
       id: 'nsfwjs-mobilenet-v2-static',
@@ -575,19 +662,47 @@ function failureMetadataForRunner(
       quantization: 'float32 TensorFlow.js layers weights',
     };
   }
+
   throw new Error('Unknown image benchmark runner');
 }
 
 async function main() {
   const manifestResponse = await fetch(FIXTURES_URL);
+
   if (!manifestResponse.ok)
     throw new Error(`Fixture manifest returned HTTP ${manifestResponse.status}`);
-  const manifest = (await manifestResponse.json()) as FixtureManifest;
+
+  const manifest = Schema.decodeUnknownSync(
+    Schema.Struct({
+      corpusId: Schema.String,
+      split: Schema.Struct({ name: Schema.String, seed: Schema.String, method: Schema.String }),
+      cases: Schema.Array(
+        Schema.Struct({
+          id: Schema.String,
+          title: Schema.String,
+          labels: Schema.Struct({ contentMatch: Schema.Literals(['yes', 'no']) }),
+          category: Schema.String,
+          assetFile: Schema.String,
+        }),
+      ),
+      selectionRule: Schema.Struct({
+        revision: Schema.String,
+        expectedFilenames: Schema.Array(Schema.String),
+        labelKey: Schema.String,
+        labelValue: Schema.String,
+        sortKey: Schema.String,
+        count: Schema.Finite,
+      }),
+    }),
+  )(await manifestResponse.json());
+
   const decoded = await Promise.all(
     manifest.cases.map(async (item) => [item.id, await loadImage(item.id)] as const),
   );
+
   const images = new Map(decoded);
   await tf.ready();
+
   const environment = {
     browser: navigator.userAgent,
     hardwareConcurrency: navigator.hardwareConcurrency,
@@ -599,13 +714,16 @@ async function main() {
     wasmThreads: 1,
     caseCount: manifest.cases.length,
   };
+
   const models: ModelRun[] = [];
+
   for (const runner of [runNsfwjs, runMobileNetV4, runTransformersJs, runStaticNsfwjs]) {
     try {
       models.push(await runner(manifest.cases, images));
     } catch (error) {
       const errorMessage =
         error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+
       models.push({
         ...failureMetadataForRunner(runner),
         runtime: 'Chromium browser inference',
@@ -624,6 +742,7 @@ async function main() {
       });
     }
   }
+
   setResult('done', {
     corpusId: manifest.corpusId,
     split: manifest.split,

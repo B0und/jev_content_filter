@@ -33,14 +33,18 @@ test('recovers outlined sexual wording inside an image through the installed ext
   });
   const popup = await context.newPage();
   await popup.goto(`chrome-extension://${extensionId}/popup.html`);
+
   const reply: unknown = await popup.evaluate(() =>
     chrome.runtime.sendMessage({
       type: 'extract-image-text',
       url: 'https://pbs.twimg.com/media/outlined-ocr.png',
     }),
   );
-  expect(Schema.decodeUnknownSync(OcrReplyCodec)(reply)).toMatchObject({
-    _tag: 'Success',
+
+  const result = Schema.decodeUnknownSync(OcrReplyCodec)(reply);
+
+  expect(result._tag).toBe('Success');
+  expect(result).toMatchObject({
     success: expect.stringContaining('SEND NUDES'),
   });
   await page.goto('https://x.com/home');
@@ -69,14 +73,17 @@ test('reads Russian and English screenshot text locally and filters an innocent 
   test.setTimeout(60_000);
   const settings = remoteSettings();
   settings.providerKeys.vercel = 'test-only-not-a-real-key';
+
   for (const key of ['porn', 'hentai', 'sexy', 'drawings'] as const) settings.enabled[key] = false;
   await setSettings(settings);
   await page.goto('https://x.com/home');
+
   const image = await page.evaluate(() => {
     const canvas = document.createElement('canvas');
     canvas.width = 1100;
     canvas.height = 420;
     const ctx = canvas.getContext('2d');
+
     if (!ctx) throw new Error('Canvas unavailable');
     ctx.fillStyle = '#242424';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -86,8 +93,10 @@ test('reads Russian and English screenshot text locally and filters an innocent 
     ctx.fillText('стесняется сосать твой член, но', 30, 150);
     ctx.fillText('стесняется показать сиськи?', 30, 210);
     ctx.fillText('English screenshot text', 30, 290);
+
     return canvas.toDataURL();
   });
+
   await context.route('https://pbs.twimg.com/media/ocr-example*', (route) =>
     route.fulfill({ contentType: 'image/png', body: Buffer.from(image.split(',')[1]!, 'base64') }),
   );
@@ -111,15 +120,18 @@ test('reads Russian and English screenshot text locally and filters an innocent 
   });
   const popup = await context.newPage();
   await popup.goto(`chrome-extension://${extensionId}/popup.html`);
+
   const reply: unknown = await popup.evaluate(async () =>
     chrome.runtime.sendMessage({
       type: 'extract-image-text',
       url: 'https://pbs.twimg.com/media/ocr-example.png',
     }),
   );
+
   const result = Schema.decodeUnknownSync(OcrReplyCodec)(reply);
+
+  expect(result._tag).toBe('Success');
   expect(result).toMatchObject({
-    _tag: 'Success',
     success: expect.stringContaining('сосать твой член'),
   });
   expect(result).toMatchObject({ success: expect.stringContaining('English screenshot text') });
