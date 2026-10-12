@@ -5,7 +5,7 @@ import { access, mkdir, readFile, rename, stat, writeFile } from 'node:fs/promis
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { chromium } from 'playwright';
+import { chromium } from '@playwright/test';
 import { createServer } from 'vite';
 
 const benchmarkDirectory = path.dirname(fileURLToPath(import.meta.url));

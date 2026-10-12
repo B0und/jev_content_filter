@@ -1,5 +1,5 @@
 import { build } from 'vite';
-import { chromium } from 'playwright';
+import { chromium } from '@playwright/test';
 import puppeteer from 'puppeteer-core';
 import { mkdir, writeFile, readdir, stat, copyFile } from 'node:fs/promises';
 import path from 'node:path';

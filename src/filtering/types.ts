@@ -19,7 +19,7 @@ export function textDecisionSignature(filters: TextFilter[]): string {
       .sort((a, b) => a.id.localeCompare(b.id)),
   );
 }
-export function textFilterKey(id: string): `custom:${string}` {
+function textFilterKey(id: string): `custom:${string}` {
   return `custom:${id}`;
 }
 export function scoreLabel(key: string, filters: TextFilter[] = []): string {
@@ -117,7 +117,6 @@ export type JevReply =
       revision: number;
     }
   | { ok: false; error: string; stale?: boolean };
-export type SettingsReply = { ok: true; settings: Settings } | { ok: false; error: string };
 export const STORAGE_KEYS = {
   settings: 'settings',
   log: 'blockedLog',

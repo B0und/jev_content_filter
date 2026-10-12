@@ -12,7 +12,7 @@ const MAX_OCR_EDGE = 2048;
  * files are fetched on first use and retained by Tesseract.js in IndexedDB,
  * so adding another language does not add megabytes to the extension package.
  */
-export const OCR_LANGUAGES = ['eng', 'rus'];
+const OCR_LANGUAGES = ['eng', 'rus'];
 const OCR_LANG_PATH =
   'https://raw.githubusercontent.com/naptha/tessdata/806cd9adc8c6e8abc11c782db1818c990576bebc/4.0.0_best_int';
 let workerLanguages = '';

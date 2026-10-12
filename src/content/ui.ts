@@ -87,7 +87,7 @@ export function injectGlobalStyle(): void {
   document.head.append(globalStyle);
 }
 
-export function removeGlobalStyle(): void {
+function removeGlobalStyle(): void {
   globalStyle?.remove();
   globalStyle = null;
 }
@@ -155,7 +155,7 @@ export function createBinding(post: Post): Binding {
   return { post, host, root, button };
 }
 
-export function isDark(element: Element): boolean {
+function isDark(element: Element): boolean {
   const color = getComputedStyle(element).color;
   const parts = color.match(/\d+/g)?.slice(0, 3).map(Number) ?? [15, 20, 25];
   const [r = 15, g = 20, b = 25] = parts;

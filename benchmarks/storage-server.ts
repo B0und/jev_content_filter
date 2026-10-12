@@ -7,13 +7,8 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Plugin, ViteDevServer } from 'vite';
 import { initialBenchmarkState, normalizeBenchmarkState, type BenchmarkState } from './model';
 
-export const STORAGE_ENDPOINT = '/api/benchmark/state';
-export const DEFAULT_DATABASE_PATH = resolve(
-  process.cwd(),
-  'benchmarks',
-  '.data',
-  'benchmark.sqlite',
-);
+const STORAGE_ENDPOINT = '/api/benchmark/state';
+const DEFAULT_DATABASE_PATH = resolve(process.cwd(), 'benchmarks', '.data', 'benchmark.sqlite');
 
 export class SQLiteBenchmarkStore {
   private readonly database: DatabaseSync;

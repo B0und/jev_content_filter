@@ -18,9 +18,10 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "npm run build && playwright test && npm run test:agent-browser",
-    "check": "npm run compile && npm run lint && npm run doctor && npm run format:check && npm test && npm run test:e2e",
+    "check": "npm run compile && npm run lint && npm run doctor && npm run knip && npm run format:check && npm test && npm run test:e2e",
     "agent:browser": "node scripts/extension-agent.mjs",
-    "test:agent-browser": "node --test tests/agent/*.test.mjs"
+    "test:agent-browser": "node --test tests/agent/*.test.mjs",
+    "knip": "knip"
   },
   "dependencies": {
     "@ai-sdk/gateway": "4.0.104",
@@ -33,9 +34,11 @@
     "effect": "^4.0.0-rc.118",
     "image-dimensions": "2.6.0",
     "nsfwjs": "^4.4.0",
+    "onnxruntime-web": "1.31.0-dev.20260914-8d85527a0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "tesseract.js": "7.0.0"
+    "tesseract.js": "7.0.0",
+    "tesseract.js-core": "7.0.0"
   },
   "devDependencies": {
     "@babel/core": "^7.29.7",
@@ -54,6 +57,7 @@
     "babel-plugin-react-compiler": "^1.0.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "happy-dom": "^20.14.5",
+    "knip": "^6.41.0",
     "msw": "^3.0.1",
     "oxfmt": "^0.68.0",
     "oxlint": "1.83.0",
@@ -62,6 +66,7 @@
     "react-doctor": "^0.9.14",
     "scribe.js-ocr": "^0.16.1",
     "typescript": "7.0.2",
+    "vite": "8.3.0",
     "vitest": "^5.0.1",
     "wxt": "^0.21.4"
   },

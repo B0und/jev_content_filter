@@ -86,7 +86,7 @@ export const settings: { current: Settings } = { current: defaultSettings() };
  * opens over the timeline. Read from the live path at render time. The runtime
  * schedules a render on navigation even when X makes no DOM changes.
  */
-export function openedPostId(): string {
+function openedPostId(): string {
   return /\/status\/(\d+)/.exec(location.pathname)?.[1] ?? '';
 }
 

@@ -185,10 +185,13 @@ Sign in and configure the extension in that browser. The live profile is separat
 npm run compile
 npm run lint
 npm run doctor
+npm run knip
 npm run format:check
 npm test
 npm run test:e2e
 ```
+
+`npm run knip` finds unused files, exports, and dependencies. `knip.jsonc` lists WXT entry points, the inference worker, and standalone benchmark tools, with documented exceptions for packages served or copied as static assets.
 
 `npm run check` runs these checks together. `npm run test:e2e` builds the extension and runs Chromium scenarios. Browser tests download the pinned model weights from their real origins on a cold browser profile and reuse them from the profile's caches afterwards, so the suite needs network access for its first model load. Playwright routing intercepts provider and media requests, but not requests made by the offscreen inference document or its module worker, so it cannot substitute or block model downloads. Offline coverage closes the offscreen document, recreates its inference worker and graph, and classifies again; reusing cached weights before a fetch is covered by the download unit tests. Unit tests substitute external inference while exercising policy, storage, and lifecycle transitions.
 

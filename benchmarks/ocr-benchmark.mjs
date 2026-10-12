@@ -5,7 +5,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { chromium } from 'playwright';
+import { chromium } from '@playwright/test';
 import { createServer } from 'vite';
 
 const root = path.resolve(import.meta.dirname, '..');

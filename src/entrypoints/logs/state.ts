@@ -15,7 +15,7 @@ import { STORAGE_KEYS, type BlockedEntry, type FilterStatus } from '../../filter
 export type ClearAction = 'clear-log' | 'clear-errors';
 export type ErrorRow = ScanErrorEntry & { source: 'Scan' | 'Text API' };
 
-export interface LogsSnapshot {
+interface LogsSnapshot {
   log: BlockedEntry[];
   errors: ErrorRow[];
   unblocked: ReadonlySet<string>;

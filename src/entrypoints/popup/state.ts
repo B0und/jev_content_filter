@@ -19,7 +19,7 @@ import {
   type ModelKind,
 } from '../../inference/contracts';
 
-export interface PopupSnapshot {
+interface PopupSnapshot {
   settings: Settings | null;
   loadFailed: boolean;
   status: FilterStatus | null;
