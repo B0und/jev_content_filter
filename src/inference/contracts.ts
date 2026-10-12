@@ -28,7 +28,7 @@ const byteCount = Schema.Finite.check(Schema.isGreaterThanOrEqualTo(0));
 
 export const ModelKindSchema = Schema.Literals(['image', 'aiText']);
 
-export const ModelStatusSchema = Schema.Struct({
+const ModelStatusSchema = Schema.Struct({
   state: Schema.Literals(['idle', 'loading', 'ready', 'error']),
   loaded: byteCount,
   total: byteCount,

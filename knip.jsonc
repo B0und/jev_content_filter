@@ -1,0 +1,27 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
+  "entry": [
+    "src/entrypoints/*.ts",
+    "src/entrypoints/*/main.{ts,tsx}",
+    "src/inference/worker.ts",
+    "benchmarks/main.tsx",
+    "benchmarks/{image-model-benchmark.ts,ocr-extension-probe.js,ocr-runner.js,text-runner.js,sensitive-image-probe.mjs}",
+    "benchmarks/{image-model-benchmark,ocr-benchmark,ocr-extension-probe,ocr-installed,ocr-metrics,run-jev-comparison,run-sensitive-image-probe,text-playwright}.mjs",
+  ],
+  "project": ["**/*.{js,mjs,ts,tsx}"],
+  // Preserve upstream declarations in vendored lint rules.
+  "ignore": ["tools/oxlint/anti-slop/vendor/**"],
+  "vite": { "config": ["benchmarks/vite.config.ts"] },
+  // @effect/tsgo uses this editor plugin key; it does not load the package.
+  "ignoreDependencies": [
+    "@effect/language-service",
+    // WXT configures Babel inside react.vitePluginsBefore.
+    "babel-plugin-react-compiler",
+    // Browser fixtures serve these packages as static files.
+    "@tesseract.js-data/eng",
+    "@tesseract.js-data/rus",
+    "scribe.js-ocr",
+    // WXT copies the OCR WASM core and its license into the extension.
+    "tesseract.js-core",
+  ],
+}

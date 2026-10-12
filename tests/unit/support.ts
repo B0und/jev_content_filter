@@ -184,7 +184,7 @@ export function installFakeBackground(): FakeBackground {
   return bg;
 }
 
-export interface ContentHandle {
+interface ContentHandle {
   discover(): void;
   report(): TabReport;
 }

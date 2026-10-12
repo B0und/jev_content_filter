@@ -3,7 +3,7 @@ import * as Schema from 'effect/Schema';
 
 const HandleSchema = Schema.String.check(Schema.isPattern(/^[a-zA-Z0-9_]{1,15}$/));
 
-export const FollowStateSchema = Schema.Struct({
+const FollowStateSchema = Schema.Struct({
   handle: HandleSchema,
   following: Schema.Boolean,
 });

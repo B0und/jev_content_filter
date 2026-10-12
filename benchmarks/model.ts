@@ -19,7 +19,7 @@ export type ReviewVerdict = 'unreviewed' | 'right' | 'wrong';
 
 export type PredictionReview = Record<ScoreKey, ReviewVerdict>;
 
-export interface BenchmarkLabels {
+interface BenchmarkLabels {
   contentMatch: TruthValue;
   aiGenerated: TruthValue;
 }
@@ -58,7 +58,7 @@ export interface BenchmarkSolution {
   predictions: Record<string, Prediction>;
 }
 
-export interface BenchmarkThresholds {
+interface BenchmarkThresholds {
   contentMatch: number;
   aiGenerated: number;
   nsfwjs: number;
@@ -285,7 +285,7 @@ export function emptyPredictionReview(): PredictionReview {
   };
 }
 
-export function emptyPrediction(): Prediction {
+function emptyPrediction(): Prediction {
   return {
     contentMatch: null,
     aiGenerated: null,

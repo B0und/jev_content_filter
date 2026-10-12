@@ -22,7 +22,7 @@ export function textDecisionSignature(filters: TextFilter[]): string {
   );
 }
 
-export function textFilterKey(id: string): `custom:${string}` {
+function textFilterKey(id: string): `custom:${string}` {
   return `custom:${id}`;
 }
 
@@ -49,7 +49,7 @@ export function isTextProvider(value: unknown): value is TextProvider {
   return TEXT_PROVIDERS.some((provider) => provider === value);
 }
 
-export interface AuthorException {
+interface AuthorException {
   handle: string;
   categories: ScoreKey[];
 }
@@ -145,8 +145,6 @@ export type JevReply =
       revision: number;
     }
   | { ok: false; error: string; stale?: boolean };
-
-export type SettingsReply = { ok: true; settings: Settings } | { ok: false; error: string };
 
 export const STORAGE_KEYS = {
   settings: 'settings',

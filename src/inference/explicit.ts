@@ -5,7 +5,7 @@ import { EXPLICIT_IMAGE_MODEL } from './model-catalog';
 const SIZE = 384;
 
 /** Match Marqo's short-edge resize and center crop, with white-composited RGB. */
-export function explicitImageInput(bitmap: ImageBitmap): ort.Tensor {
+function explicitImageInput(bitmap: ImageBitmap): ort.Tensor {
   const scale = SIZE / Math.min(bitmap.width, bitmap.height);
   const width = Math.floor(bitmap.width * scale);
   const height = Math.floor(bitmap.height * scale);

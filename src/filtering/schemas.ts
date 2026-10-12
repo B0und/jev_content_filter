@@ -2,7 +2,7 @@ import * as Schema from 'effect/Schema';
 import { CATEGORY_KEYS, TEXT_PROVIDERS } from './types';
 import { ModelKindSchema, ModelStatusesSchema } from '../inference/contracts';
 
-export const CategoryKeySchema = Schema.Literals(CATEGORY_KEYS);
+const CategoryKeySchema = Schema.Literals(CATEGORY_KEYS);
 
 export const ScoreKeySchema = Schema.Union([
   CategoryKeySchema,
@@ -11,7 +11,7 @@ export const ScoreKeySchema = Schema.Union([
   ),
 ]);
 
-export const TextProviderSchema = Schema.Literals(TEXT_PROVIDERS);
+const TextProviderSchema = Schema.Literals(TEXT_PROVIDERS);
 
 const probability = Schema.Number.check(
   Schema.isFinite(),
@@ -47,7 +47,7 @@ export const SettingsSchema = Schema.Struct({
   thresholds: Schema.Record(CategoryKeySchema, probability),
 });
 
-export const SettingsChangeSchema = Schema.Union([
+const SettingsChangeSchema = Schema.Union([
   Schema.Struct({
     field: Schema.Literal('authorException'),
     handle: AuthorHandleSchema,

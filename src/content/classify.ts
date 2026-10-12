@@ -144,7 +144,7 @@ export const readCache = Effect.fnUntraced(function* (key: string) {
   return value;
 });
 
-export const writeCache = Effect.fnUntraced(function* (
+const writeCache = Effect.fnUntraced(function* (
   key: string,
   scores: Partial<Record<ScoreKey, number>>,
 ) {
